@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registration - Promoter Details - Online Art Festival</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        /* Base Styles */
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        .registration-container {
+            width: 100%;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .registration-modal {
+            width: 80%;
+            max-width: 800px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .registration-header {
+            background-color: #055474;
+            color: white;
+            padding: 15px 20px;
+            position: relative;
+            text-align: center;
+        }
+        .registration-header h2 {
+            margin: 0;
+        }
+        .registration-content {
+            padding: 20px;
+        }
+        .registration-footer {
+            padding: 15px 20px;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: #055474;
+            outline: none;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button.btn-cancel {
+            background-color: #6c757d;
+        }
+        button.btn-cancel:hover {
+            background-color: #5a6268;
+        }
+        button.btn-back {
+            background-color: #6c757d;
+        }
+        button.btn-back:hover {
+            background-color: #5a6268;
+        }
+        .btn-next {
+            min-width: 100px;
+        }
+        .required-field::after {
+            content: "*";
+            color: red;
+            margin-left: 4px;
+        }
+        .progress-container {
+            margin-bottom: 20px;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background-color: #e9ecef;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #055474;
+            transition: width 0.3s ease;
+            width: 80%; /* Step 4 of 5 */
+        }
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            padding: 0 10px;
+        }
+        .progress-step {
+            font-size: 12px;
+            color: #777;
+        }
+        .tooltip {
+            display: inline-block;
+            margin-left: 5px;
+            position: relative;
+            cursor: pointer;
+        }
+        .tooltip i {
+            color: #777;
+            font-size: 14px;
+        }
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            width: 200px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 4px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        .field-validation-error {
+            color: red;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+        .field-info-icon {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: #777;
+            color: white;
+            text-align: center;
+            line-height: 16px;
+            font-size: 12px;
+            margin-left: 5px;
+            cursor: help;
+        }
+        
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .registration-modal {
+                width: 95%;
+            }
+        }
+        
+        .save-progress {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        .save-progress a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .save-progress a:hover {
+            text-decoration: underline;
+        }
+        
+        .address-section {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+            background-color: #f9f9f9;
+        }
+        
+        .address-section h4 {
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        
+        .social-media-section {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+            background-color: #f9f9f9;
+        }
+        
+        .social-media-section h4 {
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="registration-container">
+        <div class="registration-modal">
+            <div class="registration-header">
+                <h2>Join the Online Art Festival</h2>
+            </div>
+            
+            <div class="registration-content">
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-bar-fill"></div>
+                    </div>
+                    <div class="progress-steps">
+                        <div class="progress-step">User Type</div>
+                        <div class="progress-step">Account</div>
+                        <div class="progress-step">Basic Profile</div>
+                        <div class="progress-step"><strong>Specific Details</strong></div>
+                        <div class="progress-step">Complete</div>
+                    </div>
+                </div>
+                
+                <form id="promoter-form" method="POST" action="/users/register/promoter-specific">
+                    <h3>Promoter Profile Details</h3>
+                    <p>Tell us about your business and the types of art events you promote.</p>
+                    
+                    <div class="form-group">
+                        <label for="promoter_business_name" class="required-field">Business Name</label>
+                        <input type="text" id="promoter_business_name" name="promoter_business_name" required placeholder="Your company or organization name">
+                        <div class="field-validation-error" id="business-name-error">Please enter your business name.</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="is_non_profit">Is your organization a non-profit?</label>
+                        <select id="is_non_profit" name="is_non_profit">
+                            <option value="yes">Yes</option>
+                            <option value="no" selected>No</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="artwork_description" class="required-field">Types of Art Events/Work</label>
+                        <textarea id="artwork_description" name="artwork_description" rows="4" required placeholder="Describe the types of art events, exhibitions, or artists you typically work with"></textarea>
+                        <div class="field-validation-error" id="artwork-description-error">Please describe your art events/work.</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="business_phone" class="required-field">Business Phone</label>
+                        <input type="tel" id="business_phone" name="business_phone" required placeholder="Your business contact number">
+                        <div class="field-validation-error" id="business-phone-error">Please enter your business phone number.</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="business_website">Business Website</label>
+                        <input type="url" id="business_website" name="business_website" placeholder="Your business website URL">
+                    </div>
+                    
+
+                    <div class="social-media-section">
+                        <h4>Business Social Media (Optional)</h4>
+                        <div class="form-group">
+                            <label for="business_social_facebook"><i class="fab fa-facebook"></i> Facebook</label>
+                            <input type="url" id="business_social_facebook" name="business_social_facebook" placeholder="Business Facebook page URL">
+                        </div>
+                        <div class="form-group">
+                            <label for="business_social_instagram"><i class="fab fa-instagram"></i> Instagram</label>
+                            <input type="url" id="business_social_instagram" name="business_social_instagram" placeholder="Business Instagram profile URL">
+                        </div>
+                        <div class="form-group">
+                            <label for="business_social_twitter"><i class="fab fa-twitter"></i> Twitter/X</label>
+                            <input type="url" id="business_social_twitter" name="business_social_twitter" placeholder="Business Twitter/X profile URL">
+                        </div>
+                        <div class="form-group">
+                            <label for="business_social_pinterest"><i class="fab fa-pinterest"></i> Pinterest</label>
+                            <input type="url" id="business_social_pinterest" name="business_social_pinterest" placeholder="Business Pinterest profile URL">
+                        </div>
+                        <div class="form-group">
+                            <label for="business_social_tiktok"><i class="fab fa-tiktok"></i> TikTok</label>
+                            <input type="url" id="business_social_tiktok" name="business_social_tiktok" placeholder="Business TikTok profile URL">
+                        </div>
+                    </div>
+                    
+                    <div class="address-section">
+                        <h4>Office Address</h4>
+                        <div class="form-group">
+                            <label for="office_address_line1" class="required-field">Address Line 1</label>
+                            <input type="text" id="office_address_line1" name="office_address_line1" required placeholder="Street address">
+                            <div class="field-validation-error" id="address-line1-error">Please enter your address.</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="office_address_line2">Address Line 2</label>
+                            <input type="text" id="office_address_line2" name="office_address_line2" placeholder="Suite, unit, etc.">
+                        </div>
+                        <div class="form-group">
+                            <label for="office_city" class="required-field">City</label>
+                            <input type="text" id="office_city" name="office_city" required placeholder="City">
+                            <div class="field-validation-error" id="city-error">Please enter your city.</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="office_state" class="required-field">State/Province</label>
+                            <input type="text" id="office_state" name="office_state" required placeholder="State/Province">
+                            <div class="field-validation-error" id="state-error">Please enter your state/province.</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="office_zip" class="required-field">ZIP/Postal Code</label>
+                            <input type="text" id="office_zip" name="office_zip" required placeholder="ZIP/Postal code">
+                            <div class="field-validation-error" id="zip-error">Please enter your ZIP/postal code.</div>
+                        </div>
+                    </div>
+                    
+                    <div class="save-progress">
+                        <a href="#" id="save-progress-link">Save progress and continue later</a>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="registration-footer">
+                <button type="button" class="btn-cancel" id="btn-cancel">Cancel</button>
+                <div>
+                    <button type="button" class="btn-back" id="btn-back">Back</button>
+                    <button type="button" class="btn-next" id="btn-next">Next</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const promoterForm = document.getElementById('promoter-form');
+            const btnNext = document.getElementById('btn-next');
+            const btnBack = document.getElementById('btn-back');
+            const btnCancel = document.getElementById('btn-cancel');
+            const saveProgressLink = document.getElementById('save-progress-link');
+            
+            // Pre-fill form fields if there are saved values in session
+            const urlParams = new URLSearchParams(window.location.search);
+            const businessName = urlParams.get('promoter_business_name');
+            const isNonProfit = urlParams.get('is_non_profit');
+            const artworkDesc = urlParams.get('artwork_description');
+            const businessPhone = urlParams.get('business_phone');
+            const businessWebsite = urlParams.get('business_website');
+            
+            if (businessName) document.getElementById('promoter_business_name').value = businessName;
+            if (isNonProfit) document.getElementById('is_non_profit').value = isNonProfit;
+            if (artworkDesc) document.getElementById('artwork_description').value = artworkDesc;
+            if (businessPhone) document.getElementById('business_phone').value = businessPhone;
+            if (businessWebsite) document.getElementById('business_website').value = businessWebsite;
+            
+            // Social media fields
+            const socialFields = ['business_social_facebook', 'business_social_instagram', 
+                                 'business_social_twitter', 'business_social_pinterest', 
+                                 'business_social_tiktok'];
+            
+            socialFields.forEach(field => {
+                const value = urlParams.get(field);
+                if (value) document.getElementById(field).value = value;
+            });
+            
+            // Address fields
+            const addressFields = ['office_address_line1', 'office_address_line2', 
+                                   'office_city', 'office_state', 'office_zip'];
+            
+            addressFields.forEach(field => {
+                const value = urlParams.get(field);
+                if (value) document.getElementById(field).value = value;
+            });
+            
+            // Next button action
+            btnNext.addEventListener('click', function() {
+                if (validateForm()) {
+                    promoterForm.submit();
+                }
+            });
+            
+            // Back button action
+            btnBack.addEventListener('click', function() {
+                window.location.href = '/users/register/basic-profile';
+            });
+            
+            // Cancel button action
+            btnCancel.addEventListener('click', function() {
+                if (confirm('Are you sure you want to cancel registration? All entered information will be lost.')) {
+                    window.location.href = '/';
+                }
+            });
+            
+            // Save progress link
+            saveProgressLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Collect form data
+                const formData = new FormData(promoterForm);
+                const userData = {
+                    step: 'promoter-specific',
+                    promoter_business_name: formData.get('promoter_business_name'),
+                    is_non_profit: formData.get('is_non_profit'),
+                    artwork_description: formData.get('artwork_description'),
+                    business_phone: formData.get('business_phone'),
+                    business_website: formData.get('business_website'),
+                    business_social_facebook: formData.get('business_social_facebook'),
+                    business_social_instagram: formData.get('business_social_instagram'),
+                    business_social_twitter: formData.get('business_social_twitter'),
+                    business_social_pinterest: formData.get('business_social_pinterest'),
+                    business_social_tiktok: formData.get('business_social_tiktok'),
+                    office_address_line1: formData.get('office_address_line1'),
+                    office_address_line2: formData.get('office_address_line2'),
+                    office_city: formData.get('office_city'),
+                    office_state: formData.get('office_state'),
+                    office_zip: formData.get('office_zip')
+                };
+                
+                // Send to server to save
+                fetch('/users/register/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(userData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Your progress has been saved. You can resume later using the link sent to your email.');
+                    } else {
+                        alert('There was an error saving your progress. Please try again.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error saving progress:', error);
+                    alert('There was an error saving your progress. Please try again.');
+                });
+            });
+            
+            function validateForm() {
+                let isValid = true;
+                
+                // Reset all validation errors
+                const errors = document.querySelectorAll('.field-validation-error');
+                errors.forEach(error => error.style.display = 'none');
+                
+                // Validate required fields
+                const businessName = document.getElementById('promoter_business_name').value;
+                if (!businessName) {
+                    document.getElementById('business-name-error').style.display = 'block';
+                    isValid = false;
+                }
+                
+                const artworkDesc = document.getElementById('artwork_description').value;
+                if (!artworkDesc) {
+                    document.getElementById('artwork-description-error').style.display = 'block';
+                    isValid = false;
+                }
+                
+                const businessPhone = document.getElementById('business_phone').value;
+                if (!businessPhone) {
+                    document.getElementById('business-phone-error').style.display = 'block';
+                    isValid = false;
+                }
+                
+                const addressLine1 = document.getElementById('office_address_line1').value;
+                if (!addressLine1) {
+                    document.getElementById('address-line1-error').style.display = 'block';
+                    isValid = false;
+                }
+                
+                const city = document.getElementById('office_city').value;
+                if (!city) {
+                    document.getElementById('city-error').style.display = 'block';
+                    isValid = false;
+                }
+                
+                const state = document.getElementById('office_state').value;
+                if (!state) {
+                    document.getElementById('state-error').style.display = 'block';
+                    isValid = false;
+                }
+                
+                const zip = document.getElementById('office_zip').value;
+                if (!zip) {
+                    document.getElementById('zip-error').style.display = 'block';
+                    isValid = false;
+                }
+                
+                return isValid;
+            }
+        });
+    </script>
+</body>
+</html>

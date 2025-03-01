@@ -1,0 +1,365 @@
+const express = require('express');
+const mysql = require('mysql2');
+const fs = require('fs');
+const path = require('path');
+const bcrypt = require('bcrypt');
+const crypto = require('crypto');
+const router = express.Router();
+
+// Create database connection
+const db = mysql.createConnection({
+    host: '10.128.0.31',
+    user: 'oafuser',
+    password: 'oafpass',
+    database: 'oaf'
+});
+
+// Create a connection pool for better performance
+const dbPool = mysql.createPool({
+    host: '10.128.0.31',
+    user: 'oafuser',
+    password: 'oafpass',
+    database: 'oaf',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
+});
+
+// Middleware to check if registration session exists
+const checkRegistrationSession = (req, res, next) => {
+    // Initialize registration session if it doesn't exist
+    if (!req.session.registration) {
+        req.session.registration = {};
+    }
+    next();
+};
+
+// Middleware to verify specific steps have been completed
+const verifyPreviousStep = (requiredStep) => {
+    return (req, res, next) => {
+        if (!req.session.registration || !req.session.registration[requiredStep]) {
+            // Redirect to appropriate step based on what's completed
+            if (!req.session.registration) {
+                return res.redirect('/users/register');
+            } else if (!req.session.registration.user_type) {
+                return res.redirect('/users/register');
+            } else if (!req.session.registration.account) {
+                return res.redirect('/users/register/account');
+            } else if (!req.session.registration.basic_profile) {
+                return res.redirect('/users/register/basic-profile');
+            } else {
+                return res.redirect('/users/register');
+            }
+        }
+        next();
+    };
+};
+
+// Middleware to load saved registration if token provided
+const loadSavedRegistration = (req, res, next) => {
+    const token = req.query.token;
+    
+    if (!token) {
+        return next();
+    }
+    
+    // Look up the saved registration
+    dbPool.query(
+        'SELECT data FROM saved_registrations WHERE token = ? AND expires_at > NOW()',
+        [token],
+        (err, results) => {
+            if (err || results.length === 0) {
+                console.error('Error loading saved registration:', err);
+                return next();
+            }
+            
+            try {
+                // Restore registration data to session
+                req.session.registration = JSON.parse(results[0].data);
+                console.log('Loaded saved registration data:', req.session.registration);
+            } catch (error) {
+                console.error('Error parsing saved registration data:', error);
+            }
+            
+            next();
+        }
+    );
+};
+
+// Step 1: User Type Selection
+router.get('/', [checkRegistrationSession, loadSavedRegistration], (req, res) => {
+    // Send the user type selection page
+    res.sendFile(path.join(__dirname, '../users/registration-user-type.html'));
+});
+
+router.post('/user-type', checkRegistrationSession, (req, res) => {
+    const { user_type } = req.body;
+    
+    // Validate the user type
+    if (!user_type || !['artist', 'promoter', 'community'].includes(user_type)) {
+        return res.status(400).json({ success: false, message: 'Invalid user type' });
+    }
+    
+    // Store in session
+    req.session.registration.user_type = user_type;
+    
+    // Redirect to next step
+    res.redirect('/users/register/account');
+});
+
+// Step 2: Account Information
+router.get('/account', checkRegistrationSession, (req, res) => {
+    // Check if user has completed step 1
+    if (!req.session.registration.user_type) {
+        return res.redirect('/users/register');
+    }
+    
+    // Prepare query parameters to pre-fill form if needed
+    const queryParams = [];
+    if (req.session.registration.username) {
+        queryParams.push(`username=${encodeURIComponent(req.session.registration.username)}`);
+    }
+    if (req.session.registration.id) {
+        queryParams.push(`id=${encodeURIComponent(req.session.registration.id)}`);
+    }
+    
+    // Construct the URL with query parameters
+    let url = path.join(__dirname, '../users/registration-account.html');
+    
+    // Send the account information page
+    res.sendFile(url);
+});
+
+router.post('/account', checkRegistrationSession, async (req, res) => {
+    const { username, password, confirm_password, id } = req.body;
+    
+    // Validate required fields
+    if (!username || !password || !confirm_password || !id) {
+        return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(username)) {
+        return res.status(400).json({ success: false, message: 'Invalid email format' });
+    }
+    
+    // Validate password length
+    if (password.length < 8) {
+        return res.status(400).json({ success: false, message: 'Password must be at least 8 characters' });
+    }
+    
+    // Validate password match
+    if (password !== confirm_password) {
+        return res.status(400).json({ success: false, message: 'Passwords do not match' });
+    }
+    
+    // Validate ID format (10 digits)
+    if (!/^\d{10}$/.test(id)) {
+        return res.status(400).json({ success: false, message: 'ID must be a 10-digit number' });
+    }
+    
+    // Check if username (email) already exists
+    dbPool.query(
+        'SELECT id FROM users WHERE username = ?',
+        [username],
+        (err, results) => {
+            if (err) {
+                console.error('Database error:', err);
+                return res.status(500).json({ success: false, message: 'Server error' });
+            }
+            
+            if (results.length > 0) {
+                return res.status(400).json({ success: false, message: 'Email address is already registered' });
+            }
+            
+            // Check if ID already exists
+            dbPool.query(
+                'SELECT id FROM users WHERE id = ?',
+                [id],
+                (err, results) => {
+                    if (err) {
+                        console.error('Database error:', err);
+                        return res.status(500).json({ success: false, message: 'Server error' });
+                    }
+                    
+                    if (results.length > 0) {
+                        return res.status(400).json({ success: false, message: 'ID is already in use' });
+                    }
+                    
+                    // Store account info in session (except password)
+                    req.session.registration.username = username;
+                    req.session.registration.id = id;
+                    req.session.registration.account = true; // Mark this step as completed
+                    
+                    // Store password temporarily for final submission
+                    // Note: Normally we wouldn't store the password in session,
+                    // but for a multi-step form with server-side completion, we need it temporarily
+                    req.session.registration.password = password;
+                    
+                    // Redirect to next step
+                    res.redirect('/users/register/basic-profile');
+                }
+            );
+        }
+    );
+});
+
+// Step 3: Basic Profile Information
+router.get('/basic-profile', checkRegistrationSession, (req, res) => {
+    // Check if user has completed previous steps
+    if (!req.session.registration.user_type || !req.session.registration.account) {
+        return res.redirect('/users/register/account');
+    }
+    
+    // Send the basic profile page
+    res.sendFile(path.join(__dirname, '../users/registration-basic-profile.html'));
+});
+
+router.post('/basic-profile', checkRegistrationSession, (req, res) => {
+    const { 
+        first_name, 
+        last_name,
+        display_name,
+        phone,
+        website,
+        social_facebook,
+        social_instagram,
+        social_tiktok,
+        social_twitter,
+        social_pinterest,
+        social_whatsapp
+    } = req.body;
+    
+    // Validate required fields
+    if (!first_name || !last_name) {
+        return res.status(400).json({ success: false, message: 'First and last name are required' });
+    }
+    
+
+    // Store profile info in session
+    req.session.registration.first_name = first_name;
+    req.session.registration.last_name = last_name;
+    req.session.registration.display_name = display_name;
+    req.session.registration.phone = phone;
+    req.session.registration.website = website;
+    req.session.registration.social_facebook = social_facebook;
+    req.session.registration.social_instagram = social_instagram;
+    req.session.registration.social_tiktok = social_tiktok;
+    req.session.registration.social_twitter = social_twitter;
+    req.session.registration.social_pinterest = social_pinterest;
+    req.session.registration.social_whatsapp = social_whatsapp;
+    req.session.registration.basic_profile = true; // Mark this step as completed
+    
+    // Redirect to appropriate user-specific page based on user type
+    const userType = req.session.registration.user_type;
+    res.redirect(`/users/register/${userType}-specific`);
+});
+
+// Step 4a: Artist-specific profile
+router.get('/artist-specific', checkRegistrationSession, (req, res) => {
+    // Check if user has completed previous steps
+    if (!req.session.registration.user_type || !req.session.registration.account || !req.session.registration.basic_profile) {
+        return res.redirect('/users/register/basic-profile');
+    }
+    
+    // Verify user is of type artist
+    if (req.session.registration.user_type !== 'artist') {
+        return res.redirect('/users/register');
+    }
+    
+    // Send the artist-specific page
+    res.sendFile(path.join(__dirname, '../users/registration-artist-specific.html'));
+});
+
+router.post('/artist-specific', checkRegistrationSession, (req, res) => {
+    // Process artist-specific form data
+    const { 
+        artist_business_name,
+        artist_categories,
+        artist_mediums,
+        artist_biography,
+        studio_address_line1,
+        studio_address_line2,
+        studio_city,
+        studio_state,
+        studio_zip,
+        business_phone,
+        artist_does_custom
+    } = req.body;
+    
+    // Validate required fields (categories and mediums are required)
+    let hasCategories = false;
+    let hasMediums = false;
+    
+    if (Array.isArray(artist_categories)) {
+        hasCategories = artist_categories.length > 0;
+    } else if (artist_categories) {
+        hasCategories = true;
+    }
+    
+    if (Array.isArray(artist_mediums)) {
+        hasMediums = artist_mediums.length > 0;
+    } else if (artist_mediums) {
+        hasMediums = true;
+    }
+    
+    if (!hasCategories || !hasMediums) {
+        return res.status(400).json({ success: false, message: 'Art categories and mediums are required' });
+    }
+    
+    // Store artist-specific info in session
+    req.session.registration.artist_business_name = artist_business_name;
+    req.session.registration.artist_categories = artist_categories;
+    req.session.registration.artist_mediums = artist_mediums;
+    req.session.registration.artist_biography = artist_biography;
+    req.session.registration.studio_address_line1 = studio_address_line1;
+    req.session.registration.studio_address_line2 = studio_address_line2;
+    req.session.registration.studio_city = studio_city;
+    req.session.registration.studio_state = studio_state;
+    req.session.registration.studio_zip = studio_zip;
+    req.session.registration.business_phone = business_phone;
+    req.session.registration.artist_does_custom = artist_does_custom;
+    req.session.registration.specific_profile = true; // Mark this step as completed
+    
+    // Proceed to final submission
+    res.redirect('/users/register/submit');
+});
+
+// Step 4b: Promoter-specific profile
+router.get('/promoter-specific', checkRegistrationSession, (req, res) => {
+    // Check if user has completed previous steps
+    if (!req.session.registration.user_type || !req.session.registration.account || !req.session.registration.basic_profile) {
+        return res.redirect('/users/register/basic-profile');
+    }
+    
+    // Verify user is of type promoter
+    if (req.session.registration.user_type !== 'promoter') {
+        return res.redirect('/users/register');
+    }
+    
+    // Send the promoter-specific page
+    res.sendFile(path.join(__dirname, '../users/registration-promoter-specific.html'));
+});
+
+router.post('/promoter-specific', checkRegistrationSession, (req, res) => {
+    // Process promoter-specific form data
+    const { 
+        promoter_business_name,
+        is_non_profit,
+        artwork_description,
+        business_phone,
+        business_website,
+        business_social_facebook,
+        business_social_instagram,
+        business_social_twitter,
+        business_social_pinterest,
+        business_social_tiktok,
+        office_address_line1,
+        office_address_line2,
+        office_city,
+        office_state,
+        office_zip
+    } = req.body;
+
+

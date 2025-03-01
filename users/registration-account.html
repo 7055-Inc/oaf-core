@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registration - Account Information - Online Art Festival</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        /* Base Styles */
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        .registration-container {
+            width: 100%;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .registration-modal {
+            width: 80%;
+            max-width: 800px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .registration-header {
+            background-color: #055474;
+            color: white;
+            padding: 15px 20px;
+            position: relative;
+            text-align: center;
+        }
+        .registration-header h2 {
+            margin: 0;
+        }
+        .registration-content {
+            padding: 20px;
+        }
+        .registration-footer {
+            padding: 15px 20px;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        input:focus {
+            border-color: #055474;
+            outline: none;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button.btn-cancel {
+            background-color: #6c757d;
+        }
+        button.btn-cancel:hover {
+            background-color: #5a6268;
+        }
+        button.btn-back {
+            background-color: #6c757d;
+        }
+        button.btn-back:hover {
+            background-color: #5a6268;
+        }
+        .btn-next {
+            min-width: 100px;
+        }
+        .required-field::after {
+            content: "*";
+            color: red;
+            margin-left: 4px;
+        }
+        .progress-container {
+            margin-bottom: 20px;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background-color: #e9ecef;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #055474;
+            transition: width 0.3s ease;
+            width: 40%; /* Step 2 of 5 */
+        }
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            padding: 0 10px;
+        }
+        .progress-step {
+            font-size: 12px;
+            color: #777;
+        }
+        .tooltip {
+            display: inline-block;
+            margin-left: 5px;
+            position: relative;
+            cursor: pointer;
+        }
+        .tooltip i {
+            color: #777;
+            font-size: 14px;
+        }
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            width: 200px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 4px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        .field-validation-error {
+            color: red;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+        .password-strength {
+            margin-top: 5px;
+            height: 5px;
+            background-color: #e9ecef;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .password-strength-fill {
+            height: 100%;
+            width: 0;
+            transition: width 0.3s ease, background-color 0.3s ease;
+        }
+        .password-strength-text {
+            font-size: 12px;
+            margin-top: 3px;
+        }
+        .field-info-icon {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: #777;
+            color: white;
+            text-align: center;
+            line-height: 16px;
+            font-size: 12px;
+            margin-left: 5px;
+            cursor: help;
+        }
+        
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .registration-modal {
+                width: 95%;
+            }
+        }
+        
+        .save-progress {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        .save-progress a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .save-progress a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="registration-container">
+        <div class="registration-modal">
+            <div class="registration-header">
+                <h2>Join the Online Art Festival</h2>
+            </div>
+            
+            <div class="registration-content">
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-bar-fill"></div>
+                    </div>
+                    <div class="progress-steps">
+                        <div class="progress-step">User Type</div>
+                        <div class="progress-step"><strong>Account</strong></div>
+                        <div class="progress-step">Basic Profile</div>
+                        <div class="progress-step">Specific Details</div>
+                        <div class="progress-step">Complete</div>
+                    </div>
+                </div>
+                
+                <form id="account-form" method="POST" action="/users/register/account">
+                    <h3>Create Your Account</h3>
+                    <p>Set up your login credentials to access the Online Art Festival.</p>
+                    
+                    <div class="form-group">
+                        <label for="username" class="required-field">Email Address</label>
+                        <input type="email" id="username" name="username" required placeholder="your.email@example.com">
+                        <div class="field-validation-error" id="username-error">Please enter a valid email address.</div>
+                        <span class="tooltip">
+                            <i class="field-info-icon">?</i>
+                            <span class="tooltip-text">This will be your username for logging in. We'll also send account confirmations to this address.</span>
+                        </span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password" class="required-field">Password</label>
+                        <input type="password" id="password" name="password" required placeholder="Create a strong password">
+                        <div class="password-strength">
+                            <div class="password-strength-fill" id="password-strength-bar"></div>
+                        </div>
+                        <div class="password-strength-text" id="password-strength-text">Password strength</div>
+                        <div class="field-validation-error" id="password-error">Password must be at least 8 characters with letters and numbers.</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="confirm-password" class="required-field">Confirm Password</label>
+                        <input type="password" id="confirm-password" name="confirm_password" required placeholder="Confirm your password">
+                        <div class="field-validation-error" id="confirm-password-error">Passwords do not match.</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="id" class="required-field">ID Number</label>
+                        <input type="number" id="id" name="id" min="1000000000" max="9999999999" required placeholder="10-digit ID number">
+                        <div class="field-validation-error" id="id-error">Please enter a valid 10-digit ID number.</div>
+                        <span class="tooltip">
+                            <i class="field-info-icon">?</i>
+                            <span class="tooltip-text">This unique 10-digit ID will be associated with your account.</span>
+                        </span>
+                    </div>
+                    
+                    <div class="save-progress">
+                        <a href="#" id="save-progress-link">Save progress and continue later</a>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="registration-footer">
+                <button type="button" class="btn-cancel" id="btn-cancel">Cancel</button>
+                <div>
+                    <button type="button" class="btn-back" id="btn-back">Back</button>
+                    <button type="button" class="btn-next" id="btn-next">Next</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const accountForm = document.getElementById('account-form');
+            const btnNext = document.getElementById('btn-next');
+            const btnBack = document.getElementById('btn-back');
+            const btnCancel = document.getElementById('btn-cancel');
+            const saveProgressLink = document.getElementById('save-progress-link');
+            const passwordInput = document.getElementById('password');
+            const confirmPasswordInput = document.getElementById('confirm-password');
+            const passwordStrengthBar = document.getElementById('password-strength-bar');
+            const passwordStrengthText = document.getElementById('password-strength-text');
+            
+            // Pre-fill form fields if there are saved values in session
+            const urlParams = new URLSearchParams(window.location.search);
+            const username = urlParams.get('username');
+            const id = urlParams.get('id');
+            
+            if (username) {
+                document.getElementById('username').value = username;
+            }
+            
+            if (id) {
+                document.getElementById('id').value = id;
+            }
+            
+            // Password strength checker
+            passwordInput.addEventListener('input', checkPasswordStrength);
+            confirmPasswordInput.addEventListener('input', checkPasswordMatch);
+            
+            // Next button action
+            btnNext.addEventListener('click', function() {
+                if (validateForm()) {
+                    accountForm.submit();
+                }
+            });
+            
+            // Back button action
+            btnBack.addEventListener('click', function() {
+                window.location.href = '/users/register';
+            });
+            
+            // Cancel button action
+            btnCancel.addEventListener('click', function() {
+                if (confirm('Are you sure you want to cancel registration? All entered information will be lost.')) {
+                    window.location.href = '/';
+                }
+            });
+            
+            // Save progress link
+            saveProgressLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Collect form data
+                const formData = new FormData(accountForm);
+                const userData = {
+                    step: 'account',
+                    username: formData.get('username'),
+                    id: formData.get('id')
+                };
+                
+                // Send to server to save
+                fetch('/users/register/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(userData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Your progress has been saved. You can resume later using the link sent to your email.');
+                    } else {
+                        alert('There was an error saving your progress. Please try again.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error saving progress:', error);
+                    alert('There was an error saving your progress. Please try again.');
+                });
+            });
+            
+            function validateForm() {
+                let isValid = true;
+                
+                // Reset all validation errors
+                const errors = document.querySelectorAll('.field-validation-error');
+                errors.forEach(error => error.style.display = 'none');
+                
+                // Validate email
+                const email = document.getElementById('username').value;
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    document.getElementById('username-error').style.display = 'block';
+                    isValid = false;
+                }
+                
+                // Validate password
+                const password = passwordInput.value;
+                if (password.length < 8) {
+                    document.getElementById('password-error').style.display = 'block';
+                    isValid = false;
+                }
+                
+                // Validate password confirmation
+                if (password !== confirmPasswordInput.value) {
+                    document.getElementById('confirm-password-error').style.display = 'block';
+                    isValid = false;
+                }
+                
+                // Validate ID
+                const id = document.getElementById('id').value;
+                if (id.length !== 10 || isNaN(id)) {
+                    document.getElementById('id-error').style.display = 'block';
+                    isValid = false;
+                }
+                
+                return isValid;
+            }
+            
+            function checkPasswordStrength() {
+                const password = passwordInput.value;
+                let strength = 0;
+                
+                // Length check
+                if (password.length >= 8) strength += 25;
+                
+                // Contains lowercase letters
+                if (/[a-z]/.test(password)) strength += 25;
+                
+                // Contains uppercase letters
+                if (/[A-Z]/.test(password)) strength += 25;
+                
+                // Contains numbers or special characters
+                if (/[0-9!@#$%^&*]/.test(password)) strength += 25;
+                
+                // Update strength bar
+                passwordStrengthBar.style.width = `${strength}%`;
+                
+                // Update color based on strength
+                if (strength < 50) {
+                    passwordStrengthBar.style.backgroundColor = '#dc3545'; // Red
+                    passwordStrengthText.textContent = 'Weak';
+                } else if (strength < 75) {
+                    passwordStrengthBar.style.backgroundColor = '#ffc107'; // Yellow
+                    passwordStrengthText.textContent = 'Moderate';
+                } else {
+                    passwordStrengthBar.style.backgroundColor = '#28a745'; // Green
+                    passwordStrengthText.textContent = 'Strong';
+                }
+            }
+            
+            function checkPasswordMatch() {
+                const password = passwordInput.value;
+                const confirmPassword = confirmPasswordInput.value;
+                
+                if (confirmPassword && password !== confirmPassword) {
+                    document.getElementById('confirm-password-error').style.display = 'block';
+                } else {
+                    document.getElementById('confirm-password-error').style.display = 'none';
+                }
+            }
+        });
+    </script>
+</body>
+</html>

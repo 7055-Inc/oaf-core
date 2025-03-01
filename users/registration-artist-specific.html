@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registration - Artist Details - Online Art Festival</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        /* Base Styles */
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        .registration-container {
+            width: 100%;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .registration-modal {
+            width: 80%;
+            max-width: 800px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .registration-header {
+            background-color: #055474;
+            color: white;
+            padding: 15px 20px;
+            position: relative;
+            text-align: center;
+        }
+        .registration-header h2 {
+            margin: 0;
+        }
+        .registration-content {
+            padding: 20px;
+        }
+        .registration-footer {
+            padding: 15px 20px;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: #055474;
+            outline: none;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button.btn-cancel {
+            background-color: #6c757d;
+        }
+        button.btn-cancel:hover {
+            background-color: #5a6268;
+        }
+        button.btn-back {
+            background-color: #6c757d;
+        }
+        button.btn-back:hover {
+            background-color: #5a6268;
+        }
+        .btn-next {
+            min-width: 100px;
+        }
+        .required-field::after {
+            content: "*";
+            color: red;
+            margin-left: 4px;
+        }
+        .progress-container {
+            margin-bottom: 20px;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background-color: #e9ecef;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #055474;
+            transition: width 0.3s ease;
+            width: 80%; /* Step 4 of 5 */
+        }
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            padding: 0 10px;
+        }
+        .progress-step {
+            font-size: 12px;
+            color: #777;
+        }
+        .tooltip {
+            display: inline-block;
+            margin-left: 5px;
+            position: relative;
+            cursor: pointer;
+        }
+        .tooltip i {
+            color: #777;
+            font-size: 14px;
+        }
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            width: 200px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 4px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        .field-validation-error {
+            color: red;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+        .field-info-icon {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: #777;
+            color: white;
+            text-align: center;
+            line-height: 16px;
+            font-size: 12px;
+            margin-left: 5px;
+            cursor: help;
+        }
+        
+       /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .registration-modal {
+                width: 95%;
+            }
+        }
+        
+        .save-progress {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        .save-progress a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .save-progress a:hover {
+            text-decoration: underline;
+        }
+        
+        .address-section {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+            background-color: #f9f9f9;
+        }
+        
+        .address-section h4 {
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        
+        .category-info {
+            margin-top: 5px;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="registration-container">
+        <div class="registration-modal">
+            <div class="registration-header">
+                <h2>Join the Online Art Festival</h2>
+            </div>
+            
+            <div class="registration-content">
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-bar-fill"></div>
+                    </div>
+                    <div class="progress-steps">
+                        <div class="progress-step">User Type</div>
+                        <div class="progress-step">Account</div>
+                        <div class="progress-step">Basic Profile</div>
+                        <div class="progress-step"><strong>Specific Details</strong></div>
+                        <div class="progress-step">Complete</div>
+                    </div>
+                </div>
+                
+                <form id="artist-form" method="POST" action="/users/register/artist-specific">
+                    <h3>Artist Profile Details</h3>
+                    <p>Help us showcase your art and connect you with the right audience.</p>
+                    
+                    <div class="form-group">
+                        <label for="artist_business_name">Business/Studio Name</label>
+                        <input type="text" id="artist_business_name" name="artist_business_name" placeholder="Your business or studio name (if applicable)">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="artist_categories" class="required-field">Art Categories</label>
+                        <select id="artist_categories" name="artist_categories[]" multiple required size="6">
+                            <option value="painting">Painting</option>
+                            <option value="sculpture">Sculpture</option>
+                            <option value="photography">Photography</option>
+                            <option value="digital">Digital Art</option>
+                            <option value="mixed_media">Mixed Media</option>
+                            <option value="illustration">Illustration</option>
+                            <option value="printmaking">Printmaking</option>
+                            <option value="ceramics">Ceramics</option>
+                            <option value="textiles">Textiles</option>
+                            <option value="jewelry">Jewelry</option>
+                            <option value="installation">Installation</option>
+                            <option value="performance">Performance</option>
+                            <option value="other">Other</option>
+                        </select>
+                        <div class="category-info">Hold Ctrl/Cmd to select multiple categories</div>
+                        <div class="field-validation-error" id="categories-error">Please select at least one art category.</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="artist_mediums" class="required-field">Art Mediums</label>
+                        <select id="artist_mediums" name="artist_mediums[]" multiple required size="6">
+                            <option value="oil">Oil</option>
+                            <option value="acrylic">Acrylic</option>
+                            <option value="watercolor">Watercolor</option>
+                            <option value="pencil">Pencil</option>
+                            <option value="charcoal">Charcoal</option>
+                            <option value="pastel">Pastel</option>
+                            <option value="ink">Ink</option>
+                            <option value="digital">Digital</option>
+                            <option value="mixed">Mixed Media</option>
+                            <option value="clay">Clay</option>
+                            <option value="metal">Metal</option>
+                            <option value="wood">Wood</option>
+                            <option value="glass">Glass</option>
+                            <option value="textile">Textile</option>
+                            <option value="other">Other</option>
+                        </select>
+                        <div class="category-info">Hold Ctrl/Cmd to select multiple mediums</div>
+                        <div class="field-validation-error" id="mediums-error">Please select at least one art medium.</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="artist_biography">Artist Biography</label>
+                        <textarea id="artist_biography" name="artist_biography" rows="4" placeholder="Tell us about yourself as an artist, your journey, influences, etc."></textarea>
+                    </div>
+                    
+                    <div class="address-section">
+                        <h4>Studio Address (Optional)</h4>
+                        <div class="form-group">
+                            <label for="studio_address_line1">Address Line 1</label>
+                            <input type="text" id="studio_address_line1" name="studio_address_line1" placeholder="Street address">
+                        </div>
+                        <div class="form-group">
+                            <label for="studio_address_line2">Address Line 2</label>
+                            <input type="text" id="studio_address_line2" name="studio_address_line2" placeholder="Apartment, suite, unit, etc.">
+                        </div>
+                        <div class="form-group">
+                            <label for="studio_city">City</label>
+                            <input type="text" id="studio_city" name="studio_city" placeholder="City">
+                        </div>
+                        <div class="form-group">
+                            <label for="studio_state">State/Province</label>
+                            <input type="text" id="studio_state" name="studio_state" placeholder="State/Province">
+                        </div>
+                        <div class="form-group">
+                            <label for="studio_zip">ZIP/Postal Code</label>
+                            <input type="text" id="studio_zip" name="studio_zip" placeholder="ZIP/Postal code">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="business_phone">Business Phone</label>
+                        <input type="tel" id="business_phone" name="business_phone" placeholder="Business contact number (if different from personal)">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="artist_does_custom">Do you create custom artwork on commission?</label>
+                        <select id="artist_does_custom" name="artist_does_custom">
+                            <option value="yes">Yes</option>
+                            <option value="no" selected>No</option>
+                        </select>
+                    </div>
+                    
+                    <div class="save-progress">
+                        <a href="#" id="save-progress-link">Save progress and continue later</a>
+                    </div>
+                </form>
+            </div>
+            
+
+            <div class="registration-footer">
+                <button type="button" class="btn-cancel" id="btn-cancel">Cancel</button>
+                <div>
+                    <button type="button" class="btn-back" id="btn-back">Back</button>
+                    <button type="button" class="btn-next" id="btn-next">Next</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const artistForm = document.getElementById('artist-form');
+            const btnNext = document.getElementById('btn-next');
+            const btnBack = document.getElementById('btn-back');
+            const btnCancel = document.getElementById('btn-cancel');
+            const saveProgressLink = document.getElementById('save-progress-link');
+            
+            // Pre-fill form fields if there are saved values in session
+            const urlParams = new URLSearchParams(window.location.search);
+            const businessName = urlParams.get('artist_business_name');
+            const biography = urlParams.get('artist_biography');
+            const businessPhone = urlParams.get('business_phone');
+            const doesCustom = urlParams.get('artist_does_custom');
+            
+            // Address fields
+            const addressFields = ['studio_address_line1', 'studio_address_line2', 
+                                   'studio_city', 'studio_state', 'studio_zip'];
+            
+            if (businessName) document.getElementById('artist_business_name').value = businessName;
+            if (biography) document.getElementById('artist_biography').value = biography;
+            if (businessPhone) document.getElementById('business_phone').value = businessPhone;
+            if (doesCustom) document.getElementById('artist_does_custom').value = doesCustom;
+            
+            addressFields.forEach(field => {
+                const value = urlParams.get(field);
+                if (value) document.getElementById(field).value = value;
+            });
+            
+            // Handle category and medium selections (more complex because they're arrays)
+            const categoryParam = urlParams.get('artist_categories');
+            if (categoryParam) {
+                try {
+                    const categories = JSON.parse(categoryParam);
+                    const categorySelect = document.getElementById('artist_categories');
+                    for (let i = 0; i < categorySelect.options.length; i++) {
+                        if (categories.includes(categorySelect.options[i].value)) {
+                            categorySelect.options[i].selected = true;
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error parsing categories:', e);
+                }
+            }
+            
+            const mediumParam = urlParams.get('artist_mediums');
+            if (mediumParam) {
+                try {
+                    const mediums = JSON.parse(mediumParam);
+                    const mediumSelect = document.getElementById('artist_mediums');
+                    for (let i = 0; i < mediumSelect.options.length; i++) {
+                        if (mediums.includes(mediumSelect.options[i].value)) {
+                            mediumSelect.options[i].selected = true;
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error parsing mediums:', e);
+                }
+            }
+            
+            // Next button action
+            btnNext.addEventListener('click', function() {
+                if (validateForm()) {
+                    artistForm.submit();
+                }
+            });
+            
+            // Back button action
+            btnBack.addEventListener('click', function() {
+                window.location.href = '/users/register/basic-profile';
+            });
+            
+            // Cancel button action
+            btnCancel.addEventListener('click', function() {
+                if (confirm('Are you sure you want to cancel registration? All entered information will be lost.')) {
+                    window.location.href = '/';
+                }
+            });
+            
+            // Save progress link
+            saveProgressLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Collect form data
+                const formData = new FormData(artistForm);
+                
+                // Handle multiple selections for categories and mediums
+                const categorySelect = document.getElementById('artist_categories');
+                const mediumSelect = document.getElementById('artist_mediums');
+                
+                const selectedCategories = [];
+                const selectedMediums = [];
+                
+                for (let i = 0; i < categorySelect.options.length; i++) {
+                    if (categorySelect.options[i].selected) {
+                        selectedCategories.push(categorySelect.options[i].value);
+                    }
+                }
+                
+                for (let i = 0; i < mediumSelect.options.length; i++) {
+                    if (mediumSelect.options[i].selected) {
+                        selectedMediums.push(mediumSelect.options[i].value);
+                    }
+                }
+                
+                const userData = {
+                    step: 'artist-specific',
+                    artist_business_name: formData.get('artist_business_name'),
+                    artist_categories: selectedCategories,
+                    artist_mediums: selectedMediums,
+                    artist_biography: formData.get('artist_biography'),
+                    studio_address_line1: formData.get('studio_address_line1'),
+                    studio_address_line2: formData.get('studio_address_line2'),
+                    studio_city: formData.get('studio_city'),
+                    studio_state: formData.get('studio_state'),
+                    studio_zip: formData.get('studio_zip'),
+                    business_phone: formData.get('business_phone'),
+                    artist_does_custom: formData.get('artist_does_custom')
+                };
+                
+                // Send to server to save
+                fetch('/users/register/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(userData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Your progress has been saved. You can resume later using the link sent to your email.');
+                    } else {
+                        alert('There was an error saving your progress. Please try again.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error saving progress:', error);
+                    alert('There was an error saving your progress. Please try again.');
+                });
+            });
+            
+            function validateForm() {
+                let isValid = true;
+                
+                // Reset all validation errors
+                const errors = document.querySelectorAll('.field-validation-error');
+                errors.forEach(error => error.style.display = 'none');
+                
+                // Validate required fields
+                const categorySelect = document.getElementById('artist_categories');
+                let categoriesSelected = false;
+                for (let i = 0; i < categorySelect.options.length; i++) {
+                    if (categorySelect.options[i].selected) {
+                        categoriesSelected = true;
+                        break;
+                    }
+                }
+                
+                if (!categoriesSelected) {
+                    document.getElementById('categories-error').style.display = 'block';
+                    isValid = false;
+                }
+                
+                const mediumSelect = document.getElementById('artist_mediums');
+                let mediumsSelected = false;
+                for (let i = 0; i < mediumSelect.options.length; i++) {
+                    if (mediumSelect.options[i].selected) {
+                        mediumsSelected = true;
+                        break;
+                    }
+                }
+                
+                if (!mediumsSelected) {
+                    document.getElementById('mediums-error').style.display = 'block';
+                    isValid = false;
+                }
+                
+                return isValid;
+            }
+        });
+    </script>
+</body>
+</html>

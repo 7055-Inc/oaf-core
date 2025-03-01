@@ -1,0 +1,232 @@
+const express = require('express');
+const mysql = require('mysql2/promise');
+const fs = require('fs');
+const router = express.Router();
+
+const dbConfig = { host: '10.128.0.31', user: 'oafuser', password: 'oafpass', database: 'oaf' };
+async function getDb() { return await mysql.createConnection(dbConfig); }
+
+router.get('/add_new', async (req, res) => {
+    try {
+        const db = await getDb();
+        const [categories] = await db.query('SELECT id, name FROM categories');
+        await db.end();
+
+        const categoryOptions = categories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
+        const categoryCheckboxes = categories.map(cat => `<label><input type="checkbox" name="secondary_categories[]" value="${cat.id}"> ${cat.name}</label><br>`).join('');
+
+        const header = fs.readFileSync('/var/www/main/header.html', 'utf8');
+        const footer = fs.readFileSync('/var/www/main/footer.html', 'utf8');
+
+        const html = `
+            ${header}
+            <main>
+                <div id="productId" class="product-id">ID: TEMP-XXXX</div>
+                <section id="wizardStart" class="wizard-step">
+                    <div class="centered">
+                        <h1>Add a New Product</h1>
+                        <p>What kind of product would you like to create today?</p>
+                    </div>
+                    <div class="wizard-buttons">
+                        <button type="button" class="wizard-btn" onclick="startWizard('simple')">
+                            <i class="fas fa-cube fa-3x" style="color: #3e1c56;"></i>
+                            <span class="btn-title">Simple</span>
+                            <span class="btn-desc">Just one piece or just one style.</span>
+                        </button>
+                        <button type="button" class="wizard-btn" onclick="startWizard('variations')">
+                            <i class="fas fa-cubes fa-3x" style="color: #3e1c56;"></i>
+                            <span class="btn-title">Variable</span>
+                            <span class="btn-desc">Products with different sizes, colors, etc.</span>
+                        </button>
+                    </div>
+                </section>
+
+                <form id="addProductForm" action="/shop/product/add_new" method="POST" class="hidden">
+                    <div id="progressMeter">
+                        <div class="step" onclick="goToStep(0)">Start</div>
+                        <div class="step" onclick="goToStep(1)">Product Basics</div>
+                        <div class="step" onclick="goToStep(2)">Categories</div>
+                        <div class="step" onclick="goToStep(3)">Shipping</div>
+                        <div class="step" onclick="goToStep(4)">Variations</div>
+                        <div class="step" onclick="goToStep(5)">Sales</div>
+                        <div class="step" onclick="goToStep(6)">Finish</div>
+                    </div>
+
+                    <section id="baseFields" class="wizard-step hidden">
+                        <h2>Product Basics</h2>
+                        <div class="form-container">
+                            <div class="left-column">
+                                <div class="form-group">
+                                    <label for="name">Product Name:
+                                        <span class="info-icon" onmouseover="showBubble('nameBubble')" onmouseout="hideBubble('nameBubble')">ℹ️</span>
+                                        <div id="nameBubble" class="info-bubble hidden">The name or title of your artwork.</div>
+                                    </label>
+                                    <input type="text" id="name" name="name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="description">Product Description:
+                                        <span class="info-icon" onmouseover="showBubble('descBubble')" onmouseout="hideBubble('descBubble')">ℹ️</span>
+                                        <div id="descBubble" class="info-bubble hidden">What's the story with this piece of art?</div>
+                                    </label>
+                                    <textarea id="description" name="description" required></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="sku">SKU:
+                                        <span class="info-icon" onmouseover="showBubble('skuBubble')" onmouseout="hideBubble('skuBubble')">ℹ️</span>
+                                        <div id="skuBubble" class="info-bubble hidden">Any code or number that you use to identify your products.<br>If you do not enter anything, a random code will be assigned in our system.</div>
+                                    </label>
+                                    <input type="text" id="sku" name="sku">
+                                </div>
+                            </div>
+                            <div class="right-column">
+                                <div class="form-group">
+                                    <label for="category_id">Primary Category:</label>
+                                    <select id="category_id" name="category_id" required>
+                                        ${categoryOptions}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Additional Categories (up to 3):</label>
+                                    <select name="additional_categories[]" multiple size="3">
+                                        ${categoryOptions}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="price">Price:</label>
+                                    <input type="number" id="price" name="price" step="0.01" required oninput="calculatePayout()">
+                                    <div id="priceCalculator">
+                                        <p>Commission (20%): <span id="commission">$0.00</span></p>
+                                        <p>Expected Payout: <span id="payout">$0.00</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="extra-fields">
+                                <label for="available_qty">Available Quantity:</label>
+                                <input type="number" id="available_qty" name="available_qty" min="0">
+                                <label for="width">Width:</label>
+                                <input type="number" id="width" name="width" step="0.01">
+                                <label for="height">Height:</label>
+                                <input type="number" id="height" name="height" step="0.01">
+                                <label for="depth">Depth:</label>
+                                <input type="number" id="depth" name="depth" step="0.01">
+                                <label for="weight">Weight:</label>
+                                <input type="number" id="weight" name="weight" step="0.01">
+                                <label for="dimension_unit">Dimension Unit:</label>
+                                <select id="dimension_unit" name="dimension_unit">
+                                    <option value="">Select</option>
+                                    <option value="in">Inches</option>
+                                    <option value="cm">Centimeters</option>
+                                </select>
+                                <label for="weight_unit">Weight Unit:</label>
+                                <select id="weight_unit" name="weight_unit">
+                                    <option value="">Select</option>
+                                    <option value="lbs">Pounds</option>
+                                    <option value="kg">Kilograms</option>
+                                </select>
+                            </div>
+                            <input type="hidden" name="vendor_id" value="${req.session.user?.id || 1000000005}">
+                            <input type="hidden" name="created_by" value="${req.session.user?.id || 1000000005}">
+                            <input type="hidden" name="product_type" id="productType">
+                        </div>
+                    </section>
+
+                    <section id="categoriesSection" class="wizard-step hidden">
+                        <h2>Secondary Categories</h2>
+                        <div class="grid">${categoryCheckboxes}</div>
+                    </section>
+
+                    <section id="shippingSection" class="wizard-step hidden">
+                        <h2>Shipping Details</h2>
+                        <div class="grid">
+                            <div>
+                                <h3>Package 1</h3>
+                                <label>Length: <input type="number" name="shipping[1][length]" step="0.01"></label>
+                                <label>Width: <input type="number" name="shipping[1][width]" step="0.01"></label>
+                                <label>Height: <input type="number" name="shipping[1][height]" step="0.01"></label>
+                                <label>Weight: <input type="number" name="shipping[1][weight]" step="0.01"></label>
+                                <label>Dimension Unit:
+                                    <select name="shipping[1][dimension_unit]">
+                                        <option value="">Select</option>
+                                        <option value="in">Inches</option>
+                                        <option value="cm">Centimeters</option>
+                                    </select>
+                                </label>
+                                <label>Weight Unit:
+                                    <select name="shipping[1][weight_unit]">
+                                        <option value="">Select</option>
+                                        <option value="lbs">Pounds</option>
+                                        <option value="kg">Kilograms</option>
+                                    </select>
+                                </label>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="variationsSection" class="wizard-step hidden">
+                        <h2>Variations</h2>
+                        <div id="variantKinds">
+                            <button type="button" class="add-btn" onclick="addVariantKind()">Add Variant Kind</button>
+                        </div>
+                    </section>
+
+                    <section id="salesSection" class="wizard-step hidden">
+                        <h2>Sale Details</h2>
+                        <div class="grid">
+                            <label>Sale Price: <input type="number" name="sale_price" step="0.01"></label>
+                            <label>Start Date: <input type="datetime-local" name="start_date"></label>
+                            <label>End Date: <input type="datetime-local" name="end_date"></label>
+                        </div>
+                    </section>
+
+                    <section id="finishSection" class="wizard-step hidden">
+                        <h2>Review and Finish</h2>
+                        <p>Please review your product details before submitting.</p>
+                    </section>
+
+                    <div class="nav-buttons">
+                        <button type="button" id="backBtn" class="nav-btn hidden" onclick="goBack()">Back</button>
+                        <button type="button" id="nextBtn" class="nav-btn hidden" onclick="goNext()">Next</button>
+                        <button type="submit" id="createBtn" name="action" value="submit" class="nav-btn hidden">Create Product</button>
+                        <button type="submit" id="draftBtn" name="action" value="draft" class="nav-btn">Save as Draft</button>
+                        <button type="button" id="cancelBtn" class="nav-btn" onclick="confirmCancel()">Cancel</button>
+                    </div>
+                </form>
+
+                <div id="successPopup" class="hidden">
+                    <p id="successMessage">New item successfully created</p>
+                    <button onclick="document.getElementById('successPopup').style.display = 'none'; window.location.href = '/shop/product/add_new';">OK</button>
+                </div>
+
+                <div id="cancelWarning" class="hidden">
+                    <p>Your changes are not saved. Save as a draft or discard?</p>
+                    <button onclick="document.getElementById('addProductForm').action.value = 'draft'; document.getElementById('addProductForm').submit();">Save as Draft</button>
+                    <button onclick="window.location.href = '/shop/product/add_new';">Delete</button>
+                </div>
+            </main>
+            ${footer}
+            <style>
+                main { padding: 20px; max-width: 900px; margin: 0 auto 40px; border: 5px solid #3e1c56; position: relative; }
+                .product-id { position: absolute; top: 10px; left: 10px; color: #666; font-family: 'Courier New', monospace; font-size: 14px; }
+                .centered { display: flex; flex-direction: column; align-items: center; text-align: center; }
+                .wizard-step { padding: 15px; margin-bottom: 20px; margin-top: 40px; }
+                .form-container { display: flex; flex-wrap: wrap; gap: 20px; }
+                .left-column, .right-column, .extra-fields { flex: 1; min-width: 250px; }
+                .form-group { margin-bottom: 15px; position: relative; }
+                .form-group label { display: block; margin-bottom: 5px; }
+                .form-group input, .form-group textarea, .form-group select {
+                    width: 100%; padding: 5px; font-family: inherit; box-sizing: border-box;
+                }
+                .form-group textarea { height: 100px; resize: vertical; }
+                .info-icon { cursor: pointer; color: #055474; margin-left: 5px; }
+                .info-bubble {
+                    position: absolute; background: #f9f9f9; border: 1px solid #ccc; padding: 10px;
+                    z-index: 1000; width: 200px; left: 100%; top: 0; display: none;
+                }
+                .info-bubble.hidden { display: none; }
+                #priceCalculator { margin-top: 5px; font-size: 12px; }
+                .wizard-buttons { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
+                .wizard-btn { 
+                    width: 250px; height: 250px; background: white; border: 2px solid #055474; 
+                    display: flex; flex-direction: column; align-items: center; justify-content: center; 
+                    cursor: pointer; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); transition: transform 0.2s ease; 
+                }
