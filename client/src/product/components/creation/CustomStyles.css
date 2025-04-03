@@ -1,0 +1,93 @@
+/* Custom styling for product wizard */
+
+/* Remove bold from field labels */
+.form-field label {
+  font-weight: normal !important;
+}
+
+/* Make the product name field larger and more title-like */
+.basic-info-step input[name="name"] {
+  font-size: 1.3em;
+  padding: 12px;
+  margin-bottom: 15px;
+}
+
+/* Add horizontal rule after product name */
+.basic-info-step input[name="name"]::after {
+  content: '';
+  display: block;
+  width: 75%;
+  margin: 15px auto;
+  border-bottom: 1px solid #ccc;
+}
+
+/* Change checkmark color in wizard progress to #3e1c56 */
+.progress-step.completed .step-indicator {
+  background-color: #3e1c56 !important;
+}
+
+.wizard-progress::after {
+  background-color: #3e1c56 !important;
+}
+
+/* Info bubble styles */
+.info-bubble {
+  display: inline-block;
+  position: relative;
+  width: 16px;
+  height: 16px;
+  background-color: #3e1c56;
+  color: white;
+  border-radius: 50%;
+  text-align: center;
+  line-height: 16px;
+  font-size: 12px;
+  margin-left: 5px;
+  cursor: help;
+}
+
+.info-bubble:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #333;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 100;
+  margin-bottom: 5px;
+}
+
+/* Hide vendor name field */
+#vendor,
+label[for="vendor"],
+#vendor + .field-hint {
+  display: none;
+}
+
+/* Hide barcode field */
+#barcode,
+label[for="barcode"],
+#barcode + .field-hint {
+  display: none;
+}
+
+/* Hide Product Status field */
+#status,
+label[for="status"],
+#status + .field-hint {
+  display: none;
+}
+
+/* Add HR after product name */
+.form-row:first-child::after {
+  content: '';
+  display: block;
+  width: 75%;
+  margin: 15px auto;
+  border-bottom: 1px solid #ddd;
+} 

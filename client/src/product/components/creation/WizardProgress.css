@@ -1,0 +1,158 @@
+/* Progress indicator container */
+.wizard-progress-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.wizard-progress {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 900px;
+  padding: 0 30px;
+  position: relative;
+  margin-bottom: 10px;
+}
+
+/* The progress bar connecting all steps */
+.wizard-progress::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background-color: #e0e0e0;
+  transform: translateY(-50%);
+  z-index: 0;
+}
+
+/* The filled portion of the progress bar */
+.wizard-progress::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  height: 3px;
+  background-color: #3e1c56;
+  transform: translateY(-50%);
+  z-index: 1;
+  width: calc(var(--completion-percent, 0) * 100%);
+  transition: width 0.3s ease-in-out;
+}
+
+.progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+  padding: 0 15px;
+}
+
+.step-indicator {
+  width: 36px;
+  height: 36px;
+  border-radius: 0; /* Make it square */
+  background-color: white;
+  border: 3px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  color: #757575;
+  transition: all 0.2s ease-in-out;
+  position: relative;
+}
+
+/* Completed step */
+.progress-step.completed .step-indicator {
+  background-color: #3e1c56;
+  border-color: #3e1c56;
+  color: white;
+}
+
+/* Current step */
+.progress-step.current .step-indicator {
+  background-color: white;
+  border-color: #3e1c56;
+  border-width: 3px;
+  color: #3e1c56;
+  font-weight: 600;
+}
+
+/* Special highlight for the final steps */
+.progress-step:nth-last-child(3) .step-indicator,  /* Variants step */
+.progress-step:nth-last-child(2) .step-indicator,  /* Preview step */
+.progress-step:nth-last-child(1) .step-indicator { /* Publish step */
+  font-weight: 600;
+}
+
+.progress-step:nth-last-child(1).current .step-indicator { /* Final step when current */
+  background-color: #fef9e6;
+  border-color: #3e1c56;
+  color: #3e1c56;
+}
+
+.progress-step:nth-last-child(1).completed .step-indicator { /* Final step when completed */
+  background-color: #3e1c56;
+  border-color: #3e1c56;
+}
+
+/* Check mark for completed steps */
+.check-mark {
+  font-size: 18px;
+}
+
+/* Current step name display */
+.current-step-name {
+  margin-top: 5px;
+  font-weight: 600;
+  font-size: 16px;
+  color: #333;
+}
+
+/* Add hover labels for step names */
+.progress-step::after {
+  content: attr(data-step-name);
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+
+.progress-step:hover::after {
+  opacity: 1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .wizard-progress {
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding: 0 15px;
+  }
+  
+  .progress-step {
+    padding: 0 10px;
+    flex-shrink: 0;
+  }
+  
+  .step-indicator {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+  }
+} 

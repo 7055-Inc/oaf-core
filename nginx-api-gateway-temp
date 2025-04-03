@@ -1,0 +1,87 @@
+server {
+    listen 443 ssl;
+    server_name api2.onlineartfestival.com; # Replace with your actual API domain
+
+    # SSL Configuration
+    ssl_certificate /etc/letsencrypt/live/api2.onlineartfestival.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api2.onlineartfestival.com/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+    
+    # Security headers
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header Content-Security-Policy "default-src 'self'" always;
+
+    # CORS headers for API
+    add_header Access-Control-Allow-Origin "https://onlineartfestival.com" always;
+    add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS" always;
+    add_header Access-Control-Allow-Headers "Authorization, X-API-Key, Content-Type" always;
+    
+    # Logging configuration
+    access_log /var/log/nginx/api_gateway_access.log;
+    error_log  /var/log/nginx/api_gateway_error.log debug;
+
+    # API endpoints
+    location /api/v1/ {
+        
+        # Enable CORS preflight requests
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' 'https://onlineartfestival.com';
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS';
+            add_header 'Access-Control-Allow-Headers' 'Authorization, X-API-Key, Content-Type';
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain charset=UTF-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+        
+        # Proxy to application API handler
+        proxy_pass http://localhost:3001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Timeout settings
+        proxy_connect_timeout 5s;
+        proxy_send_timeout 20s;
+        proxy_read_timeout 20s;
+    }
+    
+    # Test page - for direct access testing
+    location = /test.html {
+        root /var/www/main/api-test;
+        access_log on;
+    }
+
+    # Serve static test frontend with root directive instead of alias
+    location /api-test/ {
+        root /var/www/main;
+        index index.html;
+        access_log on;
+    }
+    
+    # Also serve favicon.ico at the root
+    location = /favicon.ico {
+        alias /var/www/main/api-test/favicon.ico;
+        access_log off;
+        log_not_found off;
+        expires max;
+    }
+    
+    # Block all other requests
+    location / {
+        return 403;
+    }
+}
+
+server { 
+    listen 80; 
+    server_name api2.onlineartfestival.com; 
+    
+    location / { 
+        return 301 https://$host$request_uri; 
+    } 
+} 

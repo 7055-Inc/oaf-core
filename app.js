@@ -1,161 +1,320 @@
+console.log('Starting app.js...');
+
+// Load environment variables
+require('dotenv').config();
+console.log('Environment variables loaded');
+
+console.log('Loading express...');
 const express = require('express');
-const mysql = require('mysql2');
-const fs = require('fs');
+console.log('Express loaded');
+
+console.log('Loading session...');
 const session = require('express-session');
+console.log('Session loaded');
+
+console.log('Loading express-mysql-session...');
 const MySQLStore = require('express-mysql-session')(session);
+console.log('Express-mysql-session loaded');
+
+console.log('Loading mysql2/promise...');
+const mysql = require('mysql2/promise'); // Switch to Promise version
+console.log('mysql2/promise loaded');
+
+console.log('Loading bcryptjs...');
+const bcrypt = require('bcryptjs');
+console.log('bcryptjs loaded');
+
+console.log('Loading crypto...');
+const crypto = require('crypto');
+console.log('crypto loaded');
+
+console.log('Loading path...');
 const path = require('path');
+console.log('path loaded');
+
+console.log('Loading cookie-parser...');
+const cookieParser = require('cookie-parser');
+console.log('cookie-parser loaded');
+
 const app = express();
+const port = 3000;
 
-// Import routers
-const usersRouter = require('./routes/users');
-const shopRouter = require('./routes/shop');
-const permissionsRouter = require('./routes/permissions');
-const mailRouter = require('./routes/mail');
-const registrationRouter = require('./routes/registration');
+const dbConfig = {
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000,
+  connectTimeout: 10000,
+  maxIdle: 5,
+  idleTimeout: 60000,
+};
 
-// Middleware
-app.use(express.urlencoded({ extended: true }));
+const db = mysql.createPool(dbConfig);
+console.log('DB Pool Config:', dbConfig);
+
+console.log('Before loading middleware...');
+let middleware;
+try {
+  middleware = require('./server/middleware');
+  console.log('Middleware loaded successfully:', Object.keys(middleware));
+} catch (err) {
+  console.error('Error loading middleware:', err);
+  throw err;
+}
+console.log('Before initializing middleware with db...');
+middleware.initializeDb(db);
+console.log('Middleware initialized with db');
+
+const sessionStoreConfig = {
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME
+};
+
+const sessionStore = new MySQLStore(sessionStoreConfig);
+console.log('Session Store Config:', sessionStoreConfig);
+
+db.getConnection().then((connection) => {
+  console.log('DB Connection Test Succeeded');
+  connection.release();
+}).catch((err) => {
+  console.error('DB Connection Test Failed:', err);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+});
+
 app.use(express.json());
-app.use('/media', express.static('/var/www/main/media'));
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+app.use(middleware.coopHeaders);
+
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
 app.use(session({
-    secret: 'oaf_secret_key',
-    store: new MySQLStore({
-        host: '10.128.0.31',
-        user: 'oafuser',
-        password: 'oafpass',
-        database: 'oaf'
-    }),
-    resave: false,
-    saveUninitialized: false,
-    cookie: { 
-        secure: false, // Set to true with HTTPS
-        maxAge: 3600000
-    }
+  key: 'session_cookie_name',
+  secret: process.env.SESSION_SECRET,
+  store: sessionStore,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
 }));
 
-// Database connection
-const db = mysql.createConnection({
-    host: '10.128.0.31',
-    user: 'oafuser',
-    password: 'oafpass',
-    database: 'oaf'
+app.use(middleware.dbConnectionMonitor);
+
+app.use('/media', express.static(process.env.NODE_ENV === 'production' ? '/var/www/main/media' : path.join(__dirname, 'media')));
+app.use('/tmp', express.static(process.env.NODE_ENV === 'production' ? '/var/www/main/tmp' : path.join(__dirname, 'tmp')));
+
+// Import routes
+console.log('Loading apiRoutes...');
+const apiRoutes = require('./routes/api');
+console.log('Loading authRoutes...');
+const authRoutes = require('./routes/auth').initialize(db);
+console.log('Loading registrationModule...');
+const registrationModule = require('./routes/registration');
+console.log('Loading productRoutes...');
+const productRoutes = require('./routes/product-routes');
+console.log('Loading shippingRoutes...');
+const shippingRoutes = require('./routes/shipping');
+console.log('Loading mailRoutes...');
+const mailRoutes = require('./routes/mail');
+console.log('Loading mediaProxyRoutes...');
+const mediaProxyRoutes = require('./routes/media-proxy-routes');
+const { initialize: initializeEmailRoutes } = require('./routes/email-routes');
+
+// Use routes
+app.use('/api', apiRoutes);
+app.use('/', authRoutes);  // Mount at root level to match redirect URI
+app.use('/users/register', registrationModule.initialize(db));
+app.use('/api/products', productRoutes);
+app.use('/api/vendor/products', productRoutes);
+app.use('/shipping', shippingRoutes);
+app.use('/mail', mailRoutes);
+app.use('/api/media-vm', mediaProxyRoutes);
+
+// Initialize routes
+const registrationRoutes = registrationModule.initialize(db);
+const emailRoutes = initializeEmailRoutes(db);
+
+// Use routes
+app.use('/api/registration', registrationRoutes);
+app.use('/api', emailRoutes);
+
+console.log("Auth routes mounted");
+
+app.get('/api/email-preferences', (req, res) => {
+  if (!req.session.user) return res.status(403).json({ error: 'Unauthorized' });
+  res.json({ message: 'Email preferences placeholder' });
 });
-db.connect(err => {
-    if (err) throw err;
-    console.log('Connected to db-vm');
+
+app.post('/api/email-preferences', (req, res) => {
+  if (!req.session.user) return res.status(403).json({ error: 'Unauthorized' });
+  res.json({ message: 'Email preferences update placeholder' });
 });
 
-// Routes
-app.use('/users', usersRouter);
-app.use('/shop', shopRouter); // Delegates to product.js, catalog.js, cart.js
-app.use('/permissions', permissionsRouter);
-app.use('/mail', mailRouter);
-app.use('/users/register', registrationRouter);
+app.post('/api/draft-login', (req, res) => {
+  const { username, password } = req.body;
+  console.log('Draft login request:', { username });
+  if (!req.session.registration || req.session.registration.username !== username) {
+    return res.status(401).json({ error: 'No draft found for this username' });
+  }
+  if (req.session.registration.password !== password) {
+    return res.status(401).json({ error: 'Incorrect password' });
+  }
+  console.log('Draft login successful:', username);
+  res.json({ success: true });
+});
 
-// Use the registration router for both register and verify paths
-app.use('/users/register', registrationRouter);
-app.use('/users/verify', registrationRouter); // Add this to handle verification routes
+app.get('/api/permissions', (req, res, next) => {
+  middleware.safeQuery(
+    'SELECT u.id, u.username, u.user_type, p.profile_access, p.marketplace_vendor, p.gallery_access, p.is_admin, p.is_artist, p.is_promoter, p.is_customer, p.is_community, p.is_verified FROM users u LEFT JOIN permissions p ON u.id = p.user_id', 
+    [], 
+    (err, results) => {
+      if (err) return next(err);
+      res.json(results);
+    }
+  );
+});
 
-// Root route (temporary until moved to catalog.js)
-app.get('/', (req, res) => {
-    db.query('SELECT * FROM users', (err, users) => {
-        if (err) throw err;
-        db.query('SELECT * FROM products', (err, products) => {
-            if (err) throw err;
-            const userList = users.map(row => `<li>${row.username} (${row.user_type}) - Password: ${row.password}</li>`).join('');
-            const productGrid = products.map(row => `
-                <div class="product">
-                    <h3>${row.name}</h3>
-                    <p>Price: $${row.price} | Qty: ${row.available_qty}</p>
-                    <form action="/shop/catalog/add" method="POST">
-                        <input type="hidden" name="id" value="${row.id}">
-                        <input type="number" name="qty" min="1" max="${row.available_qty}" value="1" style="width: 50px;">
-                        <button type="submit">Add to Cart</button>
-                    </form>
-                </div>
-            `).join('');
-            const html = `
-                ${fs.readFileSync('/var/www/main/header.html')}
-                <main>
-                    <h2>Users:</h2>
-                    <ul>${userList}</ul>
-                    <h2>Products:</h2>
-                    <div class="grid">${productGrid}</div>
-                    <p><a href="/shop/cart">View Cart</a></p>
-                </main>
-                ${fs.readFileSync('/var/www/main/footer.html')}
-                <style>
-                    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; padding: 20px; }
-                    .product { border: 1px solid #ddd; padding: 10px; text-align: center; }
-                    button { background: #007bff; color: white; padding: 5px; border: none; }
-                    button:hover { background: #0056b3; }
-                </style>
-            `;
-            res.send(html);
-        });
+app.post('/api/permissions/update', (req, res, next) => {
+  const { username, profile_access, marketplace_vendor, gallery_access, is_admin, is_artist, is_promoter, is_customer, is_community, is_verified, reason } = req.body;
+  const adminId = req.session.user?.id;
+  if (!adminId) return res.status(403).json({ error: 'Unauthorized' });
+
+  const sql = `
+    INSERT INTO permissions (user_id, profile_access, marketplace_vendor, gallery_access, is_admin, is_artist, is_promoter, is_customer, is_community, is_verified)
+    VALUES ((SELECT id FROM users WHERE username = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE 
+      profile_access = ?, marketplace_vendor = ?, gallery_access = ?, 
+      is_admin = ?, is_artist = ?, is_promoter = ?, is_customer = ?, is_community = ?, is_verified = ?`;
+  const values = [
+    username,
+    profile_access ? 'yes' : 'no', marketplace_vendor ? 'yes' : 'no', gallery_access ? 'yes' : 'no',
+    is_admin ? 'yes' : 'no', is_artist ? 'yes' : 'no', is_promoter ? 'yes' : 'no', is_customer ? 'yes' : 'no', is_community ? 'yes' : 'no', is_verified ? 'yes' : 'no',
+    profile_access ? 'yes' : 'no', marketplace_vendor ? 'yes' : 'no', gallery_access ? 'yes' : 'no',
+    is_admin ? 'yes' : 'no', is_artist ? 'yes' : 'no', is_promoter ? 'yes' : 'no', is_customer ? 'yes' : 'no', is_community ? 'yes' : 'no', is_verified ? 'yes' : 'no'
+  ];
+
+  middleware.safeQuery(sql, values, (err, result) => {
+    if (err) return next(err);
+    
+    middleware.safeQuery('SELECT id FROM users WHERE username = ?', [username], (e, r) => {
+      if (e) return next(e);
+      
+      const userId = result.insertId || r[0].id;
+      const changes = JSON.stringify({
+        profile_access, marketplace_vendor, gallery_access, is_admin, is_artist, is_promoter, is_customer, is_community, is_verified
+      });
+      
+      middleware.safeQuery(
+        'INSERT INTO permissions_log (permission_id, user_id_changed, changed_by, what_changed, from_where, reason) VALUES (?, ?, ?, ?, ?, ?)',
+        [userId, userId, adminId, changes, req.ip, reason],
+        (err) => {
+          if (err) return next(err);
+          res.json({ success: true });
+        }
+      );
     });
+  });
 });
 
-// My Account route
-app.get('/myaccount/:section?', (req, res) => {
-    const section = req.params.section || 'account';
-    let content;
-    switch (section) {
-        case 'account': content = '<h2>Account</h2><p>Account placeholder</p>'; break;
-        case 'profile': content = '<h2>Profile</h2><p>Profile placeholder</p>'; break;
-        case 'orders': content = '<h2>Orders</h2><p>Orders placeholder</p>'; break;
-        default: content = '<h2>404</h2><p>Section not found</p>';
+app.get('/api/verify/:token', middleware.asyncHandler(async (req, res, next) => {
+  const { token } = req.params;
+  
+  try {
+    // Get token info
+    const [tokenResults] = await db.query('SELECT user_id, expires_at FROM email_verification_tokens WHERE token = ?', [token]);
+    
+    if (!tokenResults || tokenResults.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired token' });
     }
-    const html = `
-        ${fs.readFileSync('/var/www/main/header.html')}
-        <div style="display: flex;">
-            ${fs.readFileSync('/var/www/main/myaccount/menu.html')}
-            <div style="width: 80%; padding: 20px;">${content}</div>
-        </div>
-        ${fs.readFileSync('/var/www/main/footer.html')}
-    `;
-    res.send(html);
-});// Cart routes (temporary until fully moved to cart.js)
-app.get('/cart', (req, res) => {
-    const cart = req.session.cart || [];
-    const cartItems = cart.map(item => `
-        <li>${item.name} - $${item.price} x ${item.qty}</li>
-    `).join('');
-    const html = `
-        ${fs.readFileSync('/var/www/main/header.html')}
-        <main>
-            <h2>Your Cart</h2>
-            <ul>${cartItems || 'Cart is empty'}</ul>
-            <form action="/cart/confirm" method="POST">
-                <button type="submit">Confirm Order</button>
-            </form>
-        </main>
-        ${fs.readFileSync('/var/www/main/footer.html')}
-        <style>
-            ul { list-style: none; padding: 20px; }
-            button { background: #007bff; color: white; padding: 10px; border: none; }
-            button:hover { background: #0056b3; }
-        </style>
-    `;
-    res.send(html);
-});
-
-app.post('/cart/confirm', (req, res) => {
-    if (!req.session.cart || req.session.cart.length === 0) {
-        res.send('Cart is empty');
-    } else {
-        req.session.cart = [];
-        const html = `
-            ${fs.readFileSync('/var/www/main/header.html')}
-            <main>
-                <h2>Order Submitted</h2>
-                <p>Your order has been confirmed! (No payment processed yet)</p>
-                <a href="/shop">Back to Shop</a>
-            </main>
-            ${fs.readFileSync('/var/www/main/footer.html')}
-        `;
-        res.send(html);
+    
+    const { user_id, expires_at } = tokenResults[0];
+    if (new Date(expires_at) < new Date()) {
+      return res.status(400).json({ error: 'Token expired' });
     }
+    
+    // Check if user is already verified
+    const [userResults] = await db.query('SELECT email_verified FROM users WHERE id = ?', [user_id]);
+    const isAlreadyVerified = userResults[0]?.email_verified === 'yes';
+    
+    if (!isAlreadyVerified) {
+      // Update verification status
+      await db.query('UPDATE users SET email_verified = ? WHERE id = ?', ['yes', user_id]);
+      await db.query('UPDATE permissions SET is_verified = ? WHERE user_id = ?', ['yes', user_id]);
+    }
+    
+    // Clean up token regardless of verification status
+    await db.query('DELETE FROM email_verification_tokens WHERE token = ?', [token]);
+    
+    // Redirect to the verify step in registration
+    res.redirect('/register/verify');
+    
+  } catch (error) {
+    console.error('Verification error:', error);
+    res.status(500).json({ error: 'Failed to verify email. Please try again.' });
+  }
+}));
+
+app.get('/api/test-direct', (req, res) => {
+  res.json({ message: 'Direct route works' });
 });
 
-app.listen(3000, () => console.log('Main VM on 3000'));
+app.get('/direct-test', (req, res) => {
+  console.log("Direct test route accessed!");
+  res.send('Direct route works!');
+});
+
+// Static files middleware - moved after all API routes
+app.use(express.static(path.join(__dirname, 'client', 'build')));
+
+app.use('/api', middleware.notFoundHandler);
+app.use(middleware.errorHandler);
+
+function checkDbConnection() {
+  db.getConnection().then((connection) => {
+    console.log('DB health check succeeded');
+    connection.release();
+  }).catch((err) => {
+    console.error('DB health check failed:', err);
+  });
+}
+
+setInterval(checkDbConnection, 60000);
+
+console.log("==== REGISTERED ROUTES ====");
+app._router.stack.forEach(r => {
+  if (r.route && r.route.path) {
+    console.log(`${Object.keys(r.route.methods)} ${r.route.path}`);
+  } else if (r.name === 'router') {
+    console.log(`\nROUTER: ${r.regexp}`);
+    r.handle.stack.forEach(route => {
+      if (route.route) {
+        console.log(`  ${Object.keys(route.route.methods)} ${route.route.path}`);
+      }
+    });
+  }
+});
+
+console.log("Starting application...");
+console.log("Application starting, working directory:", process.cwd());
+
+sessionStore.on('error', (error) => {
+  console.error('Session Store Error:', error);
+});
+
+app.listen(port, () => console.log(`Server running on port ${port}`));

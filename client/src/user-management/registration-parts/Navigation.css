@@ -1,0 +1,131 @@
+.registration-navigation {
+  padding: 15px 0;
+  background-color: white;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* Steps container */
+.step-indicators {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 0 20px;
+  position: relative;
+}
+
+/* Step indicator box */
+.step-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+  transition: all 0.3s ease;
+}
+
+/* Step number box */
+.step-number {
+  width: 40px;
+  height: 40px;
+  background-color: #e0e0e0;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  transition: all 0.3s;
+  font-size: 14px;
+  border-radius: 4px;
+  position: relative;
+}
+
+/* Current step title display */
+.current-step-title {
+  text-align: center;
+  margin-top: 20px;
+  font-weight: 500;
+  color: #055474;
+  font-size: 20px;
+}
+
+/* Step connector line between boxes 
+.step-connector {
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  width: 100%;
+  height: 2px;
+  background-color: #e0e0e0;
+  z-index: 0;
+  transform: translateY(-50%);
+} */
+
+/* Active step styling */
+.step-indicator.active .step-number {
+  background-color: #055474;
+  color: white;
+  box-shadow: 0 2px 4px rgba(5, 84, 116, 0.2);
+}
+
+/* Completed step styling */
+.step-indicator.completed .step-number {
+  background-color: #3e1c56;
+  color: white;
+  box-shadow: 0 2px 4px rgba(62, 28, 86, 0.2);
+}
+
+.step-indicator.completed .step-connector {
+  background-color: #3e1c56;
+}
+
+/* Clickable steps */
+.step-indicator.clickable {
+  cursor: pointer;
+}
+
+.step-indicator.clickable:hover .step-number {
+  filter: brightness(1.05);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Navigation buttons */
+.navigation-buttons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 15px;
+}
+
+.back-button, .next-button {
+  padding: 10px 25px;
+  font-size: 1rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .step-indicators {
+    padding: 0 10px;
+  }
+
+  .step-number {
+    height: 36px;
+    font-size: 13px;
+  }
+  
+  .step-connector {
+    top: 50%;
+  }
+  
+  .current-step-title {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .step-number {
+    width: 36px;
+    height: 36px;
+    border-radius: 4px;
+  }
+} 
