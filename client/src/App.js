@@ -1,23 +1,34 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useLocation, Navigate, NavLink } from 'react-router-dom';
 import Modal from 'react-modal';
 import './App.css';
 import Home from './Home';
 import MyAccount from './myaccount/MyAccount';
-import Login from './user-management/Login';
-import ResetPassword from './user-management/ResetPassword';
-import RegistrationContainer from './user-management/registration-parts/Registration-container';
 import Product from './product/Product';
 import Cart from './cart/Cart';
 import ProductCreationPage from './product/pages/ProductCreationPage';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { UserProvider, useUser, auth } from './users/users';
+import Login from './users/login';
+
+// Placeholder components for routes that may be implemented later
+const GalleryPage = () => <div>Gallery Page</div>;
+const ArtworkDetail = () => <div>Artwork Detail</div>;
+const ArtistsPage = () => <div>Artists Page</div>;
+const ArtistProfile = () => <div>Artist Profile</div>;
+const EventsPage = () => <div>Events Page</div>;
+const AboutPage = () => <div>About Page</div>;
+const CreateProduct = () => <div>Create Product Page</div>;
 
 Modal.setAppElement('#root');
 
 // Protected route component
 function ProtectedRoute({ children }) {
-  const { currentUser } = useAuth();
+  const { currentUser, loading } = useUser();
   const location = useLocation();
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   if (!currentUser) {
     return <Navigate to="/" state={{ from: location }} replace />;
@@ -27,16 +38,14 @@ function ProtectedRoute({ children }) {
 }
 
 function App() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const location = useLocation();
-  const { currentUser, logout } = useAuth();
+  const { currentUser } = useUser();
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error("Logout failed", error);
-    }
+  const openLoginModal = () => setShowLoginModal(true);
+  const closeLoginModal = () => setShowLoginModal(false);
+
+  const handleLogout = () => {
+    auth.signOut();
   };
 
   return (
@@ -56,7 +65,7 @@ function App() {
                 {currentUser ? (
                   <a href="#" onClick={(e) => { e.preventDefault(); handleLogout(); }}>Log out</a>
                 ) : (
-                  <a href="#" onClick={(e) => { e.preventDefault(); setIsModalOpen(true); }}>Log in or Register</a>
+                  <a href="#" onClick={(e) => { e.preventDefault(); openLoginModal(); }}>Log in or Register</a>
                 )}
               </li>
             </ul>
@@ -64,35 +73,35 @@ function App() {
         </div>
         <hr className="header-hr" />
       </header>
+
       <main>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/myaccount" element={
+          <Route path="/gallery" element={<GalleryPage />} />
+          <Route path="/gallery/:artId" element={<ArtworkDetail />} />
+          <Route path="/artists" element={<ArtistsPage />} />
+          <Route path="/artists/:artistId" element={<ArtistProfile />} />
+          <Route path="/events" element={<EventsPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/cart" element={<Cart />} />
+          
+          {/* Protected routes */}
+          <Route path="/myaccount/*" element={
             <ProtectedRoute>
               <MyAccount />
             </ProtectedRoute>
           } />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/register/*" element={<RegistrationContainer />} />
-          <Route path="/product/:productId" element={<Product />} />
-          <Route path="/product" element={<Product />} />
-          <Route path="/product/create" element={
+          <Route path="/create-product" element={
             <ProtectedRoute>
-              <ProductCreationPage />
+              <CreateProduct />
             </ProtectedRoute>
           } />
-          <Route path="/vendor/products/create" element={
-            <ProtectedRoute>
-              <ProductCreationPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/cart" element={<Cart />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+
       <Modal
-        isOpen={isModalOpen}
-        onRequestClose={() => setIsModalOpen(false)}
+        isOpen={showLoginModal}
+        onRequestClose={closeLoginModal}
         style={{
           content: {
             top: '50%',
@@ -109,8 +118,9 @@ function App() {
           }
         }}
       >
-        <Login setIsModalOpen={setIsModalOpen} />
+        <Login onClose={closeLoginModal} />
       </Modal>
+
       <footer>
         <div className="social-row">
           <a href="https://facebook.com"><i className="fab fa-facebook-f"></i></a>
@@ -162,7 +172,7 @@ function App() {
         </div>
         <hr className="footer-hr" />
         <div className="copyright">
-          <p>© 2025 Online Art Festival. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Online Art Festival. All rights reserved.</p>
         </div>
       </footer>
     </div>
@@ -172,9 +182,9 @@ function App() {
 export default function AppWrapper() {
   return (
     <Router>
-      <AuthProvider>
+      <UserProvider>
         <App />
-      </AuthProvider>
+      </UserProvider>
     </Router>
   );
 }

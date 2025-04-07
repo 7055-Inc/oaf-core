@@ -1,11 +1,14 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 
+// Use environment variables for Firebase config
 const firebaseConfig = {
-  apiKey: "AIzaSyDhWB9tPOg7Bsb2IaNjke8rkOB8i08OvvE",
-  authDomain: "onlineartfestival-com.firebaseapp.com",
-  projectId: "onlineartfestival-com",
-  appId: "1:513917944286:web:b766fb1dca1d203cd7dd4f"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID
 };
 
 const app = initializeApp(firebaseConfig);

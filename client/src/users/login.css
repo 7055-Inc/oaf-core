@@ -1,0 +1,291 @@
+.login-container {
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.login-container h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: #555;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: #4285f4;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+}
+
+.error-message {
+  background-color: #fff3f3;
+  color: #e53935;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  border-left: 4px solid #e53935;
+}
+
+.btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.primary-btn {
+  background-color: #4285f4;
+  color: white;
+}
+
+.primary-btn:hover:not(:disabled) {
+  background-color: #3367d6;
+}
+
+.google-btn {
+  background-color: #fff;
+  color: #757575;
+  border: 1px solid #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.google-btn:hover:not(:disabled) {
+  background-color: #f8f8f8;
+}
+
+.facebook-btn {
+  background-color: #3b5998;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.facebook-btn:hover:not(:disabled) {
+  background-color: #324b80;
+}
+
+.twitter-btn {
+  background-color: #1da1f2;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.twitter-btn:hover:not(:disabled) {
+  background-color: #0d8ecf;
+}
+
+.github-btn {
+  background-color: #333;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.github-btn:hover:not(:disabled) {
+  background-color: #222;
+}
+
+.provider-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background-color: #fff;
+  margin-right: 10px;
+  border-radius: 50%;
+  font-weight: bold;
+}
+
+.google-btn .provider-icon {
+  color: #4285f4;
+}
+
+.facebook-btn .provider-icon {
+  color: #3b5998;
+  background-color: white;
+}
+
+.twitter-btn .provider-icon {
+  color: #1da1f2;
+  background-color: white;
+}
+
+.github-btn .provider-icon {
+  color: #333;
+  background-color: white;
+}
+
+.social-login-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+/* Enhanced social buttons */
+.btn.google-btn {
+  background-color: #fff;
+  color: #757575;
+  border: 1px solid #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+
+.btn.google-btn:hover:not(:disabled) {
+  background-color: #f8f8f8;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.24);
+}
+
+.btn.facebook-btn {
+  background-color: #1877F2;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn.facebook-btn:hover:not(:disabled) {
+  background-color: #166FE5;
+}
+
+.btn.twitter-btn {
+  background-color: #000000;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn.twitter-btn:hover:not(:disabled) {
+  background-color: #333333;
+}
+
+.btn.github-btn {
+  background-color: #24292e;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn.github-btn:hover:not(:disabled) {
+  background-color: #1b1f23;
+}
+
+.social-button-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.provider-icon {
+  margin-right: 10px;
+  width: 18px;
+  height: 18px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+.google-icon {
+  background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSIjNDI4NUY0IiBkPSJNMjIuNTYgMTIuMjVjMC0uNzgtLjA3LTEuNTMtLjItMi4yNUgxMnY0LjI2aDUuOTJjLS4yNiAxLjM3LTEuMDQgMi40Mi0yLjIxIDMuMTd2Mi43N2gzLjU3YzIuMDgtMS45MiAzLjI4LTQuNzQgMy4yOC04LjA5eiIvPjxwYXRoIGZpbGw9IiMzNENBNTUiIGQ9Ik0xMiAyM2MzLjk3IDAgNy4zLTEuNDMgOS41NC0zLjgxbC0zLjU3LTIuNzdjLTEuMDUgMS40OC0yLjYgMi4zNS00LjM3IDIuMzUtMy4zNyAwLTYuMjItMi4yOC03LjI3LTUuMzNIMi4xOHYyLjg0QzQuMzkgMTkuNjIgNy43IDIzIDEyIDIzeiIvPjxwYXRoIGZpbGw9IiNGRkNDMDAiIGQ9Ik01Ljg0IDE0LjA5Yy0uMjItLjY2LS4zNS0xLjM2LS4zNS0yLjA5cy4xMy0xLjQzLjM1LTIuMDlWNy4wN0gyLjE4QzEuNDMgOC41NSAxIDEwLjIyIDEgMTJzLjQzIDMuNDUgMS4xOCA0LjkzbDIuNjYtMi44NHoiLz48cGF0aCBmaWxsPSIjRUIzMjIzIiBkPSJNMTIgNS4zOGMxLjYyIDAgMy4wNi41NiA0LjIxIDEuNjRsMy4xNS0zLjE1QzE5LjMgMi4wOSAxNS45NyAwIDEyIDAgNy43IDAgNC4zOSAzLjM4IDIuMTggNy4wN2wzLjY2IDIuODRjMS4wNS0zLjA1IDMuOS01LjMzIDcuMTctNS4zM3oiLz48L3N2Zz4=');
+}
+
+.facebook-icon {
+  background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiIgd2lkdGg9IjE4cHgiIGhlaWdodD0iMThweCI+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTE3LjM4IDMySDMuODdhLjg3Ljg3IDAgMCAxLS44Ny0uODdWLjg4YS44OC44OCAwIDAgMSAuODctLjg4aDI3LjI2YS44OC44OCAwIDAgMSAuODcuODh2MzAuMjVhLjg3Ljg3IDAgMCAxLS44Ny44N2gtOS44N3YtMTMuMTdoNC40MkwyNiAxMi4zMWgtNC41OFY5LjRhMi42NCwyLjY0IDAgMCAxIDIuNjQtMi42M2gyLjdWMy4xMmMtMSAwLTMuMzMtLjE3LTUuNDEtLjE3YTYuNzMgNi43MyAwIDAgMC03LjQyIDcuNDF2Mi05aDQuNzh2MTMuMThoLTMuOTJ6Ii8+PC9zdmc+');
+}
+
+.twitter-icon {
+  background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgd2lkdGg9IjE4cHgiIGhlaWdodD0iMThweCI+PHBhdGggZmlsbD0iI2ZmZmZmZiIgZD0iTTE4LjI0NCAxLjc1NDVIMjEuNjAyTDEzLjkzOTggMTAuNjkzOEwyMyAyMi4yMzIzSDE1LjkxODNMMTAuNTY5NyAxNS41Nzg1TDQuNDgyOTYgMjIuMjMyM0gxLjEyMzk4TDkuMzE0MjIgMTIuNzI3NUwwLjc2MDAwMSAxLjc1NDVINy45NkwxMi44MzQ2IDcuODI0NzRMMTguMjQ0IDEuNzU0NVpNMTYuOTcyNiAyMC4wNzg5SDE4LjcyMDlMNi44NTEwNyAzLjc3NDcxSDQuOTY0NjhMMTYuOTcyNiAyMC4wNzg5WiIgLz48L3N2Zz4=');
+}
+
+.github-icon {
+  background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDE2IDE2Ij48cGF0aCBmaWxsPSIjZmZmIiBkPSJNOCAwQzMuNTggMCAwIDMuNTggMCA4YzAgMy41NCAyLjI5IDYuNTMgNS40NyA3LjU5LjQxLjA3LjU1LS4xOC41NS0uNHMwLS43MiAwLTEuNDFjLTIuMDEuMzctMi41My0uNDktMi42OS0uOTQtLjA5LS4yMy0uNDgtLjk0LS44Mi0xLjEzLS4yOC0uMTUtLjY4LS41Mi0uMDEtLjUzLjYzLS4wMS45Ny41OCAxLjExLjgyLjY1IDEuMDggMS43LjEgMi4xMS4wNXMuMDUtLjYuMTQtLjc4Yy0xLjczLS4yLTMuNTQtLjg2LTMuNTQtMy44MSAwLS44NC4zLTEuNTMuNzktMi4wN3MtLjE3LTEuNDIuMDYtMS40MmMuNzcgMCAxLjMxLjc4IDEuNTMgMS4xMS41My0uNTQgMS41Mi0uNzcgMi4yNS0uNzdzMS42OS4xOSAyLjI3Ljc3Yy4yNi0uMzEuNjgtLjg0IDEuMjQtLjk0LjIyLS40LjI2LjYyLjEgMS4wNHMuNDUgMS4yMy40NiAyLjAyYzAgMi45OC0xLjgxIDMuNjMtMy41NCAxLjczLjA5LjE3LjE2LjcuMTYgMS4zM3YxLjk3YzAgLjIyLjE0LjQ3LjU1LjRDMTMuNzEgMTQuNTMgMTYgMTEuNTMgMTYgOGMwLTQuNDItMy41OC04LTgtOHoiLz48L3N2Zz4=');
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 15px 0;
+  color: #757575;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #ddd;
+}
+
+.divider::before {
+  margin-right: 10px;
+}
+
+.divider::after {
+  margin-left: 10px;
+}
+
+.mode-toggle {
+  text-align: center;
+  margin-top: 15px;
+}
+
+.mode-toggle p {
+  color: #555;
+}
+
+.mode-toggle button {
+  background: none;
+  border: none;
+  color: #4285f4;
+  cursor: pointer;
+  font-weight: 500;
+  padding: 0;
+}
+
+.mode-toggle button:hover {
+  text-decoration: underline;
+} 

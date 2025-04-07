@@ -103,6 +103,11 @@ const ReviewStep = ({ onSubmit }) => {
     }
   };
   
+  // Function to publish a product
+  const publishProduct = async (draftId, productData) => {
+    return await productService.publishProduct(draftId, productData);
+  };
+  
   // Handle publishing the product
   const handlePublish = async () => {
     try {
@@ -133,8 +138,8 @@ const ReviewStep = ({ onSubmit }) => {
       
       // After a short delay, exit the wizard or redirect
       setTimeout(() => {
-        if (typeof onComplete === 'function') {
-          onComplete(publishedProduct);
+        if (typeof onSubmit === 'function') {
+          onSubmit(publishedProduct);
         }
       }, 2000);
     } catch (error) {

@@ -3,7 +3,7 @@ import { ProductCreationContext } from '../../contexts/ProductCreationContext';
 import useProductCreate from '../../hooks/useProductCreate';
 import WizardNavigation from './WizardNavigation';
 import WizardProgress from './WizardProgress';
-import Login from '../../../user-management/Login';
+import Login from '../../../users/login';
 
 // Import all step components
 import ProductTypeStep from './steps/ProductTypeStep';
