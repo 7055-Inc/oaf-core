@@ -1,0 +1,81 @@
+.checklist-container {
+  padding: 2rem;
+  max-width: 800px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.checklist-intro {
+  margin-bottom: 2rem;
+  color: #666;
+  font-size: 1.1rem;
+}
+
+.checklist-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  font-size: 1.2rem;
+  color: #666;
+}
+
+.checklist-error-container {
+  max-width: 500px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background-color: #fff3f3;
+  border-radius: 8px;
+  text-align: center;
+  border-left: 5px solid #e53935;
+}
+
+.checklist-error-container h2 {
+  color: #e53935;
+  margin-top: 0;
+}
+
+.checklist-error-container button {
+  background-color: #e53935;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+.checklist-error-container button:hover {
+  background-color: #c62828;
+}
+
+.checklist-complete {
+  max-width: 500px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background-color: #e8f5e9;
+  border-radius: 8px;
+  text-align: center;
+  border-left: 5px solid #4caf50;
+}
+
+.checklist-complete h2 {
+  color: #2e7d32;
+  margin-top: 0;
+}
+
+.checklist-complete button {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+.checklist-complete button:hover {
+  background-color: #388e3c;
+} 

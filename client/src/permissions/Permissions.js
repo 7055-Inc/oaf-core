@@ -11,6 +11,21 @@ function Permissions({ isLoggedIn }) {
   const [sortOrder, setSortOrder] = useState('asc');
   const [editUser, setEditUser] = useState(null);
   const [reason, setReason] = useState('');
+  const [permissions, setPermissions] = useState([]);
+
+  useEffect(() => {
+    const fetchPermissions = async () => {
+      try {
+        const response = await fetch('/api/v1/permissions');
+        const data = await response.json();
+        setPermissions(data);
+      } catch (error) {
+        console.error('Error fetching permissions:', error);
+      }
+    };
+
+    fetchPermissions();
+  }, []);
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -36,24 +51,28 @@ function Permissions({ isLoggedIn }) {
     user.user_type.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handlePermissionChange = () => {
-    if (!reason) {
-      alert('Please provide a reason for the change.');
-      return;
-    }
-    fetch('/api/permissions/update', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...editUser, reason })
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          setUsers(users.map(u => u.username === editUser.username ? { ...u, ...editUser } : u));
-          setEditUser(null);
-          setReason('');
-        }
+  const handlePermissionChange = async (userId, permission, value) => {
+    try {
+      const response = await fetch('/api/v1/permissions/update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          permission,
+          value,
+          reason: 'Admin update'
+        }),
       });
+      if (!response.ok) {
+        throw new Error('Failed to update permission');
+      }
+      const updatedPermissions = await response.json();
+      setPermissions(updatedPermissions);
+    } catch (error) {
+      console.error('Error updating permission:', error);
+    }
   };
 
   return (
@@ -136,7 +155,7 @@ function Permissions({ isLoggedIn }) {
             <textarea value={reason} onChange={(e) => setReason(e.target.value)} required />
             <div className="button-group">
               <button onClick={() => { setEditUser(null); setReason(''); }}>Cancel</button>
-              <button onClick={handlePermissionChange}>Submit</button>
+              <button onClick={() => handlePermissionChange(editUser.username, editUser.permission, editUser.value)}>Submit</button>
             </div>
           </div>
         </Modal>

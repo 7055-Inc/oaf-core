@@ -18,164 +18,133 @@ function Cart() {
   const [couponError, setCouponError] = useState('');
   
   useEffect(() => {
-    fetchCartData();
+    const fetchCart = async () => {
+      try {
+        const response = await fetch('/api/v1/cart');
+        const data = await response.json();
+        setCartData(data);
+      } catch (error) {
+        console.error('Error fetching cart:', error);
+      }
+    };
+
+    fetchCart();
   }, []);
   
-  const fetchCartData = async () => {
+  const handleUpdateQuantity = async (itemId, quantity) => {
     try {
-      setLoading(true);
-      const response = await fetch('/api/cart');
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch cart');
-      }
-      
-      const data = await response.json();
-      setCartData(data);
-      setLoading(false);
-    } catch (err) {
-      setError(err.message);
-      setLoading(false);
-    }
-  };
-  
-  const updateQuantity = async (itemId, newQuantity) => {
-    try {
-      const response = await fetch(`/api/cart/items/${itemId}`, {
+      const response = await fetch(`/api/v1/cart/items/${itemId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ quantity: newQuantity }),
+        body: JSON.stringify({ quantity }),
       });
-      
       if (!response.ok) {
         throw new Error('Failed to update quantity');
       }
-      
-      const data = await response.json();
-      setCartData(data);
-    } catch (err) {
-      setError(err.message);
+      const updatedCart = await response.json();
+      setCartData(updatedCart);
+    } catch (error) {
+      console.error('Error updating quantity:', error);
     }
   };
   
-  const removeItem = async (itemId) => {
+  const handleRemoveItem = async (itemId) => {
     try {
-      const response = await fetch(`/api/cart/items/${itemId}`, {
+      const response = await fetch(`/api/v1/cart/items/${itemId}`, {
         method: 'DELETE',
       });
-      
       if (!response.ok) {
         throw new Error('Failed to remove item');
       }
-      
-      const data = await response.json();
-      setCartData(data);
-    } catch (err) {
-      setError(err.message);
+      const updatedCart = await response.json();
+      setCartData(updatedCart);
+    } catch (error) {
+      console.error('Error removing item:', error);
     }
   };
   
-  const saveForLater = async (itemId) => {
+  const handleSaveForLater = async (itemId) => {
     try {
-      const response = await fetch(`/api/cart/items/${itemId}/save`, {
-        method: 'PATCH'
+      const response = await fetch(`/api/v1/cart/items/${itemId}/save`, {
+        method: 'PATCH',
       });
-      
       if (!response.ok) {
-        throw new Error('Failed to save item for later');
+        throw new Error('Failed to save item');
       }
-      
-      const data = await response.json();
-      setCartData(data);
-    } catch (err) {
-      setError(err.message);
+      const updatedCart = await response.json();
+      setCartData(updatedCart);
+    } catch (error) {
+      console.error('Error saving item:', error);
     }
   };
   
-  const moveToCart = async (itemId) => {
+  const handleMoveToCart = async (itemId) => {
     try {
-      const response = await fetch(`/api/cart/items/${itemId}/move-to-cart`, {
-        method: 'PATCH'
+      const response = await fetch(`/api/v1/cart/items/${itemId}/move-to-cart`, {
+        method: 'PATCH',
       });
-      
       if (!response.ok) {
         throw new Error('Failed to move item to cart');
       }
-      
-      const data = await response.json();
-      setCartData(data);
-    } catch (err) {
-      setError(err.message);
+      const updatedCart = await response.json();
+      setCartData(updatedCart);
+    } catch (error) {
+      console.error('Error moving item to cart:', error);
     }
   };
   
-  const updateShippingMethod = async (vendorId, shippingMethodId) => {
+  const handleUpdateShipping = async (vendorId, shippingMethod) => {
     try {
-      const response = await fetch(`/api/cart/vendor/${vendorId}/shipping`, {
+      const response = await fetch(`/api/v1/cart/vendor/${vendorId}/shipping`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ shippingMethodId }),
+        body: JSON.stringify({ shippingMethod }),
       });
-      
       if (!response.ok) {
-        throw new Error('Failed to update shipping method');
+        throw new Error('Failed to update shipping');
       }
-      
-      const data = await response.json();
-      setCartData(data);
-    } catch (err) {
-      setError(err.message);
+      const updatedCart = await response.json();
+      setCartData(updatedCart);
+    } catch (error) {
+      console.error('Error updating shipping:', error);
     }
   };
   
-  const applyCoupon = async () => {
+  const handleApplyCoupon = async (couponCode) => {
     try {
-      setCouponError('');
-      
-      if (!couponCode.trim()) {
-        setCouponError('Please enter a coupon code');
-        return;
-      }
-      
-      const response = await fetch('/api/cart/coupons', {
+      const response = await fetch('/api/v1/cart/coupons', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ code: couponCode }),
+        body: JSON.stringify({ couponCode }),
       });
-      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to apply coupon');
+        throw new Error('Failed to apply coupon');
       }
-      
-      const data = await response.json();
-      setCartData(data);
-      setCouponCode('');
-    } catch (err) {
-      setCouponError(err.message);
+      const updatedCart = await response.json();
+      setCartData(updatedCart);
+    } catch (error) {
+      console.error('Error applying coupon:', error);
     }
   };
   
-  const removeCoupon = async (couponId) => {
+  const handleRemoveCoupon = async (couponId) => {
     try {
-      const response = await fetch(`/api/cart/coupons/${couponId}`, {
+      const response = await fetch(`/api/v1/cart/coupons/${couponId}`, {
         method: 'DELETE',
       });
-      
       if (!response.ok) {
         throw new Error('Failed to remove coupon');
       }
-      
-      const data = await response.json();
-      setCartData(data);
-    } catch (err) {
-      setError(err.message);
+      const updatedCart = await response.json();
+      setCartData(updatedCart);
+    } catch (error) {
+      console.error('Error removing coupon:', error);
     }
   };
   
@@ -215,22 +184,22 @@ function Cart() {
                       {item.stockAvailable <= 0 ? (
                         <div className="item-out-of-stock">
                           <p>Sorry, this item has sold out.</p>
-                          <button onClick={() => removeItem(item.id)}>
+                          <button onClick={() => handleRemoveItem(item.id)}>
                             Remove from cart
                           </button>
-                          <button onClick={() => saveForLater(item.id)}>
+                          <button onClick={() => handleSaveForLater(item.id)}>
                             Save for later
                           </button>
                         </div>
                       ) : (
                         <div className="item-quantity">
                           <button 
-                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
                             disabled={item.quantity <= 1}
                           >-</button>
                           <span>{item.quantity}</span>
                           <button 
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
                             disabled={item.quantity >= item.stockAvailable}
                           >+</button>
                         </div>
@@ -244,13 +213,13 @@ function Cart() {
                     <div className="item-actions">
                       <button 
                         className="remove-item" 
-                        onClick={() => removeItem(item.id)}
+                        onClick={() => handleRemoveItem(item.id)}
                       >
                         ✕
                       </button>
                       <button 
                         className="save-for-later" 
-                        onClick={() => saveForLater(item.id)}
+                        onClick={() => handleSaveForLater(item.id)}
                       >
                         Save for later
                       </button>
@@ -264,7 +233,7 @@ function Cart() {
                 <h3>Shipping</h3>
                 <select 
                   value={group.selectedShipping} 
-                  onChange={(e) => updateShippingMethod(group.vendor.id, e.target.value)}
+                  onChange={(e) => handleUpdateShipping(group.vendor.id, e.target.value)}
                 >
                   {group.shippingMethods.map(method => (
                     <option key={method.id} value={method.id}>
@@ -306,7 +275,7 @@ function Cart() {
                     ) : (
                       <button 
                         className="move-to-cart" 
-                        onClick={() => moveToCart(item.id)}
+                        onClick={() => handleMoveToCart(item.id)}
                       >
                         Move to Cart
                       </button>
@@ -314,7 +283,7 @@ function Cart() {
                   </div>
                   <button 
                     className="remove-saved" 
-                    onClick={() => removeItem(item.id)}
+                    onClick={() => handleRemoveItem(item.id)}
                   >
                     ✕
                   </button>
@@ -333,7 +302,7 @@ function Cart() {
                 onChange={(e) => setCouponCode(e.target.value)} 
                 placeholder="Enter coupon code"
               />
-              <button onClick={applyCoupon}>Apply</button>
+              <button onClick={() => handleApplyCoupon(couponCode)}>Apply</button>
             </div>
             
             {couponError && (
@@ -347,7 +316,7 @@ function Cart() {
                 {cartData.appliedCoupons.map(coupon => (
                   <div key={coupon.id} className="applied-coupon">
                     <span>{coupon.code} - ${coupon.discountAmount.toFixed(2)}</span>
-                    <button onClick={() => removeCoupon(coupon.id)}>Remove</button>
+                    <button onClick={() => handleRemoveCoupon(coupon.id)}>Remove</button>
                   </div>
                 ))}
               </div>

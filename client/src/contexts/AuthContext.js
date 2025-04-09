@@ -6,10 +6,14 @@ import {
   sendPasswordResetEmail,
   updateProfile,
   onAuthStateChanged,
-  signInWithPopup
+  signInWithPopup,
+  setPersistence,
+  browserLocalPersistence
 } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
 import { useNavigate } from 'react-router-dom';
+import { apiFetch } from '../services/api';
+import { resetChecklist } from '../services/checklistService';
 
 const AuthContext = createContext(null);
 
@@ -35,10 +39,36 @@ export const AuthProvider = ({ children }) => {
 
   const checkSession = async () => {
     try {
-      const response = await fetch('/api/auth/session');
-      const data = await response.json();
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
 
-      if (data.success) {
+      const idToken = await currentUser.getIdToken();
+      const response = await apiFetch('/v1/auth/session', {
+        headers: {
+          'Authorization': `Bearer ${idToken}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Session check failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          responseText: errorText
+        });
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+      
+      const data = await response.json();
+      console.log('Session check response:', data);
+
+      if (data.isLoggedIn) {
         setUser(data.user);
       } else {
         setUser(null);
@@ -53,7 +83,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await fetch('/api/auth/password', {
+      const response = await apiFetch('/v1/auth/password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -81,10 +111,20 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-      });
-      setUser(null);
+      // Reset checklist before logout if user is authenticated
+      if (user) {
+        try {
+          const idToken = await user.getIdToken();
+          await resetChecklist(user.uid, idToken);
+          console.log('Checklist reset successfully');
+        } catch (error) {
+          console.error('Error resetting checklist:', error);
+          // Continue with logout even if checklist reset fails
+        }
+      }
+      
+      await signOut(auth);
+      navigate('/');
     } catch (error) {
       console.error('Logout error:', error);
       throw error;
@@ -93,24 +133,34 @@ export const AuthProvider = ({ children }) => {
 
   const signup = async (email, password) => {
     try {
-      const response = await fetch('/api/newuser', {
+      // Use Firebase Authentication directly
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      
+      // Get token for backend registration
+      const idToken = await user.getIdToken();
+      
+      // Save user data to backend
+      const response = await apiFetch('/v1/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
         },
         body: JSON.stringify({
-          username: email,
-          password: password,
+          uid: user.uid,
+          email: user.email,
         }),
       });
 
       const data = await response.json();
-      if (!data.success) {
+      if (!response.ok) {
         throw new Error(data.error || 'Failed to create account');
       }
 
       // After successful signup, redirect to registration
       navigate('/register');
+      return user;
     } catch (error) {
       throw error;
     }
@@ -118,16 +168,67 @@ export const AuthProvider = ({ children }) => {
 
   const signInWithGoogle = async () => {
     try {
-      const response = await fetch('/api/auth/google', {
-        method: 'GET',
+      console.log('Starting Google sign-in process...');
+      
+      // Set persistence to LOCAL to prevent session loss
+      await setPersistence(auth, browserLocalPersistence);
+      
+      const result = await signInWithPopup(auth, googleProvider);
+      console.log('Firebase authentication successful:', result);
+      
+      const user = result.user;
+      console.log('User authenticated:', user);
+      
+      // Get the ID token
+      const idToken = await user.getIdToken(true); // Force token refresh
+      console.log('ID token obtained');
+      
+      // Send token to backend to create/update user
+      console.log('Sending token to backend...');
+      const response = await apiFetch('/auth/google/callback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ 
+          idToken,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL
+        }),
       });
+
+      console.log('Backend response received:', response);
       const data = await response.json();
-      if (data.url) {
-        // Store the current URL to return to after Google sign-in
-        localStorage.setItem('returnTo', window.location.pathname);
-        window.location.href = data.url;
+      
+      if (!response.ok) {
+        console.error('Backend error:', data);
+        throw new Error(data.error || 'Failed to complete Google sign-in');
       }
+
+      console.log('Backend authentication successful');
+      // Update local state
+      setUser(user);
+      return { success: true };
     } catch (error) {
+      console.error('Error signing in with Google:', error);
+      if (error.code === 'auth/popup-closed-by-user') {
+        console.log('User closed the popup during authentication');
+        return { success: false, error: 'Sign-in was cancelled' };
+      }
+      if (error.code === 'auth/cancelled-popup-request') {
+        console.log('Multiple popup requests were made');
+        return { success: false, error: 'Multiple sign-in attempts detected' };
+      }
+      if (error.code === 'auth/popup-blocked') {
+        console.log('Popup was blocked by the browser');
+        return { success: false, error: 'Popup was blocked. Please allow popups for this site.' };
+      }
+      if (error.code === 'auth/network-request-failed') {
+        console.log('Network error during authentication');
+        return { success: false, error: 'Network error. Please check your connection.' };
+      }
       throw error;
     }
   };
@@ -157,7 +258,7 @@ export const AuthProvider = ({ children }) => {
         const claims = await getUserClaims();
         setUserClaims(claims);
         const idToken = await user.getIdToken();
-        const response = await fetch('/api/auth/session', {
+        const response = await apiFetch('/auth/session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ idToken }),
@@ -176,7 +277,7 @@ export const AuthProvider = ({ children }) => {
     });
 
     return unsubscribe;
-  }, [userProfile]);
+  }, []);
 
   const value = {
     user,

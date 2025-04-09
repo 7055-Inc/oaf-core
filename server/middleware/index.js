@@ -1,5 +1,4 @@
 // /server/middleware/index.js
-const { verifyToken, requireRole, optionalAuth } = require('./authMiddleware');
 const { errorHandler } = require('./errorHandler');
 let db;
 
@@ -39,34 +38,11 @@ const safeQuery = (sql, params, callback) => {
   });
 };
 
-// 404 Not Found handler
-const notFoundHandler = (req, res, next) => {
-  res.status(404).json({ 
-    success: false, 
-    error: {
-      message: 'Route not found',
-      code: 'NOT_FOUND'
-    } 
-  });
-};
-
-// Add COOP and COEP headers to all responses
-const coopHeaders = (req, res, next) => {
-  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
-  res.setHeader('Cross-Origin-Embedder-Policy', 'unsafe-none'); // Fixed: Changed from 'require-corp' to 'unsafe-none'
-  next();
-};
-
 // Export all middleware functions
 module.exports = {
-  verifyToken,
-  requireRole,
-  optionalAuth,
   errorHandler,
   initializeDb,
   dbConnectionMonitor,
   asyncHandler,
-  safeQuery,
-  notFoundHandler,
-  coopHeaders
+  safeQuery
 };

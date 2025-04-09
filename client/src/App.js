@@ -9,6 +9,9 @@ import Cart from './cart/Cart';
 import ProductCreationPage from './product/pages/ProductCreationPage';
 import { UserProvider, useUser, auth } from './users/users';
 import Login from './users/login';
+import Checklist from './components/checklist/Checklist';
+import ChecklistGuard from './components/checklist/ChecklistGuard';
+import { AuthProvider } from './contexts/AuthContext';
 
 // Placeholder components for routes that may be implemented later
 const GalleryPage = () => <div>Gallery Page</div>;
@@ -35,6 +38,22 @@ function ProtectedRoute({ children }) {
   }
 
   return children;
+}
+
+// Protected route with checklist validation
+function ChecklistProtectedRoute({ children }) {
+  const { currentUser, loading } = useUser();
+  const location = useLocation();
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!currentUser) {
+    return <Navigate to="/" state={{ from: location }} replace />;
+  }
+
+  return <ChecklistGuard>{children}</ChecklistGuard>;
 }
 
 function App() {
@@ -85,16 +104,23 @@ function App() {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/cart" element={<Cart />} />
           
-          {/* Protected routes */}
-          <Route path="/myaccount/*" element={
+          {/* Checklist route - protected but no checklist validation */}
+          <Route path="/checklist" element={
             <ProtectedRoute>
-              <MyAccount />
+              <Checklist />
             </ProtectedRoute>
           } />
+          
+          {/* Protected routes with checklist validation */}
+          <Route path="/myaccount/*" element={
+            <ChecklistProtectedRoute>
+              <MyAccount />
+            </ChecklistProtectedRoute>
+          } />
           <Route path="/create-product" element={
-            <ProtectedRoute>
+            <ChecklistProtectedRoute>
               <CreateProduct />
-            </ProtectedRoute>
+            </ChecklistProtectedRoute>
           } />
         </Routes>
       </main>
@@ -183,7 +209,9 @@ export default function AppWrapper() {
   return (
     <Router>
       <UserProvider>
-        <App />
+        <AuthProvider>
+          <App />
+        </AuthProvider>
       </UserProvider>
     </Router>
   );

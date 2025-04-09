@@ -1,5 +1,5 @@
 // Configuration
-const API_URL = '/api/v1/test';
+const API_URL = '/v1/test';
 let requestCount = 0;
 
 // DOM Elements

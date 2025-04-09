@@ -43,6 +43,9 @@ export default function Login({ onClose }) {
       }
       
       if (onClose) onClose();
+      
+      // After successful login, redirect to the checklist page
+      window.location.href = '/checklist';
     } catch (error) {
       console.error('Error signing in with social provider:', error);
       setError(error.message);
@@ -86,6 +89,9 @@ export default function Login({ onClose }) {
       }
       
       if (onClose) onClose();
+      
+      // After successful login, redirect to the checklist page
+      window.location.href = '/checklist';
     } catch (error) {
       console.error('Authentication error:', error);
       

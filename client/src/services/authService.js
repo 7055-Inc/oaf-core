@@ -11,7 +11,7 @@
  */
 export const saveUserToDatabase = async (userData, idToken) => {
   try {
-    const response = await fetch('/api/users', {
+    const response = await fetch('/v1/users', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -39,7 +39,7 @@ export const saveUserToDatabase = async (userData, idToken) => {
  */
 export const getUserProfile = async (uid, idToken) => {
   try {
-    const response = await fetch(`/api/users/${uid}`, {
+    const response = await fetch(`/v1/users/${uid}`, {
       headers: {
         'Authorization': `Bearer ${idToken}`
       }
@@ -51,7 +51,7 @@ export const getUserProfile = async (uid, idToken) => {
 
     return await response.json();
   } catch (error) {
-    console.error('Error getting user profile:', error);
+    console.error('Error fetching user profile:', error);
     throw error;
   }
 }; 

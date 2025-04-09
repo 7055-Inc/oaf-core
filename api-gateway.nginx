@@ -1,0 +1,76 @@
+server {
+    listen 443 ssl;
+    server_name api2.onlineartfestival.com;
+
+    # SSL Configuration
+    ssl_certificate /etc/letsencrypt/live/api2.onlineartfestival.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api2.onlineartfestival.com/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+    
+    # Security headers
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    
+    # Logging configuration
+    access_log /var/log/nginx/api_gateway_access.log;
+    error_log  /var/log/nginx/api_gateway_error.log debug;
+
+    # API endpoints - must come before root path
+    location /v1/ {
+        proxy_pass http://localhost:3001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port $server_port;
+    }
+
+    # Root path - exact match
+    location = / {
+        proxy_pass http://localhost:3001/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port $server_port;
+    }
+
+    # Test page - for direct access testing
+    location = /test.html {
+        root /var/www/main/api-test;
+        access_log on;
+    }
+
+    # Serve static test frontend with root directive instead of alias
+    location /api-test/ {
+        root /var/www/main;
+        index index.html;
+        access_log on;
+    }
+    
+    # Also serve favicon.ico at the root
+    location = /favicon.ico {
+        alias /var/www/main/api-test/favicon.ico;
+        access_log off;
+        log_not_found off;
+        expires max;
+    }
+    
+    # Block all other requests
+    location / {
+        return 403;
+    }
+}
+
+server { 
+    listen 80; 
+    server_name api2.onlineartfestival.com; 
+    
+    location / { 
+        return 301 https://$host$request_uri; 
+    } 
+} 

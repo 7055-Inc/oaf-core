@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import Permissions from '../permissions/Permissions';
 import './MyAccount.css';
 
 function MyAccount({ isLoggedIn }) {
   const [activeSection, setActiveSection] = useState('Dashboards');
   const [permissions, setPermissions] = useState({});
+
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -32,22 +37,16 @@ function MyAccount({ isLoggedIn }) {
         <div className="menu">Please log in to access your account</div>
         <div className="work-area">
           <h2>Login</h2>
-          <form onSubmit={(e) => {
+          <form onSubmit={async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
-            fetch('/api/login', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                username: formData.get('username'),
-                password: formData.get('password')
-              })
-            })
-              .then(res => res.json())
-              .then(data => {
-                if (data.success) window.location.reload();
-                else alert(data.error);
-              });
+            try {
+              await login(formData.get('username'), formData.get('password'));
+              // Reload page after successful login
+              window.location.reload();
+            } catch (error) {
+              alert(error.message || 'Login failed');
+            }
           }}>
             <label>Email:</label>
             <input type="email" name="username" autoComplete="username" required />
