@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUser } from '../../users/users';
-import DashboardMenu from './DashboardMenu';
+import FlatNavigation from './FlatNavigation';
 import AnnouncementBar from './AnnouncementBar';
 import './DashboardLayout.css';
 
@@ -12,31 +12,19 @@ import './DashboardLayout.css';
 const DashboardLayout = ({ children }) => {
   const { user } = useAuth();
   const { currentUser } = useUser();
-  const [menuCollapsed, setMenuCollapsed] = useState(false);
   
   // Use whichever user object has the user_type property
   const activeUser = (currentUser && currentUser.user_type) ? currentUser : user;
   const userType = activeUser?.user_type || 'guest';
   
-  const toggleMenu = () => {
-    setMenuCollapsed(!menuCollapsed);
-  };
-  
   return (
     <div className="dashboard-layout">
-      {/* Dashboard sidebar menu */}
-      <div className={`dashboard-sidebar ${menuCollapsed ? 'collapsed' : ''}`}>
+      {/* Dashboard sidebar with flat navigation */}
+      <div className="dashboard-sidebar">
         <div className="dashboard-brand">
           <img src="/media/logo.png" alt="OAF Dashboard" className="dashboard-logo" />
-          <button 
-            className="menu-toggle"
-            onClick={toggleMenu}
-            aria-label={menuCollapsed ? "Expand menu" : "Collapse menu"}
-          >
-            {menuCollapsed ? '»' : '«'}
-          </button>
         </div>
-        <DashboardMenu userType={userType} collapsed={menuCollapsed} />
+        <FlatNavigation userType={userType} />
       </div>
       
       {/* Main content area */}

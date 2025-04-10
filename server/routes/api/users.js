@@ -137,21 +137,21 @@ router.get('/users/:userId/checklist', verifyToken, async (req, res) => {
     if (!checklist || checklist.length === 0) {
       // If no checklist exists, return defaults
       return res.json({
-        isUser: { completed: false, updatedAt: null },
-        registration: { completed: false, updatedAt: null },
-        termsAccepted: { completed: false, updatedAt: null },
-        profileComplete: { completed: false, updatedAt: null },
-        emailVerified: { completed: false, updatedAt: null }
+        is_user: { completed: false, updated_at: null },
+        registration: { completed: false, updated_at: null },
+        terms_accepted: { completed: false, updated_at: null },
+        profile_complete: { completed: false, updated_at: null },
+        email_verified: { completed: false, updated_at: null }
       });
     }
     
     const checklistData = checklist[0];
     return res.json({
-      isUser: { completed: checklistData.is_user, updatedAt: checklistData.is_user_updated_at },
-      registration: { completed: checklistData.registration, updatedAt: checklistData.registration_updated_at },
-      termsAccepted: { completed: checklistData.terms_accepted, updatedAt: checklistData.terms_accepted_updated_at },
-      profileComplete: { completed: checklistData.profile_complete, updatedAt: checklistData.profile_complete_updated_at },
-      emailVerified: { completed: checklistData.email_verified, updatedAt: checklistData.email_verified_updated_at }
+      is_user: { completed: checklistData.is_user, updated_at: checklistData.is_user_updated_at },
+      registration: { completed: checklistData.registration, updated_at: checklistData.registration_updated_at },
+      terms_accepted: { completed: checklistData.terms_accepted, updated_at: checklistData.terms_accepted_updated_at },
+      profile_complete: { completed: checklistData.profile_complete, updated_at: checklistData.profile_complete_updated_at },
+      email_verified: { completed: checklistData.email_verified, updated_at: checklistData.email_verified_updated_at }
     });
   } catch (error) {
     console.error('Error fetching user checklist:', error);
@@ -174,25 +174,15 @@ router.put('/users/:userId/checklist/:itemKey', verifyToken, async (req, res) =>
     const { completed } = req.body;
     
     // Validate itemKey
-    const validItems = ['isUser', 'registration', 'termsAccepted', 'profileComplete', 'emailVerified'];
+    const validItems = ['is_user', 'registration', 'terms_accepted', 'profile_complete', 'email_verified'];
     if (!validItems.includes(itemKey)) {
       return res.status(400).json({ error: 'Invalid checklist item' });
     }
     
-    // Map frontend keys to database columns
-    const columnMap = {
-      isUser: 'is_user',
-      registration: 'registration',
-      termsAccepted: 'terms_accepted',
-      profileComplete: 'profile_complete',
-      emailVerified: 'email_verified'
-    };
-    
-    const column = columnMap[itemKey];
-    const updateTimeColumn = `${column}_updated_at`;
+    const updateTimeColumn = `${itemKey}_updated_at`;
     
     await pool.query(
-      `UPDATE user_checklist SET ${column} = ?, ${updateTimeColumn} = ? WHERE user_id = ?`,
+      `UPDATE user_checklist SET ${itemKey} = ?, ${updateTimeColumn} = ? WHERE user_id = ?`,
       [completed, new Date(), sub]
     );
     
@@ -204,11 +194,11 @@ router.put('/users/:userId/checklist/:itemKey', verifyToken, async (req, res) =>
     
     const checklistData = updatedChecklist[0];
     return res.json({
-      isUser: { completed: checklistData.is_user, updatedAt: checklistData.is_user_updated_at },
-      registration: { completed: checklistData.registration, updatedAt: checklistData.registration_updated_at },
-      termsAccepted: { completed: checklistData.terms_accepted, updatedAt: checklistData.terms_accepted_updated_at },
-      profileComplete: { completed: checklistData.profile_complete, updatedAt: checklistData.profile_complete_updated_at },
-      emailVerified: { completed: checklistData.email_verified, updatedAt: checklistData.email_verified_updated_at }
+      is_user: { completed: checklistData.is_user, updated_at: checklistData.is_user_updated_at },
+      registration: { completed: checklistData.registration, updated_at: checklistData.registration_updated_at },
+      terms_accepted: { completed: checklistData.terms_accepted, updated_at: checklistData.terms_accepted_updated_at },
+      profile_complete: { completed: checklistData.profile_complete, updated_at: checklistData.profile_complete_updated_at },
+      email_verified: { completed: checklistData.email_verified, updated_at: checklistData.email_verified_updated_at }
     });
   } catch (error) {
     console.error('Error updating checklist item:', error);

@@ -14,7 +14,7 @@ module.exports = {
     },
     {
       name: 'api-gateway',
-      script: 'api-service/src/server.js',
+      script: 'api-service/src/start.js',
       exec_mode: 'fork',
       instances: 1,
       autorestart: true,

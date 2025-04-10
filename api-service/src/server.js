@@ -151,5 +151,17 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Start the server
+const port = process.env.API_GATEWAY_PORT || 3001;
+app.listen(port, '0.0.0.0', () => {
+  console.log(`API Gateway server running on port ${port}`);
+  console.log(`Environment: ${process.env.NODE_ENV}`);
+  console.log(`Database host: ${process.env.DB_HOST}`);
+  console.log(`Client URL: ${process.env.CLIENT_URL}`);
+}).on('error', (err) => {
+  console.error('Server error:', err);
+  process.exit(1);
+});
+
 // Export the app for use in other files
 module.exports = app; 

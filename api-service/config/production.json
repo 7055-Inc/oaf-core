@@ -1,5 +1,13 @@
 {
   "api": {
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "instance": "0"
+  },
+  "session": {
+    "cookie": {
+      "secure": true,
+      "httpOnly": true,
+      "maxAge": 86400000
+    }
   }
 } 

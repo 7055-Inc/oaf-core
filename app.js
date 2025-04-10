@@ -129,9 +129,9 @@ app.use('/api/media-vm', mediaProxyRoutes);
 
 // Mount the API routes from server/api.js
 const apiApp = require('./server/api');
-app.use('/v1', apiApp);
 
-// Mount the user routes
+// Mount all API routes under /v1
+app.use('/v1', apiApp);
 app.use('/v1', usersModule.router);
 
 // Initialize routes with database connection
@@ -153,12 +153,21 @@ app.all('/v1/auth/session', async (req, res) => {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     
     if (decodedToken) {
+      // Get user type from our database
+      const [users] = await db.query(
+        'SELECT user_type FROM users WHERE google_uid = ?',
+        [decodedToken.uid]
+      );
+      
+      const userType = users.length > 0 ? users[0].user_type : null;
+      
       res.json({ 
         isLoggedIn: true, 
         user: {
           uid: decodedToken.uid,
           email: decodedToken.email,
-          name: decodedToken.name
+          name: decodedToken.name,
+          user_type: userType
         }
       });
     } else {
@@ -198,7 +207,7 @@ app.post('/api/draft-login', (req, res) => {
   res.json({ success: true });
 });
 
-app.get('/api/v1/permissions', (req, res, next) => {
+app.get('/api/permissions', (req, res, next) => {
   middleware.safeQuery(
     'SELECT u.id, u.username, u.user_type, p.profile_access, p.marketplace_vendor, p.gallery_access, p.is_admin, p.is_artist, p.is_promoter, p.is_customer, p.is_community, p.is_verified FROM users u LEFT JOIN permissions p ON u.id = p.user_id', 
     [], 
@@ -209,7 +218,7 @@ app.get('/api/v1/permissions', (req, res, next) => {
   );
 });
 
-app.post('/api/v1/permissions/update', (req, res, next) => {
+app.post('/api/permissions/update', (req, res, next) => {
   const { userId, permission, value, reason } = req.body;
   const adminId = 1; // Just use a placeholder admin ID
   
@@ -301,7 +310,7 @@ app.get('/direct-test', (req, res) => {
 });
 
 // Password authentication
-app.post('/api/v1/auth/password', async (req, res) => {
+app.post('/api/auth/password', async (req, res) => {
   try {
     const { email, password } = req.body;
     const userCredential = await admin.auth().getUserByEmail(email);
@@ -321,7 +330,7 @@ app.post('/api/v1/auth/password', async (req, res) => {
 });
 
 // Google authentication
-app.get('/api/v1/auth/google', (req, res) => {
+app.get('/api/auth/google', (req, res) => {
   const authUrl = admin.auth().generateSignInWithGoogleLink({
     requestUri: `${req.protocol}://${req.get('host')}/auth/google/callback`,
     clientId: process.env.GOOGLE_CLIENT_ID
@@ -331,7 +340,7 @@ app.get('/api/v1/auth/google', (req, res) => {
 });
 
 // Verify token endpoint
-app.post('/api/v1/auth/verify', verifyToken, (req, res) => {
+app.post('/api/auth/verify', verifyToken, (req, res) => {
   res.status(200).json({ 
     uid: req.user.uid,
     message: 'Token verified successfully' 
