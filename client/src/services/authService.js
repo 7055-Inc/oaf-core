@@ -4,6 +4,35 @@
  */
 
 /**
+ * Gets the current user session data
+ * @param {string} idToken - Firebase ID token for authentication
+ * @returns {Promise} Promise resolving to the session data
+ */
+export const getSession = async (idToken) => {
+  try {
+    const response = await fetch('/v1/auth/session', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${idToken}`
+      },
+      body: JSON.stringify({ idToken })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get session: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('Session Data:', data);
+    return data;
+  } catch (error) {
+    console.error('Error getting session:', error);
+    throw error;
+  }
+};
+
+/**
  * Saves user data to the backend database after authentication
  * @param {Object} userData - The user data to save
  * @param {string} idToken - Firebase ID token for authentication

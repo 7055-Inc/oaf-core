@@ -13,7 +13,7 @@ export default function Login({ onClose }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
-  const [userType, setUserType] = useState('');
+  const [user_type, setUserType] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
@@ -30,7 +30,7 @@ export default function Login({ onClose }) {
       const result = await signInWithPopup(auth, provider);
       
       // If user is registering, add user type
-      if (isRegistering && userType) {
+      if (isRegistering && user_type) {
         const idToken = await result.user.getIdToken();
         
         await saveUserToDatabase({
@@ -38,7 +38,7 @@ export default function Login({ onClose }) {
           email: result.user.email,
           displayName: result.user.displayName,
           photoURL: result.user.photoURL,
-          user_type: userType
+          user_type
         }, idToken);
       }
       
@@ -63,7 +63,7 @@ export default function Login({ onClose }) {
       return;
     }
     
-    if (isRegistering && !userType) {
+    if (isRegistering && !user_type) {
       setError('Please select a user type');
       return;
     }
@@ -81,7 +81,7 @@ export default function Login({ onClose }) {
         await saveUserToDatabase({
           uid: result.user.uid,
           email: result.user.email,
-          user_type: userType
+          user_type
         }, idToken);
       } else {
         // Sign in existing user
@@ -151,7 +151,7 @@ export default function Login({ onClose }) {
             <label htmlFor="userType">I am a...</label>
             <select
               id="userType"
-              value={userType}
+              value={user_type}
               onChange={handleUserTypeChange}
               disabled={loading}
               required

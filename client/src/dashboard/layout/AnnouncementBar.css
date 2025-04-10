@@ -1,0 +1,53 @@
+/* Announcement bar styles */
+.dashboard-announcement {
+  color: white;
+  padding: 10px 20px;
+  text-align: center;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Primary announcement style - #3e1c56 with bold text */
+.dashboard-announcement.primary {
+  background-color: #3e1c56;
+}
+
+.dashboard-announcement.primary .announcement-message {
+  font-weight: 700;
+}
+
+/* Secondary announcement style - #055474 */
+.dashboard-announcement.secondary {
+  background-color: #055474;
+}
+
+/* Indicators for multiple announcements */
+.announcement-indicators {
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 5px;
+}
+
+.indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.indicator.active {
+  background-color: white;
+}
+
+/* Message container */
+.announcement-message {
+  display: block;
+  padding: 0 30px;
+} 

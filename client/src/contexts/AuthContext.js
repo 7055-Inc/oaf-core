@@ -53,6 +53,9 @@ export const AuthProvider = ({ children }) => {
         }
       });
       
+      // Clone the response before reading it
+      const responseClone = response.clone();
+      
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Session check failed:', {
@@ -65,7 +68,8 @@ export const AuthProvider = ({ children }) => {
         return;
       }
       
-      const data = await response.json();
+      // Use the cloned response for JSON parsing
+      const data = await responseClone.json();
       console.log('Session check response:', data);
 
       if (data.isLoggedIn) {
@@ -258,15 +262,34 @@ export const AuthProvider = ({ children }) => {
         const claims = await getUserClaims();
         setUserClaims(claims);
         const idToken = await user.getIdToken();
-        const response = await apiFetch('/auth/session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ idToken }),
-        });
-        const data = await response.json();
-        setIsNewUser(data.isNewUser || false);
-        if (!userProfile && user.displayName) {
-          setUserProfile({ email: user.email, displayName: user.displayName, photoURL: user.photoURL });
+        try {
+          const response = await apiFetch('/auth/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken }),
+          });
+          
+          // Clone the response before reading it
+          const responseClone = response.clone();
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Session check failed:', {
+              status: response.status,
+              statusText: response.statusText,
+              responseText: errorText
+            });
+            return;
+          }
+          
+          // Use the cloned response for JSON parsing
+          const data = await responseClone.json();
+          setIsNewUser(data.isNewUser || false);
+          if (!userProfile && user.displayName) {
+            setUserProfile({ email: user.email, displayName: user.displayName, photoURL: user.photoURL });
+          }
+        } catch (error) {
+          console.error('Error checking session:', error);
         }
       } else {
         setUserClaims(null);
@@ -277,7 +300,7 @@ export const AuthProvider = ({ children }) => {
     });
 
     return unsubscribe;
-  }, []);
+  }, [userProfile]);
 
   const value = {
     user,

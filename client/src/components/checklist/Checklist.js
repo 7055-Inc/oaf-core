@@ -11,6 +11,7 @@ import {
 } from '../../services/checklistService';
 import ChecklistItem from './ChecklistItem';
 import './Checklist.css';
+import { registrationService } from '../../services/registrationService';
 
 /**
  * Checklist component that processes the user's requirements
@@ -65,6 +66,12 @@ const Checklist = () => {
         console.log("Checking/creating user...");
         await checkOrCreateUser(sub, idToken);
         console.log("User check/create completed");
+
+        // Check registration status
+        const userStatus = await registrationService.getUserStatus();
+        if (userStatus?.status === 'active') {
+          await updateChecklistItem(sub, 'registration', true, idToken);
+        }
 
         // Then fetch checklist
         console.log("Fetching checklist...");

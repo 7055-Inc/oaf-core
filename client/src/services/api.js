@@ -62,12 +62,21 @@ export const apiFetch = async (endpoint, options = {}) => {
   
   try {
     const response = await fetch(url, options);
+    
+    // Clone the response before reading it
+    const responseClone = response.clone();
+    
+    // Read the response body for logging
+    const responseData = await responseClone.json();
     console.log('API Response:', {
       status: response.status,
       statusText: response.statusText,
       headers: Object.fromEntries(response.headers.entries()),
-      url: response.url
+      url: response.url,
+      data: responseData
     });
+    
+    // Return the original response for the caller to handle
     return response;
   } catch (error) {
     console.error('API Request Failed:', {

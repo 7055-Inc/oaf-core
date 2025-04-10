@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Route, Routes, useLocation, Navigate, NavLink } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import Modal from 'react-modal';
 import './App.css';
 import Home from './Home';
@@ -11,9 +11,11 @@ import { UserProvider, useUser, auth } from './users/users';
 import Login from './users/login';
 import Checklist from './components/checklist/Checklist';
 import ChecklistGuard from './components/checklist/ChecklistGuard';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import Dashboard from './dashboard/Dashboard';
+import TestFile from './test/TestFile';
 
-// Placeholder components for routes that may be implemented later
+// Placeholder components
 const GalleryPage = () => <div>Gallery Page</div>;
 const ArtworkDetail = () => <div>Artwork Detail</div>;
 const ArtistsPage = () => <div>Artists Page</div>;
@@ -42,23 +44,35 @@ function ProtectedRoute({ children }) {
 
 // Protected route with checklist validation
 function ChecklistProtectedRoute({ children }) {
-  const { currentUser, loading } = useUser();
+  const { user, loading: authLoading } = useAuth();
+  const { currentUser, loading: userLoading } = useUser();
   const location = useLocation();
 
-  if (loading) {
+  console.log('ChecklistProtectedRoute - Auth user:', user ? 'exists' : 'null', 'Loading:', authLoading);
+  console.log('ChecklistProtectedRoute - Current user:', currentUser ? 'exists' : 'null', 'Loading:', userLoading);
+
+  // Wait for both auth contexts to finish loading
+  if (authLoading || userLoading) {
+    console.log('ChecklistProtectedRoute - Still loading authentication data');
     return <div>Loading...</div>;
   }
 
-  if (!currentUser) {
+  // Check both auth contexts for a user
+  const isAuthenticated = user || currentUser;
+  if (!isAuthenticated) {
+    console.log('ChecklistProtectedRoute - No user found in either context');
     return <Navigate to="/" state={{ from: location }} replace />;
   }
 
+  // Use the first available user object for the ChecklistGuard
   return <ChecklistGuard>{children}</ChecklistGuard>;
 }
 
-function App() {
+// Main App Content
+function AppContent() {
   const { currentUser } = useUser();
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const location = useLocation();
 
   const openLoginModal = () => setShowLoginModal(true);
   const closeLoginModal = () => setShowLoginModal(false);
@@ -96,6 +110,12 @@ function App() {
       <main>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/test-file" element={<TestFile />} />
+          <Route path="/dashboard/*" element={
+            <ChecklistProtectedRoute>
+              <Dashboard />
+            </ChecklistProtectedRoute>
+          } />
           <Route path="/gallery" element={<GalleryPage />} />
           <Route path="/gallery/:artId" element={<ArtworkDetail />} />
           <Route path="/artists" element={<ArtistsPage />} />
@@ -103,15 +123,11 @@ function App() {
           <Route path="/events" element={<EventsPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/cart" element={<Cart />} />
-          
-          {/* Checklist route - protected but no checklist validation */}
           <Route path="/checklist" element={
             <ProtectedRoute>
               <Checklist />
             </ProtectedRoute>
           } />
-          
-          {/* Protected routes with checklist validation */}
           <Route path="/myaccount/*" element={
             <ChecklistProtectedRoute>
               <MyAccount />
@@ -205,12 +221,13 @@ function App() {
   );
 }
 
-export default function AppWrapper() {
+// App Wrapper with all necessary providers
+export default function App() {
   return (
     <Router>
       <UserProvider>
         <AuthProvider>
-          <App />
+          <AppContent />
         </AuthProvider>
       </UserProvider>
     </Router>

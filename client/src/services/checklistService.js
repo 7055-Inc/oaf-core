@@ -4,6 +4,11 @@
  */
 import { apiFetch } from './api';
 
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 second
+
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 /**
  * Check if user exists or create new user
  * @param {string} userId - The user's ID
@@ -11,23 +16,43 @@ import { apiFetch } from './api';
  * @returns {Promise<Object>} - Promise resolving to user status object
  */
 export const checkOrCreateUser = async (userId, idToken) => {
-  try {
-    const response = await apiFetch(`v1/users/${userId}/check-user`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${idToken}`
+  let retries = 0;
+  let lastError = null;
+
+  while (retries < MAX_RETRIES) {
+    try {
+      const response = await apiFetch(`v1/users/${userId}/check-user`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${idToken}`
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 503 && retries < MAX_RETRIES - 1) {
+          console.log(`Service unavailable, retrying in ${RETRY_DELAY}ms... (attempt ${retries + 1}/${MAX_RETRIES})`);
+          await delay(RETRY_DELAY);
+          retries++;
+          continue;
+        }
+        throw new Error(`Failed to check/create user: ${response.statusText}`);
       }
-    });
 
-    if (!response.ok) {
-      throw new Error(`Failed to check/create user: ${response.statusText}`);
+      return await response.json();
+    } catch (error) {
+      lastError = error;
+      if (retries < MAX_RETRIES - 1) {
+        console.log(`Error checking/creating user, retrying in ${RETRY_DELAY}ms... (attempt ${retries + 1}/${MAX_RETRIES})`);
+        await delay(RETRY_DELAY);
+        retries++;
+      } else {
+        console.error('Error checking/creating user after all retries:', error);
+        throw error;
+      }
     }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error checking/creating user:', error);
-    throw error;
   }
+
+  throw lastError;
 };
 
 /**
@@ -124,11 +149,11 @@ export const isChecklistComplete = (checklist) => {
   
   // Define the required checklist items
   const requiredItems = [
-    'isUser',
+    'is_user',
     'registration',
-    'termsAccepted',
-    'profileComplete',
-    'emailVerified'
+    'terms_accepted',
+    'profile_complete',
+    'email_verified'
   ];
   
   // Check if all required items exist and are completed
@@ -149,16 +174,16 @@ export const isChecklistComplete = (checklist) => {
 export const getNextIncompleteItem = (checklist) => {
   if (!checklist || Object.keys(checklist).length === 0) {
     // If checklist doesn't exist, return the first item
-    return 'isUser';
+    return 'is_user';
   }
   
   // Define the order of checklist items
   const itemOrder = [
-    'isUser',
+    'is_user',
     'registration',
-    'termsAccepted',
-    'profileComplete',
-    'emailVerified'
+    'terms_accepted',
+    'profile_complete',
+    'email_verified'
   ];
   
   // Find the first incomplete item in the defined order
@@ -178,11 +203,11 @@ export const getNextIncompleteItem = (checklist) => {
  */
 export const getRedirectForItem = (itemKey) => {
   const redirectMap = {
-    'isUser': '/check-user',
+    'is_user': '/check-user',
     'registration': '/complete-registration',
-    'termsAccepted': '/terms-acceptance',
-    'profileComplete': '/complete-profile',
-    'emailVerified': '/verify-email'
+    'terms_accepted': '/terms-acceptance',
+    'profile_complete': '/complete-profile',
+    'email_verified': '/verify-email'
   };
   
   return redirectMap[itemKey] || '/dashboard';
