@@ -14,13 +14,14 @@ const firebaseConfig = {
 // Initialize Firebase only if it hasn't been initialized already
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+
+// Create a new Google provider instance
 export const googleProvider = new GoogleAuthProvider();
 // Add required scopes
 googleProvider.addScope('https://www.googleapis.com/auth/userinfo.email');
 googleProvider.addScope('https://www.googleapis.com/auth/userinfo.profile');
-// Set custom parameters
+// Set custom parameters for popup authentication
 googleProvider.setCustomParameters({
-  prompt: 'select_account',
-  login_hint: ''
+  prompt: 'select_account'
 });
 export default app;

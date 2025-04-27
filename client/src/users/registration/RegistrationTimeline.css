@@ -285,4 +285,231 @@
 
 .complete-registration:hover {
   background-color: var(--success-color-dark, #27ae60);
+}
+
+/* User type selection styles */
+.user-type-instructions {
+  margin-bottom: 20px;
+  color: var(--text-secondary, #666);
+  font-size: 0.95rem;
+}
+
+.user-type-options {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.user-type-option {
+  padding: 15px;
+  border: 2px solid var(--border-color, #ddd);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.user-type-option:hover {
+  border-color: var(--primary-color, #4a90e2);
+  background-color: rgba(74, 144, 226, 0.05);
+}
+
+.user-type-option.selected {
+  border-color: var(--primary-color, #4a90e2);
+  background-color: rgba(74, 144, 226, 0.1);
+  box-shadow: 0 2px 8px rgba(74, 144, 226, 0.15);
+}
+
+.user-type-option h3 {
+  margin: 0 0 8px 0;
+  color: var(--text-primary, #333);
+  font-size: 1.1rem;
+}
+
+.user-type-option p {
+  margin: 0;
+  color: var(--text-secondary, #666);
+  font-size: 0.9rem;
+}
+
+@media (min-width: 768px) {
+  .user-type-options {
+    flex-direction: row;
+  }
+
+  .user-type-option {
+    flex: 1;
+  }
+}
+
+/* Profile review styles */
+.profile-review {
+  background-color: var(--background-secondary, #f8f9fa);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.review-section {
+  margin-bottom: 20px;
+}
+
+.review-section h3 {
+  margin: 0 0 10px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color, #ddd);
+  color: var(--text-primary, #333);
+  font-size: 1.1rem;
+}
+
+.review-field {
+  display: flex;
+  padding: 8px 0;
+  flex-wrap: wrap;
+}
+
+.review-field .field-label {
+  width: 120px;
+  color: var(--text-secondary, #666);
+  font-weight: 500;
+}
+
+.review-field .field-value {
+  flex: 1;
+  color: var(--text-primary, #333);
+  font-weight: 400;
+}
+
+/* Loading styles */
+.registration-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  font-size: 1.1rem;
+  color: var(--text-secondary, #666);
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .review-field {
+    flex-direction: column;
+  }
+  
+  .review-field .field-label {
+    width: 100%;
+    margin-bottom: 4px;
+  }
+  
+  .review-field .field-value {
+    width: 100%;
+  }
+}
+
+/* Final Review Styles */
+.final-review-container {
+  margin: 20px 0;
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color, #ddd);
+  padding: 10px;
+  border-radius: 4px;
+}
+
+.review-item {
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border-color, #ddd);
+  padding-bottom: 10px;
+}
+
+.review-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.field-label {
+  font-weight: bold;
+  color: var(--text-primary, #333);
+  flex: 0 0 30%;
+}
+
+.field-value {
+  flex: 0 0 50%;
+  color: var(--text-secondary, #666);
+}
+
+.edit-field-button {
+  padding: 5px 10px;
+  background-color: var(--secondary-color, #7f8c8d);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.edit-field-button:hover {
+  background-color: var(--secondary-color-dark, #95a5a6);
+}
+
+.edit-field-container {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.edit-field-container input,
+.edit-field-container select,
+.edit-field-container textarea {
+  padding: 8px 12px;
+  border: 2px solid var(--border-color, #ddd);
+  border-radius: 4px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.edit-field-container input:focus,
+.edit-field-container select:focus,
+.edit-field-container textarea:focus {
+  border-color: var(--primary-color, #4a90e2);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
+}
+
+.submit-field-edit {
+  align-self: flex-start;
+  padding: 8px 16px;
+  background-color: var(--primary-color, #4a90e2);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.submit-field-edit:hover {
+  background-color: var(--primary-color-dark, #357abd);
+}
+
+.activate-account-button {
+  width: 100%;
+  padding: 15px 30px;
+  background-color: var(--success-color, #2ecc71);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 30px;
+}
+
+.activate-account-button:hover {
+  background-color: var(--success-color-dark, #27ae60);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(46, 204, 113, 0.3);
 } 

@@ -1,16 +1,112 @@
 .login-container {
+  background-color: transparent;
+  border-radius: 0;
+  box-shadow: none;
   max-width: 400px;
   margin: 0 auto;
-  padding: 20px;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 0;
+  position: relative;
+  top: 0;
 }
 
 .login-container h2 {
-  text-align: center;
-  margin-bottom: 20px;
   color: #333;
+  font-size: 1.8rem;
+  margin-bottom: 25px;
+  text-align: center;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+input, select {
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 1rem;
+  padding: 12px 15px;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+input:focus, select:focus {
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
+  outline: none;
+}
+
+button[type='submit'], .btn.primary-btn {
+  background-color: #055474;
+  border: none;
+  border-radius: 0;
+  color: white;
+  cursor: pointer;
+  font-family: 'Playwrite Italia Moderna', cursive;
+  font-size: 1rem;
+  padding: 10px;
+  transition: background-color 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  width: 100%;
+}
+
+button[type='submit']:hover, .btn.primary-btn:hover {
+  background-color: #033d5a;
+}
+
+button[type='submit']:disabled, .btn.primary-btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+button[type='button']:not(.google-btn), .btn.negative-btn {
+  background-color: transparent;
+  border: 1px solid #055474;
+  color: #055474;
+  cursor: pointer;
+  font-family: 'Playwrite Italia Moderna', cursive;
+  font-size: 0.9rem;
+  margin-top: 10px;
+  padding: 10px;
+  text-align: center;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+button[type='button']:not(.google-btn):hover, .btn.negative-btn:hover {
+  background-color: #f0f7fa;
+  color: #033d5a;
+}
+
+.error-message {
+  background-color: rgba(231, 76, 60, 0.1);
+  border-left: 3px solid #e74c3c;
+  color: #e74c3c;
+  font-size: 0.9rem;
+  margin-top: 15px;
+  padding: 10px;
+  text-align: center;
+}
+
+@media (max-width: 480px) {
+  .login-container {
+    margin: 0 20px;
+    padding: 20px;
+  }
+
+  .login-container h2 {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+  }
+
+  input, select {
+    padding: 10px 12px;
+  }
+
+  button[type='submit'], .btn.primary-btn {
+    padding: 10px 0;
+  }
 }
 
 .form-group {
@@ -22,31 +118,6 @@
   margin-bottom: 5px;
   font-weight: 500;
   color: #555;
-}
-
-.form-group input,
-.form-group select {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 16px;
-}
-
-.form-group input:focus,
-.form-group select:focus {
-  border-color: #4285f4;
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
-}
-
-.error-message {
-  background-color: #fff3f3;
-  color: #e53935;
-  padding: 10px;
-  border-radius: 4px;
-  margin-bottom: 15px;
-  border-left: 4px solid #e53935;
 }
 
 .btn {
@@ -75,15 +146,43 @@
 
 .google-btn {
   background-color: #fff;
-  color: #757575;
-  border: 1px solid #ddd;
+  border: 1px solid #dadce0;
+  border-radius: 5px;
+  color: #202124;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 0 24px;
+  height: 40px;
+  transition: box-shadow 0.2s ease, background-color 0.2s ease;
+  width: 100%;
 }
 
-.google-btn:hover:not(:disabled) {
-  background-color: #f8f8f8;
+.google-btn:hover {
+  background-color: #fff;
+  box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+}
+
+.google-btn:disabled {
+  background-color: #f8f9fa;
+  border-color: #dadce0;
+  box-shadow: none;
+  color: #9aa0a6;
+  cursor: not-allowed;
+}
+
+.google-btn .provider-icon, .google-icon {
+  background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSIjNDI4NUY0IiBkPSJNMjIuNTYgMTIuMjVjMC0uNzgtLjA3LTEuNTMsLjItMi4yNUgxMnY0LjI2aDUuOTJjLS4yNiAxLjM3LTEuMDQgMi40Mi0yLjIxIDMuMTd2Mi43N2gzLjU3YzIuMDgtMS45MiAzLjI4LTQuNzQgMy4yOC04LjA5eiIvPjxwYXRoIGZpbGw9IiMzNENBNTUiIGQ9Ik0xMiAyM2MzLjk3IDAgNy4zLTEuNDMgOS41NC0zLjc4bC0zLjU3LTIuNzdjLTEuMDUgMS40OC0yLjYgMi4zNS00Ljk3IDIuMzUtMy4zNyAwLTYuMjItMi4yOC03LjI3LTUuMzNIMi4xOHYyLjc4QzQuMzkgMTkuNTkgNy43IDIzIDEyIDIzeiIvPjxwYXRoIGZpbGw9IiNGRkNDMDAiIGQ9Ik01Ljg0IDE0LjA5Yy0uMjItLjY2LS4zNS0xLjk2LS4zNS0yLjc5cy4xMy0yLjEzLjM1LTIuNzlWNy4wN0gyLjE4QzEuNDMgOC41NSAxIDEwLjIyIDEgMTJzLjQzIDMuNDUgMS4xOCA0LjkzbDIuNjYtMi44NHoiLz48cGF0aCBmaWxsPSIjRUIzMjIzIiBkPSJNMTIgNS4zOGMxLjYyIDAgMy4wNi41NiA0LjIxIDEuNjRsMy4xNS0zLjE1QzE5LjMgMi4wOSAxNS45NyAwIDEyIDAgNy43IDAgNC4zOSAzLjM4IDIuMTggNy4wN2wzLjY2IDIuODRjMS4wNS0zLjA1IDMuOS01LjMzIDcuMTctNS4zM3oiLz48L3N2Zz4=');
+  background-size: 18px;
+  background-repeat: no-repeat;
+  background-position: center;
+  height: 18px;
+  margin-right: 8px;
+  width: 18px;
 }
 
 .facebook-btn {
@@ -229,10 +328,6 @@
   background-size: contain;
 }
 
-.google-icon {
-  background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDI0IDI0Ij48cGF0aCBmaWxsPSIjNDI4NUY0IiBkPSJNMjIuNTYgMTIuMjVjMC0uNzgtLjA3LTEuNTMtLjItMi4yNUgxMnY0LjI2aDUuOTJjLS4yNiAxLjM3LTEuMDQgMi40Mi0yLjIxIDMuMTd2Mi43N2gzLjU3YzIuMDgtMS45MiAzLjI4LTQuNzQgMy4yOC04LjA5eiIvPjxwYXRoIGZpbGw9IiMzNENBNTUiIGQ9Ik0xMiAyM2MzLjk3IDAgNy4zLTEuNDMgOS41NC0zLjgxbC0zLjU3LTIuNzdjLTEuMDUgMS40OC0yLjYgMi4zNS00LjM3IDIuMzUtMy4zNyAwLTYuMjItMi4yOC03LjI3LTUuMzNIMi4xOHYyLjg0QzQuMzkgMTkuNjIgNy43IDIzIDEyIDIzeiIvPjxwYXRoIGZpbGw9IiNGRkNDMDAiIGQ9Ik01Ljg0IDE0LjA5Yy0uMjItLjY2LS4zNS0xLjM2LS4zNS0yLjA5cy4xMy0xLjQzLjM1LTIuMDlWNy4wN0gyLjE4QzEuNDMgOC41NSAxIDEwLjIyIDEgMTJzLjQzIDMuNDUgMS4xOCA0LjkzbDIuNjYtMi44NHoiLz48cGF0aCBmaWxsPSIjRUIzMjIzIiBkPSJNMTIgNS4zOGMxLjYyIDAgMy4wNi41NiA0LjIxIDEuNjRsMy4xNS0zLjE1QzE5LjMgMi4wOSAxNS45NyAwIDEyIDAgNy43IDAgNC4zOSAzLjM4IDIuMTggNy4wN2wzLjY2IDIuODRjMS4wNS0zLjA1IDMuOS01LjMzIDcuMTctNS4zM3oiLz48L3N2Zz4=');
-}
-
 .facebook-icon {
   background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiIgd2lkdGg9IjE4cHgiIGhlaWdodD0iMThweCI+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTE3LjM4IDMySDMuODdhLjg3Ljg3IDAgMCAxLS44Ny0uODdWLjg4YS44OC44OCAwIDAgMSAuODctLjg4aDI3LjI2YS44OC44OCAwIDAgMSAuODcuODh2MzAuMjVhLjg3Ljg3IDAgMCAxLS44Ny44N2gtOS44N3YtMTMuMTdoNC40MkwyNiAxMi4zMWgtNC41OFY5LjRhMi42NCwyLjY0IDAgMCAxIDIuNjQtMi42M2gyLjdWMy4xMmMtMSAwLTMuMzMtLjE3LTUuNDEtLjE3YTYuNzMgNi43MyAwIDAgMC03LjQyIDcuNDF2Mi05aDQuNzh2MTMuMThoLTMuOTJ6Ii8+PC9zdmc+');
 }
@@ -242,7 +337,7 @@
 }
 
 .github-icon {
-  background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDE2IDE2Ij48cGF0aCBmaWxsPSIjZmZmIiBkPSJNOCAwQzMuNTggMCAwIDMuNTggMCA4YzAgMy41NCAyLjI5IDYuNTMgNS40NyA3LjU5LjQxLjA3LjU1LS4xOC41NS0uNHMwLS43MiAwLTEuNDFjLTIuMDEuMzctMi41My0uNDktMi42OS0uOTQtLjA5LS4yMy0uNDgtLjk0LS44Mi0xLjEzLS4yOC0uMTUtLjY4LS41Mi0uMDEtLjUzLjYzLS4wMS45Ny41OCAxLjExLjgyLjY1IDEuMDggMS43LjEgMi4xMS4wNXMuMDUtLjYuMTQtLjc4Yy0xLjczLS4yLTMuNTQtLjg2LTMuNTQtMy44MSAwLS44NC4zLTEuNTMuNzktMi4wN3MtLjE3LTEuNDIuMDYtMS40MmMuNzcgMCAxLjMxLjc4IDEuNTMgMS4xMS41My0uNTQgMS41Mi0uNzcgMi4yNS0uNzdzMS42OS4xOSAyLjI3Ljc3Yy4yNi0uMzEuNjgtLjg0IDEuMjQtLjk0LjIyLS40LjI2LjYyLjEgMS4wNHMuNDUgMS4yMy40NiAyLjAyYzAgMi45OC0xLjgxIDMuNjMtMy41NCAxLjczLjA5LjE3LjE2LjcuMTYgMS4zM3YxLjk3YzAgLjIyLjE0LjQ3LjU1LjRDMTMuNzEgMTQuNTMgMTYgMTEuNTMgMTYgOGMwLTQuNDItMy41OC04LTgtOHoiLz48L3N2Zz4=');
+  background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxOCIgaGVpZ2h0PSIxOCIgdmlld0JveD0iMCAwIDE2IDE2Ij48cGF0aCBmaWxsPSIjZmZmIiBkPSJNOCAwQzMuNTggMCAwIDMuNTggMCA4YzAgMy41NCAyLjI5IDYuNTMgNS40NyA3LjU5LjQxLjA3LjU1LS4xOC41NS0uNHMwLS43MiAwLTEuNDFjLTIuMDEuMzctMi41My0uNDktMi42OS0uOTQtLjA5LS4yMy0uNDgtLjk0LS44Mi0xLjEzLS4yOC0uMTUtLjY4LS41Mi0uMDEtLjUzLjYzLS4wMS45Ny41OCAxLjExLjgyLjY1IDEuMDggMS43LjEgMi4xMS4wNXMuMDUtLjYuMTQtLjc4Yy0xLjczLS4yLTMuNTQtLjg2LTMuNTQtMy44MSAwLS44NC4zLTEuNTMtMS4zM3YxLjk3YzAgLjIyLjE0LjQ3LjU1LjRDMTMuNzEgMTQuNTMgMTYgMTEuNTMgMTYgOGMwLTQuNDItMy41OC04LTgtOHoiLz48L3N2Zz4=');
 }
 
 .divider {

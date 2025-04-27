@@ -122,12 +122,8 @@ export const ProfileManagement = ({ isInitialSetup = false }) => {
         await profileService.activateUser();
       }
 
-      // Navigate based on context
-      if (isInitialSetup) {
-        navigate('/dashboard');
-      } else {
-        navigate('/checklist');
-      }
+      // After successful profile update, let AuthContext handle the flow
+      navigate('/');
     } catch (error) {
       console.error('Error completing profile:', error);
     } finally {

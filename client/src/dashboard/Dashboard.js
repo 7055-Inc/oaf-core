@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useUser } from '../users/users';
 import DashboardLayout from './layout/DashboardLayout';
 import AdminDashboard from './user-types/AdminDashboard';
 import ArtistDashboard from './user-types/ArtistDashboard';
@@ -16,15 +15,11 @@ import './Dashboard.css';
  * Handles routing to dashboard sub-sections
  */
 const Dashboard = () => {
-  const { user: authUser } = useAuth();
-  const { currentUser } = useUser();
+  const { user } = useAuth();
   const [userType, setUserType] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Use the first available user object
-  const user = authUser || currentUser;
-
   useEffect(() => {
     const detectUserType = () => {
       console.log('Dashboard: Detecting user type');
@@ -37,17 +32,9 @@ const Dashboard = () => {
         }
         
         // If we have user_type in currentUser, use that
-        if (currentUser && currentUser.user_type) {
-          console.log('Dashboard: Using user_type from currentUser:', currentUser.user_type);
-          setUserType(currentUser.user_type);
-          setLoading(false);
-          return;
-        }
-        
-        // If we have user_type in authUser, use that
-        if (authUser && authUser.user_type) {
-          console.log('Dashboard: Using user_type from authUser:', authUser.user_type);
-          setUserType(authUser.user_type);
+        if (user && user.user_type) {
+          console.log('Dashboard: Using user_type from currentUser:', user.user_type);
+          setUserType(user.user_type);
           setLoading(false);
           return;
         }
@@ -64,7 +51,7 @@ const Dashboard = () => {
     };
 
     detectUserType();
-  }, [user, authUser, currentUser]);
+  }, [user]);
 
   // Show loading state
   if (loading) {

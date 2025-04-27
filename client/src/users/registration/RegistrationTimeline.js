@@ -7,6 +7,12 @@ const DISPLAY_NAME_MIN_LENGTH = 3;
 const DISPLAY_NAME_MAX_LENGTH = 30;
 const DISPLAY_NAME_REGEX = /^[a-zA-Z0-9_-]+$/;
 
+const USER_TYPES = [
+  { id: 'community', label: 'Community Member', description: 'Browse and purchase artwork' },
+  { id: 'artist', label: 'Artist', description: 'Create and sell your artwork' },
+  { id: 'promoter', label: 'Promoter', description: 'Promote artists and events' }
+];
+
 const FormSection = ({ title, fields, isEditing, onToggleEdit, onSubmit }) => {
   return (
     <div className="form-section">
@@ -54,7 +60,7 @@ const FormSection = ({ title, fields, isEditing, onToggleEdit, onSubmit }) => {
   );
 };
 
-export const RegistrationTimeline = ({ currentStep, userData, setUserData, onNextStep }) => {
+export const RegistrationTimeline = ({ steps, currentStep, userData, setUserData, onNextStep, onComplete }) => {
   const [error, setError] = useState(null);
   const [displayNameAlternatives, setDisplayNameAlternatives] = useState([]);
   const [isCheckingDisplayName, setIsCheckingDisplayName] = useState(false);
@@ -128,20 +134,68 @@ export const RegistrationTimeline = ({ currentStep, userData, setUserData, onNex
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      const validationErrors = validateDisplayName(userData.displayName);
-      if (validationErrors.length > 0) {
-        setValidationErrors({ displayName: validationErrors });
-        return;
+    setError(null);
+    setValidationErrors({});
+    setIsSubmitting(true);
+
+    const currentStepInfo = steps[currentStep];
+
+    // If we're on the review or finalReview step, call onComplete
+    if (currentStepInfo.id === 'review' || currentStepInfo.id === 'finalReview') {
+      try {
+        console.log("Submitting final registration data:", userData);
+        await onComplete();
+        // Success navigation is handled by the parent component's polling
+      } catch (err) {
+        console.error('Error in onComplete:', err);
+        handleError(err);
+      } finally {
+        setIsSubmitting(false);
       }
-      setIsSubmitting(true);
-      await registrationService.submitRegistration({
-        ...userData,
-        status: 'active'  // Explicitly set status to active
-      });
-      onNextStep();
+      return;
+    }
+
+    // --- Field Validation (Example for required fields) ---
+    // You should add more specific validation as needed (e.g., email format, URL format)
+    if (!currentStepInfo.isOptional && !userData[currentStepInfo.id]) {
+      setValidationErrors({ [currentStepInfo.id]: [`${currentStepInfo.label} is required`] });
+      setIsSubmitting(false);
+      return;
+    }
+    
+    // Special validation for displayName
+    if (currentStepInfo.id === 'displayName') {
+        const validationErrs = validateDisplayName(userData.displayName);
+        if (validationErrs.length > 0) {
+          setValidationErrors({ displayName: validationErrs });
+          setIsSubmitting(false);
+          return;
+        }
+        
+        try {
+          const isAvailable = await registrationService.checkDisplayNameAvailability(userData.displayName);
+          if (!isAvailable) {
+            const alternatives = await registrationService.getDisplayNameAlternatives(userData.displayName);
+            setDisplayNameAlternatives(alternatives);
+            setError('Display name is already taken');
+            setIsSubmitting(false);
+            return;
+          }
+        } catch (err) {
+          handleError(err);
+          setIsSubmitting(false);
+          return;
+        }
+    }
+    // --- End Validation ---
+
+    // Submit the field data
+    try {
+      await onNextStep(currentStepInfo.id, userData[currentStepInfo.id]);
+      // onNextStep in the parent (registration.js) handles saving and advancing the step
     } catch (err) {
-      handleError(err);
+      console.error(`Error submitting step ${currentStepInfo.id}:`, err);
+      handleError(err); // Show error to user
     } finally {
       setIsSubmitting(false);
     }
@@ -193,6 +247,11 @@ export const RegistrationTimeline = ({ currentStep, userData, setUserData, onNex
     setError(null);
   };
 
+  const handleUserTypeSelect = (userType) => {
+    setUserData({ ...userData, userType });
+    setValidationErrors({});
+  };
+
   const updateSectionField = (section, field, value) => {
     setSectionData(prev => ({
       ...prev,
@@ -228,15 +287,82 @@ export const RegistrationTimeline = ({ currentStep, userData, setUserData, onNex
   };
 
   const renderFields = () => {
-    switch (currentStep) {
-      case 1:
+    // Get current step info
+    const currentStepInfo = steps[currentStep];
+    
+    if (!currentStepInfo) {
+      return <div>Unknown step</div>;
+    }
+
+    // Handle specific complex steps first
+    switch (currentStepInfo.id) {
+      case 'email':
+        return (
+          <div className="timeline-field current">
+            <label htmlFor="email">Your Email</label>
+            <input
+              type="email"
+              id="email"
+              value={userData.email}
+              readOnly
+              className="readonly"
+            />
+            <button 
+              type="submit"
+              // No onClick needed here, form submission handles it
+            >
+              Next
+            </button>
+          </div>
+        );
+        
+      case 'userType':
+        return (
+          <div className="timeline-field current">
+            <h2>Choose Your Account Type</h2>
+            <p className="user-type-instructions">
+              Select how you'd like to participate in our platform
+            </p>
+            
+            <div className="user-type-options">
+              {USER_TYPES.map(type => (
+                <div 
+                  key={type.id}
+                  className={`user-type-option ${userData.userType === type.id ? 'selected' : ''}`}
+                  onClick={() => handleUserTypeSelect(type.id)}
+                >
+                  <h3>{type.label}</h3>
+                  <p>{type.description}</p>
+                </div>
+              ))}
+            </div>
+            
+            {validationErrors.userType && (
+              <div className="error-message">
+                {validationErrors.userType.map((error, index) => (
+                  <div key={index}>{error}</div>
+                ))}
+              </div>
+            )}
+            
+            <button 
+              type="submit"
+              disabled={!userData.userType || isSubmitting}
+              // No onClick needed here, form submission handles it
+            >
+              Next
+            </button>
+          </div>
+        );
+        
+      case 'displayName':
         return (
           <div className="timeline-field current">
             <label htmlFor="displayName">Choose a Display Name</label>
             <input
               type="text"
               id="displayName"
-              value={userData.displayName}
+              value={userData.displayName || ''}
               onChange={handleDisplayNameChange}
               maxLength={DISPLAY_NAME_MAX_LENGTH}
               className={validationErrors.displayName ? 'error' : ''}
@@ -266,17 +392,47 @@ export const RegistrationTimeline = ({ currentStep, userData, setUserData, onNex
             )}
             <button 
               type="submit" 
-              disabled={!userData.displayName || validationErrors.displayName || isCheckingDisplayName || criticalError}
+              disabled={!userData.displayName || validationErrors.displayName || isCheckingDisplayName || criticalError || isSubmitting}
+              // No onClick needed here, form submission handles it
             >
               Next
             </button>
           </div>
         );
-      case 2:
+        
+      case 'review':
+        // Keep the existing review step logic
+        // We might want to enhance this later to show all collected data
         return (
           <div className="timeline-field current">
             <h2>Review and Complete Your Profile</h2>
-            <div className="profile-sections">
+            
+            <div className="profile-review">
+              {/* Display collected data - simplified for now */}
+              <div className="review-section">
+                <h3>Account Information</h3>
+                <p>Email: {userData.email}</p>
+                <p>User Type: {USER_TYPES.find(t => t.id === userData.userType)?.label || userData.userType}</p>
+                <p>Display Name: {userData.displayName}</p>
+              </div>
+               <div className="review-section">
+                <h3>Basic Information</h3>
+                <p>First Name: {userData.first_name}</p>
+                <p>Last Name: {userData.last_name}</p>
+              </div>
+              {/* Add more sections to display other collected data */} 
+              {/* Example: 
+              <div className="review-section">
+                <h3>Contact Info</h3>
+                <p>Phone: {userData.phone || 'N/A'}</p>
+                <p>Website: {userData.website || 'N/A'}</p>
+              </div>
+              ... and so on for address, social, personal, professional, settings ...
+              */}
+            </div>
+            
+            {/* Optional: Keep FormSection if needed for edits during review, but remove for now */}
+            {/* <div className="profile-sections">
               {Object.entries(sectionData).map(([key, section]) => (
                 <FormSection
                   key={key}
@@ -287,19 +443,201 @@ export const RegistrationTimeline = ({ currentStep, userData, setUserData, onNex
                   onSubmit={() => handleSectionSubmit(key)}
                 />
               ))}
-            </div>
+            </div> */}
             <button 
-              type="button"
+              type="submit" // This will now trigger the onComplete handler via handleSubmit
               className="complete-registration"
-              onClick={handleSubmit}
+              disabled={isSubmitting}
             >
-              Complete Registration
+              {isSubmitting ? 'Creating Profile...' : 'Create My Profile'}
             </button>
           </div>
         );
-      default:
-        return null;
+        
+      case 'finalReview':
+        return (
+          <div className="timeline-field current">
+            <h2>Final Review & Account Activation</h2>
+            <p>Please review all your information before activating your account.</p>
+            
+            <div className="final-review-container">
+              {Object.entries(userData).map(([key, value]) => {
+                const stepInfo = steps.find(s => s.id === key);
+                if (!stepInfo) return null;
+                const isEditing = editingSections[key];
+                return (
+                  <div key={key} className="review-item">
+                    <div className="review-display">
+                      <span className="field-label">{stepInfo.label}:</span>
+                      <span className="field-value">{value || 'Not provided'}</span>
+                      <button 
+                        className="edit-field-button"
+                        onClick={() => toggleSectionEdit(key)}
+                      >
+                        Edit
+                      </button>
+                    </div>
+                    {isEditing && (
+                      <div className="edit-field-container">
+                        {stepInfo.type === 'textarea' ? (
+                          <textarea
+                            value={value || ''}
+                            onChange={(e) => updateSectionField('finalReview', key, e.target.value)}
+                            rows={4}
+                          />
+                        ) : stepInfo.type === 'select' && stepInfo.options ? (
+                          <select
+                            value={value || ''}
+                            onChange={(e) => updateSectionField('finalReview', key, e.target.value)}
+                          >
+                            <option value="" disabled>-- Select --</option>
+                            {stepInfo.options.map(option => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type={stepInfo.type || 'text'}
+                            value={value || ''}
+                            onChange={(e) => updateSectionField('finalReview', key, e.target.value)}
+                          />
+                        )}
+                        <button 
+                          className="submit-field-edit"
+                          onClick={() => handleSectionSubmit(key)}
+                        >
+                          Save
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            
+            <button 
+              type="submit"
+              className="activate-account-button"
+              disabled={isSubmitting}
+              onClick={async () => {
+                setIsSubmitting(true);
+                try {
+                  // Resave all profile data
+                  await Promise.all(Object.entries(userData).map(([key, value]) => 
+                    onNextStep(key, value)
+                  ));
+                  // The form submission will handle the onComplete call for finalReview
+                } catch (err) {
+                  handleError(err);
+                }
+              }}
+            >
+              {isSubmitting ? 'Activating Account...' : 'Activate My Account'}
+            </button>
+          </div>
+        );
     }
+
+    // Generic handler for simple input types
+    if (['text', 'tel', 'url', 'date'].includes(currentStepInfo.type)) {
+      return (
+        <div className="timeline-field current">
+          <label htmlFor={currentStepInfo.id}>{currentStepInfo.label}</label>
+          <input
+            type={currentStepInfo.type}
+            id={currentStepInfo.id}
+            value={userData[currentStepInfo.id] || ''} 
+            onChange={(e) => setUserData({ ...userData, [currentStepInfo.id]: e.target.value })}
+            className={validationErrors[currentStepInfo.id] ? 'error' : ''}
+            placeholder={currentStepInfo.placeholder || `Enter your ${currentStepInfo.label.toLowerCase()}`}
+          />
+          {validationErrors[currentStepInfo.id] && (
+            <div className="error-message">
+              {validationErrors[currentStepInfo.id].map((error, index) => (
+                <div key={index}>{error}</div>
+              ))}
+            </div>
+          )}
+          <button 
+            type="submit" 
+            disabled={isSubmitting}
+            // No onClick needed here, form submission handles it
+          >
+            Next
+          </button>
+        </div>
+      );
+    }
+
+    if (currentStepInfo.type === 'textarea') {
+      return (
+        <div className="timeline-field current">
+          <label htmlFor={currentStepInfo.id}>{currentStepInfo.label}</label>
+          <textarea
+            id={currentStepInfo.id}
+            value={userData[currentStepInfo.id] || ''} 
+            onChange={(e) => setUserData({ ...userData, [currentStepInfo.id]: e.target.value })}
+            className={validationErrors[currentStepInfo.id] ? 'error' : ''}
+            placeholder={currentStepInfo.placeholder || `Enter ${currentStepInfo.label.toLowerCase()}`}
+            rows={4} // Default rows, adjust as needed
+          />
+          {validationErrors[currentStepInfo.id] && (
+            <div className="error-message">
+              {validationErrors[currentStepInfo.id].map((error, index) => (
+                <div key={index}>{error}</div>
+              ))}
+            </div>
+          )}
+          <button 
+            type="submit" 
+            disabled={isSubmitting}
+            // No onClick needed here, form submission handles it
+          >
+            Next
+          </button>
+        </div>
+      );
+    }
+
+    if (currentStepInfo.type === 'select' && currentStepInfo.options) {
+       return (
+        <div className="timeline-field current">
+          <label htmlFor={currentStepInfo.id}>{currentStepInfo.label}</label>
+          <select
+            id={currentStepInfo.id}
+            value={userData[currentStepInfo.id] || ''} 
+            onChange={(e) => setUserData({ ...userData, [currentStepInfo.id]: e.target.value })}
+            className={validationErrors[currentStepInfo.id] ? 'error' : ''}
+          >
+            <option value="" disabled>-- Select --</option>
+            {currentStepInfo.options.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          {validationErrors[currentStepInfo.id] && (
+            <div className="error-message">
+              {validationErrors[currentStepInfo.id].map((error, index) => (
+                <div key={index}>{error}</div>
+              ))}
+            </div>
+          )}
+          <button 
+            type="submit" 
+            disabled={isSubmitting}
+            // No onClick needed here, form submission handles it
+          >
+            Next
+          </button>
+        </div>
+      );
+    }
+
+    // Fallback for unhandled step types
+    return <div>Unknown step type: {currentStepInfo.type} for ID: {currentStepInfo.id}</div>;
   };
 
   return (

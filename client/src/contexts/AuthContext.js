@@ -6,14 +6,17 @@ import {
   sendPasswordResetEmail,
   updateProfile,
   onAuthStateChanged,
+  GoogleAuthProvider,
   signInWithPopup,
   setPersistence,
-  browserLocalPersistence
+  browserSessionPersistence,
+  getAuth
 } from 'firebase/auth';
-import { auth, googleProvider } from '../firebase';
+import { auth } from '../firebase';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch } from '../services/api';
-import { resetChecklist } from '../services/checklistService';
+import { apiFetch, getApiUrl } from '../services/api';
+import { tokenService } from '../services/tokenService';
+import { registrationService } from '../services/registrationService';
 
 const AuthContext = createContext(null);
 
@@ -31,289 +34,215 @@ export const AuthProvider = ({ children }) => {
   const [userClaims, setUserClaims] = useState(null);
   const [isNewUser, setIsNewUser] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
+  const [hasHandledInitialAuth, setHasHandledInitialAuth] = useState(false);
+  const [localUser, setLocalUser] = useState(null);
+  const [checklist, setChecklist] = useState(null);
   const navigate = useNavigate();
 
+  // Set session persistence when component mounts
   useEffect(() => {
-    checkSession();
+    setPersistence(auth, browserSessionPersistence)
+      .then(() => {
+        console.log('Auth persistence set to session');
+      })
+      .catch((error) => {
+        console.error('Error setting auth persistence:', error);
+      });
   }, []);
 
-  const checkSession = async () => {
-    try {
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-
-      const idToken = await currentUser.getIdToken();
-      const response = await apiFetch('/v1/auth/session', {
-        headers: {
-          'Authorization': `Bearer ${idToken}`
+  // Handle auth state changes
+  useEffect(() => {
+    console.log('AuthContext: Starting auth state listener');
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log('AuthContext: Firebase auth state changed:', user ? 'User exists' : 'No user');
+      
+      if (user) {
+        try {
+          console.log('AuthContext: Getting Firebase token and claims');
+          const tokenResult = await user.getIdTokenResult();
+          console.log('AuthContext: Got token result:', tokenResult);
+          
+          // Set the user state with the data we already have
+          setUser({
+            ...user,
+            claims: tokenResult.claims
+          });
+          
+          // Only do token exchange if we don't have a valid API token
+          let apiToken;
+          if (!tokenService.getCachedToken()) {
+            console.log('AuthContext: Starting token exchange...');
+            apiToken = await tokenService.exchangeToken(user);
+            console.log('AuthContext: Token exchange complete, got API token');
+          } else {
+            console.log('AuthContext: Using existing API token');
+            apiToken = tokenService.getCachedToken();
+          }
+          
+          // Verify token exists and is valid
+          const storedToken = localStorage.getItem('api2_token');
+          if (!storedToken) {
+            throw new Error('No valid API token available for registration');
+          }
+          const { token, user: tokenUser } = JSON.parse(storedToken);
+          if (!token || !tokenUser || !tokenUser.id) {
+            throw new Error('No valid API token available for registration');
+          }
+          
+          /**
+           * User Checklist Funnel
+           * 
+           * This is the main user processing funnel that runs after successful login.
+           * It checks various requirements and redirects users to the appropriate next step.
+           * 
+           * User Status Flow:
+           * 1. Draft - Initial state when user is created
+           * 2. Active - After completing registration
+           * 3. Inactive - If account is deactivated
+           */
+          try {
+            console.log('AuthContext: Processing user requirements...');
+            const { isRegistered } = await registrationService.runChecklist();
+            
+            if (!isRegistered) {
+              console.log('AuthContext: User not registered, redirecting to registration');
+              navigate('/register');
+            } else {
+              console.log('AuthContext: User is registered, redirecting to dashboard');
+              navigate('/dashboard');
+            }
+          } catch (error) {
+            console.error('AuthContext: Error processing user requirements:', error);
+            navigate('/');
+          }
+        } catch (error) {
+          console.error('AuthContext: Error during auth state change:', error);
+          setUser(null);
+          setLocalUser(null);
+          // Only clear cache if it's a token-related error
+          if (error.message.includes('token') || error.message.includes('auth')) {
+            tokenService.clearCache();
+          }
         }
-      });
-      
-      // Clone the response before reading it
-      const responseClone = response.clone();
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Session check failed:', {
-          status: response.status,
-          statusText: response.statusText,
-          responseText: errorText
-        });
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-      
-      // Use the cloned response for JSON parsing
-      const data = await responseClone.json();
-      console.log('Session check response:', data);
-
-      if (data.isLoggedIn) {
-        setUser(data.user);
       } else {
+        console.log('AuthContext: No user, clearing state');
         setUser(null);
+        setLocalUser(null);
+        // Only clear cache if we're actually signing out
+        if (!auth.currentUser) {
+          tokenService.clearCache();
+        }
       }
-    } catch (error) {
-      console.error('Session check error:', error);
-      setUser(null);
-    } finally {
+      
       setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const signInWithGoogle = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      // Add event listener for signin:complete
+      return new Promise((resolve, reject) => {
+        const handleSignInComplete = async () => {
+          try {
+            const result = await signInWithPopup(auth, provider);
+            // The onAuthStateChanged handler will handle token exchange and local user info
+            resolve({ user: result.user });
+          } catch (error) {
+            reject(error);
+          }
+        };
+
+        // Listen for Google's signin:complete event
+        window.addEventListener('message', (event) => {
+          if (event.data === 'signin:complete') {
+            handleSignInComplete();
+          }
+        });
+
+        // Start the sign-in process
+        signInWithPopup(auth, provider).catch(reject);
+      });
+    } catch (error) {
+      console.error('Error signing in with Google:', error);
+      throw error;
     }
   };
 
   const login = async (email, password) => {
     try {
-      const response = await apiFetch('/v1/auth/password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Authentication failed');
-      }
-
-      if (data.success) {
-        await checkSession();
-        return { success: true };
-      }
-
-      return data;
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
+      setLoading(true);
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      return result;
+    } finally {
+      setLoading(false);
     }
   };
 
   const logout = async () => {
     try {
-      // Reset checklist before logout if user is authenticated
-      if (user) {
-        try {
-          const idToken = await user.getIdToken();
-          await resetChecklist(user.uid, idToken);
-          console.log('Checklist reset successfully');
-        } catch (error) {
-          console.error('Error resetting checklist:', error);
-          // Continue with logout even if checklist reset fails
-        }
-      }
-      
+      setLoading(true);
       await signOut(auth);
       navigate('/');
-    } catch (error) {
-      console.error('Logout error:', error);
-      throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
   const signup = async (email, password) => {
     try {
-      // Use Firebase Authentication directly
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      
-      // Get token for backend registration
-      const idToken = await user.getIdToken();
-      
-      // Save user data to backend
-      const response = await apiFetch('/v1/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
-        body: JSON.stringify({
-          uid: user.uid,
-          email: user.email,
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create account');
-      }
-
-      // After successful signup, redirect to registration
-      navigate('/register');
-      return user;
-    } catch (error) {
-      throw error;
+      setLoading(true);
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      setIsNewUser(true);
+      return result;
+    } finally {
+      setLoading(false);
     }
   };
 
-  const signInWithGoogle = async () => {
+  const resetPassword = async (email) => {
     try {
-      console.log('Starting Google sign-in process...');
-      
-      // Set persistence to LOCAL to prevent session loss
-      await setPersistence(auth, browserLocalPersistence);
-      
-      const result = await signInWithPopup(auth, googleProvider);
-      console.log('Firebase authentication successful:', result);
-      
-      const user = result.user;
-      console.log('User authenticated:', user);
-      
-      // Get the ID token
-      const idToken = await user.getIdToken(true); // Force token refresh
-      console.log('ID token obtained');
-      
-      // Send token to backend to create/update user
-      console.log('Sending token to backend...');
-      const response = await apiFetch('/auth/google/callback', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
-        body: JSON.stringify({ 
-          idToken,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL
-        }),
-      });
-
-      console.log('Backend response received:', response);
-      const data = await response.json();
-      
-      if (!response.ok) {
-        console.error('Backend error:', data);
-        throw new Error(data.error || 'Failed to complete Google sign-in');
-      }
-
-      console.log('Backend authentication successful');
-      // Update local state
-      setUser(user);
-      return { success: true };
-    } catch (error) {
-      console.error('Error signing in with Google:', error);
-      if (error.code === 'auth/popup-closed-by-user') {
-        console.log('User closed the popup during authentication');
-        return { success: false, error: 'Sign-in was cancelled' };
-      }
-      if (error.code === 'auth/cancelled-popup-request') {
-        console.log('Multiple popup requests were made');
-        return { success: false, error: 'Multiple sign-in attempts detected' };
-      }
-      if (error.code === 'auth/popup-blocked') {
-        console.log('Popup was blocked by the browser');
-        return { success: false, error: 'Popup was blocked. Please allow popups for this site.' };
-      }
-      if (error.code === 'auth/network-request-failed') {
-        console.log('Network error during authentication');
-        return { success: false, error: 'Network error. Please check your connection.' };
-      }
-      throw error;
+      setLoading(true);
+      await sendPasswordResetEmail(auth, email);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const resetPassword = (email) => {
-    return sendPasswordResetEmail(auth, email);
-  };
-
-  const updateUserProfile = (displayName, photoURL) => {
-    return updateProfile(auth.currentUser, { displayName, photoURL });
+  const updateUserProfile = async (profile) => {
+    try {
+      setLoading(true);
+      await updateProfile(auth.currentUser, profile);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getUserClaims = async () => {
-    if (!auth.currentUser) return null;
-    const token = await auth.currentUser.getIdTokenResult(true);
-    return token.claims;
+    if (!user) return null;
+    const tokenResult = await user.getIdTokenResult();
+    return tokenResult.claims;
   };
 
   const clearNewUserFlag = () => {
     setIsNewUser(false);
   };
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
-        const claims = await getUserClaims();
-        setUserClaims(claims);
-        const idToken = await user.getIdToken();
-        try {
-          const response = await apiFetch('/auth/session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ idToken }),
-          });
-          
-          // Clone the response before reading it
-          const responseClone = response.clone();
-          
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Session check failed:', {
-              status: response.status,
-              statusText: response.statusText,
-              responseText: errorText
-            });
-            return;
-          }
-          
-          // Use the cloned response for JSON parsing
-          const data = await responseClone.json();
-          setIsNewUser(data.isNewUser || false);
-          if (!userProfile && user.displayName) {
-            setUserProfile({ email: user.email, displayName: user.displayName, photoURL: user.photoURL });
-          }
-        } catch (error) {
-          console.error('Error checking session:', error);
-        }
-      } else {
-        setUserClaims(null);
-        setUserProfile(null);
-        setIsNewUser(false);
-      }
-      setLoading(false);
-    });
-
-    return unsubscribe;
-  }, [userProfile]);
-
   const value = {
     user,
+    localUser,
     loading,
     userClaims,
-    userProfile,
     isNewUser,
-    signup,
-    login,
+    userProfile,
     signInWithGoogle,
+    login,
     logout,
+    signup,
     resetPassword,
-    updateProfile: updateUserProfile,
+    updateUserProfile,
     getUserClaims,
     clearNewUserFlag
   };

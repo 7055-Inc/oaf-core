@@ -1,237 +1,173 @@
-import React, { useState } from 'react';
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword,
-  signInWithPopup 
-} from 'firebase/auth';
-import { auth } from './users';
-import { googleProvider, facebookProvider, twitterProvider, githubProvider } from './auth_get_providers';
-import { saveUserToDatabase } from '../services/authService';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { useAuth } from '../contexts/AuthContext';
 import './login.css';
+import { tokenService } from '../services/tokenService';
+import Modal from 'react-modal';
 
-export default function Login({ onClose }) {
+// Set the app element for react-modal
+Modal.setAppElement('#root');
+
+const Login = () => {
+  const navigate = useNavigate();
+  const { signInWithGoogle, user } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
   const [user_type, setUserType] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
-  
-  const handleEmailChange = (e) => setEmail(e.target.value);
-  const handlePasswordChange = (e) => setPassword(e.target.value);
-  const handleUserTypeChange = (e) => setUserType(e.target.value);
-  
-  // Social sign-in handler
-  const handleSocialSignIn = async (provider) => {
+  const [isOpen, setIsOpen] = useState(true);
+  const auth = getAuth();
+
+  // Close modal and navigate when user is authenticated
+  useEffect(() => {
+    if (user) {
+      // Close the modal first
+      setIsOpen(false);
+      // Use setTimeout to ensure modal cleanup before navigation
+      const timer = setTimeout(() => {
+        // AuthContext will handle the post-login flow
+        navigate('/', { replace: true });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [user, navigate]);
+
+  // If we have a user, don't render the modal at all
+  if (user) {
+    return null;
+  }
+
+  const closeModal = () => {
+    setIsOpen(false);
+    // Ensure modal is fully closed before any navigation
+    setTimeout(() => {
+      navigate('/');
+    }, 100);
+  };
+
+  const handleGoogleLogin = async () => {
+    console.log('Google login button clicked');
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError('');
-      
-      const result = await signInWithPopup(auth, provider);
-      
-      // If user is registering, add user type
-      if (isRegistering && user_type) {
-        const idToken = await result.user.getIdToken();
-        
-        await saveUserToDatabase({
-          uid: result.user.uid,
-          email: result.user.email,
-          displayName: result.user.displayName,
-          photoURL: result.user.photoURL,
-          user_type
-        }, idToken);
-      }
-      
-      if (onClose) onClose();
-      
-      // After successful login, redirect to the checklist page
-      window.location.href = '/checklist';
+      console.log('Attempting Google sign in...');
+      await signInWithGoogle();
     } catch (error) {
-      console.error('Error signing in with social provider:', error);
+      console.error('Google login error:', error);
       setError(error.message);
     } finally {
       setLoading(false);
     }
   };
-  
-  // Email/password sign-in handler
-  const handleSubmit = async (e) => {
+
+  const handleEmailLogin = async (e) => {
     e.preventDefault();
-    
-    if (!email || !password) {
-      setError('Email and password are required');
-      return;
-    }
-    
-    if (isRegistering && !user_type) {
-      setError('Please select a user type');
-      return;
-    }
-    
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError('');
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      const user = result.user;
       
-      if (isRegistering) {
-        // Register new user
-        const result = await createUserWithEmailAndPassword(auth, email, password);
-        const idToken = await result.user.getIdToken();
-        
-        // Save additional user data to the backend
-        await saveUserToDatabase({
-          uid: result.user.uid,
-          email: result.user.email,
-          user_type
-        }, idToken);
-      } else {
-        // Sign in existing user
-        await signInWithEmailAndPassword(auth, email, password);
+      // Get API2 token after successful login
+      try {
+        await tokenService.getApi2Token();
+      } catch (error) {
+        console.error('Error getting API2 token:', error);
       }
       
-      if (onClose) onClose();
-      
-      // After successful login, redirect to the checklist page
-      window.location.href = '/checklist';
+      closeModal();
+      // AuthContext will handle the post-login flow
+      navigate('/');
     } catch (error) {
-      console.error('Authentication error:', error);
-      
-      // Handle specific Firebase errors
-      if (error.code === 'auth/email-already-in-use') {
-        setError('This email is already registered. Please log in instead.');
-      } else if (error.code === 'auth/weak-password') {
-        setError('Password should be at least 6 characters');
-      } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        setError('Invalid email or password');
-      } else {
-        setError(error.message);
-      }
+      console.error('Email login error:', error);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
   };
-  
-  const toggleMode = () => {
+
+  const toggleRegister = () => {
     setIsRegistering(!isRegistering);
-    setError('');
+    setError(null);
   };
-  
+
   return (
-    <div className="login-container">
-      <h2>{isRegistering ? 'Create an Account' : 'Log In'}</h2>
-      
-      {error && <div className="error-message">{error}</div>}
-      
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label htmlFor="email">Email</label>
+    <Modal
+      isOpen={isOpen}
+      onRequestClose={closeModal}
+      shouldCloseOnOverlayClick={true}
+      shouldCloseOnEsc={true}
+      style={{
+        content: {
+          top: '50%',
+          left: '50%',
+          right: 'auto',
+          bottom: 'auto',
+          marginRight: '-50%',
+          transform: 'translate(-50%, -50%)',
+          maxWidth: '400px',
+          width: '100%',
+          padding: '20px',
+          borderRadius: '0',
+          fontFamily: "'Playwrite Italia Moderna', cursive"
+        },
+        overlay: {
+          backgroundColor: 'rgba(0, 0, 0, 0.75)'
+        }
+      }}
+    >
+      <div className="login-container">
+        <h2>{isRegistering ? 'Register' : 'Login'}</h2>
+        <form onSubmit={handleEmailLogin}>
           <input
             type="email"
-            id="email"
             value={email}
-            onChange={handleEmailChange}
-            disabled={loading}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
             required
           />
-        </div>
-        
-        <div className="form-group">
-          <label htmlFor="password">Password</label>
           <input
             type="password"
-            id="password"
             value={password}
-            onChange={handlePasswordChange}
-            disabled={loading}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
             required
           />
-        </div>
-        
-        {isRegistering && (
-          <div className="form-group">
-            <label htmlFor="userType">I am a...</label>
+          {isRegistering && (
             <select
-              id="userType"
               value={user_type}
-              onChange={handleUserTypeChange}
-              disabled={loading}
+              onChange={(e) => setUserType(e.target.value)}
               required
             >
-              <option value="">Select...</option>
+              <option value="">Select User Type</option>
               <option value="artist">Artist</option>
-              <option value="buyer">Art Collector</option>
-              <option value="gallery">Gallery Owner</option>
+              <option value="community">Community Member</option>
+              <option value="promoter">Promoter</option>
             </select>
-          </div>
-        )}
-        
-        <button 
-          type="submit" 
-          className="btn primary-btn" 
+          )}
+          <button type="submit" disabled={loading}>
+            {loading ? 'Processing...' : isRegistering ? 'Register' : 'Login'}
+          </button>
+        </form>
+        <button
+          type="button"
+          className="btn google-btn"
+          onClick={handleGoogleLogin}
           disabled={loading}
         >
-          {isRegistering ? 'Register' : 'Log In'}
+          <span className="provider-icon"></span>
+          {loading ? 'Logging in...' : 'Login with Google'}
         </button>
-        
-        <div className="divider">or</div>
-        
-        <div className="social-login-buttons">
-          <button 
-            type="button" 
-            className="btn google-btn" 
-            onClick={() => handleSocialSignIn(googleProvider)} 
-            disabled={loading}
-          >
-            <div className="social-button-content">
-              <span className="provider-icon google-icon"></span>
-              Sign in with Google
-            </div>
-          </button>
-          
-          <button 
-            type="button" 
-            className="btn facebook-btn" 
-            onClick={() => handleSocialSignIn(facebookProvider)} 
-            disabled={loading}
-          >
-            <div className="social-button-content">
-              <span className="provider-icon facebook-icon"></span>
-              Facebook
-            </div>
-          </button>
-          
-          <button 
-            type="button" 
-            className="btn twitter-btn" 
-            onClick={() => handleSocialSignIn(twitterProvider)} 
-            disabled={loading}
-          >
-            <div className="social-button-content">
-              <span className="provider-icon twitter-icon"></span>
-              X
-            </div>
-          </button>
-          
-          <button 
-            type="button" 
-            className="btn github-btn" 
-            onClick={() => handleSocialSignIn(githubProvider)} 
-            disabled={loading}
-          >
-            <div className="social-button-content">
-              <span className="provider-icon github-icon"></span>
-              GitHub
-            </div>
-          </button>
-        </div>
-      </form>
-      
-      <div className="mode-toggle">
-        {isRegistering ? (
-          <p>Already have an account? <button type="button" onClick={toggleMode}>Log In</button></p>
-        ) : (
-          <p>Don't have an account? <button type="button" onClick={toggleMode}>Register</button></p>
-        )}
+        <button type="button" onClick={toggleRegister}>
+          {isRegistering ? 'Already have an account? Login' : 'Don\'t have an account? Register'}
+        </button>
+        {error && <div className="error-message">{error}</div>}
       </div>
-    </div>
+    </Modal>
   );
-} 
+};
+
+export default Login; 

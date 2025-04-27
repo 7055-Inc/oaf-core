@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import Modal from 'react-modal';
 import './App.css';
@@ -7,13 +7,11 @@ import MyAccount from './myaccount/MyAccount';
 import Product from './product/Product';
 import Cart from './cart/Cart';
 import ProductCreationPage from './product/pages/ProductCreationPage';
-import { UserProvider, useUser, auth } from './users/users';
+import { auth } from './firebase';
 import Login from './users/login';
-import Checklist from './components/checklist/Checklist';
-import ChecklistGuard from './components/checklist/ChecklistGuard';
+import Registration from './users/registration/registration';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Dashboard from './dashboard/Dashboard';
-import TestFile from './test/TestFile';
 
 // Placeholder components
 const GalleryPage = () => <div>Gallery Page</div>;
@@ -28,54 +26,35 @@ Modal.setAppElement('#root');
 
 // Protected route component
 function ProtectedRoute({ children }) {
-  const { currentUser, loading } = useUser();
+  const { user, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
     return <div>Loading...</div>;
   }
 
-  if (!currentUser) {
+  if (!user) {
     return <Navigate to="/" state={{ from: location }} replace />;
   }
 
   return children;
 }
 
-// Protected route with checklist validation
-function ChecklistProtectedRoute({ children }) {
-  const { user, loading: authLoading } = useAuth();
-  const { currentUser, loading: userLoading } = useUser();
-  const location = useLocation();
-
-  console.log('ChecklistProtectedRoute - Auth user:', user ? 'exists' : 'null', 'Loading:', authLoading);
-  console.log('ChecklistProtectedRoute - Current user:', currentUser ? 'exists' : 'null', 'Loading:', userLoading);
-
-  // Wait for both auth contexts to finish loading
-  if (authLoading || userLoading) {
-    console.log('ChecklistProtectedRoute - Still loading authentication data');
-    return <div>Loading...</div>;
-  }
-
-  // Check both auth contexts for a user
-  const isAuthenticated = user || currentUser;
-  if (!isAuthenticated) {
-    console.log('ChecklistProtectedRoute - No user found in either context');
-    return <Navigate to="/" state={{ from: location }} replace />;
-  }
-
-  // Use the first available user object for the ChecklistGuard
-  return <ChecklistGuard>{children}</ChecklistGuard>;
-}
-
 // Main App Content
 function AppContent() {
-  const { currentUser } = useUser();
+  const { user } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const location = useLocation();
 
   const openLoginModal = () => setShowLoginModal(true);
   const closeLoginModal = () => setShowLoginModal(false);
+
+  // Close login modal when user is authenticated
+  useEffect(() => {
+    if (user) {
+      closeLoginModal();
+    }
+  }, [user]);
 
   const handleLogout = () => {
     auth.signOut();
@@ -92,10 +71,10 @@ function AppContent() {
           <nav>
             <ul>
               <li><a href="/">Home</a></li>
-              {currentUser && <li><a href="/myaccount">My Account</a></li>}
+              {user && <li><a href="/myaccount">My Account</a></li>}
               <li><a href="/cart">Cart</a></li>
               <li>
-                {currentUser ? (
+                {user ? (
                   <a href="#" onClick={(e) => { e.preventDefault(); handleLogout(); }}>Log out</a>
                 ) : (
                   <a href="#" onClick={(e) => { e.preventDefault(); openLoginModal(); }}>Log in or Register</a>
@@ -110,11 +89,16 @@ function AppContent() {
       <main>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/test-file" element={<TestFile />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={
+            <ProtectedRoute>
+              <Registration />
+            </ProtectedRoute>
+          } />
           <Route path="/dashboard/*" element={
-            <ChecklistProtectedRoute>
+            <ProtectedRoute>
               <Dashboard />
-            </ChecklistProtectedRoute>
+            </ProtectedRoute>
           } />
           <Route path="/gallery" element={<GalleryPage />} />
           <Route path="/gallery/:artId" element={<ArtworkDetail />} />
@@ -123,20 +107,15 @@ function AppContent() {
           <Route path="/events" element={<EventsPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/cart" element={<Cart />} />
-          <Route path="/checklist" element={
+          <Route path="/myaccount/*" element={
             <ProtectedRoute>
-              <Checklist />
+              <MyAccount />
             </ProtectedRoute>
           } />
-          <Route path="/myaccount/*" element={
-            <ChecklistProtectedRoute>
-              <MyAccount />
-            </ChecklistProtectedRoute>
-          } />
           <Route path="/create-product" element={
-            <ChecklistProtectedRoute>
+            <ProtectedRoute>
               <CreateProduct />
-            </ChecklistProtectedRoute>
+            </ProtectedRoute>
           } />
         </Routes>
       </main>
@@ -225,11 +204,9 @@ function AppContent() {
 export default function App() {
   return (
     <Router>
-      <UserProvider>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
-      </UserProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </Router>
   );
 }
