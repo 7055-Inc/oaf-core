@@ -6,6 +6,7 @@ import { RegistrationTimeline } from './RegistrationTimeline';
 import './registration.css';
 import { getApiUrl } from '../../services/api';
 import { tokenService } from '../../services/tokenService';
+import { apiFetch } from '../../services/api';
 
 const Registration = () => {
   const navigate = useNavigate();
@@ -190,46 +191,44 @@ const Registration = () => {
   }, [userData.user_type]);
 
   useEffect(() => {
-    const initializeRegistration = async () => {
+    const fetchUserData = async () => {
+      if (!user) return;
+      
       try {
-        // Get token data from localStorage
-        const storedToken = localStorage.getItem('api2_token');
-        if (!storedToken) {
-          throw new Error('No valid API token available for registration');
+        const apiToken = await tokenService.getApi2Token();
+        if (!apiToken) {
+          throw new Error('No valid API token available');
         }
-        
-        const { token, user } = JSON.parse(storedToken);
-        if (!token || !user || !user.id) {
-          throw new Error('No valid API token available for registration');
-        }
-        
-        // Fetch user profile using the new /me endpoint
-        const response = await fetch(`${process.env.REACT_APP_API_URL}/users/me/profile`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+
+        // First check if user exists
+        const checkResponse = await fetch(`/users/${user.uid}/check-user`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${apiToken}` }
         });
         
-        if (!response.ok) {
-          throw new Error(`Failed to fetch profile: ${response.status}`);
+        if (!checkResponse.ok) {
+          throw new Error('Failed to verify user');
         }
         
-        const profileData = await response.json();
-        if (!profileData.profileExists) {
-          throw new Error('Profile not found');
+        // Now fetch profile data
+        const profileResponse = await fetch('/user/profile', {
+          headers: { 'Authorization': `Bearer ${apiToken}` }
+        });
+        
+        if (!profileResponse.ok) {
+          throw new Error('Failed to fetch profile');
         }
         
-        // Set profile data in state
-        setUserData(profileData);
+        const data = await profileResponse.json();
+        setUserData(data);
       } catch (error) {
-        console.error('Registration initialization error:', error);
+        console.error('Error fetching user data:', error);
         setError(error.message);
       }
     };
     
-    initializeRegistration();
-  }, [user, navigate]);
+    fetchUserData();
+  }, [user]);
 
   const determineStartingStep = (userTypeForSteps, data) => {
     let potentialSteps = baseSteps;
@@ -282,19 +281,14 @@ const Registration = () => {
     const currentStepIndex = steps.findIndex(step => step.id === fieldId);
 
     try {
-      // Get the local user ID from the token
-      const storedToken = localStorage.getItem('api2_token');
-      if (!storedToken) {
-        throw new Error('No valid API token available');
-      }
-      const { token, user: tokenUser } = JSON.parse(storedToken);
-      if (!token || !tokenUser || !tokenUser.id) {
+      const apiToken = await tokenService.getApi2Token();
+      if (!apiToken) {
         throw new Error('No valid API token available');
       }
 
-      // Update the user profile using the local user ID
-      console.log(`Submit: Updating user profile for ${tokenUser.id} with field ${fieldId}`);
-      await registrationService.updateUserProfile(tokenUser.id, fieldId, value);
+      // Update the user profile
+      console.log(`Submit: Updating user profile for ${user.uid} with field ${fieldId}`);
+      await registrationService.updateUserProfile(user.uid, fieldId, value, apiToken);
       
       // Advance Step
       let nextStepIndex = currentStepIndex + 1;
@@ -312,27 +306,15 @@ const Registration = () => {
     }
   };
 
-  const handleComplete = async () => {
-    setError(null);
-    setIsLoading(true);
+  const handleComplete = async (finalData) => {
     try {
-      // Get the local user ID from the token
-      const storedToken = localStorage.getItem('api2_token');
-      if (!storedToken) {
-        throw new Error('No valid API token available');
-      }
-      const { token, user: tokenUser } = JSON.parse(storedToken);
-      if (!token || !tokenUser || !tokenUser.id) {
-        throw new Error('No valid API token available');
-      }
-
-      // Complete registration using the local user ID
-      await registrationService.completeRegistration(tokenUser.id);
-      console.log("Registration completed and account activated");
-      navigate('/');
+      setIsLoading(true);
+      // Save final data and set status to active
+      const redirectPath = await registrationService.completeRegistration(user.uid, finalData);
+      navigate(redirectPath);
     } catch (error) {
-      console.error('Error completing registration:', error);
-      setError(`Failed to complete registration: ${error.message}`);
+      console.error('Failed to complete registration:', error);
+      setError('Failed to complete registration. Please try again.');
     } finally {
       setIsLoading(false);
     }

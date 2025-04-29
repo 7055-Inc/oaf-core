@@ -16,7 +16,7 @@ import { auth } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch, getApiUrl } from '../services/api';
 import { tokenService } from '../services/tokenService';
-import { registrationService } from '../services/registrationService';
+import { checklistService } from '../services/checklistService';
 
 const AuthContext = createContext(null);
 
@@ -79,42 +79,19 @@ export const AuthProvider = ({ children }) => {
             apiToken = tokenService.getCachedToken();
           }
           
-          // Verify token exists and is valid
-          const storedToken = localStorage.getItem('api2_token');
-          if (!storedToken) {
-            throw new Error('No valid API token available for registration');
-          }
-          const { token, user: tokenUser } = JSON.parse(storedToken);
-          if (!token || !tokenUser || !tokenUser.id) {
-            throw new Error('No valid API token available for registration');
-          }
+          // Run the checklist - it will handle any necessary redirects
+          console.log('AuthContext: Starting checklist process...');
+          await checklistService.runChecklist(user);
           
-          /**
-           * User Checklist Funnel
-           * 
-           * This is the main user processing funnel that runs after successful login.
-           * It checks various requirements and redirects users to the appropriate next step.
-           * 
-           * User Status Flow:
-           * 1. Draft - Initial state when user is created
-           * 2. Active - After completing registration
-           * 3. Inactive - If account is deactivated
-           */
-          try {
-            console.log('AuthContext: Processing user requirements...');
-            const { isRegistered } = await registrationService.runChecklist();
-            
-            if (!isRegistered) {
-              console.log('AuthContext: User not registered, redirecting to registration');
-              navigate('/register');
-            } else {
-              console.log('AuthContext: User is registered, redirecting to dashboard');
-              navigate('/dashboard');
-            }
-          } catch (error) {
-            console.error('AuthContext: Error processing user requirements:', error);
-            navigate('/');
-          }
+          // If we got here, checklist is complete and user is cleared
+          console.log('AuthContext: Checklist complete, user is cleared for site access');
+          
+          // Set a flag to indicate we should navigate to dashboard
+          console.log('AuthContext: Setting hasHandledInitialAuth to true');
+          setHasHandledInitialAuth(true);
+          
+          // Let the auth context handle navigation naturally
+          // Protected routes will handle their own access control
         } catch (error) {
           console.error('AuthContext: Error during auth state change:', error);
           setUser(null);
@@ -128,10 +105,7 @@ export const AuthProvider = ({ children }) => {
         console.log('AuthContext: No user, clearing state');
         setUser(null);
         setLocalUser(null);
-        // Only clear cache if we're actually signing out
-        if (!auth.currentUser) {
-          tokenService.clearCache();
-        }
+        tokenService.clearCache();
       }
       
       setLoading(false);
@@ -142,31 +116,27 @@ export const AuthProvider = ({ children }) => {
 
   const signInWithGoogle = async () => {
     try {
+      console.log('1. Starting Google sign-in process');
       const provider = new GoogleAuthProvider();
-      // Add event listener for signin:complete
-      return new Promise((resolve, reject) => {
-        const handleSignInComplete = async () => {
-          try {
+      console.log('2. Provider created, about to call signInWithPopup');
+      
             const result = await signInWithPopup(auth, provider);
-            // The onAuthStateChanged handler will handle token exchange and local user info
-            resolve({ user: result.user });
-          } catch (error) {
-            reject(error);
-          }
-        };
-
-        // Listen for Google's signin:complete event
-        window.addEventListener('message', (event) => {
-          if (event.data === 'signin:complete') {
-            handleSignInComplete();
-          }
-        });
-
-        // Start the sign-in process
-        signInWithPopup(auth, provider).catch(reject);
-      });
+      console.log('3. Google sign-in successful:', result.user);
+      
+      // Add a small delay to ensure the popup is fully closed
+      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log('4. Popup handling complete');
+      
+      return { user: result.user };
     } catch (error) {
-      console.error('Error signing in with Google:', error);
+      console.error('Error in signInWithGoogle:', error);
+      if (error.code === 'auth/popup-closed-by-user') {
+        console.log('User closed the popup');
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        console.log('Popup request was cancelled');
+      } else if (error.code === 'auth/popup-blocked') {
+        console.log('Popup was blocked by the browser');
+      }
       throw error;
     }
   };
@@ -185,6 +155,7 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       await signOut(auth);
+      setHasHandledInitialAuth(false);
       navigate('/');
     } finally {
       setLoading(false);
@@ -237,6 +208,7 @@ export const AuthProvider = ({ children }) => {
     userClaims,
     isNewUser,
     userProfile,
+    hasHandledInitialAuth,
     signInWithGoogle,
     login,
     logout,

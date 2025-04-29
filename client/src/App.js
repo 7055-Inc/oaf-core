@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import Modal from 'react-modal';
 import './App.css';
 import Home from './Home';
@@ -42,19 +42,21 @@ function ProtectedRoute({ children }) {
 
 // Main App Content
 function AppContent() {
-  const { user } = useAuth();
+  const { user, hasHandledInitialAuth } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    console.log('App: hasHandledInitialAuth:', hasHandledInitialAuth, 'user:', user);
+    if (hasHandledInitialAuth && user) {
+      console.log('App: Navigating to dashboard after initial auth');
+      navigate('/dashboard');
+    }
+  }, [hasHandledInitialAuth, user, navigate]);
 
   const openLoginModal = () => setShowLoginModal(true);
   const closeLoginModal = () => setShowLoginModal(false);
-
-  // Close login modal when user is authenticated
-  useEffect(() => {
-    if (user) {
-      closeLoginModal();
-    }
-  }, [user]);
 
   const handleLogout = () => {
     auth.signOut();

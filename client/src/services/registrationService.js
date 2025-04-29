@@ -12,40 +12,81 @@ export const registrationService = {
       return '/login';
     }
 
-    // Get user status
-    const userStatus = await this.getUserStatus();
-    if (userStatus.status !== 'active') {
+    try {
+      // Check user status
+      const profileResponse = await apiFetch('/user/profile');
+      if (!profileResponse.ok) {
+        return '/registration';
+      }
+
+      const profileData = await profileResponse.json();
+      
+      // If user is in draft status, redirect to registration
+      if (profileData.user?.status === 'draft') {
+        return '/registration';
+      }
+
+      // If user is active, proceed to dashboard
+      if (profileData.user?.status === 'active') {
+        return '/dashboard';
+      }
+
+      // Default to registration for any other status
+      return '/registration';
+    } catch (error) {
+      console.error('Registration checklist error:', error);
       return '/registration';
     }
-
-    // Check profile
-    const profileResponse = await apiFetch(`/users/${userId}/profile`);
-    if (!profileResponse.ok) {
-      return '/profile';
-    }
-
-    // Check terms
-    const termsResponse = await apiFetch(`/users/${userId}/terms`);
-    if (!termsResponse.ok) {
-      return '/terms';
-    }
-
-    // Check email verification
-    const emailResponse = await apiFetch(`/users/${userId}/email-verification`);
-    if (!emailResponse.ok) {
-      return '/verify-email';
-    }
-
-    // All tests passed
-    return '/dashboard';
   },
 
   /**
-   * Gets the user's status
-   * @returns {Promise<Object>} The user status
+   * Updates a single field in the user profile during registration
+   * @param {string} userId - The user's ID
+   * @param {string} fieldId - The field to update
+   * @param {any} value - The new value
    */
-  async getUserStatus() {
-    const response = await apiFetch('/users/status');
-    return await response.json();
+  async updateUserProfile(userId, fieldId, value) {
+    const response = await apiFetch('/user/profile', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        [fieldId]: value
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to update profile field ${fieldId}`);
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Completes the registration process by setting user status to active
+   * and saving all final profile data
+   * @param {string} userId - The user's ID
+   * @param {Object} finalData - The complete user profile data
+   */
+  async completeRegistration(userId, finalData) {
+    // First update the complete profile data
+    const profileResponse = await apiFetch('/user/profile', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ...finalData,
+        status: 'active'  // Set status to active
+      })
+    });
+
+    if (!profileResponse.ok) {
+      throw new Error('Failed to save final profile data');
+    }
+
+    // Return to checklist service for next steps
+    return this.runChecklist(userId);
   }
 }; 

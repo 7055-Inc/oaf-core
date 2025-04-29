@@ -34,7 +34,7 @@ export const getApiUrl = (endpoint) => {
   
   // Special handling for token endpoints - these go to the main server
   if (cleanEndpoint.startsWith('tokens/')) {
-    return `${MAIN_BASE_URL}/api/${cleanEndpoint}`;
+    return `${MAIN_BASE_URL}/v1/${cleanEndpoint}`;
   }
   
   // If the endpoint already has /v1/, use it as is
