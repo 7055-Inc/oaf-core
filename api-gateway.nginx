@@ -15,10 +15,21 @@ server {
     
     # Logging configuration
     access_log /var/log/nginx/api_gateway_access.log;
-    error_log  /var/log/nginx/api_gateway_error.log debug;
+    error_log  /var/log/nginx/api_gateway_error.log error;
 
-    # API endpoints - must come before root path
-    location /v1/ {
+    # Handle OPTIONS requests
+    location ~ ^/(v1|api)/ {
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' 'https://main.onlineartfestival.com';
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS';
+            add_header 'Access-Control-Allow-Headers' 'Content-Type, Authorization, X-Requested-With, Origin, Accept';
+            add_header 'Access-Control-Allow-Credentials' 'true';
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain charset=UTF-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+
         proxy_pass http://localhost:3001;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -26,6 +37,12 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-Host $host;
         proxy_set_header X-Forwarded-Port $server_port;
+
+        # Add CORS headers to all responses
+        add_header 'Access-Control-Allow-Origin' 'https://main.onlineartfestival.com' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' 'Content-Type, Authorization, X-Requested-With, Origin, Accept' always;
+        add_header 'Access-Control-Allow-Credentials' 'true' always;
     }
 
     # Root path - exact match
@@ -39,19 +56,6 @@ server {
         proxy_set_header X-Forwarded-Port $server_port;
     }
 
-    # Test page - for direct access testing
-    location = /test.html {
-        root /var/www/main/api-test;
-        access_log on;
-    }
-
-    # Serve static test frontend with root directive instead of alias
-    location /api-test/ {
-        root /var/www/main;
-        index index.html;
-        access_log on;
-    }
-    
     # Also serve favicon.ico at the root
     location = /favicon.ico {
         alias /var/www/main/api-test/favicon.ico;

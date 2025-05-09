@@ -45,20 +45,25 @@ Database connection details:
 - User: oafuser
 - Database: oaf
 
-## Authentication
+## Authentication & Registration Related Tables
 
-Note: The previous authentication tables have been removed as part of the migration to a new authentication system. The following tables were removed:
+Note: The authentication and session management system has been partially refactored. The following tables are relevant to the current `api-service` implementation:
 
-- `email_verification_tokens`
-- `user_requirement_status`
-- `login_checklist_requirements`
-- `login_checklist_logs`
-- `password_reset_tokens`
-- `permissions`
-- `permissions_log`
-- `terms_acceptances`
-- `terms_versions`
-- `saved_registrations`
-- `sessions`
+**Actively Used by `api-service`:**
+- `sessions`: Used by `express-mysql-session` for managing user login sessions (configured in `api-service/src/server.js`).
+- `user_checklist`: Updated by the `/registration/complete` endpoint.
 
-A new authentication and session management system will be implemented. 
+**Referenced or Potentially Used:**
+- `users`: Core user table, used by most user/profile/registration endpoints.
+- `user_profiles`: Used by `/registration/save-field` and `/user/profile`.
+- `artist_profiles`, `community_profiles`, `promoter_profiles`: Used by `/registration/save-field` based on `user_type`.
+
+**Likely Unused/Deprecated by `api-service` (Verify based on other services/codebases):**
+- `saved_registrations`: The draft system does not appear to be implemented in the current `api-service/src/routes/index.js`.
+- `permissions`: Not directly referenced in `api-service/src/routes/index.js` routes.
+- `permissions_log`: Not directly referenced in `api-service/src/routes/index.js` routes.
+- `email_verification_tokens`: No email verification routes found in `api-service/src/routes/index.js`.
+- `admin_profiles`: Exists in schema, potentially used by `/users/:uid/check-user` if `userType` is admin, but general profile endpoints don't handle it.
+- `password_reset_tokens`, `terms_acceptances`, `terms_versions`: No related functionality found in `api-service/src/routes/index.js`.
+
+The primary authentication mechanism relies on Firebase Auth token verification. 

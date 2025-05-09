@@ -13,6 +13,4 @@ const coopMiddleware = (req, res, next) => {
   next();
 };
 
-module.exports = {
-  coopMiddleware
-}; 
+module.exports = coopMiddleware; 

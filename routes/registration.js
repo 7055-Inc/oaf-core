@@ -138,33 +138,22 @@ router.post('/update-draft/:token', async (req, res) => {
       existingData = {};
     }
     
-    // Make a copy of existing data to merge with updates
-    const mergedData = { ...existingData };
-    
-    // Update the timestamp
-    mergedData.updated_at = new Date().toISOString();
-    
-    // CRITICAL FIX: Handle user_type at the root level
+    // --- Merge Update Logic --- 
+    // The incoming 'updates' should be an object like { fieldId: value }
+    // Merge this directly into the existing data.
+    const mergedData = { 
+      ...existingData, 
+      ...updates, // Directly merge the incoming field update
+      updated_at: new Date().toISOString() // Update timestamp
+    };
+
+    // Ensure user_type is handled at the root if present in the update
     if (updates.user_type !== undefined) {
-      console.log('UPDATE DRAFT: Setting user_type to:', updates.user_type);
       mergedData.user_type = updates.user_type;
     }
     
-    // Handle completedSteps if provided
-    if (updates.completedSteps) {
-      mergedData.completedSteps = updates.completedSteps;
-    }
-    
-    // Handle step data for various sections
-    if (updates.account) mergedData.account = updates.account;
-    if (updates.basicProfile) mergedData.basicProfile = updates.basicProfile;
-    if (updates.specificProfile) mergedData.specificProfile = updates.specificProfile;
-    if (updates.photos) mergedData.photos = updates.photos;
-    if (updates.finalDetails) mergedData.finalDetails = updates.finalDetails;
-    
-    // Remove sensitive information
+    // Remove sensitive information (like password, if ever included in drafts)
     if (mergedData.password) delete mergedData.password;
-    if (mergedData.account?.password) delete mergedData.account.password;
     
     console.log('UPDATE DRAFT: Final merged data to save:', JSON.stringify(mergedData, null, 2));
     
@@ -328,6 +317,7 @@ router.post('/complete/:token', async (req, res) => {
   
   console.log('COMPLETE REGISTRATION: Completing registration with token:', token);
   
+  let connection; // Define connection outside try block for visibility in finally
   try {
     // Get the draft
     const [drafts] = await db.query(
@@ -344,25 +334,187 @@ router.post('/complete/:token', async (req, res) => {
     
     // Parse the draft data
     const draftData = JSON.parse(drafts[0].data);
-    
-    // Create the user
-    await db.query(
-      'INSERT INTO users (username, google_uid, user_type, status) VALUES (?, ?, ?, "active")',
-      [draftData.email, draftData.google_uid, draftData.user_type]
+    console.log('COMPLETE REGISTRATION: Draft data:', JSON.stringify(draftData, null, 2));
+
+    // --- Start Transaction ---
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+    console.log('COMPLETE REGISTRATION: Transaction started');
+
+    // 1. Create the user
+    const [userResult] = await connection.query(
+      'INSERT INTO users (username, email_verified, google_uid, user_type, status) VALUES (?, ?, ?, ?, ?)',
+      [
+        draftData.email,
+        draftData.email_verified || 'no',
+        draftData.google_uid,
+        draftData.user_type, // Ensure this is collected and present
+        'active' // Set status to active upon completion
+      ]
     );
+    const newUserId = userResult.insertId;
+    console.log('COMPLETE REGISTRATION: User created with ID:', newUserId);
+
+    if (!newUserId) {
+      throw new Error('Failed to create user, insertId not returned.');
+    }
+
+    // 2. Create the user profile
+    const profileData = {
+      user_id: newUserId,
+      first_name: draftData.firstName || null,
+      last_name: draftData.lastName || null,
+      phone: draftData.phone || null,
+      address_line1: draftData.address_line1 || null,
+      address_line2: draftData.address_line2 || null,
+      city: draftData.city || null,
+      state: draftData.state || null,
+      postal_code: draftData.postal_code || null,
+      country: draftData.country || null,
+      profile_image_path: draftData.profile_image_path || null,
+      header_image_path: draftData.header_image_path || null,
+      display_name: draftData.displayName || null,
+      website: draftData.website || null,
+      social_facebook: draftData.social_facebook || null,
+      social_instagram: draftData.social_instagram || null,
+      social_tiktok: draftData.social_tiktok || null,
+      social_twitter: draftData.social_twitter || null,
+      social_pinterest: draftData.social_pinterest || null,
+      social_whatsapp: draftData.social_whatsapp || null,
+      birth_date: draftData.birth_date || null,
+      gender: draftData.gender || null,
+      nationality: draftData.nationality || null,
+      languages_known: draftData.languages_known ? JSON.stringify(draftData.languages_known) : null,
+      job_title: draftData.job_title || null,
+      bio: draftData.bio || null,
+      education: draftData.education ? JSON.stringify(draftData.education) : null,
+      awards: draftData.awards ? JSON.stringify(draftData.awards) : null,
+      memberships: draftData.memberships ? JSON.stringify(draftData.memberships) : null,
+      follows: draftData.follows ? JSON.stringify(draftData.follows) : null,
+      timezone: draftData.timezone || null,
+      preferred_currency: draftData.preferred_currency || null,
+      profile_visibility: draftData.profile_visibility || 'public',
+    };
+
+    console.log('COMPLETE REGISTRATION: Profile data to insert:', JSON.stringify(profileData, null, 2));
+    await connection.query(
+      'INSERT INTO user_profiles SET ?', 
+      profileData
+    );
+    console.log('COMPLETE REGISTRATION: User profile created');
+
+    // 3. Create the type-specific profile (if applicable)
+    const userType = draftData.user_type;
+    console.log('COMPLETE REGISTRATION: User type is:', userType);
+
+    if (userType === 'artist') {
+      const artistProfileData = {
+        user_id: newUserId,
+        art_categories: draftData.art_categories ? JSON.stringify(draftData.art_categories) : null, // Expecting arrays/objects
+        art_mediums: draftData.art_mediums ? JSON.stringify(draftData.art_mediums) : null,
+        business_name: draftData.artist_business_name || null,
+        studio_address_line1: draftData.studio_address_line1 || null,
+        studio_address_line2: draftData.studio_address_line2 || null,
+        studio_city: draftData.studio_city || null,
+        studio_state: draftData.studio_state || null,
+        studio_zip: draftData.studio_zip || null,
+        artist_biography: draftData.artist_biography || null,
+        business_phone: draftData.artist_business_phone || null,
+        business_website: draftData.artist_business_website || null,
+        business_social_facebook: draftData.artist_social_facebook || null,
+        business_social_instagram: draftData.artist_social_instagram || null,
+        business_social_tiktok: draftData.artist_social_tiktok || null,
+        business_social_twitter: draftData.artist_social_twitter || null,
+        business_social_pinterest: draftData.artist_social_pinterest || null,
+        does_custom: draftData.does_custom || 'no',
+        customer_service_email: draftData.customer_service_email || draftData.email
+      };
+      console.log('COMPLETE REGISTRATION: Artist profile data:', JSON.stringify(artistProfileData, null, 2));
+      await connection.query('INSERT INTO artist_profiles SET ?', artistProfileData);
+      console.log('COMPLETE REGISTRATION: Artist profile created');
+
+    } else if (userType === 'community') {
+      const communityProfileData = {
+        user_id: newUserId,
+        art_style_preferences: draftData.art_style_preferences ? JSON.stringify(draftData.art_style_preferences) : null,
+        favorite_colors: draftData.favorite_colors ? JSON.stringify(draftData.favorite_colors) : null,
+      };
+      console.log('COMPLETE REGISTRATION: Community profile data:', JSON.stringify(communityProfileData, null, 2));
+      await connection.query('INSERT INTO community_profiles SET ?', communityProfileData);
+      console.log('COMPLETE REGISTRATION: Community profile created');
+
+    } else if (userType === 'promoter') {
+      const promoterProfileData = {
+        user_id: newUserId,
+        business_name: draftData.promoter_business_name || null,
+        business_phone: draftData.promoter_business_phone || null,
+        business_website: draftData.promoter_business_website || null,
+        business_social_facebook: draftData.promoter_social_facebook || null,
+        business_social_instagram: draftData.promoter_social_instagram || null,
+        business_social_tiktok: draftData.promoter_social_tiktok || null,
+        business_social_twitter: draftData.promoter_social_twitter || null,
+        business_social_pinterest: draftData.promoter_social_pinterest || null,
+        office_address_line1: draftData.office_address_line1 || null,
+        office_address_line2: draftData.office_address_line2 || null,
+        office_city: draftData.office_city || null,
+        office_state: draftData.office_state || null,
+        office_zip: draftData.office_zip || null,
+        is_non_profit: draftData.is_non_profit || 'no',
+        artwork_description: draftData.artwork_description || null,
+      };
+      console.log('COMPLETE REGISTRATION: Promoter profile data:', JSON.stringify(promoterProfileData, null, 2));
+      await connection.query('INSERT INTO promoter_profiles SET ?', promoterProfileData);
+      console.log('COMPLETE REGISTRATION: Promoter profile created');
+    }
+
+    // 4. Update the user checklist
+    const [existingChecklist] = await connection.query(
+      'SELECT * FROM user_checklist WHERE user_id = ?',
+      [draftData.google_uid] // Use google_uid as user_id for checklist initially
+    );
+
+    const now = new Date();
+    if (existingChecklist.length > 0) {
+       await connection.query(
+        'UPDATE user_checklist SET user_id_final = ?, registration = ?, registration_updated_at = ?, profile_complete = ?, profile_complete_updated_at = ? WHERE user_id = ?',
+        [newUserId, true, now, true, now, draftData.google_uid] 
+      );
+      console.log('COMPLETE REGISTRATION: User checklist updated');
+    } else {
+       await connection.query(
+        'INSERT INTO user_checklist (user_id, user_id_final, is_user, registration, terms_accepted, profile_complete, email_verified, registration_updated_at, profile_complete_updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [draftData.google_uid, newUserId, true, true, false, true, draftData.email_verified === 'yes', now, now]
+      );
+      console.log('COMPLETE REGISTRATION: User checklist created');
+    }
+
+    // 5. Delete the draft
+    await connection.query('DELETE FROM saved_registrations WHERE token = ?', [token]);
+    console.log('COMPLETE REGISTRATION: Registration draft deleted');
     
-    // Delete the draft after successful user creation
-    await db.query('DELETE FROM saved_registrations WHERE token = ?', [token]);
+    // --- Commit Transaction ---
+    await connection.commit();
+    console.log('COMPLETE REGISTRATION: Transaction committed');
     
-    console.log('COMPLETE REGISTRATION: Registration completed successfully');
-    res.json({ success: true });
+    console.log('COMPLETE REGISTRATION: Registration completed successfully for user ID:', newUserId);
+    res.json({ success: true, userId: newUserId });
+
   } catch (error) {
     console.error('COMPLETE REGISTRATION ERROR:', error);
+    if (connection) {
+      console.log('COMPLETE REGISTRATION: Rolling back transaction due to error');
+      await connection.rollback();
+    }
     res.status(500).json({ 
       success: false, 
       error: 'Failed to complete registration', 
       details: error.message 
     });
+  } finally {
+      if (connection) {
+        console.log('COMPLETE REGISTRATION: Releasing database connection');
+        connection.release();
+      }
   }
 });
 
