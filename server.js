@@ -1,41 +1,16 @@
-const app = require('./app');
-const port = process.env.PORT || 3000;
+const { createServer } = require('http');
+const { parse } = require('url');
+const next = require('next');
 
-// Add error handling for uncaught exceptions
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
-});
+const app = next({ dev: false, hostname: 'main.onlineartfestival.com', port: 3000 });
+const handle = app.getRequestHandler();
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-});
-
-// Start the server
-const server = app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-  console.log(`Current working directory: ${process.cwd()}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-});
-
-// Handle server errors
-server.on('error', (error) => {
-  if (error.syscall !== 'listen') {
-    throw error;
-  }
-
-  const bind = typeof port === 'string' ? 'Pipe ' + port : 'Port ' + port;
-
-  // Handle specific listen errors with friendly messages
-  switch (error.code) {
-    case 'EACCES':
-      console.error(bind + ' requires elevated privileges');
-      process.exit(1);
-      break;
-    case 'EADDRINUSE':
-      console.error(bind + ' is already in use');
-      process.exit(1);
-      break;
-    default:
-      throw error;
-  }
+app.prepare().then(() => {
+  createServer((req, res) => {
+    const parsedUrl = parse(req.url, true);
+    handle(req, res, parsedUrl);
+  }).listen(process.env.PORT || 3000, (err) => {
+    if (err) throw err;
+    console.log('> Main app running on http://main.onlineartfestival.com:3000');
+  });
 }); 

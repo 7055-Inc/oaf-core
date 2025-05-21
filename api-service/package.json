@@ -1,25 +1,8 @@
 {
-  "name": "api-service",
-  "version": "1.0.0",
-  "description": "API Gateway Backend Service",
-  "main": "src/server.js",
-  "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
-  },
   "dependencies": {
-    "axios": "^0.27.2",
     "cors": "^2.8.5",
-    "crypto": "^1.0.1",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2",
-    "express-rate-limit": "^6.11.2",
+    "dotenv": "^16.5.0",
     "jsonwebtoken": "^9.0.2",
-    "morgan": "^1.10.0",
-    "mysql2": "^3.14.0",
-    "winston": "^3.8.2"
-  },
-  "devDependencies": {
-    "nodemon": "^2.0.20"
+    "uuid": "^11.1.0"
   }
 }
