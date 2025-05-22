@@ -1,108 +1,88 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function Header() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [roles, setRoles] = useState([]);
-  const [needsProfileSetup, setNeedsProfileSetup] = useState(false);
-  const router = useRouter();
+  const [userId, setUserId] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    console.log('Header: Token from localStorage:', token);
     if (token) {
       setIsLoggedIn(true);
-      // Fetch user roles
-      fetch('https://api2.onlineartfestival.com/auth/exchange', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ provider: 'validate', token })
-      })
-        .then(res => {
-          console.log('Header: /auth/exchange response status:', res.status);
-          if (!res.ok) {
-            throw new Error(`Request failed with status ${res.status}`);
-          }
-          return res.json();
-        })
-        .then(data => {
-          console.log('Header: /auth/exchange response data:', data);
-          setRoles(data.roles || []);
-          if (data.roles && data.roles.includes('admin')) {
-            console.log('Header: User is admin');
-            setIsAdmin(true);
-          } else {
-            console.log('Header: User is not admin, roles:', data.roles);
-          }
-          // Check profile status
-          fetchUserProfile(token);
-        })
-        .catch(err => {
-          console.error('Header: Error checking admin status:', err.message);
-          setIsAdmin(false);
-        });
-    } else {
-      console.log('Header: No token found in localStorage');
-      setIsLoggedIn(false);
-    }
-  }, [router]);
-
-  const fetchUserProfile = async (token) => {
-    try {
-      const res = await fetch('https://api2.onlineartfestival.com/users/me', {
+      // Fetch userId from /users/me
+      fetch('https://api2.onlineartfestival.com/users/me', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
-      });
-      if (!res.ok) {
-        throw new Error('Failed to fetch user profile');
-      }
-      const data = await res.json();
-      const profileIncomplete = !data.first_name || !data.last_name || data.email_verified !== 'yes';
-      setNeedsProfileSetup(profileIncomplete);
-      if (profileIncomplete && router.pathname !== '/profile/setup') {
-        router.push('/profile/setup');
-      }
-    } catch (err) {
-      console.error('Error fetching user profile:', err.message);
+      })
+        .then(res => {
+          if (!res.ok) {
+            throw new Error('Failed to fetch user profile');
+          }
+          return res.json();
+        })
+        .then(data => {
+          setUserId(data.id);
+          localStorage.setItem('userId', data.id); // Store userId for future use
+        })
+        .catch(err => {
+          console.error('Error fetching user ID:', err.message);
+          setIsLoggedIn(false);
+          localStorage.removeItem('token');
+          localStorage.removeItem('userId');
+        });
+    } else {
+      setIsLoggedIn(false);
+      setUserId(null);
     }
-  };
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('userId');
     setIsLoggedIn(false);
-    setIsAdmin(false);
-    setRoles([]);
-    setNeedsProfileSetup(false);
-    router.push('/');
+    setUserId(null);
+    window.location.href = '/';
   };
 
   return (
-    <nav style={{ padding: '1rem', backgroundColor: '#f8f9fa', borderBottom: '1px solid #dee2e6' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ margin: 0 }}>Online Art Festival</h1>
-        <div>
-          {isLoggedIn ? (
-            <>
-              <a href="/dashboard" style={{ marginRight: '1rem' }}>Dashboard</a>
-              <a href="/api-keys" style={{ marginRight: '1rem' }}>API Keys</a>
-              {isAdmin && (
-                <a href="/dashboard/admin" style={{ marginRight: '1rem' }}>Admin</a>
-              )}
-              <button onClick={handleLogout}>Logout</button>
-            </>
-          ) : (
-            <a href="/">Login</a>
-          )}
-        </div>
+    <header style={{
+      backgroundColor: '#FFFFFF',
+      padding: '1rem',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <img
+          src="/static_media/logo.png"
+          alt="Online Art Festival Logo"
+          style={{ width: '120px', height: 'auto' }}
+        />
       </div>
-    </nav>
+      <nav>
+        <Link href="/" style={{ marginRight: '1rem', color: '#055474', textDecoration: 'none' }}>
+          Home
+        </Link>
+        {isLoggedIn && userId ? (
+          <>
+            <Link href="/profile/[id]" as={`/profile/${userId}`} style={{ marginRight: '1rem', color: '#055474', textDecoration: 'none' }}>
+              Profile
+            </Link>
+            <button onClick={handleLogout} style={{ color: '#055474', background: 'none', border: 'none', cursor: 'pointer' }}>
+              Logout
+            </button>
+          </>
+        ) : (
+          <Link href="#" onClick={() => document.getElementById('loginModal').style.display = 'block'} style={{ color: '#055474', textDecoration: 'none' }}>
+            Login
+          </Link>
+        )}
+      </nav>
+    </header>
   );
 }

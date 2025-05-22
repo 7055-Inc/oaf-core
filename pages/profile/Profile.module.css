@@ -1,0 +1,155 @@
+.container {
+  font-family: 'Lexend Tera', sans-serif; /* Main font */
+  color: #333;
+  margin: 0;
+  padding: 0;
+}
+
+.headerImage {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.headerPlaceholder {
+  width: 100%;
+  height: 200px;
+  margin: 0;
+  padding: 0;
+}
+
+.editRibbon {
+  background-color: #3E1C56;
+  padding: 0.5rem 1rem;
+  text-align: right;
+  margin: 0;
+}
+
+.editLink {
+  color: #FFFFFF;
+  text-decoration: underline;
+  font-family: 'Lexend Tera', sans-serif;
+  font-weight: bold;
+}
+
+.profileImage {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 10px solid #055474;
+  object-fit: cover;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  position: relative;
+  z-index: 2;
+  display: block;
+  margin: -80px auto 0; /* Center the image and overlap the header */
+}
+
+.socialIcons {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 0.5rem 0;
+  z-index: 2;
+  position: relative;
+}
+
+.infoCard {
+  width: 100%;
+  margin: 0;
+  padding: 1.5rem;
+  background-color: #F5F5F5;
+  box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 2rem;
+}
+
+.leftColumn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rightColumn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.userName {
+  color: #055474;
+  margin: 1rem 0;
+  font-family: 'Permanent Marker', cursive;
+  font-size: 2rem;
+}
+
+.stateBadge {
+  display: inline-flex;
+  align-items: center;
+  background-color: #055474;
+  color: #FFFFFF;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  margin: 0.5rem 0;
+  font-family: 'Lexend Tera', sans-serif;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 1px solid #3E1C56;
+  transition: background-color 0.3s;
+}
+
+.stateBadge:hover {
+  background-color: #3E1C56;
+}
+
+.stateIcon {
+  margin-right: 0.5rem;
+  font-size: 1.2rem;
+}
+
+.link {
+  color: #055474;
+  text-decoration: none;
+  font-size: 1.2rem;
+  transition: color 0.3s;
+}
+
+.link:hover {
+  color: #3E1C56;
+}
+
+.websiteLink {
+  color: #055474;
+  text-decoration: none;
+  font-size: 1.2rem;
+  transition: color 0.3s;
+}
+
+.websiteLink:hover {
+  color: #3E1C56;
+}
+
+.subtitle {
+  color: #3E1C56;
+  margin-bottom: 1rem;
+  font-family: 'Permanent Marker', cursive;
+  font-size: 1.5rem;
+}
+
+.eventList {
+  padding-left: 1.5rem;
+  margin-top: 0.5rem;
+}
+
+.error {
+  color: red;
+}

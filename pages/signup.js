@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getAuth, createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
-import { app } from '../lib/firebase'; // Updated import path
+import firebaseApp from '../lib/firebase'; // Updated import path
 import Header from '../components/Header';
 
 export default function Signup() {
@@ -11,7 +11,7 @@ export default function Signup() {
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
   const router = useRouter();
-  const auth = getAuth(app);
+  const auth = getAuth(firebaseApp);
 
   const handleSignup = async (e) => {
     e.preventDefault();

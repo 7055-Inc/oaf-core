@@ -1,0 +1,70 @@
+.container {
+    padding: 2rem;
+    max-width: 600px;
+    margin: 0 auto;
+    font-family: 'Lexend Tera', sans-serif; /* Main font */
+    color: #333;
+  }
+  
+  .title {
+    color: #055474;
+    margin-bottom: 1rem;
+    font-family: 'Permanent Marker', cursive; /* Changed to Permanent Marker */
+    font-size: 2rem; /* Adjusted size for better fit */
+  }
+  
+  .subtitle {
+    color: #3E1C56;
+    margin-bottom: 1rem;
+    font-family: 'Permanent Marker', cursive; /* H2 font */
+    font-size: 1.5rem;
+  }
+  
+  .formGroup {
+    margin-bottom: 1rem;
+  }
+  
+  .label {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: #3E1C56;
+  }
+  
+  .input,
+  .textarea,
+  .select {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #055474;
+    border-radius: 5px;
+    font-family: 'Lexend Tera', sans-serif;
+  }
+  
+  .input:disabled {
+    background-color: #f0f0f0;
+  }
+  
+  .textarea {
+    height: 100px;
+    resize: vertical;
+  }
+  
+  .button {
+    background-color: #055474;
+    color: #FFFFFF;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'Permanent Marker', cursive; /* Button font */
+    font-size: 1rem;
+  }
+  
+  .button:hover {
+    background-color: #3E1C56;
+  }
+  
+  .error {
+    color: red;
+    margin-bottom: 1rem;
+  }

@@ -2,14 +2,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword } from 'firebase/auth';
-import { app } from '../lib/firebase'; // Updated import path
+import firebaseApp from '../lib/firebase'; // Updated import path
 
 export default function LoginModal() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const router = useRouter();
-  const auth = getAuth(app);
+  const auth = getAuth(firebaseApp);
 
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
@@ -94,7 +94,7 @@ export default function LoginModal() {
         <button type="submit">Login with Email</button>
       </form>
       <p style={{ marginTop: '1rem' }}>
-        Don’t have an account? <a href="/signup">Sign up here</a>
+        Don't have an account? <a href="/signup">Sign up here</a>
       </p>
     </div>
   );
