@@ -1,5 +1,5 @@
 .container {
-  font-family: 'Lexend Tera', sans-serif; /* Main font */
+  font-family: 'Comic Neue', sans-serif;
   color: #333;
   margin: 0;
   padding: 0;
@@ -7,7 +7,7 @@
 
 .headerImage {
   width: 100%;
-  height: 200px;
+  height: 250px;
   object-fit: cover;
   margin: 0;
   padding: 0;
@@ -16,7 +16,7 @@
 
 .headerPlaceholder {
   width: 100%;
-  height: 200px;
+  height: 250px;
   margin: 0;
   padding: 0;
 }
@@ -31,8 +31,16 @@
 .editLink {
   color: #FFFFFF;
   text-decoration: underline;
-  font-family: 'Lexend Tera', sans-serif;
+  font-family: 'Comic Neue', sans-serif;
   font-weight: bold;
+}
+
+.profileWrapper {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .profileImage {
@@ -42,10 +50,7 @@
   border: 10px solid #055474;
   object-fit: cover;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  position: relative;
-  z-index: 2;
-  display: block;
-  margin: -80px auto 0; /* Center the image and overlap the header */
+  margin: -80px 0 0 0;
 }
 
 .socialIcons {
@@ -54,42 +59,42 @@
   flex-wrap: wrap;
   justify-content: center;
   margin: 0.5rem 0;
+}
+
+.fallbackText {
+  font-size: 1rem;
+  color: #055474;
+  margin-left: 0.25rem;
+}
+
+.testIcon {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
   z-index: 2;
   position: relative;
 }
 
 .infoCard {
   width: 100%;
-  margin: 0;
-  padding: 1.5rem;
-  background-color: #F5F5F5;
+  margin: -3.75rem 0 0 0;
+  padding: 4.5rem 1.5rem 0.5rem 1.5rem;
+  background-color: #FFFFFF;
   box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.1);
   position: relative;
   z-index: 1;
   display: flex;
-  gap: 2rem;
-}
-
-.leftColumn {
-  flex: 1;
-  display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-}
-
-.rightColumn {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
 }
 
 .userName {
   color: #055474;
-  margin: 1rem 0;
+  margin: 0 0 0.5rem 0;
   font-family: 'Permanent Marker', cursive;
   font-size: 2rem;
+  letter-spacing: 2px;
 }
 
 .stateBadge {
@@ -99,8 +104,8 @@
   color: #FFFFFF;
   padding: 0.5rem 1rem;
   border-radius: 20px;
-  margin: 0.5rem 0;
-  font-family: 'Lexend Tera', sans-serif;
+  margin: 0 0 0.5rem 0;
+  font-family: 'Comic Neue', sans-serif;
   font-size: 0.9rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   border: 1px solid #3E1C56;
@@ -114,6 +119,18 @@
 .stateIcon {
   margin-right: 0.5rem;
   font-size: 1.2rem;
+}
+
+.bioQuote {
+  font-style: italic;
+  text-align: left;
+  padding: 1rem;
+  background-color: #FFFFFF;
+  border-left: 4px solid #055474;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  max-width: 500px;
+  margin: 0.5rem 0 0 0;
+  width: 100%;
 }
 
 .link {
@@ -141,7 +158,7 @@
 .subtitle {
   color: #3E1C56;
   margin-bottom: 1rem;
-  font-family: 'Permanent Marker', cursive;
+  font-family: 'Covered By Your Grace', cursive;
   font-size: 1.5rem;
 }
 

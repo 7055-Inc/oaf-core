@@ -28,6 +28,7 @@ export default function ProfileView() {
           return res.json();
         })
         .then(data => {
+          console.log('Current User Data:', data); // Add this log
           setCurrentUserId(data.id);
         })
         .catch(err => {
@@ -49,6 +50,7 @@ export default function ProfileView() {
           throw new Error('Failed to fetch user profile');
         }
         const data = await res.json();
+        console.log('User Profile Data:', data);
         setUserProfile(data);
       } catch (err) {
         console.error(err.message);
@@ -103,70 +105,68 @@ export default function ProfileView() {
           </a>
         </div>
       )}
-      {userProfile.profile_image_path && (
-        <img
-          src={`https://api2.onlineartfestival.com${userProfile.profile_image_path}`}
-          alt="Profile"
-          className={styles.profileImage}
-        />
-      )}
-      <div className={styles.socialIcons}>
-        {userProfile.website && (
-          <a href={userProfile.website} target="_blank" rel="noopener noreferrer" className={styles.websiteLink}>
-            <i className="fas fa-globe"></i>
-          </a>
+      <div className={styles.profileWrapper}>
+        {userProfile.profile_image_path && (
+          <img
+            src={`https://api2.onlineartfestival.com${userProfile.profile_image_path}`}
+            alt="Profile"
+            className={styles.profileImage}
+          />
         )}
-        {userProfile.social_facebook && (
-          <a href={userProfile.social_facebook} target="_blank" rel="noopener noreferrer" className={styles.link}>
-            <i className="fab fa-facebook-f"></i>
-          </a>
-        )}
-        {userProfile.social_instagram && (
-          <a href={userProfile.social_instagram} target="_blank" rel="noopener noreferrer" className={styles.link}>
-            <i className="fab fa-instagram"></i>
-          </a>
-        )}
-        {userProfile.social_tiktok && (
-          <a href={userProfile.social_tiktok} target="_blank" rel="noopener noreferrer" className={styles.link}>
-            <i className="fab fa-tiktok"></i>
-          </a>
-        )}
-        {userProfile.social_twitter && (
-          <a href={userProfile.social_twitter} target="_blank" rel="noopener noreferrer" className={styles.link}>
-            <i className="fab fa-x-twitter"></i>
-          </a>
-        )}
-        {userProfile.social_pinterest && (
-          <a href={userProfile.social_pinterest} target="_blank" rel="noopener noreferrer" className={styles.link}>
-            <i className="fab fa-pinterest-p"></i>
-          </a>
-        )}
-        {userProfile.social_whatsapp && (
-          <a href={userProfile.social_whatsapp} target="_blank" rel="noopener noreferrer" className={styles.link}>
-            <i className="fab fa-whatsapp"></i>
-          </a>
-        )}
+        <div className={styles.socialIcons}>
+          {/* Dynamic social links */}
+          {userProfile.website && (
+            <a href={userProfile.website} target="_blank" rel="noopener noreferrer" className={styles.websiteLink}>
+              <i className="fa-solid fa-globe"></i>
+            </a>
+          )}
+          {userProfile.social_facebook && (
+            <a href={userProfile.social_facebook} target="_blank" rel="noopener noreferrer" className={styles.link}>
+              <i className="fa-brands fa-facebook-f"></i>
+            </a>
+          )}
+          {userProfile.social_instagram && (
+            <a href={userProfile.social_instagram} target="_blank" rel="noopener noreferrer" className={styles.link}>
+              <i className="fa-brands fa-instagram"></i>
+            </a>
+          )}
+          {userProfile.social_tiktok && (
+            <a href={userProfile.social_tiktok} target="_blank" rel="noopener noreferrer" className={styles.link}>
+              <i className="fa-brands fa-tiktok"></i>
+            </a>
+          )}
+          {userProfile.social_twitter && (
+            <a href={userProfile.social_twitter} target="_blank" rel="noopener noreferrer" className={styles.link}>
+              <i className="fa-brands fa-x-twitter"></i>
+            </a>
+          )}
+          {userProfile.social_pinterest && (
+            <a href={userProfile.social_pinterest} target="_blank" rel="noopener noreferrer" className={styles.link}>
+              <i className="fa-brands fa-pinterest-p"></i>
+            </a>
+          )}
+          {userProfile.social_whatsapp && (
+            <a href={userProfile.social_whatsapp} target="_blank" rel="noopener noreferrer" className={styles.link}>
+              <i className="fa-brands fa-whatsapp"></i>
+            </a>
+          )}
+        </div>
       </div>
       <div className={styles.infoCard}>
-        <div className={styles.leftColumn}>
-          <h1 className={styles.userName}>
-            {userProfile.first_name} {userProfile.last_name}
-          </h1>
-          {userProfile.state && (
-            <span className={styles.stateBadge}>
-              <span className="material-icons stateIcon">location_on</span>
-              {userProfile.state}
-            </span>
-          )}
-        </div>
-        <div className={styles.rightColumn}>
-          {userProfile.bio && (
-            <div>
-              <strong>About me...</strong>
-              <p>{userProfile.bio}</p>
-            </div>
-          )}
-        </div>
+        <h1 className={styles.userName}>
+          {userProfile.first_name} {userProfile.last_name}
+        </h1>
+        {userProfile.state && (
+          <span className={styles.stateBadge}>
+            <span className="material-icons stateIcon">location_on</span>
+            {userProfile.state}
+          </span>
+        )}
+        {userProfile.bio && (
+          <div className={styles.bioQuote}>
+            <p>{userProfile.bio}</p>
+          </div>
+        )}
       </div>
 
       {userProfile.user_type === 'artist' && (

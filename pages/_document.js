@@ -9,7 +9,7 @@ class MyDocument extends Document {
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
           <link
-            href="https://fonts.googleapis.com/css2?family=Lexend+Tera:wght@400;700&family=Permanent+Marker&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&family=Covered+By+Your+Grace&family=Permanent+Marker&display=swap"
             rel="stylesheet"
           />
           {/* Preload Material Icons */}
@@ -17,9 +17,7 @@ class MyDocument extends Document {
             href="https://fonts.googleapis.com/icon?family=Material+Icons"
             rel="stylesheet"
           />
-          {/* Preload Font Awesome */}
-          <script src="https://kit.fontawesome.com/1a2b3c4d5e.js" crossOrigin="anonymous"></script>
-          {/* Replace '1a2b3c4d5e' with your actual Font Awesome kit ID if you have one; otherwise, we'll use the free CDN below */}
+          {/* Font Awesome CDN */}
           <link
             rel="stylesheet"
             href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
