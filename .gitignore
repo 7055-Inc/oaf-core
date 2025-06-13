@@ -46,3 +46,6 @@ logs
 # Service account
 service-account.json
 
+# User uploaded content
+api-service/temp_images/
+
