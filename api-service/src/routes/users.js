@@ -73,8 +73,8 @@ router.get('/me', verifyToken, async (req, res) => {
 router.patch('/me', 
   verifyToken,
   upload.fields([
-    { name: 'profile_image', maxCount: 1 },
-    { name: 'header_image', maxCount: 1 }
+  { name: 'profile_image', maxCount: 1 },
+  { name: 'header_image', maxCount: 1 }
   ]),
   async (req, res) => {
   console.log('PATCH /users/me request received, userId:', req.userId);

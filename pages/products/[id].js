@@ -76,7 +76,47 @@ export default function ProductView() {
         return;
       }
 
-      const res = await fetch('https://api2.onlineartfestival.com/cart/items', {
+      // First, get or create a cart for the user
+      let cartId;
+      
+      // Try to get existing cart
+      const cartRes = await fetch('https://api2.onlineartfestival.com/cart', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (cartRes.ok) {
+        const carts = await cartRes.json();
+        // Find an active cart or create one
+        const activeCart = carts.find(cart => cart.status === 'draft');
+        
+        if (activeCart) {
+          cartId = activeCart.id;
+        } else {
+          // Create a new cart
+          const createCartRes = await fetch('https://api2.onlineartfestival.com/cart', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              status: 'draft'
+            })
+          });
+
+          if (!createCartRes.ok) throw new Error('Failed to create cart');
+          
+          const cartData = await createCartRes.json();
+          cartId = cartData.cart.id;
+        }
+      } else {
+        throw new Error('Failed to get cart information');
+      }
+
+      // Now add the item to the cart
+      const addItemRes = await fetch(`https://api2.onlineartfestival.com/cart/${cartId}/items`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -84,14 +124,23 @@ export default function ProductView() {
         },
         body: JSON.stringify({
           product_id: product.id,
-          quantity: quantity
+          vendor_id: product.vendor_id,
+          quantity: quantity,
+          price: product.price
         })
       });
 
-      if (!res.ok) throw new Error('Failed to add to cart');
+      if (!addItemRes.ok) {
+        const errorData = await addItemRes.json();
+        throw new Error(errorData.error || 'Failed to add to cart');
+      }
       
+      // Show success message and redirect to cart
+      alert('Item added to cart successfully!');
       router.push('/cart');
+      
     } catch (err) {
+      console.error('Add to cart error:', err);
       setError(err.message);
     }
   };

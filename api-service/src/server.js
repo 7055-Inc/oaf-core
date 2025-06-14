@@ -58,13 +58,20 @@ try {
   app.use('/users', require('./routes/users'));
   console.log('[Server] Loading /products route');
   app.use('/products', require('./routes/products'));
+  console.log('[Server] Loading /cart route');
+  app.use('/cart', require('./routes/carts'));
 } catch (err) {
   console.error('[Server] Error loading routes:', err.message, err.stack);
   process.exit(1);
 }
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', version: process.env.API_VERSION, instance: process.env.API_INSTANCE });
+  res.json({ 
+    status: 'ok', 
+    version: process.env.API_VERSION || '1.0.0', 
+    instance: process.env.API_INSTANCE || '0',
+    timestamp: new Date().toISOString()
+  });
 });
 
 const port = process.env.API_GATEWAY_PORT || 3001;
