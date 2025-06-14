@@ -60,6 +60,14 @@ try {
   app.use('/products', require('./routes/products'));
   console.log('[Server] Loading /cart route');
   app.use('/cart', require('./routes/carts'));
+  console.log('[Server] Loading /checkout route');
+  app.use('/checkout', require('./routes/checkout'));
+  console.log('[Server] Loading /webhooks route');
+  app.use('/webhooks', require('./routes/webhooks/stripe'));
+  console.log('[Server] Loading /vendor route');
+  app.use('/vendor', require('./routes/vendor'));
+  console.log('[Server] Loading /admin route (financial)');
+  app.use('/admin', require('./routes/admin-financial'));
 } catch (err) {
   console.error('[Server] Error loading routes:', err.message, err.stack);
   process.exit(1);
