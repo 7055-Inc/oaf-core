@@ -189,6 +189,14 @@ export default function Cart() {
     return cartItems.reduce((total, item) => total + (parseFloat(item.price) * item.quantity), 0).toFixed(2);
   };
 
+  const proceedToCheckout = () => {
+    console.log('Proceed to checkout clicked!', cartItems);
+    // Store cart items in localStorage for the checkout page
+    localStorage.setItem('checkoutCart', JSON.stringify(cartItems));
+    // Navigate to checkout page
+    router.push('/checkout');
+  };
+
   if (loading) {
     return (
       <div className={styles.container}>
@@ -272,7 +280,7 @@ export default function Cart() {
               
               <div className={styles.cartTotal}>
                 <h3>Total: ${calculateTotal()}</h3>
-                <button className={styles.checkoutButton}>
+                <button className={styles.checkoutButton} onClick={proceedToCheckout}>
                   Proceed to Checkout
                 </button>
               </div>

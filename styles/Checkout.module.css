@@ -1,0 +1,349 @@
+.container {
+  min-height: 100vh;
+  background-color: #f8f9fa;
+}
+
+.content {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.loading {
+  text-align: center;
+  padding: 4rem;
+  font-size: 1.2rem;
+  color: #666;
+}
+
+.error {
+  background-color: #fee;
+  border: 1px solid #fcc;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  color: #c33;
+  text-align: center;
+}
+
+/* Order Summary */
+.orderSummary {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.orderSummary h2 {
+  color: #333;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
+.vendorGroup {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  background-color: #fafafa;
+}
+
+.vendorName {
+  color: #555;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #ddd;
+}
+
+.orderItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.orderItem:last-child {
+  border-bottom: none;
+}
+
+.itemDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.itemName {
+  font-weight: 500;
+  color: #333;
+}
+
+.itemQuantity {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.itemPrice {
+  font-weight: 600;
+  color: #2c5aa0;
+}
+
+.vendorSubtotal {
+  text-align: right;
+  font-weight: 600;
+  color: #333;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #ddd;
+}
+
+/* Order Totals */
+.orderTotals {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid #ddd;
+}
+
+.totalLine {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  font-size: 1rem;
+}
+
+.grandTotal {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #2c5aa0;
+  border-top: 1px solid #ddd;
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+}
+
+/* Payment Section */
+.paymentSection {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.paymentSection h2 {
+  color: #333;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
+/* Test Cards */
+.testCards {
+  background-color: #f0f8ff;
+  border: 1px solid #b3d9ff;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.testCards h3 {
+  color: #2c5aa0;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
+.testCard {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.testCard code {
+  background-color: #e6f3ff;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  color: #2c5aa0;
+}
+
+.testNote {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  color: #666;
+  font-style: italic;
+}
+
+/* Payment Steps */
+.paymentStep {
+  text-align: center;
+  margin: 2rem 0;
+}
+
+.createIntentButton {
+  background-color: #2c5aa0;
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.createIntentButton:hover:not(:disabled) {
+  background-color: #1e3f73;
+}
+
+.createIntentButton:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Payment Intent */
+.paymentIntent {
+  background-color: #f0f8f0;
+  border: 1px solid #90ee90;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 1rem 0;
+}
+
+.paymentIntent h3 {
+  color: #2d5a2d;
+  margin-bottom: 1rem;
+}
+
+.intentDetails {
+  background-color: white;
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+}
+
+.intentDetails p {
+  margin: 0.5rem 0;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+}
+
+/* Test Payments */
+.testPayments h4 {
+  color: #333;
+  margin-bottom: 1rem;
+}
+
+.testPaymentButton {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.successButton {
+  background-color: #28a745;
+  color: white;
+}
+
+.successButton:hover:not(:disabled) {
+  background-color: #218838;
+}
+
+.errorButton {
+  background-color: #dc3545;
+  color: white;
+}
+
+.errorButton:hover:not(:disabled) {
+  background-color: #c82333;
+}
+
+.testPaymentButton:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Payment Status */
+.paymentStatus {
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+  text-align: center;
+  font-weight: 500;
+  color: #856404;
+}
+
+/* Actions */
+.actions {
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.backButton {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.backButton:hover:not(:disabled) {
+  background-color: #545b62;
+}
+
+.backButton:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .content {
+    padding: 1rem;
+  }
+  
+  .title {
+    font-size: 2rem;
+  }
+  
+  .orderSummary,
+  .paymentSection {
+    padding: 1.5rem;
+  }
+  
+  .orderItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .totalLine {
+    font-size: 0.9rem;
+  }
+  
+  .grandTotal {
+    font-size: 1.1rem;
+  }
+} 

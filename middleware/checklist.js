@@ -8,6 +8,8 @@ export async function checklist(req) {
   // Allow static files and login
   if (path.startsWith('/_next') || 
       path.startsWith('/static') || 
+      path === '/' ||
+      (path.startsWith('/products/') && !path.includes('/new') && !path.includes('/edit') && !path.includes('/delete')) ||
       path === '/login' || 
       path === '/signup' || 
       path === '/favicon.ico') {

@@ -22,8 +22,6 @@ export default function Login() {
           </div>
         ) : (
           <div>
-            <h1>Welcome to Online Art Festival</h1>
-            <p>Login to access your dashboard.</p>
             <LoginModal />
           </div>
         )}

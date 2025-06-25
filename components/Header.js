@@ -1,11 +1,16 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import SearchBar from './SearchBar';
+import styles from './Header.module.css';
 
 export default function Header() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userId, setUserId] = useState(null);
   const [cartItemCount, setCartItemCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showAccountDropdown, setShowAccountDropdown] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -21,6 +26,11 @@ export default function Header() {
       })
         .then(res => {
           if (!res.ok) {
+            if (res.status === 401) {
+              // Token is invalid or expired
+              console.log('Token expired or invalid, clearing authentication');
+              throw new Error('Token expired');
+            }
             throw new Error('Failed to fetch user profile');
           }
           return res.json();
@@ -32,15 +42,20 @@ export default function Header() {
           fetchCartCount(token);
         })
         .catch(err => {
-          console.error('Error fetching user ID:', err.message);
+          console.log('Authentication error:', err.message);
+          // Don't log this as an error since it's expected for non-authenticated users
           setIsLoggedIn(false);
           localStorage.removeItem('token');
           localStorage.removeItem('userId');
+        })
+        .finally(() => {
+          setIsLoading(false);
         });
     } else {
       setIsLoggedIn(false);
       setUserId(null);
       setCartItemCount(0);
+      setIsLoading(false);
     }
   }, []);
 
@@ -69,7 +84,8 @@ export default function Header() {
         }
       }
     } catch (err) {
-      console.error('Error fetching cart count:', err);
+      console.log('Error fetching cart count:', err.message);
+      // Don't log as error since this is expected for non-authenticated users
     }
   };
 
@@ -83,74 +99,106 @@ export default function Header() {
   };
 
   return (
-    <header style={{
-      backgroundColor: '#FFFFFF',
-      padding: '1rem',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center' }}>
-        <img
-          src="/static_media/logo.png"
-          alt="Online Art Festival Logo"
-          style={{ width: '120px', height: 'auto' }}
-        />
-      </div>
-      <nav style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <Link href="/" style={{ color: '#055474', textDecoration: 'none' }}>
-          Home
-        </Link>
-        {isLoggedIn && (
-          <Link 
-            href="/cart" 
-            style={{ 
-              color: '#055474', 
-              textDecoration: 'none',
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem'
-            }}
+    <>
+      <header className={styles.header}>
+        {/* Logo */}
+        <div>
+          <Link href="/">
+            <img
+              src="/static_media/logo.png"
+              alt="Online Art Festival Logo"
+              className={styles.logo}
+            />
+          </Link>
+        </div>
+        
+        {/* Right side icons */}
+        <div className={styles.iconsContainer}>
+          {/* Search Icon */}
+          <button
+            onClick={() => setShowSearchModal(true)}
+            className={styles.iconButton}
           >
-            🛒
-            {cartItemCount > 0 && (
-              <span style={{
-                backgroundColor: '#ef4444',
-                color: 'white',
-                borderRadius: '50%',
-                width: '20px',
-                height: '20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.75rem',
-                fontWeight: 'bold',
-                position: 'absolute',
-                top: '-8px',
-                right: '-8px'
-              }}>
-                {cartItemCount > 99 ? '99+' : cartItemCount}
-              </span>
-            )}
-          </Link>
-        )}
-        {isLoggedIn && userId ? (
-          <>
-            <Link href="/profile/[id]" as={`/profile/${userId}`} style={{ color: '#055474', textDecoration: 'none' }}>
-              Profile
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.35-4.35"/>
+            </svg>
+          </button>
+
+          {/* Cart Icon */}
+          {isLoggedIn && !isLoading && (
+            <div className={styles.cartContainer}>
+              <Link href="/cart" className={styles.iconLink}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="9" cy="21" r="1"/>
+                  <circle cx="20" cy="21" r="1"/>
+                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                </svg>
+              </Link>
+              {cartItemCount > 0 && (
+                <span className={styles.cartBadge}>
+                  {cartItemCount > 99 ? '99+' : cartItemCount}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* User Icon */}
+          {isLoggedIn && userId && !isLoading ? (
+            <div 
+              style={{ position: 'relative' }}
+              onMouseEnter={() => setShowAccountDropdown(true)}
+              onMouseLeave={() => {
+                setTimeout(() => setShowAccountDropdown(false), 300);
+              }}
+            >
+              <button className={styles.iconButton}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+              </button>
+              {showAccountDropdown && (
+                <div className={styles.userDropdown}
+                  onMouseEnter={() => setShowAccountDropdown(true)}
+                  onMouseLeave={() => {
+                    setTimeout(() => setShowAccountDropdown(false), 200);
+                  }}
+                >
+                  <Link href="/dashboard" className={styles.dropdownLink}>
+                    Dashboard
+                  </Link>
+                  <Link href={`/profile/${userId}`} className={styles.dropdownLink}>
+                    My Profile
+                  </Link>
+                  <button onClick={handleLogout} className={styles.dropdownButton}>
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : !isLoading ? (
+            <Link href="/login" className={styles.iconLink}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
             </Link>
-            <button onClick={handleLogout} style={{ color: '#055474', background: 'none', border: 'none', cursor: 'pointer' }}>
-              Logout
-            </button>
-          </>
-        ) : (
-          <Link href="#" onClick={() => document.getElementById('loginModal').style.display = 'block'} style={{ color: '#055474', textDecoration: 'none' }}>
-            Login
-          </Link>
-        )}
-      </nav>
-    </header>
+          ) : (
+            <div className={styles.loadingText}>Loading...</div>
+          )}
+        </div>
+      </header>
+
+      {/* Search Modal */}
+      {showSearchModal && (
+        <SearchBar 
+          placeholder="Search products, artists, promoters..." 
+          autoFocus={true}
+          showModal={true}
+          onClose={() => setShowSearchModal(false)}
+        />
+      )}
+    </>
   );
 }

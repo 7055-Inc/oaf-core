@@ -48,4 +48,5 @@ service-account.json
 
 # User uploaded content
 api-service/temp_images/
+public/static_media/
 

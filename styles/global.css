@@ -1,11 +1,11 @@
 /* Global Theme for Online Art Festival */
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap');
 
 :root {
   --primary-color: #055474; /* OAF Blue */
   --secondary-color: #3E1C56; /* Purple */
   --text-color: #333333; /* Dark Gray */
-  --background-color: #F5F5F5; /* Light Gray */
+  --background-color: #FFFFFF; /* White */
   --accent-color: #FFFFFF; /* White */
 }
 
@@ -13,7 +13,7 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: 'Roboto', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
 
 body {
@@ -21,12 +21,34 @@ body {
   color: var(--text-color);
 }
 
+/* Global Heading Styles */
+h1 {
+  font-family: 'Permanent Marker', cursive;
+  color: var(--primary-color);
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+h2 {
+  font-family: 'Permanent Marker', cursive;
+  color: var(--primary-color);
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+h3 {
+  font-family: 'Permanent Marker', cursive;
+  color: var(--secondary-color);
+  font-size: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
 button {
   background-color: var(--primary-color);
   color: var(--accent-color);
   padding: 10px 20px;
   border: none;
-  border-radius: 5px;
+  border-radius: 0px;
   cursor: pointer;
   font-weight: 700;
   transition: background-color 0.3s;

@@ -56,10 +56,7 @@ router.post('/create-payment-intent', authenticateToken, async (req, res) => {
 
     // Get cart items with details and calculate commissions
     const itemsWithDetails = await getCartItemsWithDetails(cart_items);
-    console.log('Items with details:', JSON.stringify(itemsWithDetails, null, 2));
-    
     const itemsWithCommissions = await stripeService.calculateCommissions(itemsWithDetails);
-    console.log('Items with commissions:', JSON.stringify(itemsWithCommissions, null, 2));
     
     // Calculate totals
     const totals = calculateOrderTotals(itemsWithCommissions);
@@ -296,14 +293,6 @@ async function createOrder(userId, totals, items) {
       (user_id, total_amount, shipping_amount, tax_amount, platform_fee_amount, status)
       VALUES (?, ?, ?, ?, ?, 'pending')
     `;
-    
-    console.log('Order creation parameters:', {
-      userId,
-      total_amount: totals.total_amount,
-      shipping_total: totals.shipping_total,
-      tax_total: totals.tax_total,
-      platform_fee_total: totals.platform_fee_total
-    });
     
     const [orderResult] = await connection.execute(orderQuery, [
       userId,

@@ -58,6 +58,8 @@ try {
   app.use('/users', require('./routes/users'));
   console.log('[Server] Loading /products route');
   app.use('/products', require('./routes/products'));
+  console.log('[Server] Loading /categories route');
+  app.use('/categories', require('./routes/categories'));
   console.log('[Server] Loading /cart route');
   app.use('/cart', require('./routes/carts'));
   console.log('[Server] Loading /checkout route');
@@ -68,6 +70,8 @@ try {
   app.use('/vendor', require('./routes/vendor'));
   console.log('[Server] Loading /admin route (financial)');
   app.use('/admin', require('./routes/admin-financial'));
+  console.log('[Server] Loading /search route');
+  app.use('/search', require('./routes/search'));
 } catch (err) {
   console.error('[Server] Error loading routes:', err.message, err.stack);
   process.exit(1);
