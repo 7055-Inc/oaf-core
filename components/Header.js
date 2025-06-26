@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import SearchBar from './SearchBar';
+import CategoryMenu from './CategoryMenu';
 import styles from './Header.module.css';
 
 export default function Header() {
@@ -101,93 +102,99 @@ export default function Header() {
   return (
     <>
       <header className={styles.header}>
-        {/* Logo */}
-        <div>
-          <Link href="/">
-            <img
-              src="/static_media/logo.png"
-              alt="Online Art Festival Logo"
-              className={styles.logo}
-            />
-          </Link>
-        </div>
-        
-        {/* Right side icons */}
-        <div className={styles.iconsContainer}>
-          {/* Search Icon */}
-          <button
-            onClick={() => setShowSearchModal(true)}
-            className={styles.iconButton}
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8"/>
-              <path d="m21 21-4.35-4.35"/>
-            </svg>
-          </button>
-
-          {/* Cart Icon */}
-          {isLoggedIn && !isLoading && (
-            <div className={styles.cartContainer}>
-              <Link href="/cart" className={styles.iconLink}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="9" cy="21" r="1"/>
-                  <circle cx="20" cy="21" r="1"/>
-                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-                </svg>
-              </Link>
-              {cartItemCount > 0 && (
-                <span className={styles.cartBadge}>
-                  {cartItemCount > 99 ? '99+' : cartItemCount}
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* User Icon */}
-          {isLoggedIn && userId && !isLoading ? (
-            <div 
-              style={{ position: 'relative' }}
-              onMouseEnter={() => setShowAccountDropdown(true)}
-              onMouseLeave={() => {
-                setTimeout(() => setShowAccountDropdown(false), 300);
-              }}
+        {/* Main header row */}
+        <div className={styles.headerRow}>
+          {/* Logo */}
+          <div>
+            <Link href="/">
+              <img
+                src="/static_media/logo.png"
+                alt="Online Art Festival Logo"
+                className={styles.logo}
+              />
+            </Link>
+          </div>
+          
+          {/* Right side icons */}
+          <div className={styles.iconsContainer}>
+            {/* Search Icon */}
+            <button
+              onClick={() => setShowSearchModal(true)}
+              className={styles.iconButton}
             >
-              <button className={styles.iconButton}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="m21 21-4.35-4.35"/>
+              </svg>
+            </button>
+
+            {/* Cart Icon */}
+            {isLoggedIn && !isLoading && (
+              <div className={styles.cartContainer}>
+                <Link href="/cart" className={styles.iconLink}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="9" cy="21" r="1"/>
+                    <circle cx="20" cy="21" r="1"/>
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                  </svg>
+                </Link>
+                {cartItemCount > 0 && (
+                  <span className={styles.cartBadge}>
+                    {cartItemCount > 99 ? '99+' : cartItemCount}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* User Icon */}
+            {isLoggedIn && userId && !isLoading ? (
+              <div 
+                style={{ position: 'relative' }}
+                onMouseEnter={() => setShowAccountDropdown(true)}
+                onMouseLeave={() => {
+                  setTimeout(() => setShowAccountDropdown(false), 300);
+                }}
+              >
+                <button className={styles.iconButton}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                </button>
+                {showAccountDropdown && (
+                  <div className={styles.userDropdown}
+                    onMouseEnter={() => setShowAccountDropdown(true)}
+                    onMouseLeave={() => {
+                      setTimeout(() => setShowAccountDropdown(false), 200);
+                    }}
+                  >
+                    <Link href="/dashboard" className={styles.dropdownLink}>
+                      Dashboard
+                    </Link>
+                    <Link href={`/profile/${userId}`} className={styles.dropdownLink}>
+                      My Profile
+                    </Link>
+                    <button onClick={handleLogout} className={styles.dropdownButton}>
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : !isLoading ? (
+              <Link href="/login" className={styles.iconLink}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                   <circle cx="12" cy="7" r="4"/>
                 </svg>
-              </button>
-              {showAccountDropdown && (
-                <div className={styles.userDropdown}
-                  onMouseEnter={() => setShowAccountDropdown(true)}
-                  onMouseLeave={() => {
-                    setTimeout(() => setShowAccountDropdown(false), 200);
-                  }}
-                >
-                  <Link href="/dashboard" className={styles.dropdownLink}>
-                    Dashboard
-                  </Link>
-                  <Link href={`/profile/${userId}`} className={styles.dropdownLink}>
-                    My Profile
-                  </Link>
-                  <button onClick={handleLogout} className={styles.dropdownButton}>
-                    Logout
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : !isLoading ? (
-            <Link href="/login" className={styles.iconLink}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                <circle cx="12" cy="7" r="4"/>
-              </svg>
-            </Link>
-          ) : (
-            <div className={styles.loadingText}>Loading...</div>
-          )}
+              </Link>
+            ) : (
+              <div className={styles.loadingText}>Loading...</div>
+            )}
+          </div>
         </div>
+
+        {/* Category Menu - positioned above the border */}
+        <CategoryMenu />
       </header>
 
       {/* Search Modal */}

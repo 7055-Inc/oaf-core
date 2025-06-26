@@ -272,6 +272,68 @@ CREATE TABLE `categories` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `category_content`
+--
+
+DROP TABLE IF EXISTS `category_content`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `category_content` (
+  `id` int AUTO_INCREMENT PRIMARY KEY,
+  `category_id` bigint NOT NULL,
+  `hero_image` varchar(255),
+  `description` text,
+  `banner` varchar(255),
+  `featured_products` text,
+  `featured_artists` text,
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `updated_by` bigint,
+  FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `category_seo`
+--
+
+DROP TABLE IF EXISTS `category_seo`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `category_seo` (
+  `id` int AUTO_INCREMENT PRIMARY KEY,
+  `category_id` bigint NOT NULL,
+  `meta_title` varchar(255),
+  `meta_description` varchar(512),
+  `meta_keywords` varchar(512),
+  `canonical_url` varchar(255),
+  `json_ld` text,
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `updated_by` bigint,
+  FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `category_change_log`
+--
+
+DROP TABLE IF EXISTS `category_change_log`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `category_change_log` (
+  `id` int AUTO_INCREMENT PRIMARY KEY,
+  `category_id` bigint,
+  `action` enum('create','update','delete') NOT NULL,
+  `before_json` json,
+  `after_json` json,
+  `changed_by` bigint,
+  `changed_at` timestamp DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `community_profiles`
 --
 

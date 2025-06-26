@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Header from '../../components/Header';
 import HeroManagement from '../../components/HeroManagement';
 import CategoryManagement from '../../components/CategoryManagement';
+import CategoryChangeLog from '../../components/CategoryChangeLog';
 import styles from './Dashboard.module.css';
 
 export default function Dashboard() {
@@ -143,6 +144,13 @@ export default function Dashboard() {
             <CategoryManagement />
           </div>
         );
+      case 'category-change-log':
+        return (
+          <div className={styles.contentSection}>
+            <h2>Category Change Log</h2>
+            <CategoryChangeLog />
+          </div>
+        );
       case 'api-keys':
         return (
           <div className={styles.contentSection}>
@@ -256,6 +264,14 @@ export default function Dashboard() {
                     onClick={() => setActiveSection('category-management')}
                   >
                     Category Management
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    className={`${styles.sidebarLink} ${activeSection === 'category-change-log' ? styles.active : ''}`}
+                    onClick={() => setActiveSection('category-change-log')}
+                  >
+                    Category Change Log
                   </button>
                 </li>
               </ul>

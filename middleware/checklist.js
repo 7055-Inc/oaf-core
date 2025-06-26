@@ -10,6 +10,9 @@ export async function checklist(req) {
       path.startsWith('/static') || 
       path === '/' ||
       (path.startsWith('/products/') && !path.includes('/new') && !path.includes('/edit') && !path.includes('/delete')) ||
+      path.startsWith('/category/') ||
+      path.startsWith('/search') ||
+      path.startsWith('/cart') ||
       path === '/login' || 
       path === '/signup' || 
       path === '/favicon.ico') {

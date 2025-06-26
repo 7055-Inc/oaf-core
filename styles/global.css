@@ -9,16 +9,13 @@
   --accent-color: #FFFFFF; /* White */
 }
 
-* {
+html, body {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-}
-
-body {
   background-color: var(--background-color);
   color: var(--text-color);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
 
 /* Global Heading Styles */
@@ -80,4 +77,9 @@ a {
 
 a:hover {
   color: #256429; /* Darker Green */
+}
+
+header {
+  margin: 0 !important;
+  padding: 0 !important;
 }

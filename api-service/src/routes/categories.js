@@ -7,7 +7,7 @@ const authenticateToken = require('../middleware/jwt');
  * Middleware to verify admin access
  */
 const requireAdmin = (req, res, next) => {
-  if (req.user.user_type !== 'admin') {
+  if (!req.user.roles || !req.user.roles.includes('admin')) {
     return res.status(403).json({ error: 'Admin access required' });
   }
   next();
@@ -65,6 +65,46 @@ router.get('/', async (req, res) => {
   } catch (error) {
     console.error('Error fetching categories:', error);
     res.status(500).json({ error: 'Failed to fetch categories' });
+  }
+});
+
+/**
+ * Get categories for product assignment (simplified list)
+ * GET /api/categories/for-products
+ */
+router.get('/for-products', async (req, res) => {
+  try {
+    const [categories] = await db.query(`
+      SELECT 
+        id,
+        name,
+        parent_id,
+        (SELECT COUNT(*) FROM categories WHERE parent_id = c.id) as has_children
+      FROM categories c
+      ORDER BY name ASC
+    `);
+
+    res.json({
+      success: true,
+      categories
+    });
+
+  } catch (error) {
+    console.error('Error fetching categories for products:', error);
+    res.status(500).json({ error: 'Failed to fetch categories' });
+  }
+});
+
+/**
+ * CATEGORY CHANGE LOG ENDPOINT - Must be before /:id routes
+ * GET /api/categories/change-log
+ */
+router.get('/change-log', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM category_change_log ORDER BY changed_at DESC LIMIT 200');
+    res.json({ success: true, log: rows });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch change log' });
   }
 });
 
@@ -161,6 +201,13 @@ router.post('/', authenticateToken, async (req, res) => {
       [name, parent_id || null, description || null]
     );
 
+    const category_id = result.insertId;
+    const updated_by = req.user.userId || req.user.id;
+
+    // Log the change
+    await db.query('INSERT INTO category_change_log (category_id, action, before_json, after_json, changed_by) VALUES (?, ?, ?, ?, ?)', 
+      [category_id, 'create', null, JSON.stringify(req.body), updated_by]);
+
     const [newCategory] = await db.query(`
       SELECT 
         c.id,
@@ -195,10 +242,13 @@ router.put('/:id', authenticateToken, async (req, res) => {
     const { name, parent_id, description } = req.body;
 
     // Check if category exists
-    const [existing] = await db.query('SELECT id, name FROM categories WHERE id = ?', [id]);
+    const [existing] = await db.query('SELECT id, name, parent_id, description FROM categories WHERE id = ?', [id]);
     if (existing.length === 0) {
       return res.status(404).json({ error: 'Category not found' });
     }
+
+    // Store the before state for logging
+    const beforeState = existing[0];
 
     // Check if new name conflicts with existing category (excluding current category)
     if (name && name !== existing[0].name) {
@@ -250,6 +300,9 @@ router.put('/:id', authenticateToken, async (req, res) => {
       WHERE c.id = ?
     `, [id]);
 
+    // Log the change
+    await db.query('INSERT INTO category_change_log (category_id, action, before_json, after_json, changed_by) VALUES (?, ?, ?, ?, ?)', [id, 'update', JSON.stringify(beforeState), JSON.stringify(req.body), req.user.id]);
+
     res.json({
       success: true,
       message: 'Category updated successfully',
@@ -271,10 +324,13 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
 
     // Check if category exists
-    const [category] = await db.query('SELECT id, name FROM categories WHERE id = ?', [id]);
+    const [category] = await db.query('SELECT id, name, parent_id, description FROM categories WHERE id = ?', [id]);
     if (category.length === 0) {
       return res.status(404).json({ error: 'Category not found' });
     }
+
+    // Store the before state for logging
+    const beforeState = category[0];
 
     // Check if category has children
     const [children] = await db.query('SELECT COUNT(*) as count FROM categories WHERE parent_id = ?', [id]);
@@ -303,6 +359,10 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     // Delete the category
     await db.query('DELETE FROM categories WHERE id = ?', [id]);
 
+    // Log the change
+    await db.query('INSERT INTO category_change_log (category_id, action, before_json, after_json, changed_by) VALUES (?, ?, ?, ?, ?)', 
+      [id, 'delete', JSON.stringify(beforeState), null, req.user.userId || req.user.id]);
+
     res.json({
       success: true,
       message: 'Category deleted successfully'
@@ -314,30 +374,81 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-/**
- * Get categories for product assignment (simplified list)
- * GET /api/categories/for-products
- */
-router.get('/for-products', async (req, res) => {
+// CATEGORY CONTENT ENDPOINTS
+router.get('/content/:category_id', async (req, res) => {
   try {
-    const [categories] = await db.query(`
-      SELECT 
-        id,
-        name,
-        parent_id,
-        (SELECT COUNT(*) FROM categories WHERE parent_id = c.id) as has_children
-      FROM categories c
-      ORDER BY name ASC
-    `);
+    const { category_id } = req.params;
+    const [rows] = await db.query('SELECT * FROM category_content WHERE category_id = ?', [category_id]);
+    res.json({ success: true, content: rows[0] || null });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch category content' });
+  }
+});
 
-    res.json({
-      success: true,
-      categories
-    });
+router.post('/content/:category_id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { category_id } = req.params;
+    const { hero_image, description, banner, featured_products, featured_artists } = req.body;
+    const updated_by = req.user.id;
+    // Get before state
+    const [beforeRows] = await db.query('SELECT * FROM category_content WHERE category_id = ?', [category_id]);
+    if (beforeRows.length === 0) {
+      // Insert
+      await db.query(
+        'INSERT INTO category_content (category_id, hero_image, description, banner, featured_products, featured_artists, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [category_id, hero_image, description, banner, featured_products, featured_artists, updated_by]
+      );
+      await db.query('INSERT INTO category_change_log (category_id, action, before_json, after_json, changed_by) VALUES (?, ?, ?, ?, ?)', [category_id, 'create', null, JSON.stringify(req.body), updated_by]);
+    } else {
+      // Update
+      await db.query(
+        'UPDATE category_content SET hero_image=?, description=?, banner=?, featured_products=?, featured_artists=?, updated_by=? WHERE category_id=?',
+        [hero_image, description, banner, featured_products, featured_artists, updated_by, category_id]
+      );
+      await db.query('INSERT INTO category_change_log (category_id, action, before_json, after_json, changed_by) VALUES (?, ?, ?, ?, ?)', [category_id, 'update', JSON.stringify(beforeRows[0]), JSON.stringify(req.body), updated_by]);
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save category content' });
+  }
+});
 
-  } catch (error) {
-    console.error('Error fetching categories for products:', error);
-    res.status(500).json({ error: 'Failed to fetch categories' });
+// CATEGORY SEO ENDPOINTS
+router.get('/seo/:category_id', async (req, res) => {
+  try {
+    const { category_id } = req.params;
+    const [rows] = await db.query('SELECT * FROM category_seo WHERE category_id = ?', [category_id]);
+    res.json({ success: true, seo: rows[0] || null });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch category SEO' });
+  }
+});
+
+router.post('/seo/:category_id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { category_id } = req.params;
+    const { meta_title, meta_description, meta_keywords, canonical_url, json_ld } = req.body;
+    const updated_by = req.user.id;
+    // Get before state
+    const [beforeRows] = await db.query('SELECT * FROM category_seo WHERE category_id = ?', [category_id]);
+    if (beforeRows.length === 0) {
+      // Insert
+      await db.query(
+        'INSERT INTO category_seo (category_id, meta_title, meta_description, meta_keywords, canonical_url, json_ld, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [category_id, meta_title, meta_description, meta_keywords, canonical_url, json_ld, updated_by]
+      );
+      await db.query('INSERT INTO category_change_log (category_id, action, before_json, after_json, changed_by) VALUES (?, ?, ?, ?, ?)', [category_id, 'create', null, JSON.stringify(req.body), updated_by]);
+    } else {
+      // Update
+      await db.query(
+        'UPDATE category_seo SET meta_title=?, meta_description=?, meta_keywords=?, canonical_url=?, json_ld=?, updated_by=? WHERE category_id=?',
+        [meta_title, meta_description, meta_keywords, canonical_url, json_ld, updated_by, category_id]
+      );
+      await db.query('INSERT INTO category_change_log (category_id, action, before_json, after_json, changed_by) VALUES (?, ?, ?, ?, ?)', [category_id, 'update', JSON.stringify(beforeRows[0]), JSON.stringify(req.body), updated_by]);
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save category SEO' });
   }
 });
 

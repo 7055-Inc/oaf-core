@@ -1,0 +1,256 @@
+.categoryMenuContainer {
+  position: relative;
+  width: 100%;
+  background: white;
+  border-bottom: 1px solid #e9ecef;
+  padding: 0.5rem 0;
+  display: block; /* Always visible */
+}
+
+.horizontalMenu {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  flex-wrap: nowrap;
+  min-height: 0;
+  width: 100%;
+  gap: 1px; /* Add small gap between items */
+}
+
+.menuItem {
+  position: relative;
+  padding: 0.5rem 0.15rem; /* Reduced horizontal padding */
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  flex: 1;
+  text-align: center;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 1px; /* Add small margin for separation */
+}
+
+.menuItem:hover {
+  background-color: #f8f9fa;
+  border-bottom-color: #055474;
+}
+
+.menuLink {
+  font-size: clamp(0.6rem, 1.5vw, 0.85rem);
+  font-weight: 500;
+  color: #333;
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: color 0.2s ease;
+  line-height: 1;
+  display: block;
+  width: 100%;
+}
+
+.menuItem:hover .menuLink {
+  color: #055474;
+}
+
+.dropdownOutline {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border-top: 1px solid #e9ecef;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  animation: slideDown 0.3s ease-out;
+  max-height: 80vh;
+  overflow-y: auto;
+  display: block;
+  opacity: 1;
+  visibility: visible;
+  padding: 1.5rem 2rem;
+  columns: 2 300px; /* 2 columns, min 300px each, auto add more if needed */
+  column-gap: 2.5rem;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.outlineHeader {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid #e9ecef;
+  background: #f8f9fa;
+}
+
+.outlineHeader h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #055474;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.categoryDescription {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #6c757d;
+  line-height: 1.4;
+}
+
+.outlineContent {
+  padding: 0;
+  margin: 0;
+}
+
+.categoryItem {
+  margin-bottom: 0.15rem; /* Tighter vertical spacing */
+  break-inside: avoid;
+}
+
+.categoryLink {
+  display: block;
+  padding: 0.15rem 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  text-decoration: none;
+  color: #333;
+  line-height: 1.2;
+  font-size: 0.95rem;
+}
+
+.categoryLink:hover {
+  background-color: #f8f9fa;
+  color: #055474;
+  padding-left: 0.5rem;
+}
+
+.topLevel {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #055474;
+  border-bottom: 1px solid #e9ecef;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.subLevel {
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: #495057;
+  margin-left: 1rem;
+}
+
+/* Level-specific formatting for luxury feel */
+.level0 {
+  font-weight: 600;
+  font-size: 1rem;
+  color: #055474;
+}
+
+.level1 {
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: #222;
+}
+
+.level2 {
+  font-weight: 400;
+  font-size: 0.9rem;
+  color: #444;
+  margin-left: 0.5rem;
+}
+
+.level3 {
+  font-weight: 400;
+  font-size: 0.85rem;
+  font-style: italic;
+  color: #666;
+  margin-left: 1rem;
+}
+
+.level4 {
+  font-weight: 300;
+  font-size: 0.8rem;
+  color: #888;
+  margin-left: 1.5rem;
+}
+
+.childCount {
+  font-size: 0.75rem;
+  color: #6c757d;
+  font-weight: 400;
+}
+
+/* Remove outline vertical lines */
+.subCategories {
+  margin-left: 0;
+  border-left: none;
+  padding-left: 0;
+}
+
+.loading {
+  text-align: center;
+  padding: 0.5rem; /* Reduced padding */
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.error {
+  text-align: center;
+  padding: 0.5rem; /* Reduced padding */
+  color: #dc3545;
+  font-size: 0.9rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .horizontalMenu {
+    flex-direction: column;
+    padding: 0;
+  }
+  
+  .menuItem {
+    width: 100%;
+    text-align: center;
+    padding: 0.5rem 1rem; /* Slightly more padding on mobile */
+    border-bottom: 1px solid #e9ecef;
+  }
+  
+  .dropdownOutline {
+    position: static;
+    box-shadow: none;
+    border-top: none;
+    max-height: none;
+  }
+  
+  .outlineHeader,
+  .outlineContent {
+    padding: 0.75rem; /* Reduced padding */
+  }
+  
+  .subLevel {
+    margin-left: 0.5rem;
+  }
+  
+  .subCategories {
+    margin-left: 1rem;
+    padding-left: 0.5rem;
+  }
+} 

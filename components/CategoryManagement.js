@@ -17,9 +17,22 @@ export default function CategoryManagement() {
     description: ''
   });
 
+  // Content and SEO data for the current editing category
+  const [contentData, setContentData] = useState(null);
+  const [seoData, setSeoData] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imagePreview, setImagePreview] = useState({ hero: null, banner: null });
+
   useEffect(() => {
     loadCategories();
   }, []);
+
+  // Load content and SEO data when editing a category
+  useEffect(() => {
+    if (editingCategory) {
+      fetchCategoryExtras(editingCategory.id);
+    }
+  }, [editingCategory]);
 
   const loadCategories = async () => {
     try {
@@ -47,6 +60,7 @@ export default function CategoryManagement() {
         throw new Error('No authentication token found');
       }
       
+      // Save basic category info
       const url = editingCategory 
         ? `https://api2.onlineartfestival.com/categories/${editingCategory.id}`
         : 'https://api2.onlineartfestival.com/categories';
@@ -73,11 +87,31 @@ export default function CategoryManagement() {
         throw new Error(errorData.error || 'Failed to save category');
       }
 
+      // If editing existing category, also save content and SEO
+      if (editingCategory && contentData) {
+        await fetch(`https://api2.onlineartfestival.com/categories/content/${editingCategory.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify(contentData)
+        });
+      }
+
+      if (editingCategory && seoData) {
+        await fetch(`https://api2.onlineartfestival.com/categories/seo/${editingCategory.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify(seoData)
+        });
+      }
+
       const result = await res.json();
       setSuccess(result.message);
       setShowAddForm(false);
       setEditingCategory(null);
       setFormData({ name: '', parent_id: '', description: '' });
+      setContentData(null);
+      setSeoData(null);
+      setImagePreview({ hero: null, banner: null });
       loadCategories();
       
       setTimeout(() => setSuccess(null), 3000);
@@ -143,6 +177,9 @@ export default function CategoryManagement() {
     setShowAddForm(false);
     setEditingCategory(null);
     setFormData({ name: '', parent_id: '', description: '' });
+    setContentData(null);
+    setSeoData(null);
+    setImagePreview({ hero: null, banner: null });
   };
 
   const renderCategoryTree = (categoryList, level = 0) => {
@@ -220,20 +257,85 @@ export default function CategoryManagement() {
     ));
   };
 
+  // Fetch content, SEO for selected category
+  const fetchCategoryExtras = async (categoryId) => {
+    try {
+      const token = document.cookie.split('token=')[1]?.split(';')[0];
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+      
+      const [contentRes, seoRes] = await Promise.all([
+        fetch(`https://api2.onlineartfestival.com/categories/content/${categoryId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).then(r => r.json()),
+        fetch(`https://api2.onlineartfestival.com/categories/seo/${categoryId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).then(r => r.json())
+      ]);
+      setContentData(contentRes.content || {});
+      setSeoData(seoRes.seo || {});
+    } catch (error) {
+      console.error('Error fetching category extras:', error);
+    }
+  };
+
+  // Handle image upload
+  const handleImageUpload = async (file, imageType) => {
+    if (!file || !editingCategory) return;
+    
+    setUploadingImage(true);
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('categoryId', editingCategory.id);
+    formData.append('imageType', imageType);
+
+    try {
+      const token = document.cookie.split('token=')[1]?.split(';')[0];
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+      
+      const response = await fetch('/api/upload-category-images', {
+        method: 'POST',
+        body: formData,
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        setContentData(prev => ({
+          ...prev,
+          [imageType === 'hero' ? 'hero_image' : 'banner']: result.url
+        }));
+        setImagePreview(prev => ({
+          ...prev,
+          [imageType]: URL.createObjectURL(file)
+        }));
+      } else {
+        alert('Image upload failed');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Image upload failed');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   if (loading) {
     return <div>Loading categories...</div>;
   }
 
   return (
-    <div>
-      <h3>Category Management</h3>
+    <div style={{ padding: '1rem' }}>
+      <h2>Category Management</h2>
       
       {error && (
         <div style={{ 
           padding: '1rem', 
-          backgroundColor: '#f8d7da', 
-          color: '#721c24', 
-          border: '1px solid #f5c6cb', 
+          backgroundColor: '#fee', 
+          color: '#c33', 
           borderRadius: '4px', 
           marginBottom: '1rem' 
         }}>
@@ -244,9 +346,8 @@ export default function CategoryManagement() {
       {success && (
         <div style={{ 
           padding: '1rem', 
-          backgroundColor: '#d4edda', 
-          color: '#155724', 
-          border: '1px solid #c3e6cb', 
+          backgroundColor: '#efe', 
+          color: '#363', 
           borderRadius: '4px', 
           marginBottom: '1rem' 
         }}>
@@ -254,7 +355,270 @@ export default function CategoryManagement() {
         </div>
       )}
 
-      <div style={{ marginBottom: '2rem' }}>
+      {/* Add/Edit Form */}
+      {showAddForm && (
+        <div data-category-form style={{ 
+          background: '#f8f9fa', 
+          padding: '1.5rem', 
+          borderRadius: '8px', 
+          marginBottom: '2rem',
+          border: '2px solid #055474'
+        }}>
+          <h3 style={{ marginTop: 0, color: '#055474' }}>
+            {editingCategory ? `Edit Category: ${editingCategory.name}` : 'Add New Category'}
+          </h3>
+          
+          <form onSubmit={handleSubmit}>
+            {/* Basic Category Info */}
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h4>Basic Information</h4>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                  Category Name: *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                  style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
+                />
+              </div>
+              
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                  Parent Category:
+                </label>
+                <select
+                  value={formData.parent_id}
+                  onChange={(e) => setFormData({ ...formData, parent_id: e.target.value })}
+                  style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
+                >
+                  <option value="">No Parent (Top Level)</option>
+                  {flatCategories
+                    .filter(cat => !editingCategory || cat.id !== editingCategory.id)
+                    .map(cat => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                  Description:
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                  style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
+                />
+              </div>
+            </div>
+
+            {/* Content Section - Only show when editing existing category */}
+            {editingCategory && (
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h4>Content & Media</h4>
+                
+                {/* Hero Image Upload */}
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                    Hero Image:
+                  </label>
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) handleImageUpload(file, 'hero');
+                    }}
+                    style={{ marginBottom: '0.5rem' }}
+                  />
+                  {uploadingImage && <div style={{ color: '#666', fontSize: '0.9rem' }}>Uploading...</div>}
+                  {(contentData?.hero_image || imagePreview.hero) && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <img 
+                        src={imagePreview.hero || contentData.hero_image} 
+                        alt="Hero preview" 
+                        style={{ maxWidth: '200px', maxHeight: '120px', borderRadius: '4px', border: '1px solid #ddd' }}
+                      />
+                      <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '0.25rem' }}>
+                        {contentData?.hero_image || 'Preview'}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Banner Image Upload */}
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                    Banner Image:
+                  </label>
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) handleImageUpload(file, 'banner');
+                    }}
+                    style={{ marginBottom: '0.5rem' }}
+                  />
+                  {uploadingImage && <div style={{ color: '#666', fontSize: '0.9rem' }}>Uploading...</div>}
+                  {(contentData?.banner || imagePreview.banner) && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <img 
+                        src={imagePreview.banner || contentData.banner} 
+                        alt="Banner preview" 
+                        style={{ maxWidth: '200px', maxHeight: '120px', borderRadius: '4px', border: '1px solid #ddd' }}
+                      />
+                      <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '0.25rem' }}>
+                        {contentData?.banner || 'Preview'}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Content Description */}
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                    Content Description: 
+                  </label>
+                  <textarea 
+                    value={contentData?.description || ''} 
+                    onChange={e => setContentData({ ...contentData, description: e.target.value })}
+                    style={{ display: 'block', width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
+                    rows={4}
+                    placeholder="Rich description for the category page..."
+                  />
+                </div>
+                
+                {/* Featured Items */}
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                    Featured Products (comma IDs): 
+                  </label>
+                  <input 
+                    value={contentData?.featured_products || ''} 
+                    onChange={e => setContentData({ ...contentData, featured_products: e.target.value })}
+                    style={{ display: 'block', width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
+                    placeholder="1,2,3"
+                  />
+                </div>
+                
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                    Featured Artists (comma IDs): 
+                  </label>
+                  <input 
+                    value={contentData?.featured_artists || ''} 
+                    onChange={e => setContentData({ ...contentData, featured_artists: e.target.value })}
+                    style={{ display: 'block', width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
+                    placeholder="1,2,3"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* SEO Section - Only show when editing existing category */}
+            {editingCategory && (
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h4>SEO & Meta Tags</h4>
+                
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                    Meta Title: 
+                  </label>
+                  <input 
+                    value={seoData?.meta_title || ''} 
+                    onChange={e => setSeoData({ ...seoData, meta_title: e.target.value })}
+                    style={{ display: 'block', width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
+                    placeholder="Category Name - Online Art Festival"
+                  />
+                </div>
+                
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                    Meta Description: 
+                  </label>
+                  <textarea 
+                    value={seoData?.meta_description || ''} 
+                    onChange={e => setSeoData({ ...seoData, meta_description: e.target.value })}
+                    style={{ display: 'block', width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
+                    rows={3}
+                    placeholder="Explore amazing category artwork and products..."
+                  />
+                </div>
+                
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                    Meta Keywords: 
+                  </label>
+                  <input 
+                    value={seoData?.meta_keywords || ''} 
+                    onChange={e => setSeoData({ ...seoData, meta_keywords: e.target.value })}
+                    style={{ display: 'block', width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
+                    placeholder="category, art, artwork, online art festival"
+                  />
+                </div>
+                
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                    Canonical URL: 
+                  </label>
+                  <input 
+                    value={seoData?.canonical_url || ''} 
+                    onChange={e => setSeoData({ ...seoData, canonical_url: e.target.value })}
+                    style={{ display: 'block', width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
+                    placeholder="https://onlineartfestival.com/category/name"
+                  />
+                </div>
+                
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                    JSON-LD Structured Data: 
+                  </label>
+                  <textarea 
+                    value={seoData?.json_ld || ''} 
+                    onChange={e => setSeoData({ ...seoData, json_ld: e.target.value })}
+                    style={{ display: 'block', width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
+                    rows={4}
+                    placeholder='{"@context":"https://schema.org","@type":"CollectionPage",...}'
+                  />
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button type="submit" style={{ 
+                padding: '0.75rem 1.5rem', 
+                backgroundColor: '#055474', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '4px', 
+                cursor: 'pointer' 
+              }}>
+                {editingCategory ? 'Update Category' : 'Create Category'}
+              </button>
+              <button type="button" onClick={resetForm} style={{ 
+                padding: '0.75rem 1.5rem', 
+                backgroundColor: '#6c757d', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '4px', 
+                cursor: 'pointer' 
+              }}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Category List */}
+      <div style={{ marginBottom: '1rem' }}>
         <button
           onClick={() => setShowAddForm(true)}
           style={{
@@ -264,119 +628,21 @@ export default function CategoryManagement() {
             border: 'none',
             borderRadius: '4px',
             cursor: 'pointer',
-            fontSize: '1rem',
-            fontWeight: 'bold'
+            marginBottom: '1rem'
           }}
         >
-          {editingCategory ? 'Cancel Edit' : 'Add New Category'}
+          Add New Category
         </button>
       </div>
 
-      {showAddForm && (
-        <div 
-          data-category-form
-          style={{
-            border: editingCategory ? '2px solid #055474' : '1px solid #ddd',
-            padding: '1.5rem',
-            borderRadius: '8px',
-            marginBottom: '2rem',
-            backgroundColor: editingCategory ? '#f0f8ff' : '#f8f9fa',
-            boxShadow: editingCategory ? '0 4px 8px rgba(5, 84, 116, 0.1)' : 'none'
-          }}
-        >
-          <h4 style={{ color: editingCategory ? '#055474' : '#333' }}>
-            {editingCategory ? `Edit Category: ${editingCategory.name}` : 'Add New Category'}
-          </h4>
-          <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-                Category Name: *
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
-                placeholder="Enter category name"
-              />
-            </div>
-
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-                Parent Category:
-              </label>
-              <select
-                value={formData.parent_id}
-                onChange={(e) => setFormData({ ...formData, parent_id: e.target.value })}
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
-              >
-                <option value="">No Parent (Top Level)</option>
-                {flatCategories.map(cat => (
-                  <option key={cat.id} value={cat.id} disabled={editingCategory && cat.id === editingCategory.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-                Description:
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows="3"
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
-                placeholder="Enter category description (optional)"
-              />
-            </div>
-
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button
-                type="submit"
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  backgroundColor: '#055474',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '1rem',
-                  fontWeight: 'bold'
-                }}
-              >
-                {editingCategory ? 'Update Category' : 'Create Category'}
-              </button>
-              <button
-                type="button"
-                onClick={resetForm}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  backgroundColor: '#6c757d',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '1rem'
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+      {loading ? (
+        <div>Loading categories...</div>
+      ) : (
+        <div>
+          <h3>Categories</h3>
+          {renderCategoryTree(categories)}
         </div>
       )}
-
-      <div>
-        <h4>Categories ({categories.length} root categories)</h4>
-        {categories.length === 0 ? (
-          <p>No categories found. Create your first category above.</p>
-        ) : (
-          renderCategoryTree(categories)
-        )}
-      </div>
     </div>
   );
 } 
