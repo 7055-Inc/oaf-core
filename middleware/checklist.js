@@ -13,6 +13,7 @@ export async function checklist(req) {
       path.startsWith('/category/') ||
       path.startsWith('/search') ||
       path.startsWith('/cart') ||
+      path.startsWith('/events') ||
       path === '/login' || 
       path === '/signup' || 
       path === '/favicon.ico') {

@@ -1,0 +1,300 @@
+.applicationForm {
+  max-width: 800px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.header {
+  background: linear-gradient(135deg, #055474 0%, #0a7a9a 100%);
+  color: white;
+  padding: 2rem;
+  text-align: center;
+}
+
+.header h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+
+.subtitle {
+  margin: 0;
+  opacity: 0.9;
+  font-size: 1rem;
+}
+
+.statsBar {
+  display: flex;
+  gap: 2rem;
+  padding: 1.5rem 2rem;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  justify-content: center;
+}
+
+.stat {
+  text-align: center;
+}
+
+.statNumber {
+  display: block;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #055474;
+  line-height: 1;
+}
+
+.statLabel {
+  display: block;
+  font-size: 0.875rem;
+  color: #6c757d;
+  margin-top: 0.25rem;
+}
+
+.feeInfo {
+  padding: 1.5rem 2rem;
+  background: #fff3cd;
+  border-bottom: 1px solid #ffeaa7;
+}
+
+.feeInfo h3 {
+  margin: 0 0 1rem 0;
+  color: #856404;
+  font-size: 1.1rem;
+}
+
+.feeBreakdown {
+  margin-bottom: 1rem;
+}
+
+.feeItem {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #ffeaa7;
+}
+
+.feeItem:last-child {
+  border-bottom: none;
+}
+
+.feeTotal {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: #856404;
+  border-top: 2px solid #856404;
+  margin-top: 0.5rem;
+}
+
+.feeNote {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #856404;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.form {
+  padding: 2rem;
+}
+
+.formSection {
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.formSection:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.formSection h3 {
+  margin: 0 0 1.5rem 0;
+  color: #055474;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.formGroup {
+  margin-bottom: 1.5rem;
+}
+
+.label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  font-family: inherit;
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+  outline: none;
+  border-color: #055474;
+  box-shadow: 0 0 0 3px rgba(5, 84, 116, 0.1);
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.charCount {
+  text-align: right;
+  font-size: 0.875rem;
+  color: #6c757d;
+  margin-top: 0.25rem;
+}
+
+.fieldHelp {
+  font-size: 0.875rem;
+  color: #6c757d;
+  margin-top: 0.25rem;
+}
+
+.checkboxGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  font-weight: normal;
+}
+
+.checkbox {
+  width: auto;
+  margin: 0;
+  transform: scale(1.2);
+  accent-color: #055474;
+}
+
+.error {
+  background: #f8d7da;
+  color: #721c24;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid #f5c6cb;
+}
+
+.formActions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #e9ecef;
+}
+
+.cancelButton,
+.submitButton {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 140px;
+  justify-content: center;
+}
+
+.cancelButton {
+  background: #6c757d;
+  color: white;
+}
+
+.cancelButton:hover:not(:disabled) {
+  background: #5a6268;
+  transform: translateY(-1px);
+}
+
+.submitButton {
+  background: linear-gradient(135deg, #055474 0%, #0a7a9a 100%);
+  color: white;
+}
+
+.submitButton:hover:not(:disabled) {
+  background: linear-gradient(135deg, #044660 0%, #096b86 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(5, 84, 116, 0.3);
+}
+
+.cancelButton:disabled,
+.submitButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .applicationForm {
+    margin: 1rem;
+    border-radius: 8px;
+  }
+  
+  .header {
+    padding: 1.5rem;
+  }
+  
+  .header h2 {
+    font-size: 1.5rem;
+  }
+  
+  .form {
+    padding: 1.5rem;
+  }
+  
+  .statsBar {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+  }
+  
+  .feeInfo {
+    padding: 1rem;
+  }
+  
+  .formActions {
+    flex-direction: column;
+  }
+  
+  .cancelButton,
+  .submitButton {
+    width: 100%;
+  }
+} 

@@ -72,6 +72,14 @@ try {
   app.use('/admin', require('./routes/admin-financial'));
   console.log('[Server] Loading /search route');
   app.use('/search', require('./routes/search'));
+  console.log('[Server] Loading /api/events route');
+  app.use('/api/events', require('./routes/events'));
+  console.log('[Server] Loading /api/event-types route');
+  app.use('/api/event-types', require('./routes/event-types'));
+  console.log('[Server] Loading /api/applications route');
+  app.use('/api/applications', require('./routes/applications'));
+  console.log('[Server] Loading /api/custom-events route');
+  app.use('/api/custom-events', require('./routes/custom-events'));
 } catch (err) {
   console.error('[Server] Error loading routes:', err.message, err.stack);
   process.exit(1);

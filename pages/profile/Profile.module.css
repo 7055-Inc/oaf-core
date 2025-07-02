@@ -1,5 +1,4 @@
 .container {
-  font-family: 'Comic Neue', sans-serif;
   color: #333;
   margin: 0;
   padding: 0;
@@ -31,7 +30,6 @@
 .editLink {
   color: #FFFFFF;
   text-decoration: underline;
-  font-family: 'Comic Neue', sans-serif;
   font-weight: bold;
 }
 
@@ -105,7 +103,6 @@
   padding: 0.5rem 1rem;
   border-radius: 20px;
   margin: 0 0 0.5rem 0;
-  font-family: 'Comic Neue', sans-serif;
   font-size: 0.9rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   border: 1px solid #3E1C56;

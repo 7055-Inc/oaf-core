@@ -1063,6 +1063,195 @@ CREATE TABLE `vendor_transactions` (
   CONSTRAINT `vendor_transactions_ibfk_2` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `event_types`
+--
+
+CREATE TABLE `event_types` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL,
+  `description` text,
+  `is_active` boolean DEFAULT TRUE,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
+-- Table structure for table `events`
+--
+
+CREATE TABLE `events` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `promoter_id` bigint NOT NULL,
+  `event_type_id` int NOT NULL,
+  `parent_id` bigint DEFAULT NULL,
+  `series_id` bigint DEFAULT NULL,
+  `title` varchar(255) NOT NULL,
+  `description` text,
+  `short_description` text,
+  `event_status` enum('draft','active','archived') DEFAULT 'draft',
+  `application_status` enum('not_accepting','accepting','closed','jurying','artists_announced','event_completed') DEFAULT 'not_accepting',
+  `allow_applications` boolean DEFAULT FALSE,
+  `start_date` date NOT NULL,
+  `end_date` date NOT NULL,
+  `application_deadline` date DEFAULT NULL,
+  `jury_date` date DEFAULT NULL,
+  `notification_date` date DEFAULT NULL,
+  `venue_name` varchar(255) DEFAULT NULL,
+  `venue_address` varchar(255) DEFAULT NULL,
+  `venue_city` varchar(100) DEFAULT NULL,
+  `venue_state` varchar(100) DEFAULT NULL,
+  `venue_zip` varchar(20) DEFAULT NULL,
+  `venue_country` varchar(100) DEFAULT 'USA',
+  `latitude` decimal(10,8) DEFAULT NULL,
+  `longitude` decimal(11,8) DEFAULT NULL,
+  `parking_info` text,
+  `accessibility_info` text,
+  `admission_fee` decimal(10,2) DEFAULT 0.00,
+  `parking_fee` decimal(10,2) DEFAULT 0.00,
+  `parking_details` text,
+  `application_fee` decimal(10,2) DEFAULT 0.00,
+  `jury_fee` decimal(10,2) DEFAULT 0.00,
+  `booth_fee` decimal(10,2) DEFAULT 0.00,
+  `premium_fees` json DEFAULT NULL,
+  `max_artists` int DEFAULT NULL,
+  `current_artist_count` int DEFAULT 0,
+  `max_applications` int DEFAULT NULL,
+  `seo_title` varchar(255) DEFAULT NULL,
+  `meta_description` text,
+  `event_schema` json DEFAULT NULL,
+  `event_tags` json DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_by` bigint NOT NULL,
+  `updated_by` bigint DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_event_status` (`event_status`,`application_status`),
+  KEY `idx_event_dates` (`start_date`,`end_date`),
+  KEY `idx_event_location` (`venue_city`,`venue_state`),
+  KEY `idx_event_type` (`event_type_id`),
+  KEY `idx_promoter_events` (`promoter_id`),
+  KEY `idx_parent_child` (`parent_id`),
+  KEY `idx_series` (`series_id`),
+  FULLTEXT KEY `event_search` (`title`,`description`,`venue_name`,`venue_city`),
+  CONSTRAINT `fk_events_promoter_id` FOREIGN KEY (`promoter_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_events_event_type_id` FOREIGN KEY (`event_type_id`) REFERENCES `event_types` (`id`),
+  CONSTRAINT `fk_events_parent_id` FOREIGN KEY (`parent_id`) REFERENCES `events` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_events_created_by` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`),
+  CONSTRAINT `fk_events_updated_by` FOREIGN KEY (`updated_by`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
+-- Table structure for table `event_applications`
+--
+
+CREATE TABLE `event_applications` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `event_id` bigint NOT NULL,
+  `artist_id` bigint NOT NULL,
+  `status` enum('draft','submitted','under_review','accepted','declined','waitlisted') DEFAULT 'draft',
+  `artist_statement` text,
+  `portfolio_url` varchar(255) DEFAULT NULL,
+  `booth_preferences` json DEFAULT NULL,
+  `additional_info` text,
+  `application_fee_paid` boolean DEFAULT FALSE,
+  `jury_fee_paid` boolean DEFAULT FALSE,
+  `payment_transaction_id` varchar(255) DEFAULT NULL,
+  `jury_score` decimal(5,2) DEFAULT NULL,
+  `jury_comments` text,
+  `jury_reviewed_by` bigint DEFAULT NULL,
+  `jury_reviewed_at` timestamp NULL DEFAULT NULL,
+  `submitted_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_event_application` (`event_id`,`artist_id`),
+  KEY `idx_application_status` (`event_id`,`status`),
+  KEY `idx_artist_applications` (`artist_id`,`status`),
+  CONSTRAINT `fk_event_applications_event_id` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_event_applications_artist_id` FOREIGN KEY (`artist_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_event_applications_jury_reviewed_by` FOREIGN KEY (`jury_reviewed_by`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
+-- Table structure for table `event_artists`
+--
+
+CREATE TABLE `event_artists` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `event_id` bigint NOT NULL,
+  `artist_id` bigint NOT NULL,
+  `status` enum('invited','confirmed','declined','applied','accepted','waitlisted') DEFAULT 'invited',
+  `application_method` enum('system','manual') DEFAULT 'system',
+  `application_id` bigint DEFAULT NULL,
+  `application_notes` text,
+  `jury_score` decimal(5,2) DEFAULT NULL,
+  `jury_comments` text,
+  `added_by` bigint NOT NULL,
+  `added_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_event_artist` (`event_id`,`artist_id`),
+  KEY `idx_event_artists_status` (`event_id`,`status`),
+  KEY `idx_artist_events` (`artist_id`,`status`),
+  CONSTRAINT `fk_event_artists_event_id` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_event_artists_artist_id` FOREIGN KEY (`artist_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_event_artists_application_id` FOREIGN KEY (`application_id`) REFERENCES `event_applications` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_event_artists_added_by` FOREIGN KEY (`added_by`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
+-- Table structure for table `event_images`
+--
+
+CREATE TABLE `event_images` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `event_id` bigint NOT NULL,
+  `image_url` varchar(255) NOT NULL,
+  `friendly_name` varchar(255) DEFAULT NULL,
+  `is_primary` boolean DEFAULT FALSE,
+  `alt_text` varchar(255) DEFAULT NULL,
+  `order_index` int DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `idx_event_images` (`event_id`,`order_index`),
+  CONSTRAINT `fk_event_images_event_id` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
+-- Table structure for table `event_categories`
+--
+
+CREATE TABLE `event_categories` (
+  `event_id` bigint NOT NULL,
+  `category_id` bigint NOT NULL,
+  PRIMARY KEY (`event_id`,`category_id`),
+  CONSTRAINT `fk_event_categories_event_id` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_event_categories_category_id` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
+-- Table structure for table `event_notifications`
+--
+
+CREATE TABLE `event_notifications` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `event_id` bigint NOT NULL,
+  `notification_type` enum('renewal_reminder','application_deadline','jury_date','event_reminder','artist_invitation') NOT NULL,
+  `recipient_id` bigint NOT NULL,
+  `recipient_email` varchar(255) NOT NULL,
+  `sent_at` timestamp NULL DEFAULT NULL,
+  `opened_at` timestamp NULL DEFAULT NULL,
+  `clicked_at` timestamp NULL DEFAULT NULL,
+  `delivery_status` enum('pending','sent','delivered','failed') DEFAULT 'pending',
+  `email_subject` varchar(255) DEFAULT NULL,
+  `email_body` text,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_notification_tracking` (`event_id`,`notification_type`,`delivery_status`),
+  CONSTRAINT `fk_event_notifications_event_id` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_event_notifications_recipient_id` FOREIGN KEY (`recipient_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

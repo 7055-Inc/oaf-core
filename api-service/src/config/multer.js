@@ -6,8 +6,9 @@ const fs = require('fs');
 const uploadDir = path.join(__dirname, '../../temp_images');
 const productsDir = path.join(uploadDir, 'products');
 const profilesDir = path.join(uploadDir, 'profiles');
+const eventsDir = path.join(uploadDir, 'events');
 
-[productsDir, profilesDir].forEach(dir => {
+[productsDir, profilesDir, eventsDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -18,6 +19,8 @@ const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     if (file.fieldname === 'profile_image' || file.fieldname === 'header_image') {
       cb(null, profilesDir);
+    } else if (file.fieldname === 'images' && req.route && req.route.path.includes('/events/')) {
+      cb(null, eventsDir);
     } else {
       cb(null, productsDir);
     }
@@ -30,6 +33,10 @@ const storage = multer.diskStorage({
       // For user profile/header images
       const type = file.fieldname === 'profile_image' ? 'profile' : 'header';
       filename = `${req.userId}-${type}-${uniqueSuffix}${path.extname(file.originalname).toLowerCase()}`;
+    } else if (file.fieldname === 'images' && req.route && req.route.path.includes('/events/')) {
+      // For event images
+      const eventId = req.query.event_id || 'new';
+      filename = `${req.userId}-${eventId}-${uniqueSuffix}${path.extname(file.originalname).toLowerCase()}`;
     } else {
       // For product images
       filename = `${req.userId}-${req.query.product_id}-${uniqueSuffix}${path.extname(file.originalname).toLowerCase()}`;

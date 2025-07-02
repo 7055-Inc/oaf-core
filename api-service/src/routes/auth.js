@@ -136,7 +136,7 @@ router.post('/exchange', async (req, res) => {
     }
 
     const roles = [user[0]?.user_type, ...(types?.map(t => t.type) || [])].filter(Boolean);
-    const jwtToken = jwt.sign({ userId, roles }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const jwtToken = jwt.sign({ userId, roles }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.json({ token: jwtToken, userId });
   } catch (err) {
     console.error('Unexpected error in /auth/exchange:', err.message, err.stack);

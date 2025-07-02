@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import SearchBar from './SearchBar';
 import CategoryMenu from './CategoryMenu';
@@ -12,6 +12,7 @@ export default function Header() {
   const [isLoading, setIsLoading] = useState(true);
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const dropdownTimeoutRef = useRef(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -60,6 +61,15 @@ export default function Header() {
     }
   }, []);
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (dropdownTimeoutRef.current) {
+        clearTimeout(dropdownTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const fetchCartCount = async (token) => {
     try {
       // Get active cart
@@ -88,6 +98,23 @@ export default function Header() {
       console.log('Error fetching cart count:', err.message);
       // Don't log as error since this is expected for non-authenticated users
     }
+  };
+
+  const handleDropdownEnter = () => {
+    if (dropdownTimeoutRef.current) {
+      clearTimeout(dropdownTimeoutRef.current);
+      dropdownTimeoutRef.current = null;
+    }
+    setShowAccountDropdown(true);
+  };
+
+  const handleDropdownLeave = () => {
+    if (dropdownTimeoutRef.current) {
+      clearTimeout(dropdownTimeoutRef.current);
+    }
+    dropdownTimeoutRef.current = setTimeout(() => {
+      setShowAccountDropdown(false);
+    }, 300);
   };
 
   const handleLogout = () => {
@@ -150,10 +177,8 @@ export default function Header() {
             {isLoggedIn && userId && !isLoading ? (
               <div 
                 style={{ position: 'relative' }}
-                onMouseEnter={() => setShowAccountDropdown(true)}
-                onMouseLeave={() => {
-                  setTimeout(() => setShowAccountDropdown(false), 300);
-                }}
+                onMouseEnter={handleDropdownEnter}
+                onMouseLeave={handleDropdownLeave}
               >
                 <button className={styles.iconButton}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -162,11 +187,10 @@ export default function Header() {
                   </svg>
                 </button>
                 {showAccountDropdown && (
-                  <div className={styles.userDropdown}
-                    onMouseEnter={() => setShowAccountDropdown(true)}
-                    onMouseLeave={() => {
-                      setTimeout(() => setShowAccountDropdown(false), 200);
-                    }}
+                  <div 
+                    className={styles.userDropdown}
+                    onMouseEnter={handleDropdownEnter}
+                    onMouseLeave={handleDropdownLeave}
                   >
                     <Link href="/dashboard" className={styles.dropdownLink}>
                       Dashboard

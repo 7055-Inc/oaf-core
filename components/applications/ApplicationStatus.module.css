@@ -1,0 +1,171 @@
+.statusCard {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid #e9ecef;
+}
+
+.statusHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.statusBadge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.submissionDate {
+  font-size: 0.875rem;
+  color: #6c757d;
+}
+
+.statusDescription {
+  font-size: 1rem;
+  color: #333;
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+.juryComments {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  border-left: 4px solid #055474;
+}
+
+.juryComments h4 {
+  margin: 0 0 0.5rem 0;
+  color: #055474;
+  font-size: 1rem;
+}
+
+.juryComments p {
+  margin: 0;
+  color: #333;
+  line-height: 1.5;
+}
+
+.nextSteps {
+  background: #e7f3ff;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  border-left: 4px solid #007bff;
+}
+
+.nextSteps h4 {
+  margin: 0 0 0.5rem 0;
+  color: #007bff;
+  font-size: 1rem;
+}
+
+.nextSteps p {
+  margin: 0;
+  color: #333;
+  line-height: 1.5;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.applicationDetails {
+  border-top: 1px solid #e9ecef;
+  padding-top: 1rem;
+  margin-top: 1rem;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f8f9fa;
+}
+
+.detailRow:last-child {
+  border-bottom: none;
+}
+
+.detailLabel {
+  font-weight: 600;
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.detailValue {
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.portfolioLink {
+  color: #055474;
+  text-decoration: none;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.portfolioLink:hover {
+  color: #044660;
+  text-decoration: underline;
+}
+
+.loading,
+.error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  text-align: center;
+  justify-content: center;
+}
+
+.loading {
+  color: #6c757d;
+}
+
+.error {
+  color: #dc3545;
+  background: #f8d7da;
+  border-radius: 8px;
+  border: 1px solid #f5c6cb;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .statusCard {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .statusHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .detailRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  
+  .statusBadge {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.8rem;
+  }
+} 
