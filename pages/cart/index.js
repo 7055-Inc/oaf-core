@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Header from '../../components/Header';
+import { authenticatedApiRequest, handleCsrfError } from '../../lib/csrf';
 import styles from './styles/Cart.module.css';
 
 export default function Cart() {
@@ -73,13 +74,11 @@ export default function Cart() {
     if (newQuantity < 1) return;
     
     try {
-      const token = getAuthToken();
       const item = cartItems.find(item => item.id === itemId);
       
-      const res = await fetch(`https://api2.onlineartfestival.com/cart/${activeCart.id}/items/${itemId}`, {
+      const res = await authenticatedApiRequest(`https://api2.onlineartfestival.com/cart/${activeCart.id}/items/${itemId}`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -97,16 +96,15 @@ export default function Cart() {
       }
     } catch (err) {
       console.error('Error updating quantity:', err);
+      handleCsrfError(err);
     }
   };
 
   const removeItem = async (itemId) => {
     try {
-      const token = getAuthToken();
-      
-      const res = await fetch(`https://api2.onlineartfestival.com/cart/${activeCart.id}/items/${itemId}`, {
+      const res = await authenticatedApiRequest(`https://api2.onlineartfestival.com/cart/${activeCart.id}/items/${itemId}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Content-Type': 'application/json' }
       });
 
       if (res.ok) {
@@ -114,18 +112,16 @@ export default function Cart() {
       }
     } catch (err) {
       console.error('Error removing item:', err);
+      handleCsrfError(err);
     }
   };
 
   const saveForLater = async (item) => {
     try {
-      const token = getAuthToken();
-      
       // Add to saved items
-      const saveRes = await fetch('https://api2.onlineartfestival.com/cart/saved', {
+      const saveRes = await authenticatedApiRequest('https://api2.onlineartfestival.com/cart/saved', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -142,6 +138,7 @@ export default function Cart() {
       }
     } catch (err) {
       console.error('Error saving for later:', err);
+      handleCsrfError(err);
     }
   };
 

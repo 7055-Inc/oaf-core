@@ -25,6 +25,7 @@ class MyDocument extends Document {
             crossOrigin="anonymous"
             referrerPolicy="no-referrer"
           />
+
         </Head>
         <body>
           <Main />

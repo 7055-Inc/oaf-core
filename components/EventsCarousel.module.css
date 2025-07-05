@@ -1,0 +1,284 @@
+.eventsSection {
+  padding: 3rem 0;
+  background: #f8f9fa;
+  position: relative;
+  overflow: hidden;
+}
+
+.carouselContainer {
+  position: relative;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.eventsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+  transition: transform 0.3s ease;
+  flex: 1;
+}
+
+.eventCard {
+  background: white;
+  border: 2px solid #055474;
+  border-radius: 0;
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  overflow: hidden;
+}
+
+.eventCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(5, 84, 116, 0.15);
+}
+
+.eventImage {
+  height: 200px;
+  overflow: hidden;
+  position: relative;
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.eventImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.imagePlaceholder {
+  color: #999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.eventContent {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  justify-content: space-between;
+}
+
+.eventTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #055474;
+  margin: 0 0 0.5rem 0;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.eventDate {
+  font-size: 0.9rem;
+  color: #6b2d6b;
+  font-weight: 500;
+  margin: 0 0 0.75rem 0;
+}
+
+.eventDescription {
+  font-size: 0.85rem;
+  color: #666;
+  line-height: 1.4;
+  margin: 0 0 0.75rem 0;
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.promoterName {
+  font-size: 0.8rem;
+  color: #888;
+  margin: 0;
+  font-style: italic;
+}
+
+.arrowButton {
+  background: #055474;
+  color: white;
+  border: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+.arrowButton:hover:not(:disabled) {
+  background: #044059;
+  transform: scale(1.05);
+}
+
+.arrowButton:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.prevArrow {
+  order: -1;
+}
+
+.nextArrow {
+  order: 1;
+}
+
+.buttonContainer {
+  position: relative;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.browseEventsButton {
+  position: absolute;
+  bottom: -1.5rem;
+  right: 2rem;
+  background: #3e1c56;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0;
+  text-decoration: none;
+  font-weight: 500;
+  box-shadow: 0 4px 15px rgba(62, 28, 86, 0.3);
+  z-index: 10;
+  transition: all 0.2s ease;
+}
+
+.browseEventsButton:hover {
+  background: #2d1540;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(62, 28, 86, 0.4);
+}
+
+/* Loading skeleton styles */
+.skeletonCard {
+  background: white;
+  border: 2px solid #055474;
+  height: 400px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.skeletonImage {
+  height: 200px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeletonText {
+  height: 16px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  margin: 1rem 1.25rem 0.5rem;
+}
+
+.skeletonText:last-child {
+  width: 60%;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.emptyState {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #666;
+  font-size: 1.1rem;
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+  .eventsGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+  
+  .carouselContainer {
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .eventsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .eventCard {
+    height: 350px;
+  }
+  
+  .eventImage {
+    height: 160px;
+  }
+  
+  .browseEventsButton {
+    bottom: -1rem;
+    right: 1rem;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .eventsGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .eventsSection {
+    padding: 2rem 0;
+  }
+  
+  .carouselContainer {
+    padding: 0 0.5rem;
+  }
+  
+  .buttonContainer {
+    padding: 0 0.5rem;
+  }
+  
+  .eventCard {
+    height: 320px;
+  }
+  
+  .eventImage {
+    height: 140px;
+  }
+  
+  .arrowButton {
+    width: 40px;
+    height: 40px;
+  }
+} 

@@ -19,6 +19,7 @@ const verifyToken = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.userId = decoded.userId;
     req.roles = decoded.roles;
+    req.permissions = decoded.permissions || [];
     console.log('Token verified, userId:', req.userId);
     next();
   } catch (err) {
@@ -187,6 +188,68 @@ router.get('/profile/by-id/:id', async (req, res) => {
     console.error('Error fetching user profile:', err.message, err.stack);
     res.setHeader('Content-Type', 'application/json');
     res.status(500).json({ error: 'Failed to fetch user profile' });
+  }
+});
+
+// GET /users/artists - Fetch list of active artists
+router.get('/artists', async (req, res) => {
+  console.log('GET /users/artists request received');
+  try {
+    const { limit = 20, offset = 0, random = 'true' } = req.query;
+    
+    // Validate and sanitize inputs
+    const searchLimit = Math.min(parseInt(limit) || 20, 100); // Max 100 results
+    const searchOffset = Math.max(parseInt(offset) || 0, 0);
+    const useRandom = random === 'true';
+    
+    // Build the query - get artists with their profile data
+    let query = `
+      SELECT 
+        u.id, 
+        u.username, 
+        u.user_type, 
+        u.status, 
+        u.created_at,
+        up.first_name,
+        up.last_name,
+        up.bio,
+        up.profile_image_path,
+        ap.business_name,
+        ap.artist_biography,
+        ap.studio_city,
+        ap.studio_state,
+        ap.does_custom,
+        ap.business_website,
+        ap.art_categories
+      FROM users u
+      LEFT JOIN user_profiles up ON u.id = up.user_id
+      LEFT JOIN artist_profiles ap ON u.id = ap.user_id
+      WHERE u.user_type = 'artist' 
+      AND u.status = 'active'
+      AND up.user_id IS NOT NULL
+      AND ap.user_id IS NOT NULL
+    `;
+    
+    // Add ordering - random or by creation date
+    if (useRandom) {
+      query += ' ORDER BY RAND()';
+    } else {
+      query += ' ORDER BY u.created_at DESC';
+    }
+    
+    // Add limit and offset
+    query += ` LIMIT ${searchLimit} OFFSET ${searchOffset}`;
+    
+    const [artists] = await db.query(query);
+    
+    // Log the result count
+    console.log(`Found ${artists.length} artists`);
+    
+    res.json(artists);
+  } catch (err) {
+    console.error('Error fetching artists:', err.message, err.stack);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ error: 'Failed to fetch artists' });
   }
 });
 

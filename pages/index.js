@@ -2,7 +2,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '../components/Header';
+import Footer from '../components/Footer';
 import LoginModal from '../components/LoginModal';
+import EventsCarousel from '../components/EventsCarousel';
+import ArtistCarousel from '../components/ArtistCarousel';
 
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -56,6 +59,7 @@ export default function Home() {
         }}>
           <p>Loading...</p>
         </div>
+        <Footer />
       </div>
     );
   }
@@ -120,7 +124,7 @@ export default function Home() {
                 <h3 style={{ 
                   fontSize: 'clamp(1.2rem, 2.5vw, 1.8rem)', 
                   marginBottom: '2rem',
-                  textShadow: '1px 1px 2px rgba(0,0,0,0.7)',
+                  textShadow: '1px 1px 2px rgba(255,255,255,0.8)',
                   lineHeight: 1.4
                 }}>
                   {heroData.h3Text}
@@ -130,26 +134,8 @@ export default function Home() {
                 <button 
                   onClick={handleHeroButtonClick}
                   style={{
-                    padding: '1rem 2.5rem',
-                    backgroundColor: '#055474',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
                     fontSize: '1.1rem',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = '#044a63';
-                    e.target.style.transform = 'translateY(-2px)';
-                    e.target.style.boxShadow = '0 6px 12px rgba(0,0,0,0.15)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = '#055474';
-                    e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+                    padding: '1rem 2.5rem'
                   }}
                 >
                   {heroData.buttonText}
@@ -185,6 +171,12 @@ export default function Home() {
         </section>
       )}
 
+      {/* Events Carousel */}
+      <EventsCarousel />
+
+      {/* Artist Carousel */}
+      <ArtistCarousel />
+
       {/* Fallback Content */}
       {(!heroData || heroData.videos.length === 0) && (
         <div style={{ padding: '2rem' }}>
@@ -202,6 +194,9 @@ export default function Home() {
           )}
         </div>
       )}
+
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }

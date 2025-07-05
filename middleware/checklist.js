@@ -14,6 +14,8 @@ export async function checklist(req) {
       path.startsWith('/search') ||
       path.startsWith('/cart') ||
       path.startsWith('/events') ||
+      path.startsWith('/articles') ||
+      path.startsWith('/topics') ||
       path === '/login' || 
       path === '/signup' || 
       path === '/favicon.ico') {
@@ -47,11 +49,28 @@ export async function checklist(req) {
       return NextResponse.redirect(new URL('/login', req.url));
     }
 
-    const { roles } = await response.json();
+    const { roles, permissions } = await response.json();
     console.log('User roles:', roles);
+    console.log('User permissions:', permissions);
     if (!roles || !roles.length) {
       console.log('No roles found, redirecting to login');
       return NextResponse.redirect(new URL('/login', req.url));
+    }
+
+    // Check vendor permission for vendor-specific routes
+    const vendorRoutes = [
+      '/dashboard/products',
+      '/products/new',
+      '/products/edit'
+    ];
+    
+    const requiresVendorPermission = vendorRoutes.some(route => path.startsWith(route));
+    
+    if (requiresVendorPermission) {
+      if (!permissions || !permissions.includes('vendor')) {
+        console.log('Vendor permission required but not found, redirecting to dashboard');
+        return NextResponse.redirect(new URL('/dashboard', req.url));
+      }
     }
 
     console.log('All checks passed, allowing access');

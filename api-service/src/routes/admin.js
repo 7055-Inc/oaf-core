@@ -16,6 +16,7 @@ const verifyAdmin = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.userId = decoded.userId;
     req.roles = decoded.roles;
+    req.permissions = decoded.permissions || [];
     if (!req.roles.includes('admin')) {
       console.log('User is not an admin:', req.userId);
       res.setHeader('Content-Type', 'application/json');
@@ -99,6 +100,685 @@ router.delete('/users/:id', verifyAdmin, async (req, res) => {
     console.error('Error deleting user:', err.message, err.stack);
     res.setHeader('Content-Type', 'application/json');
     res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+// GET /admin/users/:id/permissions - Get user's permissions
+router.get('/users/:id/permissions', verifyAdmin, async (req, res) => {
+  console.log('GET /admin/users/:id/permissions request received, userId:', req.userId);
+  const { id } = req.params;
+  try {
+    const [permissions] = await db.query('SELECT * FROM user_permissions WHERE user_id = ?', [id]);
+    if (!permissions[0]) {
+      // User has no permissions record yet
+      return res.json({ user_id: parseInt(id), vendor: false });
+    }
+    res.json(permissions[0]);
+  } catch (err) {
+    console.error('Error fetching user permissions:', err.message, err.stack);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ error: 'Failed to fetch user permissions' });
+  }
+});
+
+// PUT /admin/users/:id/permissions - Update user's permissions
+router.put('/users/:id/permissions', verifyAdmin, async (req, res) => {
+  console.log('PUT /admin/users/:id/permissions request received, userId:', req.userId);
+  const { id } = req.params;
+  const { vendor } = req.body;
+  try {
+    // Check if user exists
+    const [user] = await db.query('SELECT id FROM users WHERE id = ?', [id]);
+    if (!user[0]) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if permissions record exists
+    const [existing] = await db.query('SELECT user_id FROM user_permissions WHERE user_id = ?', [id]);
+    
+    if (existing[0]) {
+      // Update existing permissions
+      await db.query('UPDATE user_permissions SET vendor = ? WHERE user_id = ?', [vendor, id]);
+    } else {
+      // Create new permissions record
+      await db.query('INSERT INTO user_permissions (user_id, vendor) VALUES (?, ?)', [id, vendor]);
+    }
+    
+    res.json({ message: 'User permissions updated successfully' });
+  } catch (err) {
+    console.error('Error updating user permissions:', err.message, err.stack);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ error: 'Failed to update user permissions' });
+  }
+});
+
+// ===== POLICY MANAGEMENT ENDPOINTS =====
+
+// GET /admin/default-policies - Get default shipping policy
+router.get('/default-policies', verifyAdmin, async (req, res) => {
+  try {
+    console.log('GET /admin/default-policies request received, userId:', req.userId);
+    
+    const query = `
+      SELECT 
+        sp.id,
+        sp.policy_text,
+        sp.created_at,
+        sp.updated_at,
+        u.username as created_by_username
+      FROM shipping_policies sp
+      JOIN users u ON sp.created_by = u.id
+      WHERE sp.user_id IS NULL AND sp.status = 'active'
+    `;
+    
+    const [rows] = await db.execute(query);
+    
+    res.json({
+      success: true,
+      policy: rows.length > 0 ? rows[0] : null
+    });
+  } catch (error) {
+    console.error('Error getting default shipping policy:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve default shipping policy'
+    });
+  }
+});
+
+// PUT /admin/default-policies - Update default shipping policy
+router.put('/default-policies', verifyAdmin, async (req, res) => {
+  try {
+    console.log('PUT /admin/default-policies request received, userId:', req.userId);
+    
+    const { policy_text } = req.body;
+    
+    if (!policy_text || policy_text.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'Policy text is required'
+      });
+    }
+    
+    const connection = await db.getConnection();
+    await connection.beginTransaction();
+    
+    try {
+      // Archive the current default policy
+      await connection.execute(`
+        UPDATE shipping_policies 
+        SET status = 'archived', updated_at = CURRENT_TIMESTAMP
+        WHERE user_id IS NULL AND status = 'active'
+      `);
+      
+      // Create new default policy
+      await connection.execute(`
+        INSERT INTO shipping_policies (user_id, policy_text, status, created_by)
+        VALUES (NULL, ?, 'active', ?)
+      `, [policy_text.trim(), req.userId]);
+      
+      await connection.commit();
+      
+      res.json({
+        success: true,
+        message: 'Default shipping policy updated successfully'
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error updating default shipping policy:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update default shipping policy'
+    });
+  }
+});
+
+// GET /admin/vendor-policies - Search and list vendor policies
+router.get('/vendor-policies', verifyAdmin, async (req, res) => {
+  console.log('GET /admin/vendor-policies request received, userId:', req.userId);
+  const { search, page = 1, limit = 20 } = req.query;
+  const offset = (page - 1) * limit;
+  
+  try {
+    let whereClause = 'WHERE up.vendor = 1';
+    let params = [];
+    
+    if (search) {
+      whereClause += ' AND (u.username LIKE ? OR u.id = ?)';
+      params = [`%${search}%`, search];
+    }
+    
+    // Get total count
+    const countQuery = `
+      SELECT COUNT(DISTINCT u.id) as total
+      FROM users u
+      LEFT JOIN user_permissions up ON u.id = up.user_id
+      ${whereClause}
+    `;
+    
+    const [countResult] = await db.query(countQuery, params);
+    const total = countResult[0].total;
+    
+    // Get vendor policies
+    const dataQuery = `
+      SELECT 
+        u.id as user_id,
+        u.username,
+        u.user_type,
+        sp.id as policy_id,
+        sp.policy_text,
+        sp.status,
+        sp.created_at as policy_created_at,
+        sp.updated_at as policy_updated_at,
+        creator.username as created_by_username
+      FROM users u
+      LEFT JOIN user_permissions up ON u.id = up.user_id
+      LEFT JOIN shipping_policies sp ON u.id = sp.user_id AND sp.status = 'active'
+      LEFT JOIN users creator ON sp.created_by = creator.id
+      ${whereClause}
+      ORDER BY u.username ASC
+      LIMIT ? OFFSET ?
+    `;
+    
+    params.push(parseInt(limit), offset);
+    const [vendors] = await db.query(dataQuery, params);
+    
+    res.json({
+      vendors: vendors,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching vendor policies:', err.message, err.stack);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ error: 'Failed to fetch vendor policies' });
+  }
+});
+
+// GET /admin/vendor-policies/:user_id - Get specific vendor's policy and history
+router.get('/vendor-policies/:user_id', verifyAdmin, async (req, res) => {
+  console.log('GET /admin/vendor-policies/:user_id request received, userId:', req.userId);
+  const { user_id } = req.params;
+  
+  try {
+    // Check if user exists and has vendor permissions
+    const [userCheck] = await db.query(`
+      SELECT u.id, u.username, u.user_type, up.vendor
+      FROM users u
+      LEFT JOIN user_permissions up ON u.id = up.user_id
+      WHERE u.id = ?
+    `, [user_id]);
+    
+    if (!userCheck[0]) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    if (!userCheck[0].vendor) {
+      return res.status(400).json({ error: 'User does not have vendor permissions' });
+    }
+    
+    // Get current policy
+    const [currentPolicy] = await db.query(`
+      SELECT 
+        sp.id,
+        sp.policy_text,
+        sp.status,
+        sp.created_at,
+        sp.updated_at,
+        u.username as created_by_username
+      FROM shipping_policies sp
+      JOIN users u ON sp.created_by = u.id
+      WHERE sp.user_id = ? AND sp.status = 'active'
+    `, [user_id]);
+    
+    // Get policy history
+    const [history] = await db.query(`
+      SELECT 
+        sp.id,
+        sp.policy_text,
+        sp.status,
+        sp.created_at,
+        sp.updated_at,
+        u.username as created_by_username
+      FROM shipping_policies sp
+      JOIN users u ON sp.created_by = u.id
+      WHERE sp.user_id = ?
+      ORDER BY sp.created_at DESC
+    `, [user_id]);
+    
+    res.json({
+      user: userCheck[0],
+      current_policy: currentPolicy[0] || null,
+      history: history
+    });
+  } catch (err) {
+    console.error('Error fetching vendor policy details:', err.message, err.stack);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ error: 'Failed to fetch vendor policy details' });
+  }
+});
+
+// PUT /admin/vendor-policies/:user_id - Update vendor's policy as admin
+router.put('/vendor-policies/:user_id', verifyAdmin, async (req, res) => {
+  console.log('PUT /admin/vendor-policies/:user_id request received, userId:', req.userId);
+  const { user_id } = req.params;
+  const { policy_text } = req.body;
+  
+  try {
+    if (!policy_text || policy_text.trim() === '') {
+      return res.status(400).json({ error: 'Policy text is required' });
+    }
+
+    // Check if user exists and has vendor permissions
+    const [userCheck] = await db.query(`
+      SELECT u.id, u.username, up.vendor
+      FROM users u
+      LEFT JOIN user_permissions up ON u.id = up.user_id
+      WHERE u.id = ?
+    `, [user_id]);
+    
+    if (!userCheck[0]) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    if (!userCheck[0].vendor) {
+      return res.status(400).json({ error: 'User does not have vendor permissions' });
+    }
+
+    // Get a connection from the pool for transaction
+    const connection = await db.getConnection();
+    
+    try {
+      // Begin transaction
+      await connection.beginTransaction();
+      
+      // Archive existing active policy
+      await connection.execute(
+        'UPDATE shipping_policies SET status = "archived" WHERE user_id = ? AND status = "active"',
+        [user_id]
+      );
+      
+      // Create new active policy (created by admin)
+      const insertQuery = `
+        INSERT INTO shipping_policies (user_id, policy_text, status, created_by)
+        VALUES (?, ?, 'active', ?)
+      `;
+      
+      await connection.execute(insertQuery, [user_id, policy_text, req.userId]);
+      
+      await connection.commit();
+      
+      res.json({ message: 'Vendor policy updated successfully by admin' });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (err) {
+    console.error('Error updating vendor policy:', err.message, err.stack);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ error: 'Failed to update vendor policy' });
+  }
+});
+
+// DELETE /admin/vendor-policies/:user_id - Delete vendor's policy (revert to default)
+router.delete('/vendor-policies/:user_id', verifyAdmin, async (req, res) => {
+  console.log('DELETE /admin/vendor-policies/:user_id request received, userId:', req.userId);
+  const { user_id } = req.params;
+  
+  try {
+    // Check if user exists and has vendor permissions
+    const [userCheck] = await db.query(`
+      SELECT u.id, u.username, up.vendor
+      FROM users u
+      LEFT JOIN user_permissions up ON u.id = up.user_id
+      WHERE u.id = ?
+    `, [user_id]);
+    
+    if (!userCheck[0]) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    if (!userCheck[0].vendor) {
+      return res.status(400).json({ error: 'User does not have vendor permissions' });
+    }
+
+    // Archive all active policies for this user
+    await db.query(
+      'UPDATE shipping_policies SET status = "archived" WHERE user_id = ? AND status = "active"',
+      [user_id]
+    );
+    
+    res.json({ message: 'Vendor policy deleted successfully. User will use default policy.' });
+  } catch (err) {
+    console.error('Error deleting vendor policy:', err.message, err.stack);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ error: 'Failed to delete vendor policy' });
+  }
+});
+
+// ===== RETURN POLICY MANAGEMENT ENDPOINTS =====
+
+// GET /admin/default-return-policies - Get default return policy
+router.get('/default-return-policies', verifyAdmin, async (req, res) => {
+  try {
+    console.log('GET /admin/default-return-policies request received, userId:', req.userId);
+    
+    const query = `
+      SELECT 
+        rp.id,
+        rp.policy_text,
+        rp.created_at,
+        rp.updated_at,
+        u.username as created_by_username
+      FROM return_policies rp
+      JOIN users u ON rp.created_by = u.id
+      WHERE rp.user_id IS NULL AND rp.status = 'active'
+    `;
+    
+    const [rows] = await db.execute(query);
+    
+    res.json({
+      success: true,
+      policy: rows.length > 0 ? rows[0] : null
+    });
+  } catch (error) {
+    console.error('Error getting default return policy:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve default return policy'
+    });
+  }
+});
+
+// PUT /admin/default-return-policies - Update default return policy
+router.put('/default-return-policies', verifyAdmin, async (req, res) => {
+  try {
+    console.log('PUT /admin/default-return-policies request received, userId:', req.userId);
+    
+    const { policy_text } = req.body;
+    
+    if (!policy_text || policy_text.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'Policy text is required'
+      });
+    }
+    
+    const connection = await db.getConnection();
+    await connection.beginTransaction();
+    
+    try {
+      // Archive the current default policy
+      await connection.execute(`
+        UPDATE return_policies 
+        SET status = 'archived', updated_at = CURRENT_TIMESTAMP
+        WHERE user_id IS NULL AND status = 'active'
+      `);
+      
+      // Create new default policy
+      await connection.execute(`
+        INSERT INTO return_policies (user_id, policy_text, status, created_by)
+        VALUES (NULL, ?, 'active', ?)
+      `, [policy_text.trim(), req.userId]);
+      
+      await connection.commit();
+      
+      res.json({
+        success: true,
+        message: 'Default return policy updated successfully'
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error updating default return policy:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update default return policy'
+    });
+  }
+});
+
+// GET /admin/vendor-return-policies - Search and list vendor return policies
+router.get('/vendor-return-policies', verifyAdmin, async (req, res) => {
+  console.log('GET /admin/vendor-return-policies request received, userId:', req.userId);
+  const { search, page = 1, limit = 20 } = req.query;
+  const offset = (page - 1) * limit;
+  
+  try {
+    let whereClause = 'WHERE up.vendor = 1';
+    let params = [];
+    
+    if (search) {
+      whereClause += ' AND (u.username LIKE ? OR u.id = ?)';
+      params = [`%${search}%`, search];
+    }
+    
+    // Get total count
+    const countQuery = `
+      SELECT COUNT(DISTINCT u.id) as total
+      FROM users u
+      LEFT JOIN user_permissions up ON u.id = up.user_id
+      ${whereClause}
+    `;
+    
+    const [countResult] = await db.query(countQuery, params);
+    const total = countResult[0].total;
+    
+    // Get vendor return policies
+    const dataQuery = `
+      SELECT 
+        u.id as user_id,
+        u.username,
+        u.user_type,
+        rp.id as policy_id,
+        rp.policy_text,
+        rp.status,
+        rp.created_at as policy_created_at,
+        rp.updated_at as policy_updated_at,
+        creator.username as created_by_username
+      FROM users u
+      LEFT JOIN user_permissions up ON u.id = up.user_id
+      LEFT JOIN return_policies rp ON u.id = rp.user_id AND rp.status = 'active'
+      LEFT JOIN users creator ON rp.created_by = creator.id
+      ${whereClause}
+      ORDER BY u.username ASC
+      LIMIT ? OFFSET ?
+    `;
+    
+    params.push(parseInt(limit), offset);
+    const [vendors] = await db.query(dataQuery, params);
+    
+    res.json({
+      vendors: vendors,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching vendor return policies:', err.message, err.stack);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ error: 'Failed to fetch vendor return policies' });
+  }
+});
+
+// GET /admin/vendor-return-policies/:user_id - Get specific vendor's return policy and history
+router.get('/vendor-return-policies/:user_id', verifyAdmin, async (req, res) => {
+  console.log('GET /admin/vendor-return-policies/:user_id request received, userId:', req.userId);
+  const { user_id } = req.params;
+  
+  try {
+    // Check if user exists and has vendor permissions
+    const [userCheck] = await db.query(`
+      SELECT u.id, u.username, u.user_type, up.vendor
+      FROM users u
+      LEFT JOIN user_permissions up ON u.id = up.user_id
+      WHERE u.id = ?
+    `, [user_id]);
+    
+    if (!userCheck[0]) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    if (!userCheck[0].vendor) {
+      return res.status(400).json({ error: 'User does not have vendor permissions' });
+    }
+    
+    // Get current policy
+    const [currentPolicy] = await db.query(`
+      SELECT 
+        rp.id,
+        rp.policy_text,
+        rp.status,
+        rp.created_at,
+        rp.updated_at,
+        u.username as created_by_username
+      FROM return_policies rp
+      JOIN users u ON rp.created_by = u.id
+      WHERE rp.user_id = ? AND rp.status = 'active'
+    `, [user_id]);
+    
+    // Get policy history
+    const [history] = await db.query(`
+      SELECT 
+        rp.id,
+        rp.policy_text,
+        rp.status,
+        rp.created_at,
+        rp.updated_at,
+        u.username as created_by_username
+      FROM return_policies rp
+      JOIN users u ON rp.created_by = u.id
+      WHERE rp.user_id = ?
+      ORDER BY rp.created_at DESC
+    `, [user_id]);
+    
+    res.json({
+      user: userCheck[0],
+      current_policy: currentPolicy[0] || null,
+      history: history
+    });
+  } catch (err) {
+    console.error('Error fetching vendor return policy details:', err.message, err.stack);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ error: 'Failed to fetch vendor return policy details' });
+  }
+});
+
+// PUT /admin/vendor-return-policies/:user_id - Update vendor's return policy as admin
+router.put('/vendor-return-policies/:user_id', verifyAdmin, async (req, res) => {
+  console.log('PUT /admin/vendor-return-policies/:user_id request received, userId:', req.userId);
+  const { user_id } = req.params;
+  const { policy_text } = req.body;
+  
+  try {
+    if (!policy_text || policy_text.trim() === '') {
+      return res.status(400).json({ error: 'Policy text is required' });
+    }
+
+    // Check if user exists and has vendor permissions
+    const [userCheck] = await db.query(`
+      SELECT u.id, u.username, up.vendor
+      FROM users u
+      LEFT JOIN user_permissions up ON u.id = up.user_id
+      WHERE u.id = ?
+    `, [user_id]);
+    
+    if (!userCheck[0]) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    if (!userCheck[0].vendor) {
+      return res.status(400).json({ error: 'User does not have vendor permissions' });
+    }
+
+    // Get a connection from the pool for transaction
+    const connection = await db.getConnection();
+    
+    try {
+      // Begin transaction
+      await connection.beginTransaction();
+      
+      // Archive existing active policy
+      await connection.execute(
+        'UPDATE return_policies SET status = "archived" WHERE user_id = ? AND status = "active"',
+        [user_id]
+      );
+      
+      // Create new active policy (created by admin)
+      const insertQuery = `
+        INSERT INTO return_policies (user_id, policy_text, status, created_by)
+        VALUES (?, ?, 'active', ?)
+      `;
+      
+      await connection.execute(insertQuery, [user_id, policy_text, req.userId]);
+      
+      await connection.commit();
+      
+      res.json({ message: 'Vendor return policy updated successfully by admin' });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (err) {
+    console.error('Error updating vendor return policy:', err.message, err.stack);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ error: 'Failed to update vendor return policy' });
+  }
+});
+
+// DELETE /admin/vendor-return-policies/:user_id - Delete vendor's return policy (revert to default)
+router.delete('/vendor-return-policies/:user_id', verifyAdmin, async (req, res) => {
+  console.log('DELETE /admin/vendor-return-policies/:user_id request received, userId:', req.userId);
+  const { user_id } = req.params;
+  
+  try {
+    // Check if user exists and has vendor permissions
+    const [userCheck] = await db.query(`
+      SELECT u.id, u.username, up.vendor
+      FROM users u
+      LEFT JOIN user_permissions up ON u.id = up.user_id
+      WHERE u.id = ?
+    `, [user_id]);
+    
+    if (!userCheck[0]) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    if (!userCheck[0].vendor) {
+      return res.status(400).json({ error: 'User does not have vendor permissions' });
+    }
+
+    // Archive all active policies for this user
+    await db.query(
+      'UPDATE return_policies SET status = "archived" WHERE user_id = ? AND status = "active"',
+      [user_id]
+    );
+    
+    res.json({ message: 'Vendor return policy deleted successfully. User will use default policy.' });
+  } catch (err) {
+    console.error('Error deleting vendor return policy:', err.message, err.stack);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ error: 'Failed to delete vendor return policy' });
   }
 });
 

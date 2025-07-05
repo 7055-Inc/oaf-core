@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword } from 'firebase/auth';
 import firebaseApp from '../lib/firebase';
 
+
 export default function LoginModal() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -48,23 +49,29 @@ export default function LoginModal() {
 
   const authenticateWithBackend = async (provider, token, email) => {
     try {
-      const res = await fetch('https://api2.onlineartfestival.com/auth/exchange', {
+      const response = await fetch('https://api2.onlineartfestival.com/auth/exchange', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ provider, token, email })
+        body: JSON.stringify({ provider, token, email }),
+        credentials: 'include'
       });
-      if (!res.ok) {
-        throw new Error('Failed to authenticate with backend');
+      
+      if (!response.ok) {
+        throw new Error('Authentication failed');
       }
-      const data = await res.json();
+      
+      const data = await response.json();
+      
       if (data.token) {
-        // Set token in both localStorage and cookies
+        // Set both tokens in localStorage and cookies
         localStorage.setItem('token', data.token);
+        localStorage.setItem('refreshToken', data.refreshToken);
         document.cookie = `token=${data.token}; path=/`;
+        document.cookie = `refreshToken=${data.refreshToken}; path=/`;
         
-        // Wait a moment for the cookie to be set
+        // Wait a moment for the cookies to be set
         await new Promise(resolve => setTimeout(resolve, 100));
         
         // Reload the page to trigger the middleware

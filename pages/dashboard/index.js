@@ -8,6 +8,8 @@ import CategoryManagement from '../../components/CategoryManagement';
 import CategoryChangeLog from '../../components/CategoryChangeLog';
 import UserManagement from '../../components/UserManagement';
 import EventManagement from '../../components/EventManagement';
+import PermissionsManagement from '../../components/PermissionsManagement';
+import ArticleManagement from '../articles/components/ArticleManagement';
 import styles from './Dashboard.module.css';
 
 export default function Dashboard() {
@@ -24,28 +26,41 @@ export default function Dashboard() {
       router.push('/');
     } else {
       setIsLoggedIn(true);
-      // Fetch user data to check roles
-      fetch('https://api2.onlineartfestival.com/users/me', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-        .then(res => {
-          if (!res.ok) {
-            throw new Error('Failed to fetch user data');
+      // Fetch user data and extract permissions from JWT
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        console.log('JWT payload:', payload);
+        
+        fetch('https://api2.onlineartfestival.com/users/me', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
-          return res.json();
         })
-        .then(data => {
-          console.log('Dashboard - Current User Data:', data);
-          setUserData(data);
-        })
-        .catch(err => {
-          console.error('Error fetching user data:', err.message);
-          setError(err.message);
-        });
+          .then(res => {
+            if (!res.ok) {
+              throw new Error('Failed to fetch user data');
+            }
+            return res.json();
+          })
+          .then(data => {
+            // Add permissions from JWT to user data
+            const userData = {
+              ...data,
+              permissions: payload.permissions || []
+            };
+            console.log('Dashboard - Current User Data with permissions:', userData);
+            setUserData(userData);
+          })
+          .catch(err => {
+            console.error('Error fetching user data:', err.message);
+            setError(err.message);
+          });
+      } catch (jwtError) {
+        console.error('Error parsing JWT:', jwtError);
+        setError('Invalid authentication token');
+      }
     }
   }, [router]);
 
@@ -77,10 +92,15 @@ export default function Dashboard() {
   }
 
   const isAdmin = userData.user_type === 'admin';
-  const isVendor = userData.user_type === 'vendor';
   const isPromoter = userData.user_type === 'promoter';
-  const canManageProducts = isAdmin || isVendor;
+  const hasVendorPermission = userData.permissions?.includes('vendor');
+  const canManageProducts = isAdmin || hasVendorPermission;
   const canManageEvents = isAdmin || isPromoter;
+  const canManageArticles = isAdmin || 
+                           userData.permissions?.includes('create_articles') || 
+                           userData.permissions?.includes('publish_articles') ||
+                           userData.permissions?.includes('manage_articles_seo') ||
+                           userData.permissions?.includes('manage_articles_topics');
 
   const renderContent = () => {
     switch (activeSection) {
@@ -135,6 +155,12 @@ export default function Dashboard() {
             <UserManagement />
           </div>
         );
+      case 'permissions-management':
+        return (
+          <div className={styles.contentSection}>
+            <PermissionsManagement />
+          </div>
+        );
       case 'hero-settings':
         return (
           <div className={styles.contentSection}>
@@ -159,6 +185,18 @@ export default function Dashboard() {
         return (
           <div className={styles.contentSection}>
             <EventManagement />
+          </div>
+        );
+      case 'my-articles':
+        return (
+          <div className={styles.contentSection}>
+            <ArticleManagement />
+          </div>
+        );
+      case 'article-management':
+        return (
+          <div className={styles.contentSection}>
+            <ArticleManagement />
           </div>
         );
       case 'my-events':
@@ -299,6 +337,56 @@ export default function Dashboard() {
             </ul>
           </div>
 
+          {/* Vendor section for users with vendor permissions */}
+          {hasVendorPermission && (
+            <div className={styles.sidebarSection}>
+              <h3>Vendor Tools</h3>
+              <ul>
+                <li>
+                  <Link href="/dashboard/products" className={styles.sidebarLink}>
+                    Manage Products
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/products/new" className={styles.sidebarLink}>
+                    Add New Product
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/policies" className={styles.sidebarLink}>
+                    Manage Custom Policies
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          )}
+
+          {canManageArticles && (
+            <div className={styles.sidebarSection}>
+              <h3>Articles</h3>
+              <ul>
+                <li>
+                  <button 
+                    className={`${styles.sidebarLink} ${activeSection === 'my-articles' ? styles.active : ''}`}
+                    onClick={() => setActiveSection('my-articles')}
+                  >
+                    My Articles
+                  </button>
+                </li>
+                {isAdmin && (
+                  <li>
+                    <button 
+                      className={`${styles.sidebarLink} ${activeSection === 'article-management' ? styles.active : ''}`}
+                      onClick={() => setActiveSection('article-management')}
+                    >
+                      Manage All Articles
+                    </button>
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
+
           {isAdmin && (
             <div className={styles.sidebarSection}>
               <h3>Admin Tools</h3>
@@ -309,6 +397,14 @@ export default function Dashboard() {
                     onClick={() => setActiveSection('user-management')}
                   >
                     User Management
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    className={`${styles.sidebarLink} ${activeSection === 'permissions-management' ? styles.active : ''}`}
+                    onClick={() => setActiveSection('permissions-management')}
+                  >
+                    Permissions Management
                   </button>
                 </li>
                 <li>
@@ -342,6 +438,11 @@ export default function Dashboard() {
                   >
                     Event Management
                   </button>
+                </li>
+                <li>
+                  <Link href="/policies/admin" className={styles.sidebarLink}>
+                    Policy Management
+                  </Link>
                 </li>
               </ul>
             </div>

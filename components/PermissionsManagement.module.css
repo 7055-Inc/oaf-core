@@ -1,0 +1,178 @@
+.container {
+  padding: 2rem;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin: 1rem;
+}
+
+.header {
+  margin-bottom: 2rem;
+}
+
+.header h2 {
+  color: #055474;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.8rem;
+}
+
+.header p {
+  color: #666;
+  margin: 0;
+  font-size: 1rem;
+}
+
+.controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.searchInput {
+  flex: 1;
+  max-width: 300px;
+  padding: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: #055474;
+  box-shadow: 0 0 0 2px rgba(5, 84, 116, 0.1);
+}
+
+.stats {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.tableContainer {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.permissionsTable {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+}
+
+.permissionsTable th,
+.permissionsTable td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.permissionsTable th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #055474;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.permissionsTable tr:hover {
+  background-color: #f8f9fa;
+}
+
+.userType {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.userType.artist {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.userType.promoter {
+  background-color: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.userType.community {
+  background-color: #e8f5e8;
+  color: #388e3c;
+}
+
+.userType.admin {
+  background-color: #fff3e0;
+  color: #f57c00;
+}
+
+.toggleSwitch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+  margin-right: 0.75rem;
+}
+
+.toggleSwitch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.4s;
+  border-radius: 34px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: 0.4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #4caf50;
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #4caf50;
+}
+
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+
+.permissionStatus {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.loading, .error {
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.1rem;
+}
+
+.loading {
+  color: #055474;
+}
+
+.error {
+  color: #d32f2f;
+} 

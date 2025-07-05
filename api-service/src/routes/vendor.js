@@ -267,6 +267,226 @@ router.post('/subscription-preferences', authenticateToken, async (req, res) => 
   }
 });
 
+/**
+ * Get vendor's shipping policy
+ * GET /api/vendor/shipping-policy
+ */
+router.get('/shipping-policy', authenticateToken, async (req, res) => {
+  try {
+    const vendorId = req.user.id;
+    
+    // Verify user has vendor permissions
+    if (!req.user.permissions || !req.user.permissions.includes('vendor')) {
+      return res.status(403).json({ error: 'Vendor permissions required' });
+    }
+
+    const policy = await getVendorShippingPolicy(vendorId);
+    
+    res.json({
+      success: true,
+      policy: policy
+    });
+    
+  } catch (error) {
+    console.error('Error getting vendor shipping policy:', error);
+    res.status(500).json({ error: 'Failed to get shipping policy' });
+  }
+});
+
+/**
+ * Create or update vendor's shipping policy
+ * POST /api/vendor/shipping-policy
+ */
+router.post('/shipping-policy', authenticateToken, async (req, res) => {
+  try {
+    const vendorId = req.user.id;
+    const { policy_text } = req.body;
+    
+    // Verify user has vendor permissions
+    if (!req.user.permissions || !req.user.permissions.includes('vendor')) {
+      return res.status(403).json({ error: 'Vendor permissions required' });
+    }
+
+    if (!policy_text || policy_text.trim() === '') {
+      return res.status(400).json({ error: 'Policy text is required' });
+    }
+
+    const updatedPolicy = await updateVendorShippingPolicy(vendorId, policy_text);
+    
+    res.json({
+      success: true,
+      message: 'Shipping policy updated successfully',
+      policy: updatedPolicy
+    });
+    
+  } catch (error) {
+    console.error('Error updating vendor shipping policy:', error);
+    res.status(500).json({ error: 'Failed to update shipping policy' });
+  }
+});
+
+/**
+ * Get vendor's shipping policy history
+ * GET /api/vendor/shipping-policy/history
+ */
+router.get('/shipping-policy/history', authenticateToken, async (req, res) => {
+  try {
+    const vendorId = req.user.id;
+    
+    // Verify user has vendor permissions
+    if (!req.user.permissions || !req.user.permissions.includes('vendor')) {
+      return res.status(403).json({ error: 'Vendor permissions required' });
+    }
+
+    const history = await getVendorShippingPolicyHistory(vendorId);
+    
+    res.json({
+      success: true,
+      history: history
+    });
+    
+  } catch (error) {
+    console.error('Error getting vendor shipping policy history:', error);
+    res.status(500).json({ error: 'Failed to get policy history' });
+  }
+});
+
+/**
+ * Delete vendor's shipping policy (revert to default)
+ * DELETE /api/vendor/shipping-policy
+ */
+router.delete('/shipping-policy', authenticateToken, async (req, res) => {
+  try {
+    const vendorId = req.user.id;
+    
+    // Verify user has vendor permissions
+    if (!req.user.permissions || !req.user.permissions.includes('vendor')) {
+      return res.status(403).json({ error: 'Vendor permissions required' });
+    }
+
+    await deleteVendorShippingPolicy(vendorId);
+    
+    res.json({
+      success: true,
+      message: 'Shipping policy deleted successfully. Using default policy.'
+    });
+    
+  } catch (error) {
+    console.error('Error deleting vendor shipping policy:', error);
+    res.status(500).json({ error: 'Failed to delete shipping policy' });
+  }
+});
+
+/**
+ * Get vendor's return policy
+ * GET /api/vendor/return-policy
+ */
+router.get('/return-policy', authenticateToken, async (req, res) => {
+  try {
+    const vendorId = req.user.id;
+    
+    // Verify user has vendor permissions
+    if (!req.user.permissions || !req.user.permissions.includes('vendor')) {
+      return res.status(403).json({ error: 'Vendor permissions required' });
+    }
+
+    const policy = await getVendorReturnPolicy(vendorId);
+    
+    res.json({
+      success: true,
+      policy: policy
+    });
+    
+  } catch (error) {
+    console.error('Error getting vendor return policy:', error);
+    res.status(500).json({ error: 'Failed to get return policy' });
+  }
+});
+
+/**
+ * Create or update vendor's return policy
+ * POST /api/vendor/return-policy
+ */
+router.post('/return-policy', authenticateToken, async (req, res) => {
+  try {
+    const vendorId = req.user.id;
+    const { policy_text } = req.body;
+    
+    // Verify user has vendor permissions
+    if (!req.user.permissions || !req.user.permissions.includes('vendor')) {
+      return res.status(403).json({ error: 'Vendor permissions required' });
+    }
+
+    if (!policy_text || policy_text.trim() === '') {
+      return res.status(400).json({ error: 'Policy text is required' });
+    }
+
+    const updatedPolicy = await updateVendorReturnPolicy(vendorId, policy_text);
+    
+    res.json({
+      success: true,
+      message: 'Return policy updated successfully',
+      policy: updatedPolicy
+    });
+    
+  } catch (error) {
+    console.error('Error updating vendor return policy:', error);
+    res.status(500).json({ error: 'Failed to update return policy' });
+  }
+});
+
+/**
+ * Get vendor's return policy history
+ * GET /api/vendor/return-policy/history
+ */
+router.get('/return-policy/history', authenticateToken, async (req, res) => {
+  try {
+    const vendorId = req.user.id;
+    
+    // Verify user has vendor permissions
+    if (!req.user.permissions || !req.user.permissions.includes('vendor')) {
+      return res.status(403).json({ error: 'Vendor permissions required' });
+    }
+
+    const history = await getVendorReturnPolicyHistory(vendorId);
+    
+    res.json({
+      success: true,
+      history: history
+    });
+    
+  } catch (error) {
+    console.error('Error getting vendor return policy history:', error);
+    res.status(500).json({ error: 'Failed to get policy history' });
+  }
+});
+
+/**
+ * Delete vendor's return policy (revert to default)
+ * DELETE /api/vendor/return-policy
+ */
+router.delete('/return-policy', authenticateToken, async (req, res) => {
+  try {
+    const vendorId = req.user.id;
+    
+    // Verify user has vendor permissions
+    if (!req.user.permissions || !req.user.permissions.includes('vendor')) {
+      return res.status(403).json({ error: 'Vendor permissions required' });
+    }
+
+    await deleteVendorReturnPolicy(vendorId);
+    
+    res.json({
+      success: true,
+      message: 'Return policy deleted successfully. Using default policy.'
+    });
+    
+  } catch (error) {
+    console.error('Error deleting vendor return policy:', error);
+    res.status(500).json({ error: 'Failed to delete return policy' });
+  }
+});
+
 // ===== HELPER FUNCTIONS =====
 
 /**
@@ -420,6 +640,246 @@ async function getUpcomingPayouts(vendorId) {
   
   const [rows] = await db.execute(query, [vendorId]);
   return rows;
+}
+
+/**
+ * Get vendor's shipping policy (with fallback to default)
+ */
+async function getVendorShippingPolicy(vendorId) {
+  // First try to get vendor's custom policy
+  const vendorQuery = `
+    SELECT 
+      sp.id,
+      sp.policy_text,
+      sp.created_at,
+      sp.updated_at,
+      u.username as created_by_username,
+      'custom' as policy_source
+    FROM shipping_policies sp
+    JOIN users u ON sp.created_by = u.id
+    WHERE sp.user_id = ? AND sp.status = 'active'
+  `;
+  
+  const [vendorRows] = await db.execute(vendorQuery, [vendorId]);
+  
+  if (vendorRows.length > 0) {
+    return vendorRows[0];
+  }
+  
+  // If no custom policy, get default policy (user_id = NULL)
+  const defaultQuery = `
+    SELECT 
+      sp.id,
+      sp.policy_text,
+      sp.created_at,
+      sp.updated_at,
+      u.username as created_by_username,
+      'default' as policy_source
+    FROM shipping_policies sp
+    JOIN users u ON sp.created_by = u.id
+    WHERE sp.user_id IS NULL AND sp.status = 'active'
+  `;
+  
+  const [defaultRows] = await db.execute(defaultQuery);
+  
+  if (defaultRows.length > 0) {
+    return defaultRows[0];
+  }
+  
+  // If no default policy exists, return null
+  return null;
+}
+
+/**
+ * Update vendor's shipping policy
+ */
+async function updateVendorShippingPolicy(vendorId, policyText) {
+  // Get a connection from the pool for transaction
+  const connection = await db.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+    
+    // Archive existing active policy
+    await connection.execute(
+      'UPDATE shipping_policies SET status = "archived" WHERE user_id = ? AND status = "active"',
+      [vendorId]
+    );
+    
+    // Create new active policy
+    const insertQuery = `
+      INSERT INTO shipping_policies (user_id, policy_text, status, created_by)
+      VALUES (?, ?, 'active', ?)
+    `;
+    
+    const [result] = await connection.execute(insertQuery, [vendorId, policyText, vendorId]);
+    
+    await connection.commit();
+    
+    // Return the new policy
+    return await getVendorShippingPolicy(vendorId);
+    
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Get vendor's shipping policy history
+ */
+async function getVendorShippingPolicyHistory(vendorId) {
+  const query = `
+    SELECT 
+      sp.id,
+      sp.policy_text,
+      sp.status,
+      sp.created_at,
+      sp.updated_at,
+      u.username as created_by_username
+    FROM shipping_policies sp
+    JOIN users u ON sp.created_by = u.id
+    WHERE sp.user_id = ?
+    ORDER BY sp.created_at DESC
+  `;
+  
+  const [rows] = await db.execute(query, [vendorId]);
+  return rows;
+}
+
+/**
+ * Delete vendor's shipping policy (archive all policies)
+ */
+async function deleteVendorShippingPolicy(vendorId) {
+  const query = `
+    UPDATE shipping_policies 
+    SET status = 'archived' 
+    WHERE user_id = ? AND status = 'active'
+  `;
+  
+  await db.execute(query, [vendorId]);
+}
+
+/**
+ * Get vendor's return policy (with fallback to default)
+ */
+async function getVendorReturnPolicy(vendorId) {
+  // First try to get vendor's custom policy
+  const vendorQuery = `
+    SELECT 
+      rp.id,
+      rp.policy_text,
+      rp.created_at,
+      rp.updated_at,
+      u.username as created_by_username,
+      'custom' as policy_source
+    FROM return_policies rp
+    JOIN users u ON rp.created_by = u.id
+    WHERE rp.user_id = ? AND rp.status = 'active'
+  `;
+  
+  const [vendorRows] = await db.execute(vendorQuery, [vendorId]);
+  
+  if (vendorRows.length > 0) {
+    return vendorRows[0];
+  }
+  
+  // If no custom policy, get default policy (user_id = NULL)
+  const defaultQuery = `
+    SELECT 
+      rp.id,
+      rp.policy_text,
+      rp.created_at,
+      rp.updated_at,
+      u.username as created_by_username,
+      'default' as policy_source
+    FROM return_policies rp
+    JOIN users u ON rp.created_by = u.id
+    WHERE rp.user_id IS NULL AND rp.status = 'active'
+  `;
+  
+  const [defaultRows] = await db.execute(defaultQuery);
+  
+  if (defaultRows.length > 0) {
+    return defaultRows[0];
+  }
+  
+  // If no default policy exists, return null
+  return null;
+}
+
+/**
+ * Update vendor's return policy
+ */
+async function updateVendorReturnPolicy(vendorId, policyText) {
+  // Get a connection from the pool for transaction
+  const connection = await db.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+    
+    // Archive existing active policy
+    await connection.execute(
+      'UPDATE return_policies SET status = "archived" WHERE user_id = ? AND status = "active"',
+      [vendorId]
+    );
+    
+    // Create new active policy
+    const insertQuery = `
+      INSERT INTO return_policies (user_id, policy_text, status, created_by)
+      VALUES (?, ?, 'active', ?)
+    `;
+    
+    const [result] = await connection.execute(insertQuery, [vendorId, policyText, vendorId]);
+    
+    await connection.commit();
+    
+    // Return the new policy
+    return await getVendorReturnPolicy(vendorId);
+    
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+/**
+ * Get vendor's return policy history
+ */
+async function getVendorReturnPolicyHistory(vendorId) {
+  const query = `
+    SELECT 
+      rp.id,
+      rp.policy_text,
+      rp.status,
+      rp.created_at,
+      rp.updated_at,
+      u.username as created_by_username
+    FROM return_policies rp
+    JOIN users u ON rp.created_by = u.id
+    WHERE rp.user_id = ?
+    ORDER BY rp.created_at DESC
+  `;
+  
+  const [rows] = await db.execute(query, [vendorId]);
+  return rows;
+}
+
+/**
+ * Delete vendor's return policy (archive all policies)
+ */
+async function deleteVendorReturnPolicy(vendorId) {
+  const query = `
+    UPDATE return_policies 
+    SET status = 'archived' 
+    WHERE user_id = ? AND status = 'active'
+  `;
+  
+  await db.execute(query, [vendorId]);
 }
 
 module.exports = router; 

@@ -1,18 +1,33 @@
 require('dotenv').config({ path: '/var/www/main/api-service/.env' });
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
+const { 
+  authLimiter, 
+  paymentLimiter, 
+  apiKeyLimiter, 
+  apiLimiter, 
+  adminLimiter, 
+  uploadLimiter 
+} = require('./middleware/rateLimiter');
+const { secureLogger, requestLogger } = require('./middleware/secureLogger');
+const { 
+  csrfTokenProvider, 
+  csrfProtection, 
+  strictCsrfProtection,
+  csrfTokenRoute 
+} = require('./middleware/csrfProtection');
 const app = express();
 
-// Log environment variables for debugging (excluding sensitive ones)
-console.log('[Server] Environment Variables:', {
-  API_GATEWAY_PORT: process.env.API_GATEWAY_PORT,
-  API_VERSION: process.env.API_VERSION,
-  API_INSTANCE: process.env.API_INSTANCE
+// Log startup information (no sensitive data)
+secureLogger.info('API Gateway starting', {
+  port: process.env.API_GATEWAY_PORT,
+  version: process.env.API_VERSION,
+  instance: process.env.API_INSTANCE
 });
 
 // Manual CORS middleware - moved to top
 app.use((req, res, next) => {
-  console.log(`[Request] ${req.method} ${req.url} - Origin: ${req.headers.origin}`);
   const allowedOrigins = [
     'https://main.onlineartfestival.com',
     'https://api2.onlineartfestival.com'
@@ -22,21 +37,22 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', origin);
   }
   res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-CSRF-Token');
   res.header('Access-Control-Allow-Credentials', 'true');
   if (req.method === 'OPTIONS') {
-    console.log('[CORS] Handling OPTIONS request');
     res.status(204).end();
     return;
   }
-  console.log(`[After CORS] Headers: ${JSON.stringify(res.getHeaders())}`);
   next();
 });
+
+// Add cookie parser middleware
+app.use(cookieParser());
 
 // Handle JSON parsing errors
 app.use(express.json(), (err, req, res, next) => {
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
-    console.error('[Server] JSON parsing error:', err.message, 'Body:', req.body);
+    secureLogger.error('JSON parsing error', err);
     return res.status(400).json({ error: 'Invalid JSON in request body' });
   }
   next();
@@ -45,43 +61,99 @@ app.use(express.json(), (err, req, res, next) => {
 // Serve static files from temp_images
 app.use('/temp_images', express.static('/var/www/main/api-service/temp_images'));
 
-// Load routes with error handling and logging
-console.log('[Server] Loading routes...');
+// Apply general API rate limiting to all routes
+secureLogger.info('Applying rate limiting');
+app.use(apiLimiter);
+
+// Apply secure request logging
+app.use(requestLogger);
+
+// Load authentication routes first (no CSRF protection needed for login)
+secureLogger.info('Loading authentication routes');
 try {
-  console.log('[Server] Loading /auth route');
-  app.use('/auth', require('./routes/auth'));
-  console.log('[Server] Loading /api-keys route');
-  app.use('/api-keys', require('./routes/api-keys'));
-  console.log('[Server] Loading /admin route');
-  app.use('/admin', require('./routes/admin'));
-  console.log('[Server] Loading /users route');
-  app.use('/users', require('./routes/users'));
-  console.log('[Server] Loading /products route');
-  app.use('/products', require('./routes/products'));
-  console.log('[Server] Loading /categories route');
-  app.use('/categories', require('./routes/categories'));
-  console.log('[Server] Loading /cart route');
-  app.use('/cart', require('./routes/carts'));
-  console.log('[Server] Loading /checkout route');
-  app.use('/checkout', require('./routes/checkout'));
-  console.log('[Server] Loading /webhooks route');
-  app.use('/webhooks', require('./routes/webhooks/stripe'));
-  console.log('[Server] Loading /vendor route');
-  app.use('/vendor', require('./routes/vendor'));
-  console.log('[Server] Loading /admin route (financial)');
-  app.use('/admin', require('./routes/admin-financial'));
-  console.log('[Server] Loading /search route');
-  app.use('/search', require('./routes/search'));
-  console.log('[Server] Loading /api/events route');
-  app.use('/api/events', require('./routes/events'));
-  console.log('[Server] Loading /api/event-types route');
-  app.use('/api/event-types', require('./routes/event-types'));
-  console.log('[Server] Loading /api/applications route');
-  app.use('/api/applications', require('./routes/applications'));
-  console.log('[Server] Loading /api/custom-events route');
-  app.use('/api/custom-events', require('./routes/custom-events'));
+  app.use('/auth', authLimiter, require('./routes/auth'));
 } catch (err) {
-  console.error('[Server] Error loading routes:', err.message, err.stack);
+  secureLogger.error('Error loading auth routes', err);
+  process.exit(1);
+}
+
+// Apply CSRF token provider for all requests
+secureLogger.info('Applying CSRF protection');
+app.use(csrfTokenProvider);
+
+// Add CSRF token endpoint for frontend
+app.get('/csrf-token', csrfTokenRoute);
+
+// Apply CSRF protection to different route groups
+// Regular CSRF protection for users, products, cart, events, articles
+app.use('/users', csrfProtection());
+app.use('/products', csrfProtection());
+app.use('/cart', csrfProtection());
+app.use('/events', csrfProtection());
+app.use('/api/articles', csrfProtection());
+app.use('/api/topics', csrfProtection());
+app.use('/api/series', csrfProtection());
+app.use('/api/tags', csrfProtection());
+
+// Strict CSRF protection for financial and sensitive operations
+app.use('/checkout', csrfProtection({ strict: true }));
+app.use('/payments', csrfProtection({ strict: true }));
+app.use('/admin', csrfProtection({ strict: true }));
+app.use('/vendor', csrfProtection({ strict: true }));
+app.use('/api/keys', csrfProtection({ strict: true }));
+
+// Load remaining routes with error handling and logging
+secureLogger.info('Loading other routes');
+try {
+  
+  // API key management (sensitive operations)
+  app.use('/api-keys', apiKeyLimiter, require('./routes/api-keys'));
+  
+  // Admin routes (critical operations)
+  app.use('/admin', adminLimiter, require('./routes/admin'));
+  
+  // User management
+  app.use('/users', require('./routes/users'));
+  
+  // Product management
+  app.use('/products', uploadLimiter, require('./routes/products'));
+  
+  // Categories (safe for now, mostly read operations)
+  app.use('/categories', require('./routes/categories'));
+  
+  // Cart operations
+  app.use('/cart', require('./routes/carts'));
+  
+  // Checkout and payments (with payment rate limiting)
+  app.use('/checkout', paymentLimiter, require('./routes/checkout'));
+  
+  // Webhooks (no CSRF needed - they have signature validation)
+  app.use('/webhooks', require('./routes/webhooks/stripe'));
+  
+  // Vendor management
+  app.use('/vendor', require('./routes/vendor'));
+  
+  // Admin financial operations
+  app.use('/admin', adminLimiter, require('./routes/admin-financial'));
+  
+  // Search (read-only, no CSRF needed)
+  app.use('/search', require('./routes/search'));
+  
+  // Event management
+  app.use('/api/events', require('./routes/events'));
+  app.use('/api/event-types', require('./routes/event-types'));
+  app.use('/api/applications', require('./routes/applications'));
+  app.use('/api/custom-events', require('./routes/custom-events'));
+  
+  // Articles management - all routes fixed
+  app.use('/api/articles', require('./routes/articles'));
+  app.use('/api/topics', require('./routes/topics'));
+  app.use('/api/series', require('./routes/series'));
+  app.use('/api/tags', require('./routes/tags'));
+  
+  secureLogger.info('All routes loaded successfully with CSRF protection');
+} catch (err) {
+  secureLogger.error('Error loading routes', err);
   process.exit(1);
 }
 
@@ -96,5 +168,5 @@ app.get('/health', (req, res) => {
 
 const port = process.env.API_GATEWAY_PORT || 3001;
 app.listen(port, () => {
-  console.log(`> API running on http://api2.onlineartfestival.com:${port}`);
+  secureLogger.info(`API Gateway running on port ${port}`);
 });

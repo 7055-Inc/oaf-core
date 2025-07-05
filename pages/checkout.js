@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Header from '../components/Header';
+import { authenticatedApiRequest, handleCsrfError } from '../lib/csrf';
 import styles from '../styles/Checkout.module.css';
 
 export default function Checkout() {
@@ -41,23 +42,15 @@ export default function Checkout() {
 
   const calculateOrderTotals = async (items) => {
     try {
-      const token = getAuthToken();
-      if (!token) {
-        setError('Authentication required');
-        setLoading(false);
-        return;
-      }
-
       // Convert cart items to the format our API expects
       const cart_items = items.map(item => ({
         product_id: item.product_id,
         quantity: item.quantity
       }));
 
-      const response = await fetch('https://api2.onlineartfestival.com/checkout/calculate-totals', {
+      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/checkout/calculate-totals', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ cart_items })
@@ -72,7 +65,8 @@ export default function Checkout() {
       }
     } catch (err) {
       console.error('Error calculating totals:', err);
-      setError('Failed to calculate order totals');
+      handleCsrfError(err);
+      setError(err.message || 'Failed to calculate order totals');
     } finally {
       setLoading(false);
     }
@@ -83,16 +77,14 @@ export default function Checkout() {
       setProcessing(true);
       setError(null);
       
-      const token = getAuthToken();
       const cart_items = cartItems.map(item => ({
         product_id: item.product_id,
         quantity: item.quantity
       }));
 
-      const response = await fetch('https://api2.onlineartfestival.com/checkout/create-payment-intent', {
+      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/checkout/create-payment-intent', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ cart_items })
@@ -108,7 +100,8 @@ export default function Checkout() {
       }
     } catch (err) {
       console.error('Error creating payment intent:', err);
-      setError('Failed to create payment intent');
+      handleCsrfError(err);
+      setError(err.message || 'Failed to create payment intent');
     } finally {
       setProcessing(false);
     }
