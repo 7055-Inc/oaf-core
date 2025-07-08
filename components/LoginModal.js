@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword } from 'firebase/auth';
 import firebaseApp from '../lib/firebase';
+import { clearAuthTokens } from '../lib/csrf';
 
 
 export default function LoginModal() {
@@ -49,6 +50,9 @@ export default function LoginModal() {
 
   const authenticateWithBackend = async (provider, token, email) => {
     try {
+      // Clear any existing tokens first
+      clearAuthTokens();
+      
       const response = await fetch('https://api2.onlineartfestival.com/auth/exchange', {
         method: 'POST',
         headers: {
@@ -59,23 +63,30 @@ export default function LoginModal() {
       });
       
       if (!response.ok) {
-        throw new Error('Authentication failed');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Authentication failed');
       }
       
       const data = await response.json();
       
-      if (data.token) {
+      if (data.token && data.refreshToken) {
         // Set both tokens in localStorage and cookies
         localStorage.setItem('token', data.token);
         localStorage.setItem('refreshToken', data.refreshToken);
-        document.cookie = `token=${data.token}; path=/`;
-        document.cookie = `refreshToken=${data.refreshToken}; path=/`;
+        
+        // Set secure cookies for middleware
+        document.cookie = `token=${data.token}; path=/; domain=.onlineartfestival.com; secure; samesite=lax; max-age=3600`;
+        document.cookie = `refreshToken=${data.refreshToken}; path=/; domain=.onlineartfestival.com; secure; samesite=lax; max-age=604800`;
+        
+        console.log('Authentication successful, tokens set');
         
         // Wait a moment for the cookies to be set
         await new Promise(resolve => setTimeout(resolve, 100));
         
-        // Reload the page to trigger the middleware
+        // Redirect to dashboard
         window.location.href = '/dashboard';
+      } else {
+        throw new Error('Invalid response: missing tokens');
       }
     } catch (err) {
       console.error('Backend authentication error:', err.message);

@@ -1,0 +1,373 @@
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #055474 0%, #3e1c56 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+}
+
+.modal {
+  background: white;
+  border-radius: 0;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  padding: 2rem 2rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f8fafc;
+  text-align: center;
+}
+
+.header h1 {
+  margin: 0 0 0.5rem 0;
+  color: #1f2937;
+  font-size: 1.875rem;
+  font-weight: 700;
+}
+
+.subtitle {
+  margin: 0;
+  color: #6b7280;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.subtitle p {
+  margin: 0.5rem 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.progress {
+  font-size: 0.875rem;
+  color: #6b7280;
+  background: #e5e7eb;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0;
+  display: inline-block;
+  margin-top: 0.5rem;
+}
+
+.content {
+  padding: 2rem;
+  max-height: 60vh;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.announcementMeta {
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.date {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 0.5rem 1rem;
+  border-radius: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.announcementContent {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #f9fafb;
+  border-radius: 0;
+  border: 1px solid #e5e7eb;
+}
+
+.htmlContent {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #374151;
+}
+
+.htmlContent h1,
+.htmlContent h2,
+.htmlContent h3,
+.htmlContent h4,
+.htmlContent h5,
+.htmlContent h6 {
+  color: #1f2937;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+.htmlContent h1 {
+  font-size: 1.875rem;
+}
+
+.htmlContent h2 {
+  font-size: 1.5rem;
+}
+
+.htmlContent h3 {
+  font-size: 1.25rem;
+}
+
+.htmlContent p {
+  margin-bottom: 1rem;
+}
+
+.htmlContent ul,
+.htmlContent ol {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+}
+
+.htmlContent li {
+  margin-bottom: 0.5rem;
+}
+
+.htmlContent a {
+  color: #3b82f6;
+  text-decoration: underline;
+}
+
+.htmlContent a:hover {
+  color: #2563eb;
+}
+
+.htmlContent strong {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.htmlContent em {
+  font-style: italic;
+}
+
+.htmlContent blockquote {
+  border-left: 4px solid #e5e7eb;
+  padding-left: 1rem;
+  margin: 1.5rem 0;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.htmlContent code {
+  background: #f3f4f6;
+  padding: 0.125rem 0.25rem;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Consolas', 'Ubuntu Mono', monospace;
+  font-size: 0.875rem;
+}
+
+.htmlContent img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0;
+  margin: 1rem 0;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.remindButton,
+.acknowledgeButton {
+  padding: 1rem 2rem;
+  border: 2px solid transparent;
+  border-radius: 0;
+  font-weight: 600;
+  font-family: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: center;
+  text-align: center;
+  min-width: 160px;
+}
+
+.remindButton {
+  background: white;
+  color: #055474;
+  border-color: #055474;
+}
+
+.remindButton:hover {
+  background: #055474;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(5, 84, 116, 0.3);
+}
+
+.acknowledgeButton {
+  background: #055474;
+  color: white;
+  border-color: #055474;
+}
+
+.acknowledgeButton:hover {
+  background: #3e1c56;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(5, 84, 116, 0.3);
+}
+
+.remindButton:disabled,
+.acknowledgeButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.buttonIcon {
+  font-size: 1.125rem;
+}
+
+.progressBar {
+  height: 4px;
+  background: #e5e7eb;
+  border-radius: 0;
+  overflow: hidden;
+  margin-top: 1rem;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #055474, #3e1c56);
+  border-radius: 0;
+  transition: width 0.3s ease;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  text-align: center;
+  padding: 3rem;
+}
+
+.loading p {
+  margin: 1rem 0 0 0;
+  font-size: 1.125rem;
+}
+
+.error {
+  color: white;
+  text-align: center;
+  padding: 2rem;
+  background: white;
+  border-radius: 0;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  max-width: 500px;
+  width: 100%;
+}
+
+.error h2 {
+  margin: 0 0 1rem 0;
+  color: #dc2626;
+  font-size: 1.5rem;
+}
+
+.error p {
+  margin: 0 0 1.5rem 0;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.backButton {
+  background: #055474;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0;
+  font-weight: 600;
+  font-family: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.backButton:hover {
+  background: #3e1c56;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.errorMessage {
+  padding: 1rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.errorMessage p {
+  margin: 0;
+  color: #dc2626;
+  font-weight: 500;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+  
+  .modal {
+    max-height: 95vh;
+  }
+  
+  .header {
+    padding: 1.5rem 1.5rem 1rem;
+  }
+  
+  .header h1 {
+    font-size: 1.5rem;
+  }
+  
+  .content {
+    padding: 1.5rem;
+  }
+  
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .remindButton,
+  .acknowledgeButton {
+    width: 100%;
+    min-width: auto;
+  }
+  
+  .buttonIcon {
+    font-size: 1rem;
+  }
+} 

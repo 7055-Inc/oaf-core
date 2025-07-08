@@ -1,0 +1,563 @@
+.customDomainManagement {
+  background: white;
+  border: 2px solid #3e1c56;
+  border-radius: 12px;
+  padding: 25px;
+  margin: 20px 0;
+}
+
+.header h3 {
+  color: #3e1c56;
+  margin: 0 0 5px 0;
+  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.subtitle {
+  color: #666;
+  margin: 0 0 20px 0;
+  font-size: 0.95rem;
+}
+
+.error {
+  background: #fee;
+  border: 1px solid #fcc;
+  color: #c33;
+  padding: 12px 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.success {
+  background: #efe;
+  border: 1px solid #cfc;
+  color: #363;
+  padding: 12px 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 10px;
+  opacity: 0.7;
+}
+
+.closeButton:hover {
+  opacity: 1;
+}
+
+.currentDomain {
+  border: 2px solid #e74c3c;
+  border-radius: 10px;
+  padding: 20px;
+  background: #fefefe;
+}
+
+.domainInfo {
+  margin-bottom: 20px;
+}
+
+.domainName {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 10px;
+}
+
+.domainName h4 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.3rem;
+}
+
+.status {
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid currentColor;
+  font-size: 0.9rem;
+}
+
+.activeDomain {
+  margin-top: 10px;
+}
+
+.visitLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #27ae60;
+  color: white;
+  text-decoration: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.visitLink:hover {
+  background: #219a52;
+}
+
+.statusDetails {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.pendingInstructions h5,
+.failedInstructions h5,
+.verifiedInstructions h5 {
+  margin: 0 0 15px 0;
+  color: #2c3e50;
+  font-size: 1.1rem;
+}
+
+.dnsRecord {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 15px;
+  margin: 15px 0;
+}
+
+.recordField {
+  margin-bottom: 12px;
+}
+
+.recordField:last-child {
+  margin-bottom: 0;
+}
+
+.recordField label {
+  display: block;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 5px;
+  font-size: 0.9rem;
+}
+
+.copyField {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.copyField code {
+  background: #f1f3f4;
+  border: 1px solid #ddd;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 0.9rem;
+  flex: 1;
+  word-break: break-all;
+}
+
+.copyButton {
+  background: #055474;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.2s;
+}
+
+.copyButton:hover {
+  background: #044661;
+}
+
+.helpText {
+  background: #e3f2fd;
+  border: 1px solid #bbdefb;
+  border-radius: 6px;
+  padding: 15px;
+  margin: 15px 0;
+}
+
+.helpText p {
+  margin: 0 0 10px 0;
+  color: #1565c0;
+  font-weight: 600;
+}
+
+.helpText ol {
+  margin: 10px 0 0 0;
+  padding-left: 20px;
+  color: #1976d2;
+}
+
+.helpText li {
+  margin-bottom: 5px;
+  line-height: 1.4;
+}
+
+.expiryWarning {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  color: #856404;
+  padding: 10px 15px;
+  border-radius: 6px;
+  margin-top: 15px;
+  font-weight: 500;
+}
+
+.failedInstructions {
+  color: #721c24;
+}
+
+.errorDetail {
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+  padding: 10px 15px;
+  border-radius: 6px;
+  margin: 10px 0;
+}
+
+.verifiedInstructions {
+  color: #155724;
+}
+
+.activeDomainDisplay {
+  text-align: center;
+  margin: 15px 0;
+}
+
+.primaryLink {
+  display: inline-block;
+  background: #28a745;
+  color: white;
+  text-decoration: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1.1rem;
+  transition: background 0.2s;
+}
+
+.primaryLink:hover {
+  background: #218838;
+}
+
+.metadata {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #dee2e6;
+  color: #6c757d;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.primaryButton {
+  background: #3e1c56;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: #2a1238;
+}
+
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.secondaryButton {
+  background: white;
+  color: #3e1c56;
+  border: 2px solid #3e1c56;
+  padding: 8px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.secondaryButton:hover:not(:disabled) {
+  background: #3e1c56;
+  color: white;
+}
+
+.secondaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dangerButton {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dangerButton:hover:not(:disabled) {
+  background: #c82333;
+}
+
+.dangerButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.addDomain {
+  text-align: center;
+  padding: 20px;
+}
+
+.addPrompt {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.benefits {
+  background: #f8f9fa;
+  border: 2px solid #e9ecef;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 25px;
+  text-align: left;
+}
+
+.benefits h4 {
+  margin: 0 0 15px 0;
+  color: #2c3e50;
+  text-align: center;
+}
+
+.benefits ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.benefits li {
+  margin-bottom: 12px;
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.addForm {
+  max-width: 500px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.addForm h4 {
+  text-align: center;
+  color: #3e1c56;
+  margin-bottom: 8px;
+}
+
+.addForm > p {
+  text-align: center;
+  color: #666;
+  margin-bottom: 25px;
+}
+
+.formGroup {
+  margin-bottom: 20px;
+}
+
+.formGroup label {
+  display: block;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 8px;
+}
+
+.formGroup input {
+  width: 100%;
+  padding: 12px 15px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.formGroup input:focus {
+  outline: none;
+  border-color: #3e1c56;
+}
+
+.checking {
+  color: #007bff;
+  font-size: 0.9rem;
+  margin-top: 8px;
+  font-weight: 500;
+}
+
+.available {
+  color: #28a745;
+  font-size: 0.9rem;
+  margin-top: 8px;
+  font-weight: 600;
+}
+
+.unavailable {
+  color: #dc3545;
+  font-size: 0.9rem;
+  margin-top: 8px;
+  font-weight: 600;
+}
+
+.requirements {
+  background: #e3f2fd;
+  border: 1px solid #bbdefb;
+  border-radius: 8px;
+  padding: 15px;
+  margin: 20px 0;
+}
+
+.requirements h5 {
+  margin: 0 0 10px 0;
+  color: #1565c0;
+}
+
+.requirements ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #1976d2;
+}
+
+.requirements li {
+  margin-bottom: 5px;
+  line-height: 1.4;
+}
+
+.formActions {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-top: 25px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .customDomainManagement {
+    padding: 20px;
+    margin: 15px 0;
+  }
+  
+  .domainName {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .domainName h4 {
+    font-size: 1.1rem;
+  }
+  
+  .actions {
+    flex-direction: column;
+  }
+  
+  .actions button {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .copyField {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .copyButton {
+    align-self: flex-start;
+  }
+  
+  .formActions {
+    flex-direction: column;
+  }
+  
+  .formActions button {
+    width: 100%;
+  }
+  
+  .benefits li {
+    font-size: 0.9rem;
+  }
+  
+  .addForm {
+    max-width: none;
+  }
+  
+  .addPrompt {
+    max-width: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .header h3 {
+    font-size: 1.2rem;
+  }
+  
+  .subtitle {
+    font-size: 0.9rem;
+  }
+  
+  .currentDomain {
+    padding: 15px;
+  }
+  
+  .statusDetails {
+    padding: 15px;
+  }
+  
+  .dnsRecord {
+    padding: 12px;
+  }
+  
+  .copyField code {
+    font-size: 0.8rem;
+    padding: 6px 10px;
+  }
+  
+  .copyButton {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+} 

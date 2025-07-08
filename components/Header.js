@@ -3,6 +3,8 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import SearchBar from './SearchBar';
 import CategoryMenu from './CategoryMenu';
+import { usePageType } from '../hooks/usePageType';
+import { getAuthToken, authenticatedApiRequest, clearAuthTokens } from '../lib/csrf';
 import styles from './Header.module.css';
 
 export default function Header() {
@@ -12,43 +14,37 @@ export default function Header() {
   const [isLoading, setIsLoading] = useState(true);
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showCategoryMenu, setShowCategoryMenu] = useState(false);
   const dropdownTimeoutRef = useRef(null);
+  const { shouldHideCategories, shouldShowHamburger, isDashboardPage } = usePageType();
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     if (token) {
       setIsLoggedIn(true);
       // Fetch userId from /users/me
-      fetch('https://api2.onlineartfestival.com/users/me', {
+      authenticatedApiRequest('https://api2.onlineartfestival.com/users/me', {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       })
         .then(res => {
           if (!res.ok) {
-            if (res.status === 401) {
-              // Token is invalid or expired
-              console.log('Token expired or invalid, clearing authentication');
-              throw new Error('Token expired');
-            }
             throw new Error('Failed to fetch user profile');
           }
           return res.json();
         })
         .then(data => {
           setUserId(data.id);
-          localStorage.setItem('userId', data.id); // Store userId for future use
           // Fetch cart count
-          fetchCartCount(token);
+          fetchCartCount();
         })
         .catch(err => {
           console.log('Authentication error:', err.message);
-          // Don't log this as an error since it's expected for non-authenticated users
+          // Clear authentication and redirect if needed
           setIsLoggedIn(false);
-          localStorage.removeItem('token');
-          localStorage.removeItem('userId');
+          clearAuthTokens();
         })
         .finally(() => {
           setIsLoading(false);
@@ -70,11 +66,26 @@ export default function Header() {
     };
   }, []);
 
-  const fetchCartCount = async (token) => {
+  // Close hamburger menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showCategoryMenu && !event.target.closest('.hamburger-menu-container')) {
+        setShowCategoryMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showCategoryMenu]);
+
+  const fetchCartCount = async () => {
     try {
       // Get active cart
-      const cartRes = await fetch('https://api2.onlineartfestival.com/cart', {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const cartRes = await authenticatedApiRequest('https://api2.onlineartfestival.com/cart', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
 
       if (cartRes.ok) {
@@ -83,8 +94,11 @@ export default function Header() {
         
         if (activeCart) {
           // Get cart items
-          const itemsRes = await fetch(`https://api2.onlineartfestival.com/cart/${activeCart.id}/items`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+          const itemsRes = await authenticatedApiRequest(`https://api2.onlineartfestival.com/cart/${activeCart.id}/items`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json'
+            }
           });
           
           if (itemsRes.ok) {
@@ -118,12 +132,12 @@ export default function Header() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('userId');
+    // Clear all tokens
+    clearAuthTokens();
     setIsLoggedIn(false);
     setUserId(null);
     setCartItemCount(0);
-    window.location.href = '/';
+    window.location.href = '/logout';
   };
 
   return (
@@ -144,6 +158,21 @@ export default function Header() {
           
           {/* Right side icons */}
           <div className={styles.iconsContainer}>
+            {/* Hamburger Menu Icon - only on dashboard */}
+            {shouldShowHamburger && (
+              <button
+                onClick={() => setShowCategoryMenu(!showCategoryMenu)}
+                className={`${styles.iconButton} hamburger-menu-container`}
+                title="Categories"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="3" y1="6" x2="21" y2="6"/>
+                  <line x1="3" y1="12" x2="21" y2="12"/>
+                  <line x1="3" y1="18" x2="21" y2="18"/>
+                </svg>
+              </button>
+            )}
+            
             {/* Search Icon */}
             <button
               onClick={() => setShowSearchModal(true)}
@@ -172,6 +201,8 @@ export default function Header() {
                 )}
               </div>
             )}
+
+
 
             {/* User Icon */}
             {isLoggedIn && userId && !isLoading ? (
@@ -217,8 +248,15 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Category Menu - positioned above the border */}
+        {/* Category Menu - conditionally rendered */}
+        {!shouldHideCategories && <CategoryMenu />}
+        
+        {/* Hamburger Category Menu - only shown on dashboard when hamburger is clicked */}
+        {shouldShowHamburger && showCategoryMenu && (
+          <div className={`${styles.hamburgerCategoryMenu} hamburger-menu-container`}>
         <CategoryMenu />
+          </div>
+        )}
       </header>
 
       {/* Search Modal */}

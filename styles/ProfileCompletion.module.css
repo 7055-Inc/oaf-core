@@ -1,0 +1,372 @@
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #055474 0%, #3e1c56 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+}
+
+.modal {
+  background: white;
+  border-radius: 0;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  max-width: 700px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  padding: 2rem 2rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f8fafc;
+  text-align: center;
+}
+
+.header h1 {
+  margin: 0 0 0.5rem 0;
+  color: #1f2937;
+  font-size: 1.875rem;
+  font-weight: 700;
+}
+
+.subtitle {
+  margin: 0;
+  color: #6b7280;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.optionsContainer {
+  padding: 2rem;
+}
+
+.missingFieldsInfo {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 0;
+}
+
+.missingFieldsInfo h3 {
+  margin: 0 0 1rem 0;
+  color: #92400e;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.missingFieldsList {
+  margin: 0;
+  padding-left: 1.5rem;
+  list-style-type: disc;
+}
+
+.missingFieldsList li {
+  margin: 0.5rem 0;
+  color: #92400e;
+  font-weight: 500;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.profileButton, .inlineButton {
+  padding: 1.5rem 2rem;
+  border: 2px solid transparent;
+  border-radius: 0;
+  font-weight: 600;
+  font-family: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+.profileButton {
+  background: #055474;
+  color: white;
+  border-color: #055474;
+}
+
+.profileButton:hover {
+  background: #3e1c56;
+  border-color: #3e1c56;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(5, 84, 116, 0.3);
+}
+
+.inlineButton {
+  background: #055474;
+  color: white;
+  border-color: #055474;
+}
+
+.inlineButton:hover {
+  background: #3e1c56;
+  border-color: #3e1c56;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(5, 84, 116, 0.3);
+}
+
+.buttonIcon {
+  font-size: 1.25rem;
+}
+
+.inlineFormContainer {
+  padding: 2rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.formHeader {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.formHeader h3 {
+  margin: 0 0 0.5rem 0;
+  color: #1f2937;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.formHeader p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 1rem;
+}
+
+.inlineForm {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.input {
+  padding: 0.75rem 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 0;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.formActions {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-top: 1rem;
+}
+
+.backButton {
+  padding: 0.75rem 1.5rem;
+  border: 2px solid #055474;
+  background: white;
+  color: #055474;
+  border-radius: 0;
+  font-weight: 600;
+  font-family: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 1;
+}
+
+.backButton:hover {
+  background: #055474;
+  color: white;
+}
+
+.backButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.submitButton {
+  padding: 0.75rem 2rem;
+  border: none;
+  background: #055474;
+  color: white;
+  border-radius: 0;
+  font-weight: 600;
+  font-family: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: center;
+  flex: 2;
+}
+
+.submitButton:hover {
+  background: #3e1c56;
+}
+
+.submitButton:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.successActions {
+  padding: 2rem;
+  text-align: center;
+}
+
+.completeButton {
+  padding: 1rem 2rem;
+  border: none;
+  background: #055474;
+  color: white;
+  border-radius: 0;
+  font-weight: 600;
+  font-family: inherit;
+  font-size: 1.125rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.completeButton:hover {
+  background: #3e1c56;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(5, 84, 116, 0.3);
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  text-align: center;
+  padding: 3rem;
+}
+
+.loading p {
+  margin: 1rem 0 0 0;
+  font-size: 1.125rem;
+}
+
+.error {
+  color: white;
+  text-align: center;
+  padding: 2rem;
+  background: white;
+  border-radius: 0;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  max-width: 500px;
+  width: 100%;
+}
+
+.error h2 {
+  margin: 0 0 1rem 0;
+  color: #dc2626;
+  font-size: 1.5rem;
+}
+
+.error p {
+  margin: 0 0 1.5rem 0;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.errorMessage {
+  padding: 1rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0;
+  text-align: center;
+}
+
+.errorMessage p {
+  margin: 0;
+  color: #dc2626;
+  font-weight: 500;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+  
+  .modal {
+    max-height: 95vh;
+  }
+  
+  .header {
+    padding: 1.5rem 1.5rem 1rem;
+  }
+  
+  .header h1 {
+    font-size: 1.5rem;
+  }
+  
+  .optionsContainer {
+    padding: 1.5rem;
+  }
+  
+  .profileButton, .inlineButton {
+    padding: 1.25rem 1.5rem;
+    font-size: 0.95rem;
+  }
+  
+  .inlineFormContainer {
+    padding: 1.5rem;
+  }
+  
+  .formActions {
+    flex-direction: column;
+  }
+  
+  .formActions button {
+    width: 100%;
+  }
+  
+  .buttonIcon {
+    font-size: 1.125rem;
+  }
+} 

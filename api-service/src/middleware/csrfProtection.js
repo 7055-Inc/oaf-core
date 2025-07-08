@@ -47,7 +47,8 @@ const csrfTokenProvider = (req, res, next) => {
       res.cookie('csrf-secret', secret, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'lax',
+        domain: '.onlineartfestival.com',
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
       });
     }
@@ -65,7 +66,8 @@ const csrfTokenProvider = (req, res, next) => {
     res.cookie('csrf-token', token, {
       httpOnly: false, // Frontend needs to read this
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax',
+      domain: '.onlineartfestival.com',
       maxAge: 3600000 // 1 hour
     });
     
@@ -118,7 +120,8 @@ const csrfProtection = (options = {}) => {
         res.cookie('csrf-secret', secret, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
+          sameSite: 'lax',
+          domain: '.onlineartfestival.com',
           maxAge: 24 * 60 * 60 * 1000 // 24 hours
         });
       }
@@ -171,7 +174,8 @@ const csrfTokenRoute = (req, res) => {
     res.cookie('csrf-token', token, {
       httpOnly: false, // Frontend needs to read this
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax',
+      domain: '.onlineartfestival.com',
       maxAge: 60 * 60 * 1000 // 1 hour
     });
     

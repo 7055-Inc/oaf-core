@@ -109,7 +109,7 @@ router.post('/exchange', async (req, res) => {
         const apiId = `OAF-${Math.random().toString(36).slice(2, 10)}`;
         let result;
         try {
-          [result] = await db.query('INSERT INTO users (username, email_verified, status, user_type) VALUES (?, ?, ?, ?)', [email, emailVerified, 'draft', 'community']);
+          [result] = await db.query('INSERT INTO users (username, email_verified, status, user_type) VALUES (?, ?, ?, ?)', [email, emailVerified, 'draft', 'Draft']);
         } catch (err) {
           secureLogger.error('Insert into users failed', err);
           await db.query('INSERT INTO error_logs (user_id, error_message, stack) VALUES (?, ?, ?)', [null, 'Token exchange failed: ' + err.message, err.stack]);

@@ -453,4 +453,92 @@
   .articlesTable td:nth-child(5) {
     display: none;
   }
+}
+
+/* Announcement-specific styles */
+.statusBadge.scheduled {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.statusBadge.current {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.statusBadge.expired {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.statusBadge.inactive {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.statsView {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.announcementInfo {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.announcementInfo h4 {
+  color: #055474;
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 15px 0;
+}
+
+.announcementInfo p {
+  margin: 8px 0;
+  color: #495057;
+  font-size: 14px;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.statCard {
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.statNumber {
+  display: block;
+  font-size: 28px;
+  font-weight: 700;
+  color: #055474;
+  margin-bottom: 8px;
+}
+
+.statLabel {
+  display: block;
+  font-size: 14px;
+  color: #6c757d;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Override responsive styles for announcements */
+@media (max-width: 768px) {
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
 } 

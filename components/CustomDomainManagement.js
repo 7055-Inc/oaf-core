@@ -1,0 +1,521 @@
+import React, { useState, useEffect } from 'react';
+import { authenticatedApiRequest } from '../lib/csrf';
+import styles from './CustomDomainManagement.module.css';
+
+const CustomDomainManagement = ({ site }) => {
+  const [domainStatus, setDomainStatus] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [showAddDomain, setShowAddDomain] = useState(false);
+  const [newDomain, setNewDomain] = useState('');
+  const [domainCheck, setDomainCheck] = useState({
+    checking: false,
+    available: null,
+    error: null
+  });
+
+  useEffect(() => {
+    if (site.custom_domain) {
+      fetchDomainStatus();
+    }
+  }, [site.id, site.custom_domain]);
+
+  const fetchDomainStatus = async () => {
+    try {
+      setLoading(true);
+      const response = await authenticatedApiRequest(
+        `https://api2.onlineartfestival.com/api/domains/status/${site.id}`
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        setDomainStatus(data);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to fetch domain status');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const checkDomainAvailability = async (domain) => {
+    if (!domain || domain.length < 3) {
+      setDomainCheck({ checking: false, available: null, error: null });
+      return;
+    }
+
+    setDomainCheck({ checking: true, available: null, error: null });
+
+    try {
+      const response = await authenticatedApiRequest(
+        `https://api2.onlineartfestival.com/api/domains/check-availability?domain=${encodeURIComponent(domain)}`
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        setDomainCheck({
+          checking: false,
+          available: data.available,
+          error: data.error || null
+        });
+      } else {
+        const errorData = await response.json();
+        setDomainCheck({
+          checking: false,
+          available: false,
+          error: errorData.error || 'Error checking domain'
+        });
+      }
+    } catch (err) {
+      setDomainCheck({
+        checking: false,
+        available: false,
+        error: 'Network error'
+      });
+    }
+  };
+
+  const startDomainValidation = async () => {
+    if (!newDomain) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await authenticatedApiRequest(
+        'https://api2.onlineartfestival.com/api/domains/start-validation',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            siteId: site.id,
+            customDomain: newDomain
+          })
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setSuccess('Domain validation started successfully!');
+        setShowAddDomain(false);
+        setNewDomain('');
+        setDomainCheck({ checking: false, available: null, error: null });
+        
+        // Refresh domain status
+        setTimeout(() => {
+          fetchDomainStatus();
+        }, 1000);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to start domain validation');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const retryValidation = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await authenticatedApiRequest(
+        `https://api2.onlineartfestival.com/api/domains/retry-validation/${site.id}`,
+        {
+          method: 'POST'
+        }
+      );
+
+      if (response.ok) {
+        setSuccess('Domain validation retry started!');
+        
+        // Refresh domain status
+        setTimeout(() => {
+          fetchDomainStatus();
+        }, 2000);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to retry validation');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const removeDomain = async () => {
+    if (!confirm('Are you sure you want to remove your custom domain? This will disconnect it from your site.')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await authenticatedApiRequest(
+        `https://api2.onlineartfestival.com/api/domains/remove/${site.id}`,
+        {
+          method: 'DELETE'
+        }
+      );
+
+      if (response.ok) {
+        setSuccess('Custom domain removed successfully!');
+        setDomainStatus(null);
+        
+        // Trigger parent component refresh
+        if (window.location) {
+          window.location.reload();
+        }
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to remove domain');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'verified':
+        return '✅';
+      case 'pending':
+        return '⏳';
+      case 'failed':
+        return '❌';
+      case 'expired':
+        return '⏰';
+      default:
+        return '❓';
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'verified':
+        return '#28a745';
+      case 'pending':
+        return '#ffc107';
+      case 'failed':
+        return '#dc3545';
+      case 'expired':
+        return '#6c757d';
+      default:
+        return '#6c757d';
+    }
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleString();
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setSuccess('Copied to clipboard!');
+      setTimeout(() => setSuccess(null), 3000);
+    });
+  };
+
+  return (
+    <div className={styles.customDomainManagement}>
+      <div className={styles.header}>
+        <h3>🌐 Custom Domain</h3>
+        <p className={styles.subtitle}>Use your own domain name for your artist website</p>
+      </div>
+
+      {error && (
+        <div className={styles.error}>
+          <strong>Error:</strong> {error}
+          <button 
+            className={styles.closeButton}
+            onClick={() => setError(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {success && (
+        <div className={styles.success}>
+          <strong>Success:</strong> {success}
+          <button 
+            className={styles.closeButton}
+            onClick={() => setSuccess(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* Current Domain Status */}
+      {site.custom_domain ? (
+        <div className={styles.currentDomain}>
+          <div className={styles.domainInfo}>
+            <div className={styles.domainName}>
+              <h4>{site.custom_domain}</h4>
+              {domainStatus && (
+                <span 
+                  className={styles.status}
+                  style={{ color: getStatusColor(domainStatus.validationStatus) }}
+                >
+                  {getStatusIcon(domainStatus.validationStatus)} {domainStatus.validationStatus}
+                </span>
+              )}
+            </div>
+            
+            {domainStatus?.isActive && (
+              <div className={styles.activeDomain}>
+                <a 
+                  href={`https://${site.custom_domain}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.visitLink}
+                >
+                  🚀 Visit Your Site
+                </a>
+              </div>
+            )}
+          </div>
+
+          {/* Domain Status Details */}
+          {domainStatus && (
+            <div className={styles.statusDetails}>
+              {domainStatus.validationStatus === 'pending' && (
+                <div className={styles.pendingInstructions}>
+                  <h5>📋 DNS Setup Required</h5>
+                  <p>Add this TXT record to your domain's DNS settings:</p>
+                  
+                  <div className={styles.dnsRecord}>
+                    <div className={styles.recordField}>
+                      <label>Record Type:</label>
+                      <div className={styles.copyField}>
+                        <code>TXT</code>
+                        <button 
+                          onClick={() => copyToClipboard('TXT')}
+                          className={styles.copyButton}
+                        >
+                          📋
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className={styles.recordField}>
+                      <label>Name/Host:</label>
+                      <div className={styles.copyField}>
+                        <code>_oaf-site-verification</code>
+                        <button 
+                          onClick={() => copyToClipboard('_oaf-site-verification')}
+                          className={styles.copyButton}
+                        >
+                          📋
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className={styles.recordField}>
+                      <label>Value:</label>
+                      <div className={styles.copyField}>
+                        <code>{domainStatus.validationKey}</code>
+                        <button 
+                          onClick={() => copyToClipboard(domainStatus.validationKey)}
+                          className={styles.copyButton}
+                        >
+                          📋
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={styles.helpText}>
+                    <p><strong>💡 How to add this record:</strong></p>
+                    <ol>
+                      <li>Log into your domain registrar (GoDaddy, Namecheap, Cloudflare, etc.)</li>
+                      <li>Find the DNS settings for {site.custom_domain}</li>
+                      <li>Add a new TXT record with the values above</li>
+                      <li>Wait for DNS propagation (usually 5-30 minutes)</li>
+                      <li>We'll automatically verify and activate your domain!</li>
+                    </ol>
+                  </div>
+
+                  {domainStatus.expiresAt && (
+                    <div className={styles.expiryWarning}>
+                      ⏰ Validation expires: {formatDate(domainStatus.expiresAt)}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {domainStatus.validationStatus === 'failed' && (
+                <div className={styles.failedInstructions}>
+                  <h5>❌ Validation Failed</h5>
+                  <p>We couldn't verify your domain ownership.</p>
+                  {domainStatus.error && (
+                    <div className={styles.errorDetail}>
+                      <strong>Error:</strong> {domainStatus.error}
+                    </div>
+                  )}
+                  <p>Please check your DNS settings and try again.</p>
+                </div>
+              )}
+
+              {domainStatus.validationStatus === 'verified' && domainStatus.isActive && (
+                <div className={styles.verifiedInstructions}>
+                  <h5>✅ Domain Verified & Active</h5>
+                  <p>Your custom domain is working perfectly! Visitors can now access your site at:</p>
+                  <div className={styles.activeDomainDisplay}>
+                    <a 
+                      href={`https://${site.custom_domain}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.primaryLink}
+                    >
+                      https://{site.custom_domain}
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {domainStatus.lastAttempt && (
+                <div className={styles.metadata}>
+                  <small>Last checked: {formatDate(domainStatus.lastAttempt)}</small>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className={styles.actions}>
+            <button 
+              className={styles.secondaryButton}
+              onClick={fetchDomainStatus}
+              disabled={loading}
+            >
+              🔄 Refresh Status
+            </button>
+            
+            {domainStatus?.validationStatus === 'failed' && (
+              <button 
+                className={styles.primaryButton}
+                onClick={retryValidation}
+                disabled={loading}
+              >
+                🔁 Retry Validation
+              </button>
+            )}
+            
+            <button 
+              className={styles.dangerButton}
+              onClick={removeDomain}
+              disabled={loading}
+            >
+              🗑️ Remove Domain
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* Add Domain Section */
+        <div className={styles.addDomain}>
+          {!showAddDomain ? (
+            <div className={styles.addPrompt}>
+              <div className={styles.benefits}>
+                <h4>🎯 Benefits of a Custom Domain:</h4>
+                <ul>
+                  <li>✨ <strong>Professional Branding:</strong> yourname.art instead of yourname.onlineartfestival.com</li>
+                  <li>🔍 <strong>Better SEO:</strong> Your own domain ranks better in search results</li>
+                  <li>💼 <strong>Business Credibility:</strong> Looks more professional to clients</li>
+                  <li>🎨 <strong>Full Control:</strong> Your brand, your domain, your way</li>
+                </ul>
+              </div>
+              
+              <button 
+                className={styles.primaryButton}
+                onClick={() => setShowAddDomain(true)}
+              >
+                🌐 Add Custom Domain
+              </button>
+            </div>
+          ) : (
+            <div className={styles.addForm}>
+              <h4>🌐 Add Your Custom Domain</h4>
+              <p>Enter the domain name you want to use for your artist website.</p>
+              
+              <div className={styles.formGroup}>
+                <label htmlFor="customDomain">Domain Name *</label>
+                <input
+                  type="text"
+                  id="customDomain"
+                  value={newDomain}
+                  onChange={(e) => {
+                    const value = e.target.value.toLowerCase().trim();
+                    setNewDomain(value);
+                    checkDomainAvailability(value);
+                  }}
+                  placeholder="e.g., johnsmith.art or www.myartsite.com"
+                  required
+                />
+                
+                {domainCheck.checking && (
+                  <div className={styles.checking}>Checking availability...</div>
+                )}
+                
+                {domainCheck.available === true && (
+                  <div className={styles.available}>✅ Domain is available!</div>
+                )}
+                
+                {domainCheck.available === false && (
+                  <div className={styles.unavailable}>
+                    ❌ {domainCheck.error || 'Domain is not available'}
+                  </div>
+                )}
+              </div>
+
+              <div className={styles.requirements}>
+                <h5>📋 Requirements:</h5>
+                <ul>
+                  <li>You must own the domain (purchased from a registrar)</li>
+                  <li>You need access to DNS settings</li>
+                  <li>Domain must be properly formatted (e.g., example.com)</li>
+                  <li>Subdomains are supported (e.g., art.example.com)</li>
+                </ul>
+              </div>
+
+              <div className={styles.formActions}>
+                <button 
+                  className={styles.secondaryButton}
+                  onClick={() => {
+                    setShowAddDomain(false);
+                    setNewDomain('');
+                    setDomainCheck({ checking: false, available: null, error: null });
+                  }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className={styles.primaryButton}
+                  onClick={startDomainValidation}
+                  disabled={loading || !newDomain || domainCheck.available === false}
+                >
+                  {loading ? 'Starting...' : '🚀 Start Setup'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default CustomDomainManagement; 

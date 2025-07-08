@@ -10,6 +10,9 @@ import UserManagement from '../../components/UserManagement';
 import EventManagement from '../../components/EventManagement';
 import PermissionsManagement from '../../components/PermissionsManagement';
 import ArticleManagement from '../articles/components/ArticleManagement';
+import SitesManagement from '../../components/SitesManagement';
+import AnnouncementsManagement from '../../components/AnnouncementsManagement';
+import { getAuthToken } from '../../lib/csrf';
 import styles from './Dashboard.module.css';
 
 export default function Dashboard() {
@@ -21,7 +24,7 @@ export default function Dashboard() {
   const router = useRouter();
 
   useEffect(() => {
-    const token = document.cookie.split('token=')[1]?.split(';')[0];
+    const token = getAuthToken();
     if (!token) {
       router.push('/');
     } else {
@@ -199,6 +202,24 @@ export default function Dashboard() {
             <ArticleManagement />
           </div>
         );
+      case 'sites-management':
+        return (
+          <div className={styles.contentSection}>
+            <SitesManagement />
+          </div>
+        );
+      case 'admin-sites-management':
+        return (
+          <div className={styles.contentSection}>
+            <AdminSitesManagement />
+          </div>
+        );
+      case 'announcements-management':
+        return (
+          <div className={styles.contentSection}>
+            <AnnouncementsManagement />
+          </div>
+        );
       case 'my-events':
         return <MyEventsSection userData={userData} />;
       case 'application-management':
@@ -337,6 +358,23 @@ export default function Dashboard() {
             </ul>
           </div>
 
+          {/* Artist Website section for artists and admins */}
+          {(userData.user_type === 'artist' || isAdmin) && (
+            <div className={styles.sidebarSection}>
+              <h3>Artist Website</h3>
+              <ul>
+                <li>
+                  <button 
+                    className={`${styles.sidebarLink} ${activeSection === 'sites-management' ? styles.active : ''}`}
+                    onClick={() => setActiveSection('sites-management')}
+                  >
+                    {isAdmin ? 'Create/Manage Site' : 'Manage Website'}
+                  </button>
+                </li>
+              </ul>
+            </div>
+          )}
+
           {/* Vendor section for users with vendor permissions */}
           {hasVendorPermission && (
             <div className={styles.sidebarSection}>
@@ -409,6 +447,14 @@ export default function Dashboard() {
                 </li>
                 <li>
                   <button 
+                    className={`${styles.sidebarLink} ${activeSection === 'announcements-management' ? styles.active : ''}`}
+                    onClick={() => setActiveSection('announcements-management')}
+                  >
+                    Announcements Management
+                  </button>
+                </li>
+                <li>
+                  <button 
                     className={`${styles.sidebarLink} ${activeSection === 'hero-settings' ? styles.active : ''}`}
                     onClick={() => setActiveSection('hero-settings')}
                   >
@@ -443,6 +489,14 @@ export default function Dashboard() {
                   <Link href="/policies/admin" className={styles.sidebarLink}>
                     Policy Management
                   </Link>
+                </li>
+                <li>
+                  <button 
+                    className={`${styles.sidebarLink} ${activeSection === 'admin-sites-management' ? styles.active : ''}`}
+                    onClick={() => setActiveSection('admin-sites-management')}
+                  >
+                    Manage All Sites
+                  </button>
                 </li>
               </ul>
             </div>
@@ -529,7 +583,7 @@ function MyEventsSection({ userData }) {
 
   const fetchEvents = async () => {
     try {
-      const token = document.cookie.split('token=')[1]?.split(';')[0];
+      const token = getAuthToken();
       
       // Fetch current events (draft and active)
       const currentResponse = await fetch(`https://api2.onlineartfestival.com/api/events?promoter_id=${userData.id}&event_status=draft,active`, {
@@ -728,7 +782,7 @@ function ApplicationManagementSection({ userData }) {
 
   const fetchPromoterEvents = async () => {
     try {
-      const token = document.cookie.split('token=')[1]?.split(';')[0];
+      const token = getAuthToken();
       if (!token) {
         throw new Error('Please log in to manage applications');
       }
@@ -762,7 +816,7 @@ function ApplicationManagementSection({ userData }) {
   const fetchApplications = async (eventId) => {
     setApplicationsLoading(true);
     try {
-      const token = document.cookie.split('token=')[1]?.split(';')[0];
+      const token = getAuthToken();
       const response = await fetch(`https://api2.onlineartfestival.com/api/applications/events/${eventId}/applications`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -791,7 +845,7 @@ function ApplicationManagementSection({ userData }) {
 
   const updateApplicationStatus = async (applicationId, status, juryComments = '') => {
     try {
-      const token = document.cookie.split('token=')[1]?.split(';')[0];
+      const token = getAuthToken();
       const response = await fetch(`https://api2.onlineartfestival.com/api/applications/${applicationId}/status`, {
         method: 'PUT',
         headers: {
@@ -1172,7 +1226,7 @@ function MyApplicationsSection({ userData }) {
 
   const fetchApplications = async () => {
     try {
-      const token = document.cookie.split('token=')[1]?.split(';')[0];
+      const token = getAuthToken();
       if (!token) {
         throw new Error('Please log in to view applications');
       }
@@ -1330,7 +1384,7 @@ function ApplicationCalendarSection({ userData }) {
 
   const fetchCalendarData = async () => {
     try {
-      const token = document.cookie.split('token=')[1]?.split(';')[0];
+      const token = getAuthToken();
       if (!token) {
         throw new Error('Please log in to view your calendar');
       }
@@ -1376,7 +1430,7 @@ function ApplicationCalendarSection({ userData }) {
 
   const addCustomEvent = async (eventData) => {
     try {
-      const token = document.cookie.split('token=')[1]?.split(';')[0];
+      const token = getAuthToken();
       const response = await fetch('https://api2.onlineartfestival.com/api/custom-events', {
         method: 'POST',
         headers: {
@@ -1733,7 +1787,7 @@ function ApplicationHistorySection({ userData }) {
 
   const fetchApplications = async () => {
     try {
-      const token = document.cookie.split('token=')[1]?.split(';')[0];
+      const token = getAuthToken();
       if (!token) {
         throw new Error('Please log in to view application history');
       }
@@ -2013,6 +2067,195 @@ function CustomEventModal({ onSave, onCancel }) {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// Admin Sites Management Section Component
+function AdminSitesManagement() {
+  const [sites, setSites] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchAllSites();
+  }, []);
+
+  const fetchAllSites = async () => {
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        throw new Error('Please log in to manage sites');
+      }
+
+      const response = await fetch('https://api2.onlineartfestival.com/api/sites/all', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch sites');
+      }
+
+      const data = await response.json();
+      setSites(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const getStatusBadgeClass = (status) => {
+    switch (status) {
+      case 'active': return styles.activeBadge;
+      case 'draft': return styles.draftBadge;
+      case 'inactive': return styles.inactiveBadge;
+      default: return styles.defaultBadge;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className={styles.contentSection}>
+        <h2>Manage All Sites</h2>
+        <div className={styles.loading}>Loading sites...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={styles.contentSection}>
+        <h2>Manage All Sites</h2>
+        <div className={styles.error}>Error: {error}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.contentSection}>
+      <div className={styles.header}>
+        <h2>Manage All Sites</h2>
+        <p>View and manage all artist websites in the system</p>
+      </div>
+
+      {sites.length === 0 ? (
+        <div className={styles.overviewGrid}>
+          <div className={styles.overviewCard}>
+            <h3>No Sites Found</h3>
+            <p>No artist websites have been created yet.</p>
+          </div>
+        </div>
+      ) : (
+        <div className={styles.sitesTable}>
+          <div className={styles.tableHeader}>
+            <div className={styles.tableRow}>
+              <div className={styles.tableCell}>Artist</div>
+              <div className={styles.tableCell}>Site Name</div>
+              <div className={styles.tableCell}>Subdomain</div>
+              <div className={styles.tableCell}>Custom Domain</div>
+              <div className={styles.tableCell}>Status</div>
+              <div className={styles.tableCell}>Created</div>
+              <div className={styles.tableCell}>Actions</div>
+            </div>
+          </div>
+          <div className={styles.tableBody}>
+            {sites.map((site) => (
+              <div key={site.id} className={styles.tableRow}>
+                <div className={styles.tableCell}>
+                  <strong>{site.first_name} {site.last_name}</strong>
+                  <br />
+                  <span className={styles.userEmail}>{site.email}</span>
+                </div>
+                <div className={styles.tableCell}>
+                  {site.site_name}
+                  {site.site_title && (
+                    <div className={styles.siteSubtitle}>{site.site_title}</div>
+                  )}
+                </div>
+                <div className={styles.tableCell}>
+                  <code className={styles.subdomainCode}>{site.subdomain}</code>
+                </div>
+                <div className={styles.tableCell}>
+                  {site.custom_domain ? (
+                    <code className={styles.domainCode}>{site.custom_domain}</code>
+                  ) : (
+                    <span className={styles.noDomain}>None</span>
+                  )}
+                </div>
+                <div className={styles.tableCell}>
+                  <span className={`${styles.statusBadge} ${getStatusBadgeClass(site.status)}`}>
+                    {site.status}
+                  </span>
+                </div>
+                <div className={styles.tableCell}>
+                  {formatDate(site.created_at)}
+                </div>
+                <div className={styles.tableCell}>
+                  <div className={styles.actionButtons}>
+                    <a
+                      href={`https://${site.subdomain}.onlineartfestival.com`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.viewButton}
+                    >
+                      View Site
+                    </a>
+                    {site.custom_domain && (
+                      <a
+                        href={`https://${site.custom_domain}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={styles.viewButton}
+                      >
+                        View Domain
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className={styles.sitesStats}>
+        <div className={styles.statsGrid}>
+          <div className={styles.statCard}>
+            <span className={styles.statNumber}>{sites.length}</span>
+            <span className={styles.statLabel}>Total Sites</span>
+          </div>
+          <div className={styles.statCard}>
+            <span className={styles.statNumber}>
+              {sites.filter(s => s.status === 'active').length}
+            </span>
+            <span className={styles.statLabel}>Active Sites</span>
+          </div>
+          <div className={styles.statCard}>
+            <span className={styles.statNumber}>
+              {sites.filter(s => s.status === 'draft').length}
+            </span>
+            <span className={styles.statLabel}>Draft Sites</span>
+          </div>
+          <div className={styles.statCard}>
+            <span className={styles.statNumber}>
+              {sites.filter(s => s.custom_domain).length}
+            </span>
+            <span className={styles.statLabel}>Custom Domains</span>
+          </div>
+        </div>
       </div>
     </div>
   );

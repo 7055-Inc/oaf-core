@@ -94,6 +94,10 @@ app.use('/api/articles', csrfProtection());
 app.use('/api/topics', csrfProtection());
 app.use('/api/series', csrfProtection());
 app.use('/api/tags', csrfProtection());
+app.use('/api/sites', csrfProtection());
+app.use('/api/domains', csrfProtection());
+app.use('/api/terms', csrfProtection());
+app.use('/api/announcements', csrfProtection());
 
 // Strict CSRF protection for financial and sensitive operations
 app.use('/checkout', csrfProtection({ strict: true }));
@@ -150,6 +154,18 @@ try {
   app.use('/api/topics', require('./routes/topics'));
   app.use('/api/series', require('./routes/series'));
   app.use('/api/tags', require('./routes/tags'));
+  
+  // Sites management (multisite functionality)
+  app.use('/api/sites', require('./routes/sites'));
+  
+  // Custom domain management
+  app.use('/api/domains', require('./routes/domains'));
+  
+  // Terms and conditions management
+  app.use('/api/terms', require('./routes/terms'));
+  
+  // Announcements management
+  app.use('/api/announcements', require('./routes/announcements'));
   
   secureLogger.info('All routes loaded successfully with CSRF protection');
 } catch (err) {
