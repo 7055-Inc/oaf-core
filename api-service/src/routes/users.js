@@ -25,6 +25,7 @@ const verifyToken = async (req, res, next) => {
   }
 };
 
+
 // GET /users/me - Fetch current user's profile
 router.get('/me', verifyToken, async (req, res) => {
   try {
@@ -68,73 +69,243 @@ router.get('/me', verifyToken, async (req, res) => {
 router.patch('/me', 
   verifyToken,
   upload.fields([
-  { name: 'profile_image', maxCount: 1 },
-  { name: 'header_image', maxCount: 1 }
+    { name: 'profile_image', maxCount: 1 },
+    { name: 'header_image', maxCount: 1 },
+    { name: 'logo_image', maxCount: 1 }
   ]),
   async (req, res) => {
     try {
-  const {
-    first_name, last_name, user_type, phone, address_line1, address_line2, city, state,
-    postal_code, country, bio, website, social_facebook, social_instagram, social_tiktok,
-    social_twitter, social_pinterest, social_whatsapp, artist_biography, art_categories,
-    does_custom, custom_details, business_name, studio_address_line1, studio_address_line2,
-    business_website, art_interests, wishlist, upcoming_events, is_non_profit
-  } = req.body;
+      // Get current user type first
+      const [currentUser] = await db.query('SELECT user_type FROM users WHERE id = ?', [req.userId]);
+      if (!currentUser[0]) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      const userType = currentUser[0].user_type;
+      
+      // Extract fields from request body
+      const {
+        // Base profile fields (user_profiles table)
+        first_name, last_name, display_name, phone, address_line1, address_line2, 
+        city, state, postal_code, country, bio, website, birth_date, gender, 
+        nationality, languages_known, job_title, education, awards, memberships, 
+        timezone, social_facebook, social_instagram, social_tiktok, social_twitter, 
+        social_pinterest, social_whatsapp,
+        
+        // Artist-specific fields (artist_profiles table)
+        artist_biography, art_categories, art_mediums, does_custom, custom_details, 
+        business_name, studio_address_line1, studio_address_line2, studio_city, 
+        studio_state, studio_zip, business_website, business_phone, 
+        business_social_facebook, business_social_instagram, business_social_tiktok, 
+        business_social_twitter, business_social_pinterest, founding_date,
+        
+        // Community-specific fields (community_profiles table)
+        art_style_preferences, favorite_colors, art_interests, wishlist,
+        
+        // Promoter-specific fields (promoter_profiles table)
+        is_non_profit, organization_size, sponsorship_options, upcoming_events
+      } = req.body;
 
-    if (!first_name || !last_name || !user_type) {
-      return res.status(400).json({ error: 'Missing required fields: first_name, last_name, user_type' });
-    }
-    if (!['artist', 'community', 'promoter'].includes(user_type)) {
-      return res.status(400).json({ error: 'Invalid user_type. Must be one of: artist, community, promoter' });
-    }
+      if (!first_name || !last_name) {
+        return res.status(400).json({ error: 'Missing required fields: first_name, last_name' });
+      }
 
-    // Handle the uploaded images
-    let profileImagePath = null;
-    let headerImagePath = null;
-    if (req.files['profile_image']) {
-      profileImagePath = `/temp_images/profiles/${req.files['profile_image'][0].filename}`;
+      // Handle the uploaded images
+      let profileImagePath = null;
+      let headerImagePath = null;
+      let logoImagePath = null;
+      
+      if (req.files['profile_image']) {
+        profileImagePath = `/temp_images/profiles/${req.files['profile_image'][0].filename}`;
+        await db.query(
+          'INSERT INTO pending_images (user_id, image_path, status) VALUES (?, ?, ?)',
+          [req.userId, profileImagePath, 'pending']
+        );
+      }
+      if (req.files['header_image']) {
+        headerImagePath = `/temp_images/profiles/${req.files['header_image'][0].filename}`;
+        await db.query(
+          'INSERT INTO pending_images (user_id, image_path, status) VALUES (?, ?, ?)',
+          [req.userId, headerImagePath, 'pending']
+        );
+      }
+      if (req.files['logo_image']) {
+        logoImagePath = `/temp_images/profiles/${req.files['logo_image'][0].filename}`;
+        await db.query(
+          'INSERT INTO pending_images (user_id, image_path, status) VALUES (?, ?, ?)',
+          [req.userId, logoImagePath, 'pending']
+        );
+      }
+
+      // Process JSON fields properly
+      const processedLanguagesKnown = languages_known ? 
+        (typeof languages_known === 'string' ? languages_known : JSON.stringify(languages_known)) : null;
+      const processedEducation = education ? 
+        (typeof education === 'string' ? education : JSON.stringify(education)) : null;
+      const processedAwards = awards ? 
+        (typeof awards === 'string' ? awards : JSON.stringify(awards)) : null;
+      const processedMemberships = memberships ? 
+        (typeof memberships === 'string' ? memberships : JSON.stringify(memberships)) : null;
+
+      // Ensure user_profiles record exists, then update
       await db.query(
-        'INSERT INTO pending_images (user_id, image_path, status) VALUES (?, ?, ?)',
-        [req.userId, profileImagePath, 'pending']
+        `INSERT INTO user_profiles (user_id) VALUES (?) ON DUPLICATE KEY UPDATE user_id = user_id`,
+        [req.userId]
       );
-    }
-    if (req.files['header_image']) {
-      headerImagePath = `/temp_images/profiles/${req.files['header_image'][0].filename}`;
-      await db.query(
-        'INSERT INTO pending_images (user_id, image_path, status) VALUES (?, ?, ?)',
-        [req.userId, headerImagePath, 'pending']
-      );
-    }
 
-    await db.query(
-        'UPDATE user_profiles SET first_name = ?, last_name = ?, user_type = ?, phone = ?, address_line1 = ?, address_line2 = ?, city = ?, state = ?, postal_code = ?, country = ?, bio = ?, website = ?, social_facebook = ?, social_instagram = ?, social_tiktok = ?, social_twitter = ?, social_pinterest = ?, social_whatsapp = ?, artist_biography = ?, art_categories = ?, does_custom = ?, custom_details = ?, business_name = ?, studio_address_line1 = ?, studio_address_line2 = ?, business_website = ?, art_interests = ?, wishlist = ?, upcoming_events = ?, is_non_profit = ? WHERE user_id = ?',
-        [first_name, last_name, user_type, phone, address_line1, address_line2, city, state,
-         postal_code, country, bio, website, social_facebook, social_instagram, social_tiktok,
-         social_twitter, social_pinterest, social_whatsapp, artist_biography, art_categories,
-         does_custom, custom_details, business_name, studio_address_line1, studio_address_line2,
-         business_website, art_interests, wishlist, upcoming_events, is_non_profit, req.userId]
+      // Update base profile fields in user_profiles table
+      await db.query(
+        `UPDATE user_profiles SET 
+          first_name = ?, last_name = ?, display_name = ?, phone = ?, 
+          address_line1 = ?, address_line2 = ?, city = ?, state = ?, 
+          postal_code = ?, country = ?, bio = ?, website = ?, 
+          birth_date = ?, gender = ?, nationality = ?, languages_known = ?, 
+          job_title = ?, education = ?, awards = ?, memberships = ?, 
+          timezone = ?, social_facebook = ?, social_instagram = ?, 
+          social_tiktok = ?, social_twitter = ?, social_pinterest = ?, 
+          social_whatsapp = ?
+        WHERE user_id = ?`,
+        [
+          first_name, last_name, display_name || null, phone || null, 
+          address_line1 || null, address_line2 || null, city || null, state || null, 
+          postal_code || null, country || null, bio || null, website || null, 
+          birth_date || null, gender || null, nationality || null, processedLanguagesKnown, 
+          job_title || null, processedEducation, processedAwards, processedMemberships, 
+          timezone || null, social_facebook || null, social_instagram || null, 
+          social_tiktok || null, social_twitter || null, social_pinterest || null, 
+          social_whatsapp || null, req.userId
+        ]
       );
 
       // Update profile images if new ones were uploaded
       if (profileImagePath) {
-      await db.query(
+        await db.query(
           'UPDATE user_profiles SET profile_image_path = ? WHERE user_id = ?',
           [profileImagePath, req.userId]
-      );
+        );
       }
       if (headerImagePath) {
-      await db.query(
+        await db.query(
           'UPDATE user_profiles SET header_image_path = ? WHERE user_id = ?',
           [headerImagePath, req.userId]
-      );
-    }
+        );
+      }
 
-    res.json({ message: 'Profile updated successfully' });
-  } catch (err) {
-    console.error('Error updating user profile:', err.message, err.stack);
-    res.setHeader('Content-Type', 'application/json');
-    res.status(500).json({ error: 'Failed to update user profile' });
-  }
+      // Update type-specific profile fields based on user type
+      if (userType === 'artist') {
+        // Process JSON fields for artist profiles
+        const processedArtCategories = art_categories ? 
+          (typeof art_categories === 'string' ? art_categories : JSON.stringify(art_categories)) : null;
+        const processedArtMediums = art_mediums ? 
+          (typeof art_mediums === 'string' ? art_mediums : JSON.stringify(art_mediums)) : null;
+
+        await db.query(
+          `INSERT INTO artist_profiles (user_id, artist_biography, art_categories, art_mediums, 
+            does_custom, custom_details, business_name, studio_address_line1, 
+            studio_address_line2, studio_city, studio_state, studio_zip, 
+            business_website, business_phone, business_social_facebook, 
+            business_social_instagram, business_social_tiktok, business_social_twitter, 
+            business_social_pinterest, founding_date, logo_path) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE 
+            artist_biography = VALUES(artist_biography),
+            art_categories = VALUES(art_categories),
+            art_mediums = VALUES(art_mediums),
+            does_custom = VALUES(does_custom),
+            custom_details = VALUES(custom_details),
+            business_name = VALUES(business_name),
+            studio_address_line1 = VALUES(studio_address_line1),
+            studio_address_line2 = VALUES(studio_address_line2),
+            studio_city = VALUES(studio_city),
+            studio_state = VALUES(studio_state),
+            studio_zip = VALUES(studio_zip),
+            business_website = VALUES(business_website),
+            business_phone = VALUES(business_phone),
+            business_social_facebook = VALUES(business_social_facebook),
+            business_social_instagram = VALUES(business_social_instagram),
+            business_social_tiktok = VALUES(business_social_tiktok),
+            business_social_twitter = VALUES(business_social_twitter),
+            business_social_pinterest = VALUES(business_social_pinterest),
+            founding_date = VALUES(founding_date),
+            logo_path = VALUES(logo_path)`,
+          [
+            req.userId, artist_biography || null, processedArtCategories, processedArtMediums, 
+            does_custom || 'no', custom_details || null, business_name || null, 
+            studio_address_line1 || null, studio_address_line2 || null, studio_city || null, 
+            studio_state || null, studio_zip || null, business_website || null, 
+            business_phone || null, business_social_facebook || null, 
+            business_social_instagram || null, business_social_tiktok || null, 
+            business_social_twitter || null, business_social_pinterest || null, 
+            founding_date || null, logoImagePath
+          ]
+        );
+      } else if (userType === 'community') {
+        // Process JSON fields for community profiles
+        const processedFavoriteColors = favorite_colors ? 
+          (typeof favorite_colors === 'string' ? favorite_colors : JSON.stringify(favorite_colors)) : null;
+        const processedArtInterests = art_interests ? 
+          (typeof art_interests === 'string' ? art_interests : JSON.stringify(art_interests)) : null;
+        const processedWishlist = wishlist ? 
+          (typeof wishlist === 'string' ? wishlist : JSON.stringify(wishlist)) : null;
+
+        await db.query(
+          `INSERT INTO community_profiles (user_id, art_style_preferences, favorite_colors, 
+            art_interests, wishlist) 
+          VALUES (?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE 
+            art_style_preferences = VALUES(art_style_preferences),
+            favorite_colors = VALUES(favorite_colors),
+            art_interests = VALUES(art_interests),
+            wishlist = VALUES(wishlist)`,
+          [req.userId, art_style_preferences || null, processedFavoriteColors, 
+           processedArtInterests, processedWishlist]
+        );
+      } else if (userType === 'promoter') {
+        // Process JSON fields for promoter profiles
+        const processedSponsorshipOptions = sponsorship_options ? 
+          (typeof sponsorship_options === 'string' ? sponsorship_options : JSON.stringify(sponsorship_options)) : null;
+        const processedUpcomingEvents = upcoming_events ? 
+          (typeof upcoming_events === 'string' ? upcoming_events : JSON.stringify(upcoming_events)) : null;
+
+        await db.query(
+          `INSERT INTO promoter_profiles (user_id, business_name, business_phone, 
+            business_website, business_social_facebook, business_social_instagram, 
+            business_social_tiktok, business_social_twitter, business_social_pinterest, 
+            is_non_profit, organization_size, sponsorship_options, upcoming_events, 
+            founding_date, logo_path) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE 
+            business_name = VALUES(business_name),
+            business_phone = VALUES(business_phone),
+            business_website = VALUES(business_website),
+            business_social_facebook = VALUES(business_social_facebook),
+            business_social_instagram = VALUES(business_social_instagram),
+            business_social_tiktok = VALUES(business_social_tiktok),
+            business_social_twitter = VALUES(business_social_twitter),
+            business_social_pinterest = VALUES(business_social_pinterest),
+            is_non_profit = VALUES(is_non_profit),
+            organization_size = VALUES(organization_size),
+            sponsorship_options = VALUES(sponsorship_options),
+            upcoming_events = VALUES(upcoming_events),
+            founding_date = VALUES(founding_date),
+            logo_path = VALUES(logo_path)`,
+          [
+            req.userId, business_name || null, business_phone || null, 
+            business_website || null, business_social_facebook || null, 
+            business_social_instagram || null, business_social_tiktok || null, 
+            business_social_twitter || null, business_social_pinterest || null, 
+            is_non_profit || 'no', organization_size || null, processedSponsorshipOptions, 
+            processedUpcomingEvents, founding_date || null, logoImagePath
+          ]
+        );
+      }
+
+      res.json({ message: 'Profile updated successfully' });
+    } catch (err) {
+      console.error('Error updating user profile:', err.message);
+      res.setHeader('Content-Type', 'application/json');
+      res.status(500).json({ error: 'Failed to update user profile' });
+    }
   }
 );
 
@@ -353,11 +524,29 @@ router.patch('/complete-profile', verifyToken, async (req, res) => {
       });
     }
     
-    // Update profile
+    // Ensure user_profiles record exists, then update base profile (no business_name here)
     await db.query(
-      'UPDATE user_profiles SET first_name = ?, last_name = ?, address_line1 = ?, city = ?, state = ?, postal_code = ?, phone = ?, business_name = ? WHERE user_id = ?',
-      [first_name, last_name, address_line1, city, state, postal_code, phone, business_name || null, userId]
+      'INSERT INTO user_profiles (user_id) VALUES (?) ON DUPLICATE KEY UPDATE user_id = user_id',
+      [userId]
     );
+    
+    await db.query(
+      'UPDATE user_profiles SET first_name = ?, last_name = ?, address_line1 = ?, city = ?, state = ?, postal_code = ?, phone = ? WHERE user_id = ?',
+      [first_name, last_name, address_line1, city, state, postal_code, phone, userId]
+    );
+    
+    // Update business_name in appropriate table based on user type
+    if (userType === 'artist' && business_name) {
+      await db.query(
+        'INSERT INTO artist_profiles (user_id, business_name) VALUES (?, ?) ON DUPLICATE KEY UPDATE business_name = ?',
+        [userId, business_name, business_name]
+      );
+    } else if (userType === 'promoter' && business_name) {
+      await db.query(
+        'INSERT INTO promoter_profiles (user_id, business_name) VALUES (?, ?) ON DUPLICATE KEY UPDATE business_name = ?',
+        [userId, business_name, business_name]
+      );
+    }
     
     res.json({ 
       success: true, 

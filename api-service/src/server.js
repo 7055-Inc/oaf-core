@@ -85,8 +85,7 @@ app.use(csrfTokenProvider);
 app.get('/csrf-token', csrfTokenRoute);
 
 // Apply CSRF protection to different route groups
-// Regular CSRF protection for users, products, cart, events, articles
-app.use('/users', csrfProtection());
+// Regular CSRF protection for products, cart, events, articles
 app.use('/products', csrfProtection());
 app.use('/cart', csrfProtection());
 app.use('/events', csrfProtection());
@@ -116,8 +115,8 @@ try {
   // Admin routes (critical operations)
   app.use('/admin', adminLimiter, require('./routes/admin'));
   
-  // User management
-  app.use('/users', require('./routes/users'));
+  // User management (with CSRF protection)
+  app.use('/users', csrfProtection(), require('./routes/users'));
   
   // Product management
   app.use('/products', uploadLimiter, require('./routes/products'));

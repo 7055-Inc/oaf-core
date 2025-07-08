@@ -87,7 +87,7 @@ router.post('/exchange', async (req, res) => {
     let userId;
     if (existingLogin.length) {
       userId = existingLogin[0].user_id;
-      await db.query('UPDATE users SET email_verified = ? WHERE id = ?', [emailVerified, userId]);
+      await db.query('UPDATE users SET email_verified = ?, status = ? WHERE id = ?', [emailVerified, emailVerified === 'yes' ? 'active' : 'draft', userId]);
     } else {
       let userCheck;
       try {
@@ -101,7 +101,7 @@ router.post('/exchange', async (req, res) => {
         try {
           secureLogger.info('Creating user login record', { userId, provider });
           await db.query('INSERT INTO user_logins (user_id, provider, provider_id, provider_token, api_prefix) VALUES (?, ?, ?, ?, ?)', [userId, provider, providerId, providerToken, 'OAF-']);
-          await db.query('UPDATE users SET email_verified = ? WHERE id = ?', [emailVerified, userId]);
+          await db.query('UPDATE users SET email_verified = ?, status = ? WHERE id = ?', [emailVerified, emailVerified === 'yes' ? 'active' : 'draft', userId]);
         } catch (dbError) {
           throw new Error('Database insert failed for user_logins: ' + dbError.message);
         }
@@ -109,7 +109,7 @@ router.post('/exchange', async (req, res) => {
         const apiId = `OAF-${Math.random().toString(36).slice(2, 10)}`;
         let result;
         try {
-          [result] = await db.query('INSERT INTO users (username, email_verified, status, user_type) VALUES (?, ?, ?, ?)', [email, emailVerified, 'draft', 'Draft']);
+          [result] = await db.query('INSERT INTO users (username, email_verified, status, user_type) VALUES (?, ?, ?, ?)', [email, emailVerified, emailVerified === 'yes' ? 'active' : 'draft', 'Draft']);
         } catch (err) {
           secureLogger.error('Insert into users failed', err);
           await db.query('INSERT INTO error_logs (user_id, error_message, stack) VALUES (?, ?, ?)', [null, 'Token exchange failed: ' + err.message, err.stack]);

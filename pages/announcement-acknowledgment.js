@@ -44,6 +44,33 @@ export default function AnnouncementAcknowledgment() {
     router.push(redirectUrl);
   };
 
+  const verifyAndComplete = async () => {
+    // Verify no pending announcements before redirecting
+    let verificationAttempts = 0;
+    let noMoreAnnouncements = false;
+    
+    while (verificationAttempts < 3 && !noMoreAnnouncements) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      try {
+        const checkResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/announcements/check-pending');
+        if (checkResponse.ok) {
+          const checkData = await checkResponse.json();
+          if (!checkData.requiresAcknowledgment) {
+            noMoreAnnouncements = true;
+            break;
+          }
+        }
+      } catch (checkErr) {
+        // Continue with attempts if check fails
+      }
+      
+      verificationAttempts++;
+    }
+
+    handleComplete();
+  };
+
   const handleAcknowledge = async () => {
     if (!currentAnnouncement) return;
     
@@ -63,11 +90,21 @@ export default function AnnouncementAcknowledgment() {
         throw new Error(errorData.error || 'Failed to acknowledge announcement');
       }
 
-      // Move to next announcement or complete
-      if (currentIndex + 1 < announcements.length) {
-        setCurrentIndex(currentIndex + 1);
-      } else {
-        handleComplete();
+      // Small delay to ensure database commit completes
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Remove the acknowledged announcement from the array
+      const updatedAnnouncements = announcements.filter((_, index) => index !== currentIndex);
+      setAnnouncements(updatedAnnouncements);
+
+      // If there are more announcements, stay at the same index (since we removed one)
+      // If this was the last announcement, complete the flow
+      if (updatedAnnouncements.length === 0) {
+        await verifyAndComplete();
+      }
+      // If current index is now beyond the array length, go to the last valid index
+      else if (currentIndex >= updatedAnnouncements.length) {
+        setCurrentIndex(updatedAnnouncements.length - 1);
       }
     } catch (err) {
       setError(err.message);
@@ -95,11 +132,21 @@ export default function AnnouncementAcknowledgment() {
         throw new Error(errorData.error || 'Failed to set reminder');
       }
 
-      // Move to next announcement or complete
-      if (currentIndex + 1 < announcements.length) {
-        setCurrentIndex(currentIndex + 1);
-      } else {
-        handleComplete();
+      // Small delay to ensure database commit completes
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Remove the dismissed announcement from the array
+      const updatedAnnouncements = announcements.filter((_, index) => index !== currentIndex);
+      setAnnouncements(updatedAnnouncements);
+
+      // If there are more announcements, stay at the same index (since we removed one)
+      // If this was the last announcement, complete the flow
+      if (updatedAnnouncements.length === 0) {
+        await verifyAndComplete();
+      }
+      // If current index is now beyond the array length, go to the last valid index
+      else if (currentIndex >= updatedAnnouncements.length) {
+        setCurrentIndex(updatedAnnouncements.length - 1);
       }
     } catch (err) {
       setError(err.message);
@@ -155,6 +202,12 @@ export default function AnnouncementAcknowledgment() {
   }
 
   if (announcements.length === 0) {
+    // Auto-redirect after 2 seconds when no announcements
+    useEffect(() => {
+      const timer = setTimeout(() => handleComplete(), 2000);
+      return () => clearTimeout(timer);
+    }, []);
+
     return (
       <div className={styles.container}>
         <Head>
@@ -166,7 +219,6 @@ export default function AnnouncementAcknowledgment() {
             <p>You have no pending announcements. Redirecting...</p>
           </div>
         </div>
-        {setTimeout(() => handleComplete(), 2000)}
       </div>
     );
   }

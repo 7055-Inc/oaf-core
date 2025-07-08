@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { authenticatedApiRequest, clearAuthTokens } from '../lib/csrf';
@@ -12,6 +12,7 @@ export default function TermsAcceptance() {
   const [hasScrolled, setHasScrolled] = useState(false);
   const router = useRouter();
   const { redirect } = router.query;
+  const termsContentRef = useRef(null);
 
   useEffect(() => {
     const fetchCurrentTerms = async () => {
@@ -31,6 +32,36 @@ export default function TermsAcceptance() {
 
     fetchCurrentTerms();
   }, []);
+
+  // Check if scrolling is needed after terms load
+  useEffect(() => {
+    if (termsData && !hasScrolled && termsContentRef.current) {
+      const checkScrollNeeded = () => {
+        const termsContent = termsContentRef.current;
+        if (termsContent) {
+          const { scrollHeight, clientHeight } = termsContent;
+          // If content doesn't need scrolling, auto-enable the button
+          if (scrollHeight <= clientHeight + 1) {
+            setHasScrolled(true);
+          }
+        }
+      };
+      
+      // Multiple checks with increasing delays to ensure DOM is fully rendered
+      setTimeout(checkScrollNeeded, 200);
+      setTimeout(checkScrollNeeded, 500);
+      setTimeout(checkScrollNeeded, 1000);
+      
+      // Fallback: Always enable button after 3 seconds to prevent permanent blocking
+      const fallbackTimeout = setTimeout(() => {
+        if (!hasScrolled) {
+          setHasScrolled(true);
+        }
+      }, 3000);
+      
+      return () => clearTimeout(fallbackTimeout);
+    }
+  }, [termsData, hasScrolled]);
 
   const handleScroll = (e) => {
     const { scrollTop, scrollHeight, clientHeight } = e.target;
@@ -59,6 +90,29 @@ export default function TermsAcceptance() {
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to accept terms');
+      }
+
+      // Verify acceptance was recorded by checking status
+      let verificationAttempts = 0;
+      let acceptanceVerified = false;
+      
+      while (verificationAttempts < 3 && !acceptanceVerified) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        try {
+          const checkResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/terms/check-acceptance');
+          if (checkResponse.ok) {
+            const checkData = await checkResponse.json();
+            if (!checkData.requiresAcceptance) {
+              acceptanceVerified = true;
+              break;
+            }
+          }
+        } catch (checkErr) {
+          // Continue with attempts if check fails
+        }
+        
+        verificationAttempts++;
       }
 
       // Redirect to the original page or dashboard
@@ -141,6 +195,7 @@ export default function TermsAcceptance() {
           </div>
 
           <div 
+            ref={termsContentRef}
             className={styles.termsContent}
             onScroll={handleScroll}
           >

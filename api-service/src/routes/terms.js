@@ -132,7 +132,20 @@ router.get('/all', verifyToken, async (req, res) => {
     }
     
     const [terms] = await db.query(
-      'SELECT id, version, title, is_current, created_at FROM terms_versions ORDER BY created_at DESC'
+      `SELECT 
+        tv.id, 
+        tv.version, 
+        tv.title, 
+        tv.content, 
+        tv.is_current, 
+        tv.created_at, 
+        tv.created_by,
+        up.first_name,
+        up.last_name,
+        CONCAT(up.first_name, ' ', up.last_name) as created_by_name
+      FROM terms_versions tv
+      LEFT JOIN user_profiles up ON tv.created_by = up.user_id
+      ORDER BY tv.created_at DESC`
     );
     
     res.json(terms);
@@ -220,6 +233,106 @@ router.put('/:id/set-current', verifyToken, async (req, res) => {
   } catch (err) {
     console.error('Error setting current terms:', err);
     res.status(500).json({ error: 'Failed to set current terms' });
+  }
+});
+
+// PUT /terms/:id - Update terms version (admin only)
+router.put('/:id', verifyToken, async (req, res) => {
+  try {
+    // Check if user is admin
+    const [user] = await db.query('SELECT user_type FROM users WHERE id = ?', [req.userId]);
+    if (!user[0] || user[0].user_type !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    
+    const termsId = req.params.id;
+    const { version, title, content, setCurrent } = req.body;
+    
+    if (!version || !title || !content) {
+      return res.status(400).json({ error: 'Version, title, and content are required' });
+    }
+    
+    // Check if terms version exists
+    const [existing] = await db.query('SELECT id, is_current FROM terms_versions WHERE id = ?', [termsId]);
+    if (!existing[0]) {
+      return res.status(404).json({ error: 'Terms version not found' });
+    }
+    
+    // Start transaction
+    await db.query('START TRANSACTION');
+    
+    try {
+      // If setting as current, unset all other current terms
+      if (setCurrent) {
+        await db.query('UPDATE terms_versions SET is_current = FALSE');
+      }
+      
+      // Update terms version
+      await db.query(
+        'UPDATE terms_versions SET version = ?, title = ?, content = ?, is_current = ?, updated_at = NOW() WHERE id = ?',
+        [version, title, content, setCurrent || false, termsId]
+      );
+      
+      await db.query('COMMIT');
+      
+      res.json({ 
+        success: true, 
+        message: 'Terms version updated successfully' 
+      });
+    } catch (err) {
+      await db.query('ROLLBACK');
+      throw err;
+    }
+  } catch (err) {
+    console.error('Error updating terms:', err);
+    res.status(500).json({ error: 'Failed to update terms' });
+  }
+});
+
+// DELETE /terms/:id - Delete terms version (admin only)
+router.delete('/:id', verifyToken, async (req, res) => {
+  try {
+    // Check if user is admin
+    const [user] = await db.query('SELECT user_type FROM users WHERE id = ?', [req.userId]);
+    if (!user[0] || user[0].user_type !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    
+    const termsId = req.params.id;
+    
+    // Check if terms version exists and is not current
+    const [existing] = await db.query('SELECT id, is_current FROM terms_versions WHERE id = ?', [termsId]);
+    if (!existing[0]) {
+      return res.status(404).json({ error: 'Terms version not found' });
+    }
+    
+    if (existing[0].is_current) {
+      return res.status(400).json({ error: 'Cannot delete current terms version' });
+    }
+    
+    // Start transaction
+    await db.query('START TRANSACTION');
+    
+    try {
+      // Delete user acceptances for this terms version
+      await db.query('DELETE FROM user_terms_acceptance WHERE terms_version_id = ?', [termsId]);
+      
+      // Delete terms version
+      await db.query('DELETE FROM terms_versions WHERE id = ?', [termsId]);
+      
+      await db.query('COMMIT');
+      
+      res.json({ 
+        success: true, 
+        message: 'Terms version deleted successfully' 
+      });
+    } catch (err) {
+      await db.query('ROLLBACK');
+      throw err;
+    }
+  } catch (err) {
+    console.error('Error deleting terms:', err);
+    res.status(500).json({ error: 'Failed to delete terms' });
   }
 });
 

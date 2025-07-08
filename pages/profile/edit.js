@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '../../components/Header';
 import styles from './Edit.module.css';
+import { authenticatedApiRequest } from '../../lib/csrf';
 
 // Available art categories for dropdown
 const ART_CATEGORIES = [
@@ -198,7 +199,7 @@ export default function ProfileEdit() {
           country: data.country || '',
           bio: data.bio || '',
           website: data.website || '',
-          birth_date: data.birth_date || '',
+          birth_date: data.birth_date ? data.birth_date.split('T')[0] : '',
           gender: data.gender || '',
           nationality: data.nationality || '',
           languages_known: data.languages_known || [],
@@ -231,7 +232,7 @@ export default function ProfileEdit() {
           business_social_tiktok: data.business_social_tiktok || '',
           business_social_twitter: data.business_social_twitter || '',
           business_social_pinterest: data.business_social_pinterest || '',
-          founding_date: data.founding_date || '',
+          founding_date: data.founding_date ? data.founding_date.split('T')[0] : '',
           logo_path: data.logo_path || '',
           art_style_preferences: data.art_style_preferences || '',
           favorite_colors: data.favorite_colors || [],
@@ -313,7 +314,6 @@ export default function ProfileEdit() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const token = localStorage.getItem('token');
     
     try {
       const formDataToSend = new FormData();
@@ -393,7 +393,7 @@ export default function ProfileEdit() {
           setError('Invalid upcoming events format. Please use a valid JSON array (e.g., [{"name": "Art Fair 2025", "date": "2025-12-01"}]).');
           return;
         }
-              }
+      }
       
       if (profileImage) {
         formDataToSend.append('profile_image', profileImage);
@@ -405,11 +405,8 @@ export default function ProfileEdit() {
         formDataToSend.append('logo_image', logoImage);
       }
 
-      const res = await fetch('https://api2.onlineartfestival.com/users/me', {
+      const res = await authenticatedApiRequest('https://api2.onlineartfestival.com/users/me', {
         method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
         body: formDataToSend
       });
       
@@ -514,32 +511,32 @@ export default function ProfileEdit() {
               </div>
 
               <div className={styles.formRow}>
-                <div className={styles.formGroup}>
+          <div className={styles.formGroup}>
                   <label className={styles.label}>Display Name</label>
-                  <input
-                    type="text"
+            <input
+              type="text"
                     name="display_name"
                     value={formData.display_name}
-                    onChange={handleChange}
+              onChange={handleChange}
                     placeholder="How you'd like to be displayed publicly"
-                    className={styles.input}
-                  />
-                </div>
-                <div className={styles.formGroup}>
+              className={styles.input}
+            />
+          </div>
+          <div className={styles.formGroup}>
                   <label className={styles.label}>Job Title</label>
-                  <input
-                    type="text"
+            <input
+              type="text"
                     name="job_title"
                     value={formData.job_title}
-                    onChange={handleChange}
+              onChange={handleChange}
                     placeholder="Your job title or profession"
-                    className={styles.input}
-                  />
-                </div>
+              className={styles.input}
+            />
+          </div>
               </div>
 
               <div className={styles.formRow}>
-                <div className={styles.formGroup}>
+          <div className={styles.formGroup}>
                   <label className={styles.label}>Birth Date</label>
                   <input
                     type="date"
@@ -704,8 +701,8 @@ export default function ProfileEdit() {
                         className={styles.imagePreview}
                       />
                     </div>
-                  )}
-                </div>
+            )}
+          </div>
               </div>
             </div>
           </div>
@@ -728,9 +725,9 @@ export default function ProfileEdit() {
                     placeholder="Tell us about your artistic journey, style, and inspiration..."
                     className={styles.textarea}
                   />
-                </div>
+          </div>
 
-                <div className={styles.formGroup}>
+              <div className={styles.formGroup}>
                   <label className={styles.label}>Art Categories</label>
                   <div className={styles.categoryGrid}>
                     {ART_CATEGORIES.map(category => (
@@ -860,39 +857,39 @@ export default function ProfileEdit() {
               </div>
 
               <div className={styles.formRow}>
-                <div className={styles.formGroup}>
+              <div className={styles.formGroup}>
                   <label className={styles.label}>Studio City</label>
-                  <input
-                    type="text"
+                <input
+                  type="text"
                     name="studio_city"
                     value={formData.studio_city}
-                    onChange={handleChange}
+                  onChange={handleChange}
                     placeholder="Studio city"
-                    className={styles.input}
-                  />
-                </div>
-                <div className={styles.formGroup}>
+                  className={styles.input}
+                />
+              </div>
+              <div className={styles.formGroup}>
                   <label className={styles.label}>Studio State</label>
                   <input
                     type="text"
                     name="studio_state"
                     value={formData.studio_state}
-                    onChange={handleChange}
+                  onChange={handleChange}
                     placeholder="Studio state"
                     className={styles.input}
-                  />
-                </div>
-                <div className={styles.formGroup}>
+                />
+              </div>
+              <div className={styles.formGroup}>
                   <label className={styles.label}>Studio ZIP Code</label>
-                  <input
-                    type="text"
+                <input
+                  type="text"
                     name="studio_zip"
                     value={formData.studio_zip}
-                    onChange={handleChange}
+                  onChange={handleChange}
                     placeholder="Studio ZIP code"
-                    className={styles.input}
-                  />
-                </div>
+                  className={styles.input}
+                />
+              </div>
               </div>
 
               <div className={styles.formGroup}>
@@ -903,7 +900,7 @@ export default function ProfileEdit() {
                   onChange={handleChange}
                   className={styles.select}
                 >
-                    <option value="no">No</option>
+                  <option value="no">No</option>
                   <option value="yes">Yes</option>
                 </select>
               </div>
@@ -1027,7 +1024,7 @@ export default function ProfileEdit() {
                 Art Interests
               </h2>
               <div className={styles.sectionContent}>
-                <div className={styles.formGroup}>
+              <div className={styles.formGroup}>
                   <label className={styles.label}>Art Style Preferences</label>
                   <select
                     name="art_style_preferences"
@@ -1076,7 +1073,7 @@ export default function ProfileEdit() {
                   name="art_interests"
                   value={formData.art_interests}
                   onChange={handleChange}
-                    placeholder='["modern art", "photography"]'
+                  placeholder='["modern art", "photography"]'
                   className={styles.input}
                 />
                   <small className={styles.helpText}>Enter as JSON array, e.g., ["modern art", "photography"]</small>
@@ -1088,11 +1085,11 @@ export default function ProfileEdit() {
                   name="wishlist"
                   value={formData.wishlist}
                   onChange={handleChange}
-                    placeholder='[]'
+                  placeholder='[]'
                   className={styles.input}
                 />
                   <small className={styles.helpText}>Enter as JSON array</small>
-                </div>
+              </div>
               </div>
             </div>
           )}
@@ -1124,7 +1121,7 @@ export default function ProfileEdit() {
                   name="upcoming_events"
                   value={formData.upcoming_events}
                   onChange={handleChange}
-                    placeholder='[{"name": "Art Fair 2025", "date": "2025-12-01"}]'
+                  placeholder='[{"name": "Art Fair 2025", "date": "2025-12-01"}]'
                   className={styles.input}
                 />
                   <small className={styles.helpText}>Enter as JSON array with event objects</small>
@@ -1138,10 +1135,10 @@ export default function ProfileEdit() {
                   onChange={handleChange}
                   className={styles.select}
                 >
-                    <option value="no">No</option>
+                  <option value="no">No</option>
                   <option value="yes">Yes</option>
                 </select>
-                </div>
+              </div>
 
                 <div className={styles.formGroup}>
                   <label className={styles.label}>Organization Size</label>
@@ -1264,7 +1261,7 @@ export default function ProfileEdit() {
               className={styles.input}
             />
           </div>
-            </div>
+          </div>
           </div>
 
           {/* Social Media Section */}
@@ -1379,8 +1376,8 @@ export default function ProfileEdit() {
               onChange={handleChange}
                       placeholder="phone number"
                       className={styles.socialField}
-                    />
-                  </div>
+            />
+          </div>
                 </div>
               </div>
             </div>

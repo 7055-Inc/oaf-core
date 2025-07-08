@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Header from '../../components/Header';
+import { authenticatedApiRequest } from '../../lib/csrf';
 import styles from './Profile.module.css';
 
 export default function ProfileView() {
@@ -12,31 +13,33 @@ export default function ProfileView() {
   const { id } = router.query;
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      fetch('https://api2.onlineartfestival.com/users/me', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-        .then(res => {
-          if (!res.ok) {
-            throw new Error('Failed to fetch user profile');
-          }
-          return res.json();
-        })
-        .then(data => {
-          console.log('Current User Data:', data); // Add this log
-          setCurrentUserId(data.id);
-        })
-        .catch(err => {
-          console.error('Error fetching current user ID:', err.message);
-        });
-    }
-
     if (!id) return;
+    
+    const fetchCurrentUser = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          return;
+        }
+        
+        const response = await fetch('https://api2.onlineartfestival.com/users/me', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setCurrentUserId(data.id);
+        }
+      } catch (err) {
+        // Silently handle auth errors - user just won't see edit button
+      }
+    };
+
+    fetchCurrentUser();
 
     const fetchProfile = async () => {
       try {
@@ -50,7 +53,6 @@ export default function ProfileView() {
           throw new Error('Failed to fetch user profile');
         }
         const data = await res.json();
-        console.log('User Profile Data:', data);
         setUserProfile(data);
       } catch (err) {
         console.error(err.message);
@@ -84,7 +86,7 @@ export default function ProfileView() {
     );
   }
 
-  const isOwnProfile = currentUserId && currentUserId.toString() === id;
+  const isOwnProfile = currentUserId && id && (currentUserId.toString() === id.toString());
 
   return (
     <div className={styles.container}>
@@ -99,8 +101,9 @@ export default function ProfileView() {
         <div className={styles.headerPlaceholder}></div>
       )}
       {isOwnProfile && (
-        <div className={styles.editRibbon}>
-          <a href="/profile/edit" className={styles.editLink}>
+        <div className={styles.floatingEditButton}>
+          <a href="/profile/edit" className={styles.floatingEditLink}>
+            <i className="fa-solid fa-edit"></i>
             Edit Profile
           </a>
         </div>
@@ -154,12 +157,21 @@ export default function ProfileView() {
       </div>
       <div className={styles.infoCard}>
         <h1 className={styles.userName}>
-          {userProfile.first_name} {userProfile.last_name}
+          {userProfile.display_name || `${userProfile.first_name} ${userProfile.last_name}`}
         </h1>
-        {userProfile.state && (
+        {userProfile.display_name && (
+          <p className={styles.realName}>
+            ({userProfile.first_name} {userProfile.last_name})
+          </p>
+        )}
+        {userProfile.job_title && (
+          <p className={styles.jobTitle}>{userProfile.job_title}</p>
+        )}
+        {(userProfile.city || userProfile.state) && (
           <span className={styles.stateBadge}>
             <span className="material-icons stateIcon">location_on</span>
-            {userProfile.state}
+            {userProfile.city && userProfile.state ? `${userProfile.city}, ${userProfile.state}` : userProfile.city || userProfile.state}
+            {userProfile.country && `, ${userProfile.country}`}
           </span>
         )}
         {userProfile.bio && (
@@ -169,16 +181,111 @@ export default function ProfileView() {
         )}
       </div>
 
+      {/* Personal Information Section */}
+      <div className={styles.section}>
+        <h2 className={styles.subtitle}>Personal Information</h2>
+        <div className={styles.infoGrid}>
+          {userProfile.phone && (
+            <div className={styles.infoItem}>
+              <strong>Phone:</strong> {userProfile.phone}
+            </div>
+          )}
+          {userProfile.birth_date && (
+            <div className={styles.infoItem}>
+              <strong>Birth Date:</strong> {new Date(userProfile.birth_date).toLocaleDateString()}
+            </div>
+          )}
+          {userProfile.gender && (
+            <div className={styles.infoItem}>
+              <strong>Gender:</strong> {userProfile.gender}
+            </div>
+          )}
+          {userProfile.nationality && (
+            <div className={styles.infoItem}>
+              <strong>Nationality:</strong> {userProfile.nationality}
+            </div>
+          )}
+          {userProfile.languages_known && userProfile.languages_known.length > 0 && (
+            <div className={styles.infoItem}>
+              <strong>Languages:</strong> {Array.isArray(userProfile.languages_known) ? userProfile.languages_known.join(', ') : userProfile.languages_known}
+            </div>
+          )}
+          {userProfile.education && (
+            <div className={styles.infoItem}>
+              <strong>Education:</strong> {userProfile.education}
+            </div>
+          )}
+          {userProfile.timezone && (
+            <div className={styles.infoItem}>
+              <strong>Timezone:</strong> {userProfile.timezone}
+            </div>
+          )}
+        </div>
+        
+        {/* Address Information */}
+        {(userProfile.address_line1 || userProfile.address_line2) && (
+          <div className={styles.addressSection}>
+            <h3>Address</h3>
+            <div className={styles.address}>
+              {userProfile.address_line1 && <div>{userProfile.address_line1}</div>}
+              {userProfile.address_line2 && <div>{userProfile.address_line2}</div>}
+              {(userProfile.city || userProfile.state || userProfile.postal_code) && (
+                <div>
+                  {userProfile.city && `${userProfile.city}, `}
+                  {userProfile.state && `${userProfile.state} `}
+                  {userProfile.postal_code}
+                </div>
+              )}
+              {userProfile.country && <div>{userProfile.country}</div>}
+            </div>
+          </div>
+        )}
+
+        {/* Awards and Memberships */}
+        {userProfile.awards && (
+          <div className={styles.infoItem}>
+            <strong>Awards:</strong> {userProfile.awards}
+          </div>
+        )}
+        {userProfile.memberships && (
+          <div className={styles.infoItem}>
+            <strong>Memberships:</strong> {userProfile.memberships}
+          </div>
+        )}
+      </div>
+
       {userProfile.user_type === 'artist' && (
         <div className={styles.section}>
           <h2 className={styles.subtitle}>Artist Details</h2>
+          {userProfile.logo_path && (
+            <div className={styles.logoContainer}>
+              <img
+                src={`https://api2.onlineartfestival.com${userProfile.logo_path}`}
+                alt="Business Logo"
+                className={styles.logoImage}
+              />
+            </div>
+          )}
           {userProfile.business_name && <p><strong>Business Name:</strong> {userProfile.business_name}</p>}
-          {(userProfile.studio_address_line1 || userProfile.studio_address_line2) && (
-            <p>
-              <strong>Studio Address:</strong>{' '}
-              {userProfile.studio_address_line1}{userProfile.studio_address_line1 && ', '}
-              {userProfile.studio_address_line2}
-            </p>
+          {userProfile.artist_biography && <p><strong>Artist Biography:</strong> {userProfile.artist_biography}</p>}
+          
+          {/* Art Categories and Mediums */}
+          {userProfile.art_categories && Array.isArray(userProfile.art_categories) && userProfile.art_categories.length > 0 && (
+            <p><strong>Art Categories:</strong> {userProfile.art_categories.join(', ')}</p>
+          )}
+          {userProfile.art_mediums && Array.isArray(userProfile.art_mediums) && userProfile.art_mediums.length > 0 && (
+            <p><strong>Art Mediums:</strong> {userProfile.art_mediums.join(', ')}</p>
+          )}
+          
+          {/* Custom Work */}
+          <p><strong>Accepts Custom Orders:</strong> {userProfile.does_custom}</p>
+          {userProfile.does_custom === 'yes' && userProfile.custom_details && (
+            <p><strong>Custom Order Details:</strong> {userProfile.custom_details}</p>
+          )}
+          
+          {/* Business Contact */}
+          {userProfile.business_phone && (
+            <p><strong>Business Phone:</strong> {userProfile.business_phone}</p>
           )}
           {userProfile.business_website && (
             <p>
@@ -188,13 +295,60 @@ export default function ProfileView() {
               </a>
             </p>
           )}
-          {userProfile.artist_biography && <p><strong>Biography:</strong> {userProfile.artist_biography}</p>}
-          {userProfile.art_categories && Array.isArray(userProfile.art_categories) && userProfile.art_categories.length > 0 && (
-            <p><strong>Art Categories:</strong> {userProfile.art_categories.join(', ')}</p>
+          {userProfile.founding_date && (
+            <p><strong>Founded:</strong> {new Date(userProfile.founding_date).toLocaleDateString()}</p>
           )}
-          <p><strong>Accepts Custom Orders:</strong> {userProfile.does_custom}</p>
-          {userProfile.does_custom === 'yes' && userProfile.custom_details && (
-            <p><strong>Custom Order Details:</strong> {userProfile.custom_details}</p>
+          
+          {/* Studio Address */}
+          {(userProfile.studio_address_line1 || userProfile.studio_address_line2) && (
+            <div className={styles.addressSection}>
+              <h3>Studio Address</h3>
+              <div className={styles.address}>
+                {userProfile.studio_address_line1 && <div>{userProfile.studio_address_line1}</div>}
+                {userProfile.studio_address_line2 && <div>{userProfile.studio_address_line2}</div>}
+                {(userProfile.studio_city || userProfile.studio_state || userProfile.studio_zip) && (
+                  <div>
+                    {userProfile.studio_city && `${userProfile.studio_city}, `}
+                    {userProfile.studio_state && `${userProfile.studio_state} `}
+                    {userProfile.studio_zip}
+                  </div>
+          )}
+              </div>
+            </div>
+          )}
+          
+          {/* Business Social Media */}
+          {(userProfile.business_social_facebook || userProfile.business_social_instagram || userProfile.business_social_tiktok || userProfile.business_social_twitter || userProfile.business_social_pinterest) && (
+            <div className={styles.businessSocialSection}>
+              <h3>Business Social Media</h3>
+              <div className={styles.socialIcons}>
+                {userProfile.business_social_facebook && (
+                  <a href={userProfile.business_social_facebook} target="_blank" rel="noopener noreferrer" className={styles.link}>
+                    <i className="fa-brands fa-facebook-f"></i>
+                  </a>
+                )}
+                {userProfile.business_social_instagram && (
+                  <a href={userProfile.business_social_instagram} target="_blank" rel="noopener noreferrer" className={styles.link}>
+                    <i className="fa-brands fa-instagram"></i>
+                  </a>
+                )}
+                {userProfile.business_social_tiktok && (
+                  <a href={userProfile.business_social_tiktok} target="_blank" rel="noopener noreferrer" className={styles.link}>
+                    <i className="fa-brands fa-tiktok"></i>
+                  </a>
+                )}
+                {userProfile.business_social_twitter && (
+                  <a href={userProfile.business_social_twitter} target="_blank" rel="noopener noreferrer" className={styles.link}>
+                    <i className="fa-brands fa-x-twitter"></i>
+                  </a>
+                )}
+                {userProfile.business_social_pinterest && (
+                  <a href={userProfile.business_social_pinterest} target="_blank" rel="noopener noreferrer" className={styles.link}>
+                    <i className="fa-brands fa-pinterest-p"></i>
+                  </a>
+                )}
+              </div>
+            </div>
           )}
         </div>
       )}
@@ -202,6 +356,24 @@ export default function ProfileView() {
       {userProfile.user_type === 'community' && (
         <div className={styles.section}>
           <h2 className={styles.subtitle}>Community Details</h2>
+          {userProfile.art_style_preferences && (
+            <p><strong>Art Style Preferences:</strong> {userProfile.art_style_preferences}</p>
+          )}
+          {userProfile.favorite_colors && Array.isArray(userProfile.favorite_colors) && userProfile.favorite_colors.length > 0 && (
+            <div>
+              <strong>Favorite Colors:</strong>
+              <div className={styles.colorPalette}>
+                {userProfile.favorite_colors.map((color, index) => (
+                  <span 
+                    key={index} 
+                    className={styles.colorSwatch} 
+                    style={{ backgroundColor: color }}
+                    title={color}
+                  ></span>
+                ))}
+              </div>
+            </div>
+          )}
           {userProfile.art_interests && Array.isArray(userProfile.art_interests) && userProfile.art_interests.length > 0 && (
             <p><strong>Art Interests:</strong> {userProfile.art_interests.join(', ')}</p>
           )}
@@ -216,12 +388,20 @@ export default function ProfileView() {
           <h2 className={styles.subtitle}>Promoter Details</h2>
           {userProfile.business_name && <p><strong>Business Name:</strong> {userProfile.business_name}</p>}
           <p><strong>Non-Profit:</strong> {userProfile.is_non_profit}</p>
+          {userProfile.organization_size && (
+            <p><strong>Organization Size:</strong> {userProfile.organization_size}</p>
+          )}
+          {userProfile.sponsorship_options && (
+            <p><strong>Sponsorship Options:</strong> {userProfile.sponsorship_options}</p>
+          )}
           {userProfile.upcoming_events && Array.isArray(userProfile.upcoming_events) && userProfile.upcoming_events.length > 0 && (
             <div>
               <strong>Upcoming Events:</strong>
               <ul className={styles.eventList}>
                 {userProfile.upcoming_events.map((event, index) => (
-                  <li key={index}>{event.name} on {event.date}</li>
+                  <li key={index}>
+                    {event.name && event.date ? `${event.name} on ${event.date}` : event.name || event.date || event}
+                  </li>
                 ))}
               </ul>
             </div>

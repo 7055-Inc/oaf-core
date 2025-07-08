@@ -33,6 +33,41 @@
   font-weight: bold;
 }
 
+/* Floating Action Button for Edit Profile */
+.floatingEditButton {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  border-radius: 50px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(135deg, #055474 0%, #3E1C56 100%);
+  padding: 0;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.floatingEditButton:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.floatingEditLink {
+  color: white;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 50px;
+  transition: all 0.3s ease;
+}
+
+.floatingEditLink i {
+  font-size: 16px;
+}
+
 .profileWrapper {
   position: relative;
   z-index: 2;
@@ -166,4 +201,135 @@
 
 .error {
   color: red;
+}
+
+/* New styles for expanded profile display */
+.realName {
+  color: #666;
+  font-size: 1rem;
+  margin: 0 0 0.5rem 0;
+  font-style: italic;
+}
+
+.jobTitle {
+  color: #055474;
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin: 0 0 0.5rem 0;
+}
+
+.section {
+  background-color: #FFFFFF;
+  margin: 1rem 0;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-left: 4px solid #055474;
+}
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.infoItem {
+  background-color: #f9f9f9;
+  padding: 0.75rem;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+}
+
+.infoItem strong {
+  color: #3E1C56;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.addressSection {
+  margin: 1rem 0;
+}
+
+.addressSection h3 {
+  color: #3E1C56;
+  margin-bottom: 0.5rem;
+  font-size: 1.2rem;
+}
+
+.address {
+  background-color: #f9f9f9;
+  padding: 1rem;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+  line-height: 1.5;
+}
+
+.colorPalette {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.colorSwatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid #ccc;
+  display: inline-block;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.colorSwatch:hover {
+  transform: scale(1.1);
+}
+
+.businessSocialSection {
+  margin: 1rem 0;
+}
+
+.businessSocialSection h3 {
+  color: #3E1C56;
+  margin-bottom: 0.5rem;
+  font-size: 1.2rem;
+}
+
+.businessSocialSection .socialIcons {
+  justify-content: flex-start;
+}
+
+.logoContainer {
+  text-align: center;
+  margin: 1rem 0;
+}
+
+.logoImage {
+  max-width: 200px;
+  max-height: 100px;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e0e0e0;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .infoGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .userName {
+    font-size: 1.5rem;
+  }
+  
+  .section {
+    margin: 0.5rem 0;
+    padding: 1rem;
+  }
+  
+  .colorPalette {
+    justify-content: flex-start;
+  }
 }

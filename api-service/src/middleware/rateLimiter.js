@@ -2,19 +2,19 @@ const rateLimit = require('express-rate-limit');
 
 /**
  * Rate limiter for authentication endpoints
- * Very strict to prevent brute force attacks
+ * More reasonable limits for normal usage while still preventing abuse
  */
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 15, // reasonable production limit - limit each IP to 15 requests per windowMs
+  max: 50, // Increased limit - allow 50 requests per 15 minutes per IP
   message: {
     error: 'Too many authentication attempts',
     message: 'Please try again in 15 minutes'
   },
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  skipSuccessfulRequests: false,
-  skipFailedRequests: false,
+  skipSuccessfulRequests: true, // Don't count successful requests against the limit
+  skipFailedRequests: false, // Still count failed requests to prevent brute force
   // Custom key generator to potentially track by user as well
   keyGenerator: (req) => {
     return req.ip; // Use IP address as the key

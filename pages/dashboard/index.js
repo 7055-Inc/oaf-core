@@ -12,6 +12,7 @@ import PermissionsManagement from '../../components/PermissionsManagement';
 import ArticleManagement from '../articles/components/ArticleManagement';
 import SitesManagement from '../../components/SitesManagement';
 import AnnouncementsManagement from '../../components/AnnouncementsManagement';
+import TermsManagement from '../../components/TermsManagement';
 import { getAuthToken } from '../../lib/csrf';
 import styles from './Dashboard.module.css';
 
@@ -218,6 +219,12 @@ export default function Dashboard() {
         return (
           <div className={styles.contentSection}>
             <AnnouncementsManagement />
+          </div>
+        );
+      case 'terms-management':
+        return (
+          <div className={styles.contentSection}>
+            <TermsManagement />
           </div>
         );
       case 'my-events':
@@ -451,6 +458,14 @@ export default function Dashboard() {
                     onClick={() => setActiveSection('announcements-management')}
                   >
                     Announcements Management
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    className={`${styles.sidebarLink} ${activeSection === 'terms-management' ? styles.active : ''}`}
+                    onClick={() => setActiveSection('terms-management')}
+                  >
+                    Terms & Conditions
                   </button>
                 </li>
                 <li>

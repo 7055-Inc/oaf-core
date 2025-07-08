@@ -17,7 +17,7 @@ const eventsDir = path.join(uploadDir, 'events');
 // Create storage configuration
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    if (file.fieldname === 'profile_image' || file.fieldname === 'header_image') {
+    if (file.fieldname === 'profile_image' || file.fieldname === 'header_image' || file.fieldname === 'logo_image') {
       cb(null, profilesDir);
     } else if (file.fieldname === 'images' && req.route && req.route.path.includes('/events/')) {
       cb(null, eventsDir);
@@ -29,9 +29,10 @@ const storage = multer.diskStorage({
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     let filename;
     
-    if (file.fieldname === 'profile_image' || file.fieldname === 'header_image') {
-      // For user profile/header images
-      const type = file.fieldname === 'profile_image' ? 'profile' : 'header';
+    if (file.fieldname === 'profile_image' || file.fieldname === 'header_image' || file.fieldname === 'logo_image') {
+      // For user profile/header/logo images
+      const type = file.fieldname === 'profile_image' ? 'profile' : 
+                   file.fieldname === 'header_image' ? 'header' : 'logo';
       filename = `${req.userId}-${type}-${uniqueSuffix}${path.extname(file.originalname).toLowerCase()}`;
     } else if (file.fieldname === 'images' && req.route && req.route.path.includes('/events/')) {
       // For event images

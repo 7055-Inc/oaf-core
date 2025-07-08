@@ -61,11 +61,12 @@ export async function checklist(req) {
 
     // Check if user has accepted current terms
     try {
-    const termsResponse = await fetch('https://api2.onlineartfestival.com/api/terms/check-acceptance', {
+    const termsResponse = await fetch(`https://api2.onlineartfestival.com/api/terms/check-acceptance?t=${Date.now()}`, {
       method: 'GET',
       headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
         },
         // Add timeout to prevent hanging
         signal: AbortSignal.timeout(5000)

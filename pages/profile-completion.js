@@ -87,6 +87,33 @@ export default function ProfileCompletion() {
     router.push(redirectUrl);
   };
 
+  const verifyAndCompleteLogin = async () => {
+    // Verify profile completion before redirecting
+    let verificationAttempts = 0;
+    let profileComplete = false;
+    
+    while (verificationAttempts < 3 && !profileComplete) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      try {
+        const checkResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/users/profile-completion-status');
+        if (checkResponse.ok) {
+          const checkData = await checkResponse.json();
+          if (!checkData.requiresCompletion) {
+            profileComplete = true;
+            break;
+          }
+        }
+      } catch (checkErr) {
+        // Continue with attempts if check fails
+      }
+      
+      verificationAttempts++;
+    }
+
+    handleCompleteLogin();
+  };
+
   const getFieldType = (fieldName) => {
     switch (fieldName) {
       case 'phone':
@@ -153,6 +180,12 @@ export default function ProfileCompletion() {
   }
 
   if (profileData?.isComplete) {
+    // Auto-redirect after 2 seconds when profile is complete
+    useEffect(() => {
+      const timer = setTimeout(() => handleCompleteLogin(), 2000);
+      return () => clearTimeout(timer);
+    }, []);
+
     return (
       <div className={styles.container}>
         <Head>
@@ -164,7 +197,6 @@ export default function ProfileCompletion() {
             <p>Your profile is already complete. Redirecting...</p>
           </div>
         </div>
-        {setTimeout(() => handleCompleteLogin(), 2000)}
       </div>
     );
   }
@@ -184,7 +216,7 @@ export default function ProfileCompletion() {
           </div>
           <div className={styles.successActions}>
             <button 
-              onClick={handleCompleteLogin}
+              onClick={verifyAndCompleteLogin}
               className={styles.completeButton}
             >
               Complete Login

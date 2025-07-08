@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getAuth, createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import firebaseApp from '../lib/firebase';
@@ -12,8 +12,33 @@ export default function Signup() {
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [countdown, setCountdown] = useState(null);
   const router = useRouter();
   const auth = getAuth(firebaseApp);
+
+  // Handle countdown and redirect to login
+  useEffect(() => {
+    let timer;
+    if (message && countdown === null) {
+      // Start countdown at 10 seconds
+      setCountdown(10);
+    }
+    
+    if (countdown !== null && countdown > 0) {
+      timer = setTimeout(() => {
+        setCountdown(countdown - 1);
+      }, 1000);
+    } else if (countdown === 0) {
+      // Redirect to login when countdown reaches 0
+      router.push('/login');
+    }
+    
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [message, countdown, router]);
 
   const handleGoogleSignup = async () => {
     setIsLoading(true);
@@ -103,8 +128,61 @@ export default function Signup() {
       <div style={{ padding: '2rem', maxWidth: '400px', margin: '0 auto' }}>
         <h1 style={{ color: '#055474', marginBottom: '2rem', textAlign: 'center' }}>Sign Up</h1>
         
-        {error && <p style={{ color: 'red', marginBottom: '1rem', textAlign: 'center' }}>Error: {error}</p>}
-        {message && <p style={{ color: 'green', marginBottom: '1rem', textAlign: 'center' }}>{message}</p>}
+        {error && (
+          <div style={{
+            backgroundColor: '#fee2e2',
+            border: '1px solid #fecaca',
+            color: '#dc2626',
+            padding: '1rem',
+            marginBottom: '1rem',
+            borderRadius: '0px',
+            textAlign: 'center',
+            fontWeight: '500'
+          }}>
+            Error: {error}
+          </div>
+        )}
+        
+        {message && (
+          <div style={{
+            backgroundColor: '#3e1c56',
+            color: 'white',
+            padding: '1.5rem',
+            marginBottom: '2rem',
+            borderRadius: '0px',
+            textAlign: 'center',
+            boxShadow: '0 4px 12px rgba(62, 28, 86, 0.3)',
+            border: '2px solid #3e1c56'
+          }}>
+            <div style={{
+              fontSize: '1.25rem',
+              fontWeight: '600',
+              marginBottom: '0.75rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem'
+            }}>
+              ✅ Signup Successful!
+            </div>
+            <div style={{
+              fontSize: '1rem',
+              lineHeight: '1.5',
+              marginBottom: '1rem'
+            }}>
+              Please check your email to verify your account before logging in.
+            </div>
+            {countdown !== null && (
+              <div style={{
+                fontSize: '0.9rem',
+                opacity: '0.9',
+                fontStyle: 'italic'
+              }}>
+                Redirecting to login page in {countdown} second{countdown !== 1 ? 's' : ''}...
+              </div>
+            )}
+          </div>
+        )}
         
         {/* Google Sign-Up Button */}
         <button 
