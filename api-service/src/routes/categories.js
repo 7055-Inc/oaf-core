@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
 const authenticateToken = require('../middleware/jwt');
+const { secureLogger } = require('../middleware/secureLogger');
 
 /**
  * Middleware to verify admin access
@@ -63,34 +64,7 @@ router.get('/', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching categories:', error);
-    res.status(500).json({ error: 'Failed to fetch categories' });
-  }
-});
-
-/**
- * Get categories for product assignment (simplified list)
- * GET /api/categories/for-products
- */
-router.get('/for-products', async (req, res) => {
-  try {
-    const [categories] = await db.query(`
-      SELECT 
-        id,
-        name,
-        parent_id,
-        (SELECT COUNT(*) FROM categories WHERE parent_id = c.id) as has_children
-      FROM categories c
-      ORDER BY name ASC
-    `);
-
-    res.json({
-      success: true,
-      categories
-    });
-
-  } catch (error) {
-    console.error('Error fetching categories for products:', error);
+    secureLogger.error('Error fetching categories', error);
     res.status(500).json({ error: 'Failed to fetch categories' });
   }
 });
@@ -165,7 +139,7 @@ router.get('/:id', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching category:', error);
+    secureLogger.error('Error fetching category', error);
     res.status(500).json({ error: 'Failed to fetch category' });
   }
 });
@@ -227,7 +201,7 @@ router.post('/', authenticateToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error creating category:', error);
+    secureLogger.error('Error creating category', error);
     res.status(500).json({ error: 'Failed to create category' });
   }
 });
@@ -310,7 +284,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error updating category:', error);
+    secureLogger.error('Error updating category', error);
     res.status(500).json({ error: 'Failed to update category' });
   }
 });
@@ -369,7 +343,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error deleting category:', error);
+    secureLogger.error('Error deleting category', error);
     res.status(500).json({ error: 'Failed to delete category' });
   }
 });

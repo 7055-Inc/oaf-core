@@ -1,0 +1,390 @@
+/* Main container */
+.variationManager {
+  background-color: var(--background-color);
+  padding: 2rem;
+  border: 2px solid var(--primary-color);
+  border-radius: 0px; /* Sharp corners */
+  margin-bottom: 2rem;
+  font-family: 'Comic Neue', sans-serif;
+}
+
+/* Step header */
+.stepHeader {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid var(--primary-color);
+}
+
+.stepTitle {
+  font-family: 'Permanent Marker', cursive;
+  color: var(--primary-color);
+  font-size: 1.75rem;
+  margin-bottom: 0.5rem;
+  margin-top: 0;
+}
+
+.stepDescription {
+  color: var(--text-color);
+  font-size: 1rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.statsBar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  font-weight: 700;
+  color: var(--secondary-color);
+  font-size: 0.875rem;
+}
+
+/* Error display */
+.error {
+  background-color: #fee2e2;
+  color: #dc2626;
+  padding: 1rem;
+  border-radius: 0px; /* Sharp corners */
+  margin-bottom: 1.5rem;
+  font-weight: 700;
+  border: 1px solid #dc2626;
+}
+
+/* Section titles */
+.sectionTitle {
+  font-family: 'Permanent Marker', cursive;
+  color: var(--secondary-color);
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+  margin-top: 0;
+}
+
+/* Create Type Section */
+.createTypeSection {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background-color: #f8fafc;
+  border: 1px solid var(--primary-color);
+  border-radius: 0px; /* Sharp corners */
+}
+
+.createTypeForm {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.input {
+  flex: 1;
+  padding: 8px; /* Match global */
+  border: 1px solid #ccc; /* Match global */
+  border-radius: 0px; /* Sharp corners */
+  font-size: 0.875rem;
+  font-family: inherit;
+  transition: border-color 0.15s ease-in-out;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(5, 84, 116, 0.1);
+}
+
+.createButton, .addButton {
+  background-color: var(--primary-color);
+  color: var(--accent-color);
+  padding: 8px 16px;
+  border: none;
+  border-radius: 0px; /* Sharp corners */
+  cursor: pointer;
+  font-weight: 700;
+  font-family: inherit;
+  font-size: 0.875rem;
+  transition: background-color 0.3s;
+  white-space: nowrap;
+}
+
+.createButton:hover, .addButton:hover {
+  background-color: #256429; /* Match global hover */
+}
+
+.createButton:disabled, .addButton:disabled {
+  background-color: #6b7280;
+  cursor: not-allowed;
+}
+
+/* Existing Types Section */
+.existingTypesSection {
+  margin-bottom: 2rem;
+}
+
+.typesList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.typeCard {
+  border: 2px solid var(--primary-color);
+  border-radius: 0px; /* Sharp corners */
+  padding: 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: var(--background-color);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+}
+
+.typeCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(5, 84, 116, 0.2);
+  border-color: var(--secondary-color);
+}
+
+.typeCard.selected {
+  border-color: var(--secondary-color);
+  background-color: rgba(62, 28, 86, 0.05);
+}
+
+.typeName {
+  font-weight: 700;
+  color: var(--text-color);
+  flex: 1;
+}
+
+.selectedIndicator {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  color: var(--secondary-color);
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+
+/* Selected Types Section */
+.selectedTypesSection {
+  margin-bottom: 2rem;
+}
+
+/* Type Editor */
+.typeEditor {
+  border: 1px solid var(--primary-color);
+  border-radius: 0px; /* Sharp corners */
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  background-color: #f8fafc;
+}
+
+.typeEditorTitle {
+  font-family: 'Permanent Marker', cursive;
+  color: var(--primary-color);
+  font-size: 1.125rem;
+  margin-bottom: 1rem;
+  margin-top: 0;
+}
+
+.addValueForm {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.valuesList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.valueTag {
+  background-color: var(--primary-color);
+  color: var(--accent-color);
+  padding: 0.25rem 0.75rem;
+  border-radius: 0px; /* Sharp corners */
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* Bulk Actions */
+.bulkActions {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.bulkButton {
+  background-color: var(--secondary-color);
+  color: var(--accent-color);
+  padding: 8px 16px;
+  border: none;
+  border-radius: 0px; /* Sharp corners */
+  cursor: pointer;
+  font-weight: 700;
+  font-family: inherit;
+  font-size: 0.875rem;
+  transition: background-color 0.3s;
+}
+
+.bulkButton:hover {
+  background-color: #2d1441; /* Darker purple */
+}
+
+.backButton {
+  background-color: #6b7280;
+  color: var(--accent-color);
+  padding: 8px 16px;
+  border: none;
+  border-radius: 0px; /* Sharp corners */
+  cursor: pointer;
+  font-weight: 700;
+  font-family: inherit;
+  font-size: 0.875rem;
+  transition: background-color 0.3s;
+}
+
+.backButton:hover {
+  background-color: #4b5563;
+}
+
+/* Combinations Grid */
+.combinationsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 1rem;
+  border: 1px solid var(--primary-color);
+  border-radius: 0px; /* Sharp corners */
+  background-color: #f8fafc;
+}
+
+.combinationCard {
+  border: 2px solid #ccc;
+  border-radius: 0px; /* Sharp corners */
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: var(--background-color);
+  opacity: 0.7;
+}
+
+.combinationCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  opacity: 1;
+}
+
+.combinationCard.active {
+  border-color: var(--secondary-color);
+  background-color: rgba(62, 28, 86, 0.05);
+  opacity: 1;
+}
+
+.combinationName {
+  font-weight: 700;
+  color: var(--primary-color);
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+  text-align: center;
+}
+
+.combinationDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.variantTag {
+  background-color: #e5e7eb;
+  color: var(--text-color);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0px; /* Sharp corners */
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid #d1d5db;
+}
+
+.activateButton {
+  text-align: center;
+  font-weight: 700;
+  color: var(--secondary-color);
+  font-size: 0.875rem;
+  padding: 0.5rem;
+  background-color: rgba(62, 28, 86, 0.1);
+  border-radius: 0px; /* Sharp corners */
+}
+
+.combinationCard.active .activateButton {
+  background-color: var(--secondary-color);
+  color: var(--accent-color);
+}
+
+/* Step Actions */
+.stepActions {
+  display: flex;
+  justify-content: center;
+  padding-top: 2rem;
+  border-top: 2px solid var(--primary-color);
+}
+
+.continueButton {
+  background-color: var(--primary-color);
+  color: var(--accent-color);
+  padding: 1rem 2rem;
+  border: none;
+  border-radius: 0px; /* Sharp corners */
+  cursor: pointer;
+  font-weight: 700;
+  font-family: inherit;
+  font-size: 1rem;
+  transition: background-color 0.3s;
+  min-width: 200px;
+}
+
+.continueButton:hover {
+  background-color: #256429; /* Match global hover */
+}
+
+.continueButton:disabled {
+  background-color: #6b7280;
+  cursor: not-allowed;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .variationManager {
+    padding: 1rem;
+  }
+  
+  .createTypeForm, .addValueForm {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .bulkActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .combinationsGrid {
+    grid-template-columns: 1fr;
+    max-height: 50vh;
+  }
+  
+  .stepActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+} 

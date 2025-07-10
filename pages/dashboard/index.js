@@ -382,8 +382,8 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Vendor section for users with vendor permissions */}
-          {hasVendorPermission && (
+          {/* Vendor section for users with vendor permissions or admins */}
+          {(hasVendorPermission || isAdmin) && (
             <div className={styles.sidebarSection}>
               <h3>Vendor Tools</h3>
               <ul>
@@ -395,6 +395,11 @@ export default function Dashboard() {
                 <li>
                   <Link href="/products/new" className={styles.sidebarLink}>
                     Add New Product
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/dashboard/inventory" className={styles.sidebarLink}>
+                    Inventory Management
                   </Link>
                 </li>
                 <li>

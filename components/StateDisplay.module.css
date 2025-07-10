@@ -1,0 +1,62 @@
+.stateDisplay {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--text-color);
+  margin: 0.5rem 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.stateName {
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.stateIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stateIcon svg {
+  display: block;
+  width: 53px;
+  height: 33px;
+  flex-shrink: 0;
+  fill: #3e1c56;
+}
+
+/* Ensure the state SVG maintains its aspect ratio */
+.stateIcon svg path {
+  stroke: none;
+  stroke-width: 0;
+}
+
+/* Responsive design for mobile */
+@media (max-width: 768px) {
+  .stateIcon svg {
+    width: 40px;
+    height: 25px;
+  }
+  
+  .stateDisplay {
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .stateIcon svg {
+    width: 33px;
+    height: 21px;
+  }
+  
+  .stateDisplay {
+    gap: 0.5rem;
+    font-size: 0.75rem;
+  }
+} 

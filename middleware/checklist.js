@@ -170,7 +170,7 @@ export async function checklist(req) {
       }
     }
 
-    // Check vendor permission for vendor-specific routes
+    // Check vendor permission for vendor-specific routes (admins have automatic access)
     const vendorRoutes = [
       '/dashboard/products',
       '/products/new',
@@ -178,9 +178,10 @@ export async function checklist(req) {
     ];
     
     const requiresVendorPermission = vendorRoutes.some(route => path.startsWith(route));
+    const isAdmin = roles && roles.includes('admin');
     
     if (requiresVendorPermission) {
-      if (!permissions || !permissions.includes('vendor')) {
+      if (!isAdmin && (!permissions || !permissions.includes('vendor'))) {
         return NextResponse.redirect(new URL('/dashboard', req.url));
       }
     }

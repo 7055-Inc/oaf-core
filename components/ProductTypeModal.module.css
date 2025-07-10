@@ -1,0 +1,201 @@
+/* Modal overlay - blocks entire page */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  font-family: 'Comic Neue', sans-serif;
+}
+
+/* Main modal content */
+.modalContent {
+  background-color: var(--background-color);
+  border: 3px solid var(--primary-color);
+  border-radius: 0px; /* Sharp corners */
+  padding: 2rem;
+  max-width: 800px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* Modal header */
+.modalHeader {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.modalTitle {
+  font-family: 'Permanent Marker', cursive;
+  color: var(--primary-color);
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  margin-top: 0;
+}
+
+.modalSubtitle {
+  font-size: 1.125rem;
+  color: var(--text-color);
+  margin: 0;
+  font-weight: 400;
+}
+
+/* Product type options container */
+.productTypeOptions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+  .productTypeOptions {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
+/* Individual product type cards */
+.productTypeCard {
+  border: 2px solid var(--primary-color);
+  border-radius: 0px; /* Sharp corners */
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: var(--background-color);
+  position: relative;
+}
+
+.productTypeCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(5, 84, 116, 0.2);
+  border-color: var(--secondary-color);
+}
+
+/* Card icon */
+.cardIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  display: block;
+}
+
+/* Card title */
+.cardTitle {
+  font-family: 'Permanent Marker', cursive;
+  color: var(--primary-color);
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  margin-top: 0;
+}
+
+/* Card description */
+.cardDescription {
+  color: var(--text-color);
+  font-size: 1rem;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+}
+
+/* Features list */
+.cardFeatures {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  align-items: center;
+}
+
+.feature {
+  color: var(--primary-color);
+  font-weight: 700;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Select button */
+.selectButton {
+  background-color: var(--primary-color);
+  color: var(--accent-color);
+  padding: 1rem 2rem;
+  border: none;
+  border-radius: 0px; /* Sharp corners */
+  cursor: pointer;
+  font-weight: 700;
+  font-family: inherit;
+  font-size: 1rem;
+  transition: background-color 0.3s;
+  width: 100%;
+}
+
+.selectButton:hover {
+  background-color: #256429; /* Match global hover color */
+}
+
+/* Modal footer */
+.modalFooter {
+  text-align: center;
+  padding-top: 1.5rem;
+  border-top: 2px solid var(--primary-color);
+}
+
+.footerNote {
+  color: var(--text-color);
+  font-size: 0.875rem;
+  margin: 0;
+  font-style: italic;
+}
+
+/* Animation for modal entrance */
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modalContent {
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+/* Focus and accessibility */
+.productTypeCard:focus {
+  outline: 3px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.selectButton:focus {
+  outline: 3px solid rgba(5, 84, 116, 0.5);
+  outline-offset: 2px;
+}
+
+/* Card selection state */
+.productTypeCard.selected {
+  border-color: var(--secondary-color);
+  background-color: rgba(62, 28, 86, 0.05);
+}
+
+.productTypeCard.selected .cardTitle {
+  color: var(--secondary-color);
+}
+
+.productTypeCard.selected .selectButton {
+  background-color: var(--secondary-color);
+}
+
+.productTypeCard.selected .selectButton:hover {
+  background-color: #2d1441; /* Darker purple */
+} 

@@ -99,7 +99,7 @@ class SearchService {
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN users u ON p.vendor_id = u.id
-        WHERE (p.name LIKE ? OR p.description LIKE ?)
+        WHERE (p.name LIKE ? OR p.description LIKE ?) AND p.parent_id IS NULL
         ORDER BY p.created_at DESC LIMIT ${limit} OFFSET ${offset}
       `;
       const params = [`%${query}%`, `%${query}%`];
@@ -199,7 +199,7 @@ class SearchService {
         const [productSuggestions] = await db.execute(`
           SELECT DISTINCT name as suggestion, 'product' as type, COUNT(*) as frequency
           FROM products 
-          WHERE status = 'active' AND name LIKE ?
+          WHERE status = 'active' AND name LIKE ? AND parent_id IS NULL
           GROUP BY name
           ORDER BY frequency DESC, name ASC
           LIMIT ?

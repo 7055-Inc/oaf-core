@@ -1,0 +1,202 @@
+.aboutArtist {
+  background-color: #f8fafc;
+  border: 2px solid #e2e8f0;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  height: fit-content;
+  position: sticky;
+  top: 0;
+  margin-left: 1rem;
+  max-width: 300px;
+  overflow: hidden;
+}
+
+.header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--primary-color);
+}
+
+.header h3 {
+  /* Inherits global h3 styles */
+  margin: 0;
+  color: var(--primary-color);
+}
+
+.artistInfo {
+  margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  gap: 1rem;
+}
+
+.artistImage {
+  align-self: flex-end;
+}
+
+.profileImage {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border: 3px solid var(--primary-color);
+}
+
+.artistDetails {
+  width: 100%;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.nameAndState {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  text-align: right;
+  width: 100%;
+}
+
+.businessName {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-color);
+  margin: 0;
+  line-height: 1.3;
+  text-align: right;
+}
+
+.stateBadge {
+  display: inline-block;
+  background-color: var(--secondary-color);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.bioSection {
+  text-align: right;
+  width: 100%;
+}
+
+.bioText {
+  font-size: 0.875rem;
+  color: var(--text-color);
+  line-height: 1.5;
+  margin: 0 0 0.75rem 0;
+  text-align: right;
+}
+
+.readMoreLink {
+  font-size: 0.875rem;
+  color: var(--primary-color);
+  font-weight: 700;
+  text-decoration: none;
+  transition: opacity 0.15s ease-in-out;
+}
+
+.readMoreLink:hover {
+  opacity: 0.8;
+  animation: wiggle 0.5s ease-in-out;
+}
+
+.policyRibbon {
+  background-color: var(--primary-color);
+  margin: -1.5rem -1.5rem -1.5rem -1.5rem;
+  padding: 1rem 1.5rem;
+}
+
+.policyLinks {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.policyLink {
+  background-color: transparent;
+  color: white;
+  border: 2px solid white;
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  text-decoration: none;
+}
+
+.policyLink:hover {
+  background-color: white;
+  color: var(--primary-color);
+  animation: wiggle 0.5s ease-in-out;
+}
+
+.loading, .error {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-color);
+  font-style: italic;
+}
+
+.error {
+  color: #dc2626;
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+  .aboutArtist {
+    position: static;
+    margin-top: 2rem;
+  }
+  
+  .policyLinks {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .policyLink {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .aboutArtist {
+    padding: 1rem;
+  }
+  
+  .policyRibbon {
+    margin: -1rem -1rem -1rem -1rem;
+    padding: 0.75rem 1rem;
+  }
+  
+  .profileImage {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .businessName {
+    font-size: 1rem;
+  }
+  
+  .bioText {
+    font-size: 0.8rem;
+  }
+  
+  .artistInfo {
+    gap: 0.75rem;
+  }
+  
+  .artistImage {
+    align-self: flex-end;
+  }
+  
+  .artistDetails {
+    width: 100%;
+  }
+} 

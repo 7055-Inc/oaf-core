@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { authenticatedApiRequest } from '../lib/csrf';
 import styles from './PermissionsManagement.module.css';
 
 export default function PermissionsManagement() {
@@ -19,10 +20,8 @@ export default function PermissionsManagement() {
 
   const fetchUsers = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('https://api2.onlineartfestival.com/admin/users', {
+      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/admin/users', {
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -36,9 +35,8 @@ export default function PermissionsManagement() {
       // Fetch permissions for each user
       const usersWithPermissions = await Promise.all(
         data.map(async (user) => {
-          const permissionsResponse = await fetch(`https://api2.onlineartfestival.com/admin/users/${user.id}/permissions`, {
+          const permissionsResponse = await authenticatedApiRequest(`https://api2.onlineartfestival.com/admin/users/${user.id}/permissions`, {
             headers: {
-              'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
             }
           });
@@ -73,11 +71,9 @@ export default function PermissionsManagement() {
 
   const updatePermission = async (userId, permissionType, value) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`https://api2.onlineartfestival.com/admin/users/${userId}/permissions`, {
+      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/admin/users/${userId}/permissions`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ [permissionType]: value })

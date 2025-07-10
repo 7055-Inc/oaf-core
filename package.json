@@ -23,6 +23,8 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-draft-wysiwyg": "^1.15.0",
+    "react-stateface": "^2.0.0",
+    "react-usa-map": "^1.5.0",
     "tinymce": "^7.9.1"
   }
 }

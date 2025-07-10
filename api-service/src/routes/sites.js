@@ -426,11 +426,13 @@ router.get('/resolve/:subdomain/products', async (req, res) => {
     const userId = site[0].user_id;
 
     // Build query based on category filter
+    // Only show parent products (simple products and variable product parents)
+    // Hide child variation products from public listings
     let query = `
       SELECT p.*, pi.image_path, pi.alt_text, pi.is_primary
       FROM products p
       LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_primary = 1
-      WHERE p.user_id = ? AND p.status = 'active'
+      WHERE p.user_id = ? AND p.status = 'active' AND p.parent_id IS NULL
     `;
     let params = [userId];
 

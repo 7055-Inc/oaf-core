@@ -1,5 +1,6 @@
 const express = require('express');
 const stripeService = require('../services/stripeService');
+const shippingService = require('../services/shippingService');
 const db = require('../../config/db');
 const authenticateToken = require('../middleware/jwt');
 const router = express.Router();
@@ -10,7 +11,7 @@ const router = express.Router();
  */
 router.post('/calculate-totals', authenticateToken, async (req, res) => {
   try {
-    const { cart_items } = req.body;
+    const { cart_items, shipping_address } = req.body;
     
     if (!cart_items || !Array.isArray(cart_items)) {
       return res.status(400).json({ error: 'Cart items are required' });
@@ -19,8 +20,11 @@ router.post('/calculate-totals', authenticateToken, async (req, res) => {
     // Get detailed product information for cart items
     const itemsWithDetails = await getCartItemsWithDetails(cart_items);
     
+    // Calculate shipping costs for all items (including calculated shipping)
+    const itemsWithShipping = await calculateShippingCosts(itemsWithDetails, shipping_address);
+    
     // Calculate commissions for each item
-    const itemsWithCommissions = await stripeService.calculateCommissions(itemsWithDetails);
+    const itemsWithCommissions = await stripeService.calculateCommissions(itemsWithShipping);
     
     // Group by vendor for display
     const vendorGroups = groupItemsByVendor(itemsWithCommissions);
@@ -54,9 +58,10 @@ router.post('/create-payment-intent', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Cart items are required' });
     }
 
-    // Get cart items with details and calculate commissions
+    // Get cart items with details and calculate shipping costs
     const itemsWithDetails = await getCartItemsWithDetails(cart_items);
-    const itemsWithCommissions = await stripeService.calculateCommissions(itemsWithDetails);
+    const itemsWithShipping = await calculateShippingCosts(itemsWithDetails, shipping_info);
+    const itemsWithCommissions = await stripeService.calculateCommissions(itemsWithShipping);
     
     // Calculate totals
     const totals = calculateOrderTotals(itemsWithCommissions);
@@ -199,16 +204,19 @@ async function getCartItemsWithDetails(cartItems) {
       p.name as title,
       p.price,
       p.vendor_id,
-      0 as shipping_cost,
-      u.username as vendor_name
+      u.username as vendor_name,
+      ps.ship_method,
+      ps.ship_rate,
+      ps.shipping_services
     FROM products p
     LEFT JOIN users u ON p.vendor_id = u.id
+    LEFT JOIN product_shipping ps ON p.id = ps.product_id AND ps.package_number = 1
     WHERE p.id IN (${productIds.map(() => '?').join(',')})
   `;
   
   const [products] = await db.execute(query, productIds);
   
-  // Merge cart quantities with product details
+  // Merge cart quantities with product details 
   return cartItems.map(cartItem => {
     const product = products.find(p => p.id === cartItem.product_id);
     if (!product) {
@@ -222,9 +230,91 @@ async function getCartItemsWithDetails(cartItems) {
       title: product.title,
       quantity: cartItem.quantity,
       price: product.price * cartItem.quantity,
-      shipping_cost: product.shipping_cost || 0
+      shipping_cost: 0, // Will be calculated in calculateShippingCosts
+      ship_method: product.ship_method || 'free'
     };
   });
+}
+
+/**
+ * Calculate shipping costs for cart items
+ */
+async function calculateShippingCosts(items, shippingAddress) {
+  const itemsWithShipping = [];
+  
+  for (const item of items) {
+    let shippingCost = 0;
+    
+    if (item.ship_method === 'free') {
+      shippingCost = 0;
+    } else if (item.ship_method === 'flat_rate') {
+      // Get the flat rate for this product
+      const [shippingData] = await db.execute(`
+        SELECT ship_rate FROM product_shipping 
+        WHERE product_id = ? AND package_number = 1
+      `, [item.product_id]);
+      
+      if (shippingData.length > 0 && shippingData[0].ship_rate) {
+        shippingCost = parseFloat(shippingData[0].ship_rate) * item.quantity;
+      }
+    } else if (item.ship_method === 'calculated' && shippingAddress) {
+      // Use calculated shipping with carrier APIs
+      try {
+        const [productShipping] = await db.execute(`
+          SELECT ps.*, p.vendor_id
+          FROM product_shipping ps
+          JOIN products p ON ps.product_id = p.id
+          WHERE ps.product_id = ?
+          ORDER BY ps.package_number ASC
+        `, [item.product_id]);
+        
+        if (productShipping.length > 0) {
+          // Get company address
+          const companyAddress = await shippingService.getCompanyAddress();
+          
+          // Build shipment object
+          const shipment = {
+            shipper: {
+              name: companyAddress.name,
+              accountNumber: '', // TODO: Get from vendor settings
+              address: companyAddress
+            },
+            recipient: {
+              name: shippingAddress.name || 'Customer',
+              address: shippingAddress
+            },
+            packages: productShipping.map(ps => ({
+              length: ps.length,
+              width: ps.width,
+              height: ps.height,
+              weight: ps.weight,
+              dimension_unit: ps.dimension_unit,
+              weight_unit: ps.weight_unit
+            }))
+          };
+
+          // Calculate shipping rates
+          const rates = await shippingService.calculateShippingRates(shipment);
+          
+          // Use the cheapest rate
+          if (rates.length > 0) {
+            shippingCost = rates[0].cost;
+          }
+        }
+      } catch (error) {
+        console.error(`Error calculating shipping for product ${item.product_id}:`, error);
+        // Fall back to free shipping if calculation fails
+        shippingCost = 0;
+      }
+    }
+    
+    itemsWithShipping.push({
+      ...item,
+      shipping_cost: shippingCost
+    });
+  }
+  
+  return itemsWithShipping;
 }
 
 /**

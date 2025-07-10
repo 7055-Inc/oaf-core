@@ -166,23 +166,14 @@ export default function ProfileEdit() {
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      router.push('/');
-      return;
-    }
-
     const fetchUser = async () => {
       try {
-        const res = await fetch('https://api2.onlineartfestival.com/users/me', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+        const res = await authenticatedApiRequest('https://api2.onlineartfestival.com/users/me', {
+          method: 'GET'
         });
         if (!res.ok) {
-          throw new Error('Failed to fetch user profile');
+          const errorData = await res.json();
+          throw new Error(errorData.error || 'Failed to fetch user profile');
         }
         const data = await res.json();
         setUser(data);
@@ -301,12 +292,22 @@ export default function ProfileEdit() {
 
   const handleFileChange = (e) => {
     const { name } = e.target;
+    const file = e.target.files[0];
+    
+    // Check file size (5MB limit)
+    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+    if (file && file.size > maxSize) {
+      setError(`File too large. Please choose an image smaller than 5MB. Current size: ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
+      e.target.value = ''; // Clear the file input
+      return;
+    }
+    
     if (name === 'profile_image') {
-      setProfileImage(e.target.files[0]);
+      setProfileImage(file);
     } else if (name === 'header_image') {
-      setHeaderImage(e.target.files[0]);
+      setHeaderImage(file);
     } else if (name === 'logo_image') {
-      setLogoImage(e.target.files[0]);
+      setLogoImage(file);
     }
   };
 
@@ -411,7 +412,8 @@ export default function ProfileEdit() {
       });
       
       if (!res.ok) {
-        throw new Error('Failed to update profile');
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to update profile');
       }
       
       router.push(`/profile/${user.id}`);
@@ -664,7 +666,7 @@ export default function ProfileEdit() {
             <div className={styles.sectionContent}>
               <div className={styles.formRow}>
           <div className={styles.formGroup}>
-                  <label className={styles.label}>Profile Image</label>
+                  <label className={styles.label}>Profile Image (Max 5MB)</label>
             <input
               type="file"
               name="profile_image"
@@ -684,7 +686,7 @@ export default function ProfileEdit() {
             )}
           </div>
           <div className={styles.formGroup}>
-                  <label className={styles.label}>Header Image</label>
+                  <label className={styles.label}>Header Image (Max 5MB)</label>
             <input
               type="file"
               name="header_image"
@@ -811,7 +813,7 @@ export default function ProfileEdit() {
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Business Logo</label>
+                  <label className={styles.label}>Business Logo (Max 5MB)</label>
                   <input
                     type="file"
                     name="logo_image"

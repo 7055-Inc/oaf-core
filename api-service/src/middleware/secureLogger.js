@@ -57,12 +57,18 @@ if (process.env.NODE_ENV !== 'production') {
  * Recursively sanitize an object to remove sensitive information
  * @param {any} obj - Object to sanitize
  * @param {number} depth - Current recursion depth
+ * @param {WeakSet} visited - Set of visited objects to prevent circular references
  * @returns {any} - Sanitized object
  */
-function sanitizeObject(obj, depth = 0) {
+function sanitizeObject(obj, depth = 0, visited = new WeakSet()) {
   // Prevent infinite recursion
   if (depth > 10) {
     return '[Object too deep]';
+  }
+  
+  // Check for circular references
+  if (obj !== null && typeof obj === 'object' && visited.has(obj)) {
+    return '[Circular Reference]';
   }
 
   if (obj === null || obj === undefined) {
@@ -71,11 +77,13 @@ function sanitizeObject(obj, depth = 0) {
 
   // Handle arrays
   if (Array.isArray(obj)) {
-    return obj.map(item => sanitizeObject(item, depth + 1));
+    visited.add(obj);
+    return obj.map(item => sanitizeObject(item, depth + 1, visited));
   }
 
   // Handle objects
   if (typeof obj === 'object') {
+    visited.add(obj);
     const sanitized = {};
     for (const [key, value] of Object.entries(obj)) {
       const lowerKey = key.toLowerCase();
@@ -88,7 +96,7 @@ function sanitizeObject(obj, depth = 0) {
       if (isSensitive) {
         sanitized[key] = '[REDACTED]';
       } else {
-        sanitized[key] = sanitizeObject(value, depth + 1);
+        sanitized[key] = sanitizeObject(value, depth + 1, visited);
       }
     }
     return sanitized;
@@ -195,14 +203,8 @@ const requestLogger = (req, res, next) => {
   next();
 };
 
-// Replace console.log in production
-if (process.env.NODE_ENV === 'production') {
-  console.log = secureLogger.info;
-  console.error = secureLogger.error;
-  console.warn = secureLogger.warn;
-  console.debug = secureLogger.debug;
-  console.info = secureLogger.info;
-}
+// Note: We don't override console methods to prevent circular references
+// Use secureLogger explicitly throughout the application instead
 
 module.exports = {
   secureLogger,
