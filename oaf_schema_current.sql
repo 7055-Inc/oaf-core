@@ -616,7 +616,6 @@ CREATE TABLE `products` (
   `vendor_id` bigint NOT NULL,
   `description` text,
   `short_description` text,
-  `available_qty` int NOT NULL DEFAULT '10',
   `category_id` bigint NOT NULL DEFAULT '1',
   `sku` varchar(50) NOT NULL DEFAULT 'SKU-DEFAULT',
   `status` enum('draft','active','deleted','hidden') DEFAULT 'draft',

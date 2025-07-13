@@ -4,6 +4,27 @@ server {
     # Increase upload size limit to 200MB
     client_max_body_size 200M;
     
+    # Rate limiting zones
+    limit_req_zone $binary_remote_addr zone=general:10m rate=10r/m;
+    limit_req_zone $binary_remote_addr zone=strict:10m rate=5r/m;
+    limit_req_zone $binary_remote_addr zone=login:10m rate=3r/m;
+    limit_conn_zone $binary_remote_addr zone=connlimit:10m;
+    
+    # Block suspicious user agents and malicious scanners (but allow legitimate bots)
+    if ($http_user_agent ~* (zgrab|masscan|nmap|nikto|dirb|gobuster|sqlmap|python-requests|scanner|scraper)) {
+        return 403;
+    }
+    
+    # Block suspicious requests
+    if ($request_uri ~* (/cgi-bin/|/manager/|/admin/|/wp-admin/|/wp-content/|/phpmyadmin/|/mysql/|\.php|\.asp|\.jsp)) {
+        return 403;
+    }
+    
+    # Block requests with suspicious query parameters
+    if ($args ~* (union|select|insert|update|delete|drop|create|alter|exec|script|javascript|vbscript|onload|onerror)) {
+        return 403;
+    }
+    
     # Security headers
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
@@ -14,6 +35,14 @@ server {
     access_log /var/log/nginx/oaf_access.log;
     error_log /var/log/nginx/oaf_error.log debug;
     
+    # Apply connection limits to all locations
+    limit_conn connlimit 10;
+    
+    # Block repeated requests to commonly probed paths
+    location ~* ^/(cgi-bin|manager|admin|wp-admin|wp-content|phpmyadmin|mysql|\.php|\.asp|\.jsp) {
+        return 403;
+    }
+    
     # Serve static media files directly
     location /static_media/ {
         alias /var/www/main/public/static_media/;
@@ -22,6 +51,9 @@ server {
         add_header Access-Control-Allow-Methods "GET, OPTIONS";
         add_header Access-Control-Allow-Headers "Range";
         
+        # Rate limit static files
+        limit_req zone=general burst=20 nodelay;
+        
         # Handle video files
         location ~* \.(mp4|webm|ogg)$ {
             add_header Accept-Ranges bytes;
@@ -29,8 +61,10 @@ server {
         }
     }
     
-    # Auth routes
+    # Auth routes with strict rate limiting
     location ~ ^/(auth|oauth)/ {
+        limit_req zone=login burst=5 nodelay;
+        
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -51,10 +85,13 @@ server {
         alias /var/www/main/.next/static/;
         access_log off;
         add_header Cache-Control "public, max-age=31536000, immutable";
+        limit_req zone=general burst=50 nodelay;
     }
     
-    # Default location
+    # Default location with rate limiting
     location / {
+        limit_req zone=general burst=10 nodelay;
+        
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;

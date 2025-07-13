@@ -12,7 +12,6 @@ export default function EditProduct() {
     description: '',
     short_description: '',
     price: '',
-    available_qty: 10,
     category_id: 1,
     sku: '',
     status: 'draft',
@@ -32,6 +31,14 @@ export default function EditProduct() {
     shipping_services: '',
     // Vendor field
     vendor_id: ''
+  });
+  
+  // Separate inventory state
+  const [inventoryData, setInventoryData] = useState({
+    qty_on_hand: 0,
+    qty_on_order: 0,
+    qty_available: 0,
+    reorder_qty: 0
   });
   
   // Multi-package state for calculated shipping
@@ -58,6 +65,10 @@ export default function EditProduct() {
   const [availableVendors, setAvailableVendors] = useState([]);
   const [currentUserData, setCurrentUserData] = useState(null);
   const [loadingVendors, setLoadingVendors] = useState(false);
+  
+  // Inventory update state
+  const [inventoryUpdateTimeout, setInventoryUpdateTimeout] = useState(null);
+  const [savingInventory, setSavingInventory] = useState(false);
 
   const router = useRouter();
   const params = useParams();
@@ -118,7 +129,8 @@ export default function EditProduct() {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const res = await authenticatedApiRequest(`https://api2.onlineartfestival.com/products/${params.id}`, {
+        // Use the new flexible API with inventory included
+        const res = await authenticatedApiRequest(`https://api2.onlineartfestival.com/products/${params.id}?include=inventory,images,shipping,categories`, {
           method: 'GET'
         });
 
@@ -137,7 +149,6 @@ export default function EditProduct() {
           description: data.description || '',
           short_description: data.short_description || '',
           price: data.price || '',
-          available_qty: data.available_qty || 10,
           category_id: data.category_id || 1,
           sku: data.sku || '',
           status: data.status || 'draft',
@@ -157,6 +168,14 @@ export default function EditProduct() {
           shipping_services: data.shipping?.shipping_services || '',
           // Vendor field
           vendor_id: data.vendor_id || ''
+        });
+        
+        // Set inventory data from the API response
+        setInventoryData({
+          qty_on_hand: data.inventory?.qty_on_hand || 0,
+          qty_on_order: data.inventory?.qty_on_order || 0,
+          qty_available: data.inventory?.qty_available || 0,
+          reorder_qty: data.inventory?.reorder_qty || 0
         });
 
         // Load packages data if available
@@ -222,6 +241,102 @@ export default function EditProduct() {
       setFormData(prev => ({ ...prev, shipping_services: '' }));
       setShowCarrierServices(false);
     }
+  };
+
+  const handleInventoryChange = async (field, newValue) => {
+    // Update local state immediately
+    setInventoryData(prev => ({
+      ...prev,
+      [field]: newValue
+    }));
+
+    // Clear existing timeout
+    if (inventoryUpdateTimeout) {
+      clearTimeout(inventoryUpdateTimeout);
+    }
+
+    // Set new timeout to save after 1 second of no changes
+    const timeout = setTimeout(async () => {
+      try {
+        setSavingInventory(true);
+        setError(null);
+
+        // Prepare the update data
+        let updateData = {
+          change_type: 'manual_adjustment',
+          reason: `Updated ${field === 'qty_on_hand' ? 'quantity on hand' : 'reorder level'} via product edit`
+        };
+
+        if (field === 'qty_on_hand') {
+          updateData.qty_on_hand = newValue;
+        } else if (field === 'reorder_qty') {
+          // For reorder_qty, we need to update the existing record without changing qty_on_hand
+          const res = await authenticatedApiRequest(`https://api2.onlineartfestival.com/inventory/${params.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              qty_on_hand: inventoryData.qty_on_hand, // Keep current value
+              reorder_qty: newValue,
+              change_type: 'manual_adjustment',
+              reason: 'Updated reorder level via product edit'
+            })
+          });
+
+          if (!res.ok) {
+            throw new Error('Failed to update inventory');
+          }
+
+          const data = await res.json();
+          // Update local state with response
+          setInventoryData(prev => ({
+            ...prev,
+            ...data.inventory
+          }));
+          
+          setSavingInventory(false);
+          return;
+        }
+
+        // For qty_on_hand updates
+        const res = await authenticatedApiRequest(`https://api2.onlineartfestival.com/inventory/${params.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updateData)
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to update inventory');
+        }
+
+        const data = await res.json();
+        // Update local state with response (includes calculated qty_available)
+        setInventoryData(prev => ({
+          ...prev,
+          ...data.inventory
+        }));
+
+      } catch (err) {
+        console.error('Error updating inventory:', err);
+        setError('Failed to save inventory changes');
+        
+        // Revert the change on error
+        if (field === 'qty_on_hand') {
+          setInventoryData(prev => ({
+            ...prev,
+            qty_on_hand: inventoryData.qty_on_hand
+          }));
+        } else if (field === 'reorder_qty') {
+          setInventoryData(prev => ({
+            ...prev,
+            reorder_qty: inventoryData.reorder_qty
+          }));
+        }
+      } finally {
+        setSavingInventory(false);
+      }
+    }, 1000); // Wait 1 second after user stops typing
+
+    setInventoryUpdateTimeout(timeout);
   };
 
   const handleServiceToggle = (serviceName, isChecked) => {
@@ -336,10 +451,10 @@ export default function EditProduct() {
       } else {
         // Fallback to default carriers if API fails
         setAvailableCarriers(['UPS', 'USPS']);
-        setCarrierRates({
+      setCarrierRates({
           'UPS': [{ service: 'Ground', cost: 'Rate unavailable', serviceCode: 'ups-ground' }],
           'USPS': [{ service: 'Priority Mail', cost: 'Rate unavailable', serviceCode: 'usps-priority' }]
-        });
+      });
       }
       
       setShowCarrierServices(true);
@@ -550,15 +665,43 @@ export default function EditProduct() {
               </div>
 
               <div className={styles.formGroup}>
-                <label>Available Quantity</label>
+                <label>
+                  Inventory Status
+                  {savingInventory && <span className={styles.savingIndicator}> (Saving...)</span>}
+                </label>
+                <div className={styles.inventoryDisplay}>
+                  <div className={styles.inventoryItem}>
+                    <span className={styles.inventoryLabel}>On Hand:</span>
                 <input
                   type="number"
-                  name="available_qty"
-                  value={formData.available_qty}
-                  onChange={handleChange}
-                  required
-                  className={styles.input}
-                />
+                      value={inventoryData.qty_on_hand}
+                      onChange={(e) => handleInventoryChange('qty_on_hand', parseInt(e.target.value) || 0)}
+                      className={styles.inventoryInput}
+                      min="0"
+                    />
+                  </div>
+                  <div className={styles.inventoryItem}>
+                    <span className={styles.inventoryLabel}>On Order:</span>
+                    <span className={styles.inventoryValue}>{inventoryData.qty_on_order}</span>
+                  </div>
+                  <div className={styles.inventoryItem}>
+                    <span className={styles.inventoryLabel}>Available:</span>
+                    <span className={styles.inventoryValue}>{inventoryData.qty_available}</span>
+                  </div>
+                  <div className={styles.inventoryItem}>
+                    <span className={styles.inventoryLabel}>Reorder Level:</span>
+                    <input
+                      type="number"
+                      value={inventoryData.reorder_qty}
+                      onChange={(e) => handleInventoryChange('reorder_qty', parseInt(e.target.value) || 0)}
+                      className={styles.inventoryInput}
+                      min="0"
+                    />
+                  </div>
+                </div>
+                <small className={styles.helpText}>
+                  Available = On Hand - On Order. Changes to inventory quantities are saved automatically.
+                </small>
               </div>
 
               <div className={styles.formGroup}>
@@ -1127,16 +1270,9 @@ export default function EditProduct() {
           </div>
         </form>
         
-        {/* Inventory Management Section */}
+        {/* Inventory History Log */}
         <InventoryLog 
           productId={params?.id}
-          onInventoryUpdate={(productId, newQuantity) => {
-            // Update the form data to reflect the new inventory
-            setFormData(prev => ({
-              ...prev,
-              available_qty: newQuantity
-            }));
-          }}
         />
       </div>
     </div>

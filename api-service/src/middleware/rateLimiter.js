@@ -163,18 +163,39 @@ const adminLimiter = rateLimit({
 });
 
 /**
- * File upload rate limiter
- * Prevent upload spam
+ * Smart upload rate limiter with role-based limits
+ * Higher limits for vendors and admins
  */
 const uploadLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 10, // 10 uploads per minute per IP
+  max: async (req) => {
+    // Check if user has admin role
+    if (req.roles && req.roles.includes('admin')) {
+      return 100; // Admins get 100 requests per minute
+    }
+    
+    // Check if user has vendor permission
+    if (req.permissions && req.permissions.includes('vendor')) {
+      return 50; // Vendors get 50 requests per minute
+    }
+    
+    // Default rate limit for regular users
+    return 10; // Regular users get 10 requests per minute
+  },
   message: {
     error: 'Too many upload attempts',
     message: 'Please wait before uploading more files'
   },
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => {
+    // Use user ID if available, otherwise fall back to IP
+    return req.userId ? `user_${req.userId}` : `ip_${req.ip}`;
+  },
+  // Skip rate limiting for certain paths
+  skip: (req) => {
+    return req.path.startsWith('/temp_images/') || req.path === '/health';
+  }
 });
 
 module.exports = {

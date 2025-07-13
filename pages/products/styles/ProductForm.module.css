@@ -30,6 +30,18 @@
   margin-top: 0;
 }
 
+.stepNote {
+  color: var(--text-color);
+  font-size: 1rem;
+  margin: 0.5rem 0 0 0;
+  text-align: center;
+  font-style: italic;
+  background-color: #f8fafc;
+  padding: 0.75rem;
+  border: 1px solid var(--primary-color);
+  border-radius: 0px;
+}
+
 .changeTypeButton {
   background-color: var(--secondary-color);
   color: var(--accent-color);
@@ -595,7 +607,7 @@
   color: white !important;
   border: 2px dashed var(--secondary-color) !important;
   padding: 12px 24px !important;
-  border-radius: 8px !important;
+  border-radius: 0px !important;
   font-weight: 600 !important;
   cursor: pointer !important;
   width: 100% !important;
@@ -742,4 +754,83 @@
 
 .selectedVendor strong {
   color: #0c5460;
+}
+
+/* Inventory display styles */
+.inventoryDisplay {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 0px; /* Sharp corners */
+  margin-bottom: 0.5rem;
+}
+
+.inventoryItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.inventoryItem:last-child {
+  border-bottom: none;
+}
+
+.inventoryLabel {
+  font-weight: 700;
+  color: var(--text-color);
+  font-size: 0.875rem;
+}
+
+.inventoryValue {
+  font-weight: 700;
+  color: var(--primary-color);
+  font-size: 1rem;
+  min-width: 2rem;
+  text-align: right;
+}
+
+.inventoryInput {
+  width: 80px;
+  padding: 4px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 0px; /* Sharp corners */
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  text-align: right;
+  font-family: inherit;
+  transition: border-color 0.15s ease-in-out;
+}
+
+.inventoryInput:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(5, 84, 116, 0.1);
+}
+
+.savingIndicator {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 400;
+  font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .inventoryDisplay {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  
+  .inventoryItem {
+    padding: 0.75rem;
+    background-color: var(--background-color);
+    border: 1px solid #e2e8f0;
+    border-radius: 0px; /* Sharp corners */
+    margin-bottom: 0.5rem;
+  }
 } 

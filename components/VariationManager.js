@@ -3,41 +3,63 @@ import { authenticatedApiRequest } from '../lib/csrf';
 import styles from './VariationManager.module.css';
 
 const VariationManager = ({ 
-  parentProduct, 
-  onVariationsUpdate, 
-  onContinue 
+  onNext, 
+  onBack, 
+  onVariationsChange, 
+  onStepChange,
+  productId // Add productId prop
 }) => {
-  const [step, setStep] = useState(1); // 1: Setup Types, 2: Generate Combinations
   const [userVariationTypes, setUserVariationTypes] = useState([]);
   const [selectedTypes, setSelectedTypes] = useState([]);
-  const [newTypeName, setNewTypeName] = useState('');
   const [combinations, setCombinations] = useState([]);
   const [activeCombinations, setActiveCombinations] = useState(new Set());
+  const [step, setStep] = useState(1); // Start at step 1
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState('');
+  const [newTypeName, setNewTypeName] = useState('');
 
-  // Load user's existing variation types
+  // Load user's variation types on component mount
   useEffect(() => {
-    loadUserVariationTypes();
+    fetchUserVariationTypes();
   }, []);
 
-  const loadUserVariationTypes = async () => {
+  const fetchUserVariationTypes = async () => {
     try {
       const response = await authenticatedApiRequest(
-        `https://api2.onlineartfestival.com/variations/types`,
+        'https://api2.onlineartfestival.com/variations/types',
         { method: 'GET' }
       );
       
       if (response.ok) {
         const types = await response.json();
-        setUserVariationTypes(Array.isArray(types) ? types : []);
+        setUserVariationTypes(types);
       } else {
-        console.error('Failed to load variation types');
-        setUserVariationTypes([]);
+        setError('Failed to load variation types');
       }
     } catch (error) {
-      console.error('Error loading variation types:', error);
-      setUserVariationTypes([]);
+      setError('Error loading variation types');
+    }
+  };
+
+  // Load variation values for a specific type
+  const loadVariationValues = async (typeId) => {
+    try {
+      const url = productId 
+        ? `https://api2.onlineartfestival.com/variations/types/${typeId}/values?product_id=${productId}`
+        : `https://api2.onlineartfestival.com/variations/types/${typeId}/values`;
+        
+      const response = await authenticatedApiRequest(url, { method: 'GET' });
+      
+      if (response.ok) {
+        const values = await response.json();
+        return values;
+      } else {
+        console.error('Failed to load variation values');
+        return [];
+      }
+    } catch (error) {
+      console.error('Error loading variation values:', error);
+      return [];
     }
   };
 
@@ -75,6 +97,11 @@ const VariationManager = ({
   const handleAddVariationValue = async (typeId, valueName) => {
     if (!valueName.trim()) return;
 
+    if (!productId) {
+      setError('Product ID is required to add variation values');
+      return;
+    }
+
     try {
       const response = await authenticatedApiRequest(
         `https://api2.onlineartfestival.com/variations/values`,
@@ -83,7 +110,8 @@ const VariationManager = ({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             variation_type_id: typeId, 
-            value_name: valueName.trim() 
+            value_name: valueName.trim(),
+            product_id: productId
           })
         }
       );
@@ -104,27 +132,51 @@ const VariationManager = ({
     }
   };
 
-  // Select/deselect variation type
+  // Delete variation type
+  const handleDeleteVariationType = async (typeId, event) => {
+    event.stopPropagation(); // Prevent triggering the selection
+
+    if (!confirm('Are you sure you want to delete this variation type? This action cannot be undone.')) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await authenticatedApiRequest(
+        `https://api2.onlineartfestival.com/variations/types/${typeId}`,
+        {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+
+      if (response.ok) {
+        // Remove from userVariationTypes
+        setUserVariationTypes(prev => prev.filter(type => type.id !== typeId));
+        // Remove from selectedTypes if it was selected
+        setSelectedTypes(prev => prev.filter(type => type.id !== typeId));
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to delete variation type');
+      }
+    } catch (error) {
+      setError('Error deleting variation type');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Select variation type for the current product
   const handleTypeSelection = async (type) => {
-    const isSelected = selectedTypes.find(t => t.id === type.id);
+    const isSelected = selectedTypes.some(t => t.id === type.id);
     
     if (isSelected) {
       setSelectedTypes(prev => prev.filter(t => t.id !== type.id));
     } else {
-      // Load values for this type
-      try {
-        const response = await authenticatedApiRequest(
-          `https://api2.onlineartfestival.com/variations/types/${type.id}/values`,
-          { method: 'GET' }
-        );
-        
-        if (response.ok) {
-          const values = await response.json();
-          setSelectedTypes(prev => [...prev, { ...type, values: Array.isArray(values) ? values : [] }]);
-        }
-      } catch (error) {
-        setError('Error loading variation values');
-      }
+      // Load values for this type and product
+      const values = await loadVariationValues(type.id);
+      const typeWithValues = { ...type, values: values || [] };
+      setSelectedTypes(prev => [...prev, typeWithValues]);
     }
   };
 
@@ -162,6 +214,7 @@ const VariationManager = ({
     const generated = generateCombinations();
     setCombinations(generated);
     setStep(2);
+    if (onStepChange) onStepChange(3); // Notify parent we're on Step 3
   };
 
   // Toggle combination activation
@@ -190,29 +243,25 @@ const VariationManager = ({
       .filter((_, index) => activeCombinations.has(index))
       .map((combination, index) => ({
         id: `temp-${index}`,
-        combination,
-        parentData: { ...parentProduct }
+        combination
       }));
 
-    onVariationsUpdate(activeVariations);
-    onContinue();
+    if (onVariationsChange) {
+      onVariationsChange(activeVariations);
+    }
+    if (onNext) {
+      onNext(activeVariations);
+    }
   };
 
   if (step === 1) {
     return (
       <div className={styles.variationManager}>
-        <div className={styles.stepHeader}>
-          <h2 className={styles.stepTitle}>Step 1: Setup Variations</h2>
-          <p className={styles.stepDescription}>
-            Choose the types of variations your product will have (color, size, style, etc.)
-          </p>
-        </div>
 
         {error && <div className={styles.error}>{error}</div>}
 
         {/* Create New Variation Type */}
         <div className={styles.createTypeSection}>
-          <h3 className={styles.sectionTitle}>Create New Variation Type</h3>
           <div className={styles.createTypeForm}>
             <input
               type="text"
@@ -225,7 +274,6 @@ const VariationManager = ({
             <button 
               onClick={handleCreateVariationType}
               disabled={!newTypeName.trim() || loading}
-              className={styles.createButton}
             >
               {loading ? 'Creating...' : 'Create Type'}
             </button>
@@ -234,20 +282,46 @@ const VariationManager = ({
 
         {/* Select Existing Types */}
         <div className={styles.existingTypesSection}>
-          <h3 className={styles.sectionTitle}>Your Variation Types</h3>
           <div className={styles.typesList}>
             {userVariationTypes.map(type => {
-              const isSelected = selectedTypes.find(t => t.id === type.id);
+              const isSelected = selectedTypes.some(t => t.id === type.id);
+              const usageCount = parseInt(type.usage_count) || 0;
+              const isUnused = usageCount === 0;
+              
               return (
                 <div 
                   key={type.id}
                   className={`${styles.typeCard} ${isSelected ? styles.selected : ''}`}
                   onClick={() => handleTypeSelection(type)}
                 >
+                  <div className={styles.typeCardContent}>
                   <span className={styles.typeName}>{type.variation_name}</span>
+                    <div className={styles.typeMetadata}>
+                      {usageCount > 0 ? (
+                        <span className={styles.usageTag}>
+                          Used in {usageCount} product{usageCount !== 1 ? 's' : ''}
+                        </span>
+                      ) : (
+                        <span className={styles.unusedTag}>Unused</span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className={styles.typeActions}>
                   {isSelected && (
                     <div className={styles.selectedIndicator}>✓</div>
                   )}
+                    {isUnused && (
+                      <button
+                        className="secondary"
+                        onClick={(e) => handleDeleteVariationType(type.id, e)}
+                        title="Delete unused variation type"
+                        style={{ padding: '5px', fontSize: '12px' }}
+                      >
+                        🗑️
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -257,7 +331,6 @@ const VariationManager = ({
         {/* Selected Types with Values */}
         {selectedTypes.length > 0 && (
           <div className={styles.selectedTypesSection}>
-            <h3 className={styles.sectionTitle}>Add Values for Selected Types</h3>
             {selectedTypes.map(type => (
               <VariationTypeEditor
                 key={type.id}
@@ -271,9 +344,20 @@ const VariationManager = ({
         {/* Continue Button */}
         <div className={styles.stepActions}>
           <button 
+            onClick={() => {
+              if (onBack) {
+                onBack();
+              } else {
+                window.history.back();
+              }
+            }}
+            className="secondary"
+          >
+            ← Back to Product Form
+          </button>
+          <button 
             onClick={handleGenerateCombinations}
             disabled={selectedTypes.length === 0 || selectedTypes.some(t => !t.values || t.values.length === 0)}
-            className={styles.continueButton}
           >
             Generate Combinations →
           </button>
@@ -288,16 +372,10 @@ const VariationManager = ({
 
     return (
       <div className={styles.variationManager}>
-        <div className={styles.stepHeader}>
-          <h2 className={styles.stepTitle}>Step 2: Select Variations</h2>
-          <p className={styles.stepDescription}>
-            Choose which variations you want to create. Each will become a separate product.
-          </p>
-          <div className={styles.statsBar}>
-            <span>Generated {totalCombinations} combinations</span>
-            <span>•</span>
-            <span>{selectedCount} selected</span>
-          </div>
+        <div className={styles.statsBar}>
+          <span>Generated {totalCombinations} combinations</span>
+          <span>•</span>
+          <span>{selectedCount} selected</span>
         </div>
 
         {error && <div className={styles.error}>{error}</div>}
@@ -306,19 +384,22 @@ const VariationManager = ({
         <div className={styles.bulkActions}>
           <button 
             onClick={() => handleBulkOperation('enableAll')}
-            className={styles.bulkButton}
+            className="secondary"
           >
             Select All
           </button>
           <button 
             onClick={() => handleBulkOperation('disableAll')}
-            className={styles.bulkButton}
+            className="secondary"
           >
             Deselect All
           </button>
           <button 
-            onClick={() => setStep(1)}
-            className={styles.backButton}
+            onClick={() => {
+              setStep(1);
+              if (onStepChange) onStepChange(2); // Notify parent we're back on Step 2
+            }}
+            className="secondary"
           >
             ← Back to Setup
           </button>
@@ -354,7 +435,6 @@ const VariationManager = ({
           <button 
             onClick={handleContinue}
             disabled={selectedCount === 0}
-            className={styles.continueButton}
           >
             Continue with {selectedCount} Variations →
           </button>
@@ -362,6 +442,15 @@ const VariationManager = ({
       </div>
     );
   }
+
+  // Default return (should not happen)
+  return (
+    <div className={styles.variationManager}>
+      <div className={styles.error}>
+        Component error: Invalid step {step}
+      </div>
+    </div>
+  );
 };
 
 // Component for editing individual variation types
@@ -391,7 +480,6 @@ const VariationTypeEditor = ({ type, onAddValue }) => {
         <button 
           onClick={handleAddValue}
           disabled={!newValue.trim()}
-          className={styles.addButton}
         >
           Add
         </button>

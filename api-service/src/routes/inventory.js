@@ -1,11 +1,30 @@
 const express = require('express');
 const router = express.Router();
-const authenticateToken = require('../middleware/jwt');
 const db = require('../../config/db');
+const jwt = require('jsonwebtoken');
 const { secureLogger } = require('../middleware/secureLogger');
 
+// Middleware to verify JWT token
+const verifyToken = async (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) {
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(401).json({ error: 'No token provided' });
+  }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.userId = decoded.userId;
+    req.roles = decoded.roles;
+    req.permissions = decoded.permissions || [];
+    next();
+  } catch (err) {
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
 // GET /inventory/:productId - Get inventory for a specific product
-router.get('/:productId', authenticateToken, async (req, res) => {
+router.get('/:productId', verifyToken, async (req, res) => {
   try {
     const { productId } = req.params;
     
@@ -37,25 +56,25 @@ router.get('/:productId', authenticateToken, async (req, res) => {
         // Create inventory record based on current product available_qty
         const qtyOnHand = product[0].available_qty || 0;
         await db.query(
-          'INSERT INTO product_inventory (product_id, qty_on_hand, qty_on_order, qty_available, reorder_qty, created_by) VALUES (?, ?, 0, ?, 0, ?)',
-          [productId, qtyOnHand, qtyOnHand, req.user.userId]
+          'INSERT INTO product_inventory (product_id, qty_on_hand, qty_on_order, reorder_qty, updated_by) VALUES (?, ?, 0, 0, ?)',
+          [productId, qtyOnHand, req.userId]
         );
         
         // Add initial history record
         await db.query(
           'INSERT INTO inventory_history (product_id, change_type, previous_qty, new_qty, reason, created_by) VALUES (?, ?, ?, ?, ?, ?)',
-          [productId, 'initial_setup', 0, qtyOnHand, 'Initial inventory setup', req.user.userId]
+          [productId, 'initial_stock', 0, qtyOnHand, 'Initial inventory setup', req.userId]
+        );
+        
+        // Get the created inventory record with calculated qty_available
+        const [newInventory] = await db.query(
+          'SELECT * FROM product_inventory WHERE product_id = ?',
+          [productId]
         );
         
         return res.json({
           success: true,
-          inventory: {
-            product_id: productId,
-            qty_on_hand: qtyOnHand,
-            qty_on_order: 0,
-            qty_available: qtyOnHand,
-            reorder_qty: 0
-          },
+          inventory: newInventory[0],
           history: []
         });
       }
@@ -79,7 +98,7 @@ router.get('/:productId', authenticateToken, async (req, res) => {
   } catch (error) {
     secureLogger.error('Error fetching inventory', {
       productId: req.params.productId,
-      userId: req.user.userId,
+      userId: req.userId,
       error: error.message
     });
     res.status(500).json({
@@ -90,7 +109,7 @@ router.get('/:productId', authenticateToken, async (req, res) => {
 });
 
 // PUT /inventory/:productId - Update inventory for a product
-router.put('/:productId', authenticateToken, async (req, res) => {
+router.put('/:productId', verifyToken, async (req, res) => {
   try {
     const { productId } = req.params;
     const { qty_on_hand, change_type, reason } = req.body;
@@ -117,7 +136,6 @@ router.put('/:productId', authenticateToken, async (req, res) => {
     
     const previousQty = current[0].qty_on_hand;
     const qtyOnOrder = current[0].qty_on_order || 0;
-    const newQtyAvailable = Math.max(0, qty_on_hand - qtyOnOrder);
     
     // Start transaction to ensure data consistency
     await db.query('START TRANSACTION');
@@ -125,20 +143,28 @@ router.put('/:productId', authenticateToken, async (req, res) => {
     try {
       // Update inventory record
       await db.query(
-        'UPDATE product_inventory SET qty_on_hand = ?, qty_available = ?, updated_by = ? WHERE product_id = ?',
-        [qty_on_hand, newQtyAvailable, req.user.userId, productId]
-      );
-      
-      // Sync with products table available_qty
-      await db.query(
-        'UPDATE products SET available_qty = ? WHERE id = ?',
-        [newQtyAvailable, productId]
+        'UPDATE product_inventory SET qty_on_hand = ?, updated_by = ? WHERE product_id = ?',
+        [qty_on_hand, req.userId, productId]
       );
       
       // Add to history
       await db.query(
         'INSERT INTO inventory_history (product_id, change_type, previous_qty, new_qty, reason, created_by) VALUES (?, ?, ?, ?, ?, ?)',
-        [productId, change_type, previousQty, qty_on_hand, reason, req.user.userId]
+        [productId, change_type, previousQty, qty_on_hand, reason, req.userId]
+      );
+      
+      // Get the updated inventory record to get the calculated qty_available
+      const [updatedInventory] = await db.query(
+        'SELECT * FROM product_inventory WHERE product_id = ?',
+        [productId]
+      );
+      
+      const newQtyAvailable = updatedInventory[0].qty_available;
+      
+      // Sync with products table available_qty
+      await db.query(
+        'UPDATE products SET available_qty = ? WHERE id = ?',
+        [newQtyAvailable, productId]
       );
       
       // Commit transaction
@@ -163,7 +189,7 @@ router.put('/:productId', authenticateToken, async (req, res) => {
   } catch (error) {
     secureLogger.error('Error updating inventory', {
       productId: req.params.productId,
-      userId: req.user.userId,
+      userId: req.userId,
       error: error.message
     });
     res.status(500).json({
@@ -174,10 +200,10 @@ router.put('/:productId', authenticateToken, async (req, res) => {
 });
 
 // POST /inventory/sync - Sync all products to inventory system (admin only)
-router.post('/sync', authenticateToken, async (req, res) => {
+router.post('/sync', verifyToken, async (req, res) => {
   try {
     // Check if user is admin
-    const isAdmin = req.user.permissions && req.user.permissions.includes('admin');
+    const isAdmin = req.permissions && req.permissions.includes('admin');
     if (!isAdmin) {
       return res.status(403).json({
         success: false,
@@ -207,14 +233,14 @@ router.post('/sync', authenticateToken, async (req, res) => {
       const qtyOnHand = product.available_qty || 0;
       
       await db.query(
-        'INSERT INTO product_inventory (product_id, qty_on_hand, qty_on_order, qty_available, reorder_qty, created_by) VALUES (?, ?, 0, ?, 0, ?)',
-        [product.id, qtyOnHand, qtyOnHand, req.user.userId]
+        'INSERT INTO product_inventory (product_id, qty_on_hand, qty_on_order, reorder_qty, updated_by) VALUES (?, ?, 0, 0, ?)',
+        [product.id, qtyOnHand, req.userId]
       );
       
       // Add initial history record
       await db.query(
         'INSERT INTO inventory_history (product_id, change_type, previous_qty, new_qty, reason, created_by) VALUES (?, ?, ?, ?, ?, ?)',
-        [product.id, 'sync_setup', 0, qtyOnHand, `Inventory sync for ${product.name}`, req.user.userId]
+        [product.id, 'sync_setup', 0, qtyOnHand, `Inventory sync for ${product.name}`, req.userId]
       );
       
       syncCount++;
@@ -228,7 +254,7 @@ router.post('/sync', authenticateToken, async (req, res) => {
     
   } catch (error) {
     secureLogger.error('Error syncing inventory', {
-      userId: req.user.userId,
+      userId: req.userId,
       error: error.message
     });
     res.status(500).json({

@@ -8,27 +8,22 @@
   font-family: 'Comic Neue', sans-serif;
 }
 
-/* Step header */
-.stepHeader {
-  text-align: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 2px solid var(--primary-color);
+/* Title section */
+.titleSection {
+  margin-bottom: 24px;
 }
 
-.stepTitle {
-  font-family: 'Permanent Marker', cursive;
-  color: var(--primary-color);
-  font-size: 1.75rem;
-  margin-bottom: 0.5rem;
-  margin-top: 0;
+.title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 8px;
 }
 
-.stepDescription {
-  color: var(--text-color);
-  font-size: 1rem;
-  margin: 0;
-  line-height: 1.5;
+.stepNote {
+  color: #666;
+  font-size: 0.9rem;
+  margin-bottom: 16px;
 }
 
 .statsBar {
@@ -131,15 +126,14 @@
   border: 2px solid var(--primary-color);
   border-radius: 0px; /* Sharp corners */
   padding: 1rem;
-  text-align: center;
   cursor: pointer;
   transition: all 0.3s ease;
   background-color: var(--background-color);
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
-  min-height: 60px;
+  justify-content: space-between;
+  min-height: 80px;
 }
 
 .typeCard:hover {
@@ -153,19 +147,70 @@
   background-color: rgba(62, 28, 86, 0.05);
 }
 
-.typeName {
-  font-weight: 700;
-  color: var(--text-color);
+.typeCardContent {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   flex: 1;
 }
 
+.typeName {
+  font-weight: 700;
+  color: var(--text-color);
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.typeMetadata {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.usageTag {
+  background-color: var(--primary-color);
+  color: var(--accent-color);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.unusedTag {
+  background-color: #6b7280;
+  color: var(--accent-color);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.typeActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .selectedIndicator {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
   color: var(--secondary-color);
   font-weight: 700;
   font-size: 1.2rem;
+}
+
+.deleteButton {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0.25rem;
+  border-radius: 0px;
+  transition: all 0.3s ease;
+  opacity: 0.7;
+}
+
+.deleteButton:hover {
+  opacity: 1;
+  background-color: rgba(220, 38, 38, 0.1);
+  transform: scale(1.1);
 }
 
 /* Selected Types Section */
@@ -334,9 +379,16 @@
 /* Step Actions */
 .stepActions {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
   padding-top: 2rem;
   border-top: 2px solid var(--primary-color);
+}
+
+/* Center single button */
+.stepActions:has(button:only-child) {
+  justify-content: center;
 }
 
 .continueButton {
@@ -386,5 +438,6 @@
   .stepActions {
     flex-direction: column;
     align-items: stretch;
+    gap: 1rem;
   }
 } 

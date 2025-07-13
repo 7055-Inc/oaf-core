@@ -153,14 +153,14 @@ try {
   // User management (with CSRF protection)
   app.use('/users', csrfProtection(), require('./routes/users'));
   
-  // Product management
-  app.use('/products', uploadLimiter, require('./routes/products'));
+  // Product management (rate limiting applied within the route after auth)
+  app.use('/products', require('./routes/products'));
   
   // Categories (safe for now, mostly read operations)
   app.use('/categories', require('./routes/categories'));
   
   // Product variations management
-  app.use('/variations', require('./routes/variations'));
+  app.use('/variations', csrfProtection(), require('./routes/variations'));
   
   // Cart operations
   app.use('/cart', require('./routes/carts'));

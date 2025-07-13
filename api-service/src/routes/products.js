@@ -6,6 +6,7 @@ const upload = require('../config/multer');
 const path = require('path');
 const fs = require('fs');
 const { secureLogger } = require('../middleware/secureLogger');
+const { uploadLimiter } = require('../middleware/rateLimiter');
 
 // Middleware to verify JWT token
 const verifyToken = async (req, res, next) => {
@@ -18,6 +19,7 @@ const verifyToken = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.userId = decoded.userId;
     req.roles = decoded.roles;
+    req.permissions = decoded.permissions || [];
     next();
   } catch (err) {
     res.setHeader('Content-Type', 'application/json');
@@ -25,10 +27,10 @@ const verifyToken = async (req, res, next) => {
   }
 };
 
-// GET /products - Retrieve all products with optional filters (smart parent/child handling)
+// GET /products - PUBLIC endpoint - active products only, no drafts, no permissions
 router.get('/', async (req, res) => {
   try {
-    const { vendor_id, category_id, status, variant_search } = req.query;
+    const { vendor_id, category_id, variant_search } = req.query;
     
     let query;
     const params = [];
@@ -38,9 +40,10 @@ router.get('/', async (req, res) => {
     // - If variant_search=false or not set: Show only parent products
     if (variant_search === 'true') {
       // Show child products (variants), but only one per parent, and include standalone products
+      // PUBLIC: Only active products
       query = `
         SELECT p.* FROM products p
-        WHERE (
+        WHERE p.status = 'active' AND (
           -- Standalone products (no parent, no children)
           (p.parent_id IS NULL AND NOT EXISTS (
             SELECT 1 FROM products child WHERE child.parent_id = p.id
@@ -57,8 +60,9 @@ router.get('/', async (req, res) => {
       `;
     } else {
       // Default: Show only parent products (simple products + variable product parents)
-      // Hide child variation products from public listings
-      query = 'SELECT * FROM products WHERE parent_id IS NULL';
+      // PUBLIC: Only active products, hide child variation products
+      query = 'SELECT * FROM products WHERE parent_id IS NULL AND status = ?';
+      params.push('active');
     }
 
     // Add additional filters
@@ -70,10 +74,6 @@ router.get('/', async (req, res) => {
       query += ' AND category_id = ?';
       params.push(category_id);
     }
-    if (status) {
-      query += ' AND status = ?';
-      params.push(status);
-    }
 
     const [products] = await db.query(query, params);
     res.json(products);
@@ -83,40 +83,319 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /products/:id - Retrieve a single product with shipping details
+// GET /products/my/[id(s)] - Unified endpoint for user's products with intelligent hierarchy
+// Examples:
+// /products/my/ - all user's products
+// /products/my/123 - single product with children if parent
+// /products/my/123,124,125 - specific set of products
+router.get('/my/:ids?', verifyToken, async (req, res) => {
+  try {
+    const { ids } = req.params;
+    const { include } = req.query;
+    
+    // Parse include parameter
+    const includes = include ? include.split(',').map(i => i.trim()) : [];
+    
+    let productIds = [];
+    let query = '';
+    let params = [req.userId];
+    
+    // Check if user is admin to determine if they can see deleted products
+    const isAdmin = req.permissions && req.permissions.includes('admin');
+    const statusFilter = isAdmin ? '' : ' AND status != "deleted"';
+    
+    // Parse ID parameter
+    if (!ids) {
+      // Get all user's products
+      query = `SELECT * FROM products WHERE vendor_id = ?${statusFilter} ORDER BY created_at DESC`;
+    } else if (ids.includes(',')) {
+      // Multiple specific products
+      productIds = ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+      const placeholders = productIds.map(() => '?').join(',');
+      query = `SELECT * FROM products WHERE vendor_id = ? AND id IN (${placeholders})${statusFilter} ORDER BY created_at DESC`;
+      params.push(...productIds);
+    } else {
+      // Single product
+      const productId = parseInt(ids);
+      if (isNaN(productId)) {
+        return res.status(400).json({ error: 'Invalid product ID' });
+      }
+      query = `SELECT * FROM products WHERE vendor_id = ? AND id = ?${statusFilter}`;
+      params.push(productId);
+    }
+    
+    // Get base products
+    const [products] = await db.query(query, params);
+    
+    if (products.length === 0) {
+      return res.json({ products: [] });
+    }
+    
+    // Process each product and add related data
+    const processedProducts = await Promise.all(
+      products.map(async (product) => {
+        const response = { ...product };
+        
+        // Add children if this is a parent product
+        if (product.product_type === 'variable' && product.parent_id === null) {
+          const [children] = await db.query(
+            'SELECT * FROM products WHERE parent_id = ? ORDER BY name ASC',
+            [product.id]
+          );
+          response.children = children;
+        }
+        
+        // Add parent context if this is a child product
+        if (product.parent_id !== null) {
+          const [parent] = await db.query(
+            'SELECT id, name, product_type, status FROM products WHERE id = ?',
+            [product.parent_id]
+          );
+          response.parent = parent[0] || null;
+        }
+        
+        // Add inventory data
+        if (includes.includes('inventory')) {
+          const [inventory] = await db.query(
+            'SELECT * FROM product_inventory WHERE product_id = ?',
+            [product.id]
+          );
+          response.inventory = inventory[0] || {
+            qty_on_hand: 0,
+            qty_on_order: 0,
+            qty_available: 0,
+            reorder_qty: 0
+          };
+        }
+        
+        // Add images
+        if (includes.includes('images')) {
+          // Get temp images
+          const [tempImages] = await db.query(
+            'SELECT image_path FROM pending_images WHERE image_path LIKE ? AND status = ?',
+            [`/temp_images/products/${product.vendor_id}-${product.id}-%`, 'pending']
+          );
+          
+          // Get permanent images
+          const [permanentImages] = await db.query(
+            'SELECT image_url FROM product_images WHERE product_id = ? ORDER BY `order` ASC',
+            [product.id]
+          );
+          
+          response.images = [
+            ...permanentImages.map(img => img.image_url),
+            ...tempImages.map(img => img.image_path)
+          ];
+        }
+        
+        // Add shipping details
+        if (includes.includes('shipping')) {
+          const [shipping] = await db.query(
+            'SELECT * FROM product_shipping WHERE product_id = ?',
+            [product.id]
+          );
+          response.shipping = shipping[0] || {};
+        }
+        
+        // Add categories
+        if (includes.includes('categories')) {
+          const [categories] = await db.query(`
+            SELECT c.id, c.name, c.description 
+            FROM categories c 
+            JOIN product_categories pc ON c.id = pc.category_id 
+            WHERE pc.product_id = ?
+          `, [product.id]);
+          response.categories = categories;
+        }
+        
+        // Add vendor info
+        if (includes.includes('vendor')) {
+          const [vendor] = await db.query(`
+            SELECT u.id, u.username, up.first_name, up.last_name, up.display_name,
+                   ap.business_name, ap.business_website
+            FROM users u
+            LEFT JOIN user_profiles up ON u.id = up.user_id
+            LEFT JOIN artist_profiles ap ON u.id = ap.user_id
+            WHERE u.id = ?
+          `, [product.vendor_id]);
+          response.vendor = vendor[0] || {};
+        }
+        
+        return response;
+      })
+    );
+    
+    // Return single product object if requesting specific ID, array otherwise
+    if (ids && !ids.includes(',')) {
+      res.json(processedProducts[0] || null);
+    } else {
+      res.json({ products: processedProducts });
+    }
+    
+  } catch (err) {
+    secureLogger.error('Error fetching user products', err);
+    res.status(500).json({ error: 'Failed to fetch products' });
+  }
+});
+
+// GET /products/:id - Retrieve a single product with optional related data
+// Query params: ?include=inventory,images,shipping,categories,vendor
+// Always returns complete family (parent + all children) for variable products
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const { include } = req.query;
+    
+    // Parse include parameter
+    const includes = include ? include.split(',').map(i => i.trim()) : [];
+    
+    // Get base product data
     const [product] = await db.query('SELECT * FROM products WHERE id = ?', [id]);
     if (!product.length) return res.status(404).json({ error: 'Product not found' });
 
-    // Get temp images for this product using the new naming pattern
-    const [tempImages] = await db.query(
-      'SELECT image_path FROM pending_images WHERE image_path LIKE ? AND status = ?',
-      [`/temp_images/products/${product[0].vendor_id}-${id}-%`, 'pending']
+    const requestedProduct = product[0];
+    let parentProduct = null;
+    let childProducts = [];
+
+    // Determine if we're dealing with a parent or child product
+    if (requestedProduct.parent_id === null) {
+      // This is a parent product (simple or variable)
+      parentProduct = requestedProduct;
+      
+      // If it's a variable product, get all children
+      if (requestedProduct.product_type === 'variable') {
+        const [children] = await db.query(
+          'SELECT * FROM products WHERE parent_id = ? AND status = ? ORDER BY name ASC',
+          [requestedProduct.id, 'active']
+        );
+        childProducts = children;
+      }
+    } else {
+      // This is a child product - get parent and all siblings
+      const [parent] = await db.query(
+        'SELECT * FROM products WHERE id = ?',
+        [requestedProduct.parent_id]
+      );
+      
+      if (parent.length === 0) {
+        return res.status(404).json({ error: 'Parent product not found' });
+      }
+      
+      parentProduct = parent[0];
+      
+      // Get all siblings (including the requested product)
+      const [siblings] = await db.query(
+        'SELECT * FROM products WHERE parent_id = ? AND status = ? ORDER BY name ASC',
+        [requestedProduct.parent_id, 'active']
+      );
+      childProducts = siblings;
+    }
+
+    // Helper function to add related data to a product
+    const addRelatedData = async (productData) => {
+      const response = { ...productData };
+
+      // Add inventory data
+      if (includes.includes('inventory') || !include) {
+        const [inventory] = await db.query(
+          'SELECT * FROM product_inventory WHERE product_id = ?',
+          [productData.id]
+        );
+        response.inventory = inventory[0] || {
+          qty_on_hand: 0,
+          qty_on_order: 0,
+          qty_available: 0,
+          reorder_qty: 0
+        };
+      }
+
+      // Add images
+      if (includes.includes('images') || !include) {
+        // Get temp images for this product using the new naming pattern
+        const [tempImages] = await db.query(
+          'SELECT image_path FROM pending_images WHERE image_path LIKE ? AND status = ?',
+          [`/temp_images/products/${productData.vendor_id}-${productData.id}-%`, 'pending']
+        );
+
+        // Get permanent product images
+        const [permanentImages] = await db.query(
+          'SELECT image_url FROM product_images WHERE product_id = ? ORDER BY `order` ASC',
+          [productData.id]
+        );
+
+        // Combine both sets of images
+        response.images = [
+          ...permanentImages.map(img => img.image_url),
+          ...tempImages.map(img => img.image_path)
+        ];
+      }
+
+      // Add shipping data
+      if (includes.includes('shipping') || !include) {
+        const [shipping] = await db.query(
+          'SELECT * FROM product_shipping WHERE product_id = ?',
+          [productData.id]
+        );
+        response.shipping = shipping[0] || {};
+      }
+
+      // Add categories
+      if (includes.includes('categories')) {
+        const [categories] = await db.query(`
+          SELECT c.id, c.name, c.description 
+          FROM categories c 
+          JOIN product_categories pc ON c.id = pc.category_id 
+          WHERE pc.product_id = ?
+        `, [productData.id]);
+        response.categories = categories;
+      }
+
+      return response;
+    };
+
+    // Process parent product with related data
+    const processedParent = await addRelatedData(parentProduct);
+
+    // Process child products with related data
+    const processedChildren = await Promise.all(
+      childProducts.map(child => addRelatedData(child))
     );
 
-    // Get permanent product images
-    const [permanentImages] = await db.query(
-      'SELECT image_url FROM product_images WHERE product_id = ? ORDER BY `order` ASC',
-      [id]
-    );
+    // Add vendor data to parent (applies to whole family)
+    if (includes.includes('vendor')) {
+      const [vendor] = await db.query(`
+        SELECT u.id, u.username, up.first_name, up.last_name, up.display_name,
+               ap.business_name, ap.business_website
+        FROM users u
+        LEFT JOIN user_profiles up ON u.id = up.user_id
+        LEFT JOIN artist_profiles ap ON u.id = ap.user_id
+        WHERE u.id = ?
+      `, [parentProduct.vendor_id]);
+      processedParent.vendor = vendor[0] || {};
+    }
 
-    // Combine both sets of images
-    const allImages = [
-      ...permanentImages.map(img => img.image_url),
-      ...tempImages.map(img => img.image_path)
-    ];
+    // Build the response
+    const response = {
+      ...processedParent,
+      // Add family structure
+      product_type: parentProduct.product_type,
+      children: processedChildren,
+      // Add metadata about the family
+      family_size: processedChildren.length,
+      requested_product_id: parseInt(id),
+      is_requested_product_parent: requestedProduct.parent_id === null
+    };
 
-    // Get shipping details
-    const [shipping] = await db.query('SELECT * FROM product_shipping WHERE product_id = ?', [id]);
-    
-        res.json({ 
-      ...product[0], 
-      images: allImages,
-      shipping: shipping[0] || {} 
+    secureLogger.info('Product family fetched', {
+      requestedId: id,
+      parentId: parentProduct.id,
+      childCount: processedChildren.length,
+      productType: parentProduct.product_type
     });
+
+    res.json(response);
   } catch (err) {
+    secureLogger.error('Error fetching product family', err);
     res.status(500).json({ error: 'Failed to fetch product' });
   }
 });
@@ -145,13 +424,29 @@ router.get('/:id/packages', async (req, res) => {
     
     res.json({ packages: formattedPackages });
   } catch (err) {
-    console.error('Error fetching packages:', err);
+    secureLogger.error('Error fetching packages:', err);
     res.status(500).json({ error: 'Failed to fetch packages' });
   }
 });
 
+// Middleware for optional authentication - allows both authenticated and guest access
+const optionalAuth = async (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.userId = decoded.userId;
+      req.roles = decoded.roles || [];
+      req.permissions = decoded.permissions || [];
+    } catch (err) {
+      // Invalid token, continue as guest (no req.userId set)
+    }
+  }
+  next();
+};
+
 // GET /products/:id/variations - Get parent product with organized child variations for customer selection
-router.get('/:id/variations', async (req, res) => {
+router.get('/:id/variations', optionalAuth, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -168,19 +463,35 @@ router.get('/:id/variations', async (req, res) => {
       return res.status(400).json({ error: 'This product does not have variations' });
     }
 
+    // Determine if user can see draft products (admin/vendor permissions)
+    let canSeeDrafts = false;
+    
+    if (req.userId) {
+      // Allow admin users or product owners to see draft products
+      const isAdmin = req.roles.includes('admin') || req.permissions.includes('admin');
+      const isOwner = parent.vendor_id === req.userId;
+      
+      canSeeDrafts = isAdmin || isOwner;
+    }
+
     // Get all child products (variants) for this parent
+    // Include draft products for admin/vendor users
+    const statusFilter = canSeeDrafts ? "p.status IN ('active', 'draft')" : "p.status = 'active'";
     const [childProducts] = await db.query(`
       SELECT p.*, 
              GROUP_CONCAT(DISTINCT pi.image_url ORDER BY pi.order ASC) as image_urls
       FROM products p
       LEFT JOIN product_images pi ON p.id = pi.product_id
-      WHERE p.parent_id = ? AND p.status = 'active'
+      WHERE p.parent_id = ? AND ${statusFilter}
       GROUP BY p.id
       ORDER BY p.name ASC
     `, [id]);
 
     if (childProducts.length === 0) {
-      return res.status(404).json({ error: 'No active variations found for this product' });
+      const errorMessage = canSeeDrafts ? 
+        'No variations found for this product' : 
+        'No active variations found for this product';
+      return res.status(404).json({ error: errorMessage });
     }
 
     // Get variations for all child products
@@ -271,39 +582,144 @@ router.get('/:id/variations', async (req, res) => {
   }
 });
 
+
 // POST /products - Create a new product
-router.post('/', verifyToken, async (req, res) => {
+router.post('/', verifyToken, uploadLimiter, async (req, res) => {
   try {
+    secureLogger.info('Product creation request', { 
+      userId: req.userId, 
+      productType: req.body.product_type, 
+      parentId: req.body.parent_id,
+      name: req.body.name 
+    });
+    
     const {
-      name, description, short_description, price, available_qty, category_id, sku, status,
+      name, description, short_description, price, category_id, sku, status,
       width, height, depth, weight, dimension_unit, weight_unit, parent_id, product_type,
       package_number, length, shipping_type, shipping_services, ship_method, ship_rate,
-      packages
+      packages, beginning_inventory, reorder_qty, images
     } = req.body;
 
     // Validate required fields
-    if (!name || !price || !available_qty || !category_id || !sku) {
-      return res.status(400).json({ error: 'Name, price, available quantity, category ID, and SKU are required' });
+    if (!name || !price || !category_id || !sku) {
+      return res.status(400).json({ error: 'Name, price, category ID, and SKU are required' });
     }
 
-    // Validate parent_id if provided
-    let validatedParentId = parent_id || null;
-    if (parent_id) {
-      const [parentProduct] = await db.query('SELECT id FROM products WHERE id = ?', [parent_id]);
+    // DEBUG: Log parent_id processing
+    secureLogger.info('Processing parent_id', {
+      parent_id: parent_id,
+      parent_id_type: typeof parent_id,
+      parent_id_value: JSON.stringify(parent_id),
+      product_name: name,
+      product_type: product_type
+    });
+
+    // Validate parent_id if provided (fix falsy value bug)
+    let validatedParentId = null;
+    if (parent_id != null && parent_id !== '') {
+      const parentIdInt = parseInt(parent_id);
+      if (isNaN(parentIdInt)) {
+        return res.status(400).json({ error: 'Invalid parent_id: Must be a valid number' });
+      }
+      
+      secureLogger.info('Validating parent product', {
+        parentIdInt,
+        userId: req.userId
+      });
+      
+      // Check if parent exists AND user has permission to create children for it
+      const [parentProduct] = await db.query('SELECT id, vendor_id FROM products WHERE id = ?', [parentIdInt]);
       if (!parentProduct.length) {
         return res.status(400).json({ error: 'Invalid parent_id: Parent product does not exist' });
       }
-      validatedParentId = parent_id;
+      
+      // Check if user owns the parent product or is admin
+      const isAdmin = req.permissions && req.permissions.includes('admin');
+      const isOwner = parentProduct[0].vendor_id === req.userId;
+      
+      secureLogger.info('Parent product validation', {
+        parentProductId: parentProduct[0].id,
+        parentVendorId: parentProduct[0].vendor_id,
+        currentUserId: req.userId,
+        isAdmin,
+        isOwner
+      });
+      
+      if (!isAdmin && !isOwner) {
+        return res.status(403).json({ error: 'Not authorized to create child products for this parent' });
+      }
+      
+      validatedParentId = parentIdInt;
+    } else {
+      secureLogger.info('Parent ID was falsy or empty', {
+        parent_id,
+        condition1: parent_id != null,
+        condition2: parent_id !== '',
+        overall: parent_id != null && parent_id !== ''
+      });
     }
 
-    // Insert product
+    // DEBUG: Log the validatedParentId value
+    secureLogger.info('About to INSERT product', {
+      validatedParentId,
+      validatedParentIdType: typeof validatedParentId,
+      productType: product_type,
+      name: name
+    });
+
+    // Insert product (removed available_qty since it's now handled by inventory system)
+    const insertParams = [req.userId, name, description, short_description, price, category_id, sku, status || 'draft',
+       1, // track_inventory - default to true
+       width || null, height || null, depth || null, weight || null, dimension_unit, weight_unit, validatedParentId, product_type, req.userId, req.userId];
+    
+    secureLogger.info('INSERT parameters debug', {
+      validatedParentId,
+      parameterCount: insertParams.length,
+      parentIdPosition: insertParams[15], // Updated position after adding track_inventory
+      parentIdPositionValue: insertParams[15],
+      productType: product_type,
+      allParams: insertParams
+    });
+    
     const [result] = await db.query(
-      'INSERT INTO products (vendor_id, name, description, short_description, price, available_qty, category_id, sku, status, width, height, depth, weight, dimension_unit, weight_unit, parent_id, product_type, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [req.userId, name, description, short_description, price, available_qty, category_id, sku, status || 'draft',
-       width || null, height || null, depth || null, weight || null, dimension_unit, weight_unit, validatedParentId, product_type, req.userId, req.userId]
+      'INSERT INTO products (vendor_id, name, description, short_description, price, category_id, sku, status, track_inventory, width, height, depth, weight, dimension_unit, weight_unit, parent_id, product_type, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      insertParams
     );
 
     const productId = result.insertId;
+
+    // Handle images - move from temp to permanent storage and associate with product
+    if (images && Array.isArray(images)) {
+      for (let i = 0; i < images.length; i++) {
+        const imageUrl = images[i];
+        await db.query(
+          'INSERT INTO product_images (product_id, image_url, `order`) VALUES (?, ?, ?)',
+          [productId, imageUrl, i]
+        );
+      }
+    }
+
+    // Create initial inventory record for the new product
+    try {
+      const initialQty = beginning_inventory || 0;
+      const reorderLevel = reorder_qty || 0;
+      
+      await db.query(
+        'INSERT INTO product_inventory (product_id, qty_on_hand, qty_on_order, reorder_qty, updated_by) VALUES (?, ?, ?, ?, ?)',
+        [productId, initialQty, 0, reorderLevel, req.userId]
+      );
+      
+      // Add initial inventory history
+      if (initialQty > 0) {
+        await db.query(
+          'INSERT INTO inventory_history (product_id, change_type, previous_qty, new_qty, reason, created_by) VALUES (?, ?, ?, ?, ?, ?)',
+          [productId, 'initial_stock', 0, initialQty, 'Initial product creation', req.userId]
+        );
+      }
+    } catch (inventoryError) {
+      console.error('Error creating inventory record:', inventoryError);
+      // Don't fail the product creation if inventory creation fails
+    }
 
     // Handle shipping details - support both single package and multi-package
     let shippingResult;
@@ -349,6 +765,17 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     const [newProduct] = await db.query('SELECT * FROM products WHERE id = ?', [productId]);
+    
+    // DEBUG: Log the created product
+    secureLogger.info('Product created successfully', {
+      productId: newProduct[0].id,
+      productName: newProduct[0].name,
+      productType: newProduct[0].product_type,
+      parentIdInDb: newProduct[0].parent_id,
+      parentIdType: typeof newProduct[0].parent_id,
+      vendorId: newProduct[0].vendor_id
+    });
+    
     res.status(201).json(newProduct[0]);
   } catch (err) {
     secureLogger.error('Error creating product', err);
@@ -357,14 +784,14 @@ router.post('/', verifyToken, async (req, res) => {
 });
 
 // PUT /products/:id - Update a product
-router.put('/:id', verifyToken, async (req, res) => {
+router.put('/:id', verifyToken, uploadLimiter, async (req, res) => {
   try {
     const { id } = req.params;
     const {
-      name, description, short_description, price, available_qty, category_id, sku, status,
+      name, description, short_description, price, category_id, sku, status,
       width, height, depth, weight, dimension_unit, weight_unit, parent_id, product_type,
       package_number, length, shipping_type, shipping_services, ship_method, ship_rate,
-      images, packages
+      images, packages, vendor_id
     } = req.body;
 
     // Check if product exists and user has permission to edit it
@@ -379,25 +806,46 @@ router.put('/:id', verifyToken, async (req, res) => {
       return res.status(403).json({ error: 'Not authorized to edit this product' });
     }
 
-    // Validate parent_id if provided
-    let validatedParentId = parent_id || null;
-    if (parent_id) {
-      const [parentProduct] = await db.query('SELECT id FROM products WHERE id = ?', [parent_id]);
+    // Validate parent_id if provided (fix falsy value bug)
+    let validatedParentId = null;
+    if (parent_id != null && parent_id !== '') {
+      const parentIdInt = parseInt(parent_id);
+      if (isNaN(parentIdInt)) {
+        return res.status(400).json({ error: 'Invalid parent_id: Must be a valid number' });
+      }
+      
+      // Check if parent exists AND user has permission to create children for it
+      const [parentProduct] = await db.query('SELECT id, vendor_id FROM products WHERE id = ?', [parentIdInt]);
       if (!parentProduct.length) {
         return res.status(400).json({ error: 'Invalid parent_id: Parent product does not exist' });
       }
-      validatedParentId = parent_id;
+      
+      // Check if user owns the parent product or is admin (use same permissions from above)
+      const isParentOwner = parentProduct[0].vendor_id === req.userId;
+      
+      if (!isAdmin && !isParentOwner) {
+        return res.status(403).json({ error: 'Not authorized to link this product to the specified parent' });
+      }
+      
+      validatedParentId = parentIdInt;
     }
 
-    // Update product
+    // Handle vendor_id changes for admins
+    let finalVendorId = product[0].vendor_id;
+    if (vendor_id && req.permissions && req.permissions.includes('admin')) {
+      finalVendorId = vendor_id;
+    }
+
+    // Update product (removed available_qty since it's now handled by inventory system)
     await db.query(
-      'UPDATE products SET name = ?, description = ?, short_description = ?, price = ?, available_qty = ?, category_id = ?, sku = ?, status = ?, width = ?, height = ?, depth = ?, weight = ?, dimension_unit = ?, weight_unit = ?, parent_id = ?, product_type = ?, updated_by = ? WHERE id = ?',
+      'UPDATE products SET name = ?, description = ?, short_description = ?, price = ?, category_id = ?, sku = ?, status = ?, track_inventory = ?, width = ?, height = ?, depth = ?, weight = ?, dimension_unit = ?, weight_unit = ?, parent_id = ?, product_type = ?, vendor_id = ?, updated_by = ? WHERE id = ?',
       [name || product[0].name, description || product[0].description, short_description || product[0].short_description,
-       price || product[0].price, available_qty || product[0].available_qty, category_id || product[0].category_id,
-       sku || product[0].sku, status || product[0].status, width || product[0].width, height || product[0].height,
+       price || product[0].price, category_id || product[0].category_id,
+       sku || product[0].sku, status || product[0].status, 1, // track_inventory default to true
+       width || product[0].width, height || product[0].height,
        depth || product[0].depth, weight || product[0].weight, dimension_unit || product[0].dimension_unit,
        weight_unit || product[0].weight_unit, validatedParentId, product_type || product[0].product_type,
-       req.userId, id]
+       finalVendorId, req.userId, id]
     );
 
     // Handle images
@@ -482,9 +930,279 @@ router.put('/:id', verifyToken, async (req, res) => {
   }
 });
 
+// PATCH /products/:id - Partial update a product (only updates provided fields)
+router.patch('/:id', verifyToken, uploadLimiter, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      name, description, short_description, price, category_id, sku, status,
+      width, height, depth, weight, dimension_unit, weight_unit, parent_id, product_type,
+      package_number, length, shipping_type, shipping_services, ship_method, ship_rate,
+      images, packages, vendor_id, beginning_inventory, reorder_qty
+    } = req.body;
+
+    // Check if product exists and user has permission to edit it
+    const [product] = await db.query('SELECT * FROM products WHERE id = ?', [id]);
+    if (!product.length) return res.status(404).json({ error: 'Product not found' });
+    
+    // Check authorization: either product owner or admin
+    const isAdmin = req.permissions && req.permissions.includes('admin');
+    const isOwner = product[0].vendor_id === req.userId;
+    
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({ error: 'Not authorized to edit this product' });
+    }
+
+    // Build dynamic update query - only update provided fields
+    const updateFields = [];
+    const updateValues = [];
+
+    if (name !== undefined) {
+      updateFields.push('name = ?');
+      updateValues.push(name);
+    }
+    if (description !== undefined) {
+      updateFields.push('description = ?');
+      updateValues.push(description);
+    }
+    if (short_description !== undefined) {
+      updateFields.push('short_description = ?');
+      updateValues.push(short_description);
+    }
+    if (price !== undefined) {
+      updateFields.push('price = ?');
+      updateValues.push(parseFloat(price));
+    }
+    if (category_id !== undefined) {
+      updateFields.push('category_id = ?');
+      updateValues.push(parseInt(category_id));
+    }
+    if (sku !== undefined) {
+      updateFields.push('sku = ?');
+      updateValues.push(sku);
+    }
+    if (status !== undefined) {
+      updateFields.push('status = ?');
+      updateValues.push(status);
+    }
+    if (width !== undefined) {
+      updateFields.push('width = ?');
+      updateValues.push(width);
+    }
+    if (height !== undefined) {
+      updateFields.push('height = ?');
+      updateValues.push(height);
+    }
+    if (depth !== undefined) {
+      updateFields.push('depth = ?');
+      updateValues.push(depth);
+    }
+    if (weight !== undefined) {
+      updateFields.push('weight = ?');
+      updateValues.push(weight);
+    }
+    if (dimension_unit !== undefined) {
+      updateFields.push('dimension_unit = ?');
+      updateValues.push(dimension_unit);
+    }
+    if (weight_unit !== undefined) {
+      updateFields.push('weight_unit = ?');
+      updateValues.push(weight_unit);
+    }
+    // Note: beginning_inventory and reorder_qty are handled in the inventory section below, not in products table
+
+    // Handle parent_id validation if provided
+    if (parent_id !== undefined) {
+      if (parent_id === null || parent_id === '') {
+        updateFields.push('parent_id = ?');
+        updateValues.push(null);
+      } else {
+        const parentIdInt = parseInt(parent_id);
+        if (isNaN(parentIdInt)) {
+          return res.status(400).json({ error: 'Invalid parent_id: Must be a valid number' });
+        }
+        
+        // Check if parent exists AND user has permission to create children for it
+        const [parentProduct] = await db.query('SELECT id, vendor_id FROM products WHERE id = ?', [parentIdInt]);
+        if (!parentProduct.length) {
+          return res.status(400).json({ error: 'Invalid parent_id: Parent product does not exist' });
+        }
+        
+        // Check if user owns the parent product or is admin
+        const isParentOwner = parentProduct[0].vendor_id === req.userId;
+        
+        if (!isAdmin && !isParentOwner) {
+          return res.status(403).json({ error: 'Not authorized to link this product to the specified parent' });
+        }
+        
+        updateFields.push('parent_id = ?');
+        updateValues.push(parentIdInt);
+      }
+    }
+
+    // Handle product_type if provided
+    if (product_type !== undefined) {
+      updateFields.push('product_type = ?');
+      updateValues.push(product_type);
+    }
+
+    // Handle vendor_id changes for admins
+    if (vendor_id !== undefined && req.permissions && req.permissions.includes('admin')) {
+      updateFields.push('vendor_id = ?');
+      updateValues.push(vendor_id);
+    }
+
+    // Always update the updated_by field
+    updateFields.push('updated_by = ?');
+    updateValues.push(req.userId);
+
+    // Execute the update if there are fields to update
+    if (updateFields.length > 0) {
+      updateValues.push(id);
+      await db.query(
+        `UPDATE products SET ${updateFields.join(', ')} WHERE id = ?`,
+        updateValues
+      );
+    } else {
+      // If no product fields to update, just ensure the record exists
+      const [existingProduct] = await db.query('SELECT id FROM products WHERE id = ?', [id]);
+      if (existingProduct.length === 0) {
+        return res.status(404).json({ error: 'Product not found' });
+      }
+    }
+
+    // Handle inventory updates if beginning_inventory or reorder_qty was provided
+    if (beginning_inventory !== undefined || reorder_qty !== undefined) {
+      // Get current inventory
+      const [currentInventory] = await db.query(
+        'SELECT qty_on_hand, reorder_qty FROM product_inventory WHERE product_id = ?',
+        [id]
+      );
+      
+      if (currentInventory.length > 0) {
+        // Update existing inventory record
+        const currentQty = currentInventory[0].qty_on_hand || 0;
+        const currentReorder = currentInventory[0].reorder_qty || 0;
+        
+        const newQty = beginning_inventory !== undefined ? (parseInt(beginning_inventory) || 0) : currentQty;
+        const newReorder = reorder_qty !== undefined ? (parseInt(reorder_qty) || 0) : currentReorder;
+        
+        await db.query(
+          'UPDATE product_inventory SET qty_on_hand = ?, reorder_qty = ?, updated_by = ? WHERE product_id = ?',
+          [newQty, newReorder, req.userId, id]
+        );
+        
+        // Create inventory history record if quantity changed
+        if (beginning_inventory !== undefined && currentQty !== newQty) {
+          await db.query(
+            'INSERT INTO inventory_history (product_id, change_type, previous_qty, new_qty, reason, created_by) VALUES (?, ?, ?, ?, ?, ?)',
+            [id, 'manual_adjustment', currentQty, newQty, 'Bulk edit inventory update', req.userId]
+          );
+        }
+      } else {
+        // Create new inventory record
+        const newQty = parseInt(beginning_inventory) || 0;
+        const newReorder = parseInt(reorder_qty) || 0;
+        
+        await db.query(
+          'INSERT INTO product_inventory (product_id, qty_on_hand, qty_on_order, reorder_qty, updated_by) VALUES (?, ?, ?, ?, ?)',
+          [id, newQty, 0, newReorder, req.userId]
+        );
+        
+        // Create initial inventory history
+        if (newQty > 0) {
+          await db.query(
+            'INSERT INTO inventory_history (product_id, change_type, previous_qty, new_qty, reason, created_by) VALUES (?, ?, ?, ?, ?, ?)',
+            [id, 'initial_stock', 0, newQty, 'Initial variant inventory', req.userId]
+          );
+        }
+      }
+    }
+
+    // Handle images if provided
+    if (Array.isArray(images)) {
+      // First, delete existing images
+      await db.query('DELETE FROM product_images WHERE product_id = ?', [id]);
+      
+      // Then insert new images
+      for (let i = 0; i < images.length; i++) {
+        const imageUrl = images[i];
+        await db.query(
+          'INSERT INTO product_images (product_id, image_url, `order`) VALUES (?, ?, ?)',
+          [id, imageUrl, i]
+        );
+      }
+    }
+
+    // Handle shipping details if provided
+    if (packages !== undefined || ship_method !== undefined || shipping_services !== undefined) {
+      // First, delete existing shipping records
+      await db.query('DELETE FROM product_shipping WHERE product_id = ?', [id]);
+      
+      if (packages && Array.isArray(packages) && packages.length > 0) {
+        // Multi-package shipping (calculated)
+        for (let i = 0; i < packages.length; i++) {
+          const pkg = packages[i];
+          const packageNumber = i + 1;
+          
+          await db.query(
+            'INSERT INTO product_shipping (product_id, package_number, length, width, height, weight, dimension_unit, weight_unit, ship_method, ship_rate, shipping_type, shipping_services) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+              id, 
+              packageNumber, 
+              parseFloat(pkg.length) || null, 
+              parseFloat(pkg.width) || null, 
+              parseFloat(pkg.height) || null, 
+              parseFloat(pkg.weight) || null, 
+              pkg.dimension_unit || 'in', 
+              pkg.weight_unit || 'lbs',
+              ship_method || 'calculated', 
+              null, // no flat rate for calculated shipping
+              'calculated', 
+              shipping_services || null
+            ]
+          );
+        }
+      } else if (ship_method !== undefined) {
+        // Single package shipping (free or flat rate)
+        const shippingLength = length || null;
+        const shippingWidth = width || null;
+        const shippingHeight = height || null;
+        const shippingWeight = weight || null;
+        const shippingRate = ship_rate || null;
+
+        await db.query(
+          'INSERT INTO product_shipping (product_id, package_number, length, width, height, weight, dimension_unit, weight_unit, ship_method, ship_rate, shipping_type, shipping_services) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [id, package_number || 1, shippingLength, shippingWidth, shippingHeight, shippingWeight, dimension_unit || 'in', weight_unit || 'lbs', ship_method || 'free', shippingRate, shipping_type || 'free', shipping_services]
+        );
+      }
+    }
+
+    // Get updated product with images
+    const [updatedProduct] = await db.query('SELECT * FROM products WHERE id = ?', [id]);
+    const [productImages] = await db.query(
+      'SELECT image_url FROM product_images WHERE product_id = ? ORDER BY `order` ASC',
+      [id]
+    );
+    
+    // Get shipping details
+    const [shipping] = await db.query('SELECT * FROM product_shipping WHERE product_id = ?', [id]);
+    
+    res.json({ 
+      ...updatedProduct[0], 
+      images: productImages.map(img => img.image_url),
+      shipping: shipping[0] || {} 
+    });
+  } catch (err) {
+    secureLogger.error('Error patching product', err);
+    res.status(500).json({ error: 'Failed to update product' });
+  }
+});
+
 // POST /products/upload - Upload product images
 router.post('/upload', 
   verifyToken,
+  uploadLimiter,
   upload.array('images'),
   async (req, res) => {
     try {
@@ -493,27 +1211,27 @@ router.post('/upload',
       }
 
       const { product_id } = req.query;
-      if (!product_id) {
-        return res.status(400).json({ error: 'Product ID is required' });
-      }
-
-      // Verify product exists and user has permission to edit it
-      const [product] = await db.query('SELECT * FROM products WHERE id = ?', [product_id]);
-      if (!product.length) {
-        return res.status(404).json({ error: 'Product not found' });
-      }
       
-      // Check authorization: either product owner or admin
-      const isAdmin = req.permissions && req.permissions.includes('admin');
-      const isOwner = product[0].vendor_id === req.userId;
-      
-      if (!isAdmin && !isOwner) {
-        return res.status(403).json({ error: 'Not authorized to edit this product' });
+      // For existing products, verify ownership
+      if (product_id && product_id !== 'new') {
+        // Verify product exists and user has permission to edit it
+        const [product] = await db.query('SELECT * FROM products WHERE id = ?', [product_id]);
+        if (!product.length) {
+          return res.status(404).json({ error: 'Product not found' });
+        }
+        
+        // Check authorization: either product owner or admin
+        const isAdmin = req.permissions && req.permissions.includes('admin');
+        const isOwner = product[0].vendor_id === req.userId;
+        
+        if (!isAdmin && !isOwner) {
+          return res.status(403).json({ error: 'Not authorized to edit this product' });
+        }
       }
 
       const urls = [];
       
-      // Record temp image URLs with product_id
+      // Record temp image URLs 
       for (const file of req.files) {
         const imagePath = `/temp_images/products/${file.filename}`;
         // Insert into pending_images
@@ -522,11 +1240,13 @@ router.post('/upload',
           [req.userId, imagePath, 'pending']
         );
         
-        // Also insert into product_images
-        await db.query(
-          'INSERT INTO product_images (product_id, image_url, `order`) VALUES (?, ?, ?)',
-          [product_id, imagePath, 0]
-        );
+        // Only add to product_images if we have an existing product
+        if (product_id && product_id !== 'new') {
+          await db.query(
+            'INSERT INTO product_images (product_id, image_url, `order`) VALUES (?, ?, ?)',
+            [product_id, imagePath, 0]
+          );
+        }
         
         urls.push(imagePath);
       }
@@ -540,8 +1260,15 @@ router.post('/upload',
 );
 
 // POST /products/variations - Create product variation record
-router.post('/variations', verifyToken, async (req, res) => {
+router.post('/variations', verifyToken, uploadLimiter, async (req, res) => {
   try {
+    secureLogger.info('Variation creation request', { 
+      userId: req.userId, 
+      productId: req.body.product_id, 
+      typeId: req.body.variation_type_id,
+      valueId: req.body.variation_value_id 
+    });
+    
     const { product_id, variation_type_id, variation_value_id } = req.body;
     
     if (!product_id || !variation_type_id || !variation_value_id) {
@@ -602,6 +1329,94 @@ router.post('/variations', verifyToken, async (req, res) => {
   } catch (err) {
     secureLogger.error('Error creating product variation', err);
     res.status(500).json({ error: 'Failed to create product variation' });
+  }
+});
+
+// POST /products/bulk-delete - Bulk delete products (soft delete)
+router.post('/bulk-delete', verifyToken, uploadLimiter, async (req, res) => {
+  try {
+    const { product_ids } = req.body;
+    
+    if (!Array.isArray(product_ids) || product_ids.length === 0) {
+      return res.status(400).json({ error: 'product_ids must be a non-empty array' });
+    }
+    
+    // Validate that all product_ids are numbers
+    const validIds = product_ids.filter(id => !isNaN(parseInt(id))).map(id => parseInt(id));
+    
+    if (validIds.length !== product_ids.length) {
+      return res.status(400).json({ error: 'All product_ids must be valid numbers' });
+    }
+    
+    // Get all products to verify ownership and get children
+    const placeholders = validIds.map(() => '?').join(',');
+    const [products] = await db.query(
+      `SELECT id, name, vendor_id, parent_id, product_type FROM products WHERE id IN (${placeholders}) AND status != 'deleted'`,
+      validIds
+    );
+    
+    if (products.length === 0) {
+      return res.status(404).json({ error: 'No valid products found' });
+    }
+    
+    // Check authorization: user must own all products or be admin
+    const isAdmin = req.permissions && req.permissions.includes('admin');
+    const unauthorizedProducts = products.filter(product => product.vendor_id !== req.userId);
+    
+    if (!isAdmin && unauthorizedProducts.length > 0) {
+      return res.status(403).json({ 
+        error: 'Not authorized to delete some products',
+        unauthorized_products: unauthorizedProducts.map(p => ({ id: p.id, name: p.name }))
+      });
+    }
+    
+    // Get all product IDs to delete (including children of variable products)
+    const allProductsToDelete = [];
+    
+    for (const product of products) {
+      allProductsToDelete.push(product.id);
+      
+      // If this is a variable product (parent), also delete all its children
+      if (product.product_type === 'variable' && product.parent_id === null) {
+        const [children] = await db.query(
+          'SELECT id FROM products WHERE parent_id = ? AND status != "deleted"',
+          [product.id]
+        );
+        
+        children.forEach(child => {
+          allProductsToDelete.push(child.id);
+        });
+      }
+    }
+    
+    // Remove duplicates
+    const uniqueProductIds = [...new Set(allProductsToDelete)];
+    
+    // Perform soft delete by setting status to 'deleted'
+    if (uniqueProductIds.length > 0) {
+      const deletePlaceholders = uniqueProductIds.map(() => '?').join(',');
+      await db.query(
+        `UPDATE products SET status = 'deleted', updated_by = ? WHERE id IN (${deletePlaceholders})`,
+        [req.userId, ...uniqueProductIds]
+      );
+    }
+    
+    secureLogger.info('Bulk delete completed', {
+      userId: req.userId,
+      requestedProducts: validIds.length,
+      actuallyDeleted: uniqueProductIds.length,
+      productIds: uniqueProductIds
+    });
+    
+    res.json({ 
+      success: true, 
+      message: `${uniqueProductIds.length} products deleted successfully`,
+      deleted_product_ids: uniqueProductIds
+    });
+    
+  } catch (err) {
+    secureLogger.error('Error in bulk delete', err);
+    res.status(500).json({ error: 'Failed to delete products' });
   }
 });
 

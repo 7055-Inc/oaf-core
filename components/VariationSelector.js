@@ -61,8 +61,35 @@ const VariationSelector = ({
       }
     } else {
       setSelectedProduct(null);
-      setError('This combination is not available');
+      setError('This option set is currently unavailable');
     }
+  };
+
+  // Get available options for a variation type based on current selections
+  const getAvailableOptions = (typeName) => {
+    if (!variationData.variation_options[typeName]) return [];
+    
+    const allOptions = variationData.variation_options[typeName];
+    
+    // If no selections made yet, show all options
+    if (Object.keys(selectedVariations).length === 0) {
+      return allOptions;
+    }
+    
+    // Filter options based on current selections
+    const availableOptions = allOptions.filter(option => {
+      // Check if this option is valid with current selections
+      const testSelections = { ...selectedVariations, [typeName]: option.id };
+      
+      return variationData.child_products.some(child => {
+        return Object.entries(testSelections).every(([testTypeName, testValueId]) => {
+          const childVariations = child.variations[testTypeName];
+          return childVariations && childVariations.some(v => v.value_id === testValueId);
+        });
+      });
+    });
+    
+    return availableOptions;
   };
 
   const handleVariationChange = (typeName, valueId) => {
@@ -73,7 +100,7 @@ const VariationSelector = ({
   };
 
   const handleQuantityChange = (newQuantity) => {
-    const qty = Math.max(1, Math.min(selectedProduct?.available_qty || 1, newQuantity));
+    const qty = Math.max(1, Math.min(selectedProduct?.inventory?.qty_available || 1, newQuantity));
     setQuantity(qty);
   };
 
@@ -104,13 +131,13 @@ const VariationSelector = ({
     <div className={styles.variationSelector}>
       <div className={styles.variationControls}>
         {variationData.variation_types.map(type => {
-          const options = variationData.variation_options[type.variation_name] || [];
+          const availableOptions = getAvailableOptions(type.variation_name);
           const selectedValue = selectedVariations[type.variation_name];
           
           return (
             <div key={type.id} className={styles.variationGroup}>
               <label className={styles.variationLabel}>
-                {type.variation_name}:
+                {type.variation_name.charAt(0).toUpperCase() + type.variation_name.slice(1)}:
               </label>
               <select
                 value={selectedValue || ''}
@@ -119,9 +146,9 @@ const VariationSelector = ({
                 required
               >
                 <option value="">Select {type.variation_name}</option>
-                {options.map(option => (
+                {availableOptions.map(option => (
                   <option key={option.id} value={option.id}>
-                    {option.value_name}
+                    {option.value_name.charAt(0).toUpperCase() + option.value_name.slice(1)}
                   </option>
                 ))}
               </select>
@@ -146,9 +173,9 @@ const VariationSelector = ({
               ${parseFloat(selectedProduct.price || 0).toFixed(2)}
             </div>
             <div className={styles.availability}>
-              {selectedProduct.available_qty > 0 ? (
+              {(selectedProduct.inventory?.qty_available || 0) > 0 ? (
                 <span className={styles.inStock}>
-                  In Stock ({selectedProduct.available_qty} available)
+                  In Stock ({selectedProduct.inventory.qty_available} available)
                 </span>
               ) : (
                 <span className={styles.outOfStock}>
@@ -158,45 +185,53 @@ const VariationSelector = ({
             </div>
           </div>
 
-          {selectedProduct.available_qty > 0 && (
-            <div className={styles.quantityAndCart}>
-              <div className={styles.quantitySelector}>
-                <label className={styles.quantityLabel}>Quantity:</label>
-                <div className={styles.quantityControls}>
-                  <button 
-                    onClick={() => handleQuantityChange(quantity - 1)}
-                    className={styles.quantityButton}
-                    disabled={quantity <= 1}
-                  >
-                    -
-                  </button>
-                  <input
-                    type="number"
-                    value={quantity}
-                    onChange={(e) => handleQuantityChange(parseInt(e.target.value) || 1)}
-                    min="1"
-                    max={selectedProduct.available_qty}
-                    className={styles.quantityInput}
-                  />
-                  <button 
-                    onClick={() => handleQuantityChange(quantity + 1)}
-                    className={styles.quantityButton}
-                    disabled={quantity >= selectedProduct.available_qty}
-                  >
-                    +
-                  </button>
-                </div>
+          <div className={styles.quantityAndCart}>
+            <div className={styles.quantitySelector}>
+              <label className={styles.quantityLabel}>Quantity:</label>
+              <div className={styles.quantityControls}>
+                <button 
+                  onClick={() => handleQuantityChange(quantity - 1)}
+                  className={styles.quantityButton}
+                  disabled={quantity <= 1 || (selectedProduct.inventory?.qty_available || 0) === 0}
+                >
+                  -
+                </button>
+                <input
+                  type="number"
+                  value={quantity}
+                  onChange={(e) => handleQuantityChange(parseInt(e.target.value) || 1)}
+                  min="1"
+                  max={selectedProduct.inventory?.qty_available || 0}
+                  className={styles.quantityInput}
+                  disabled={(selectedProduct.inventory?.qty_available || 0) === 0}
+                />
+                <button 
+                  onClick={() => handleQuantityChange(quantity + 1)}
+                  className={styles.quantityButton}
+                  disabled={quantity >= (selectedProduct.inventory?.qty_available || 0) || (selectedProduct.inventory?.qty_available || 0) === 0}
+                >
+                  +
+                </button>
               </div>
-
-              <button 
-                onClick={handleAddToCart}
-                className={styles.addToCartButton}
-                disabled={!selectedProduct}
-              >
-                Add to Cart
-              </button>
             </div>
-          )}
+
+            <button 
+              onClick={handleAddToCart}
+              className={styles.addToCartButton}
+              disabled={!selectedProduct || (selectedProduct.inventory?.qty_available || 0) === 0}
+            >
+              Add to Cart
+            </button>
+            
+            {(selectedProduct.inventory?.qty_available || 0) === 0 && (
+              <button 
+                onClick={() => alert('Email notification feature coming soon!')}
+                className={styles.emailNotifyButton}
+              >
+                📧 Email me when back in stock
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -4,6 +4,8 @@ import { useRouter, useParams } from 'next/navigation';
 import Header from '../../components/Header';
 import AboutTheArtist from '../../components/AboutTheArtist';
 import VariationSelector from '../../components/VariationSelector';
+import ArtistProductCarousel from '../../components/ArtistProductCarousel';
+import { authenticatedApiRequest } from '../../lib/csrf';
 import styles from './styles/ProductView.module.css';
 
 export default function ProductView() {
@@ -14,52 +16,57 @@ export default function ProductView() {
   const [error, setError] = useState(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [showArtistModal, setShowArtistModal] = useState(false);
+  const [activeTab, setActiveTab] = useState('dimensions');
+  const [showPolicyModal, setShowPolicyModal] = useState(false);
+  const [policyModalContent, setPolicyModalContent] = useState({ type: '', content: '', loading: false });
+  const [policies, setPolicies] = useState(null);
   const router = useRouter();
   const params = useParams();
 
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const token = document.cookie.split('token=')[1]?.split(';')[0];
-        if (!token) {
-          setError('Authentication required');
-          setLoading(false);
+        if (!params?.id) {
+          setError('Product ID not found');
           return;
         }
-
-        const res = await fetch(`https://api2.onlineartfestival.com/products/${params.id}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
+        
+        // Use the new flexible API with vendor data and categories included
+        const res = await authenticatedApiRequest(
+          `https://api2.onlineartfestival.com/products/${params.id}?include=images,shipping,vendor,inventory,categories`,
+          {
+            method: 'GET'
           }
-        });
+        );
         
         if (!res.ok) throw new Error('Failed to fetch product');
         
         const data = await res.json();
-        console.log('Full product data:', JSON.stringify(data, null, 2));
-        
-        // Check if images exist in the response
-        if (!data.images) {
-          console.log('No images found in product data');
-          // Set a default empty array for images
-          data.images = [];
-        }
 
-        // Ensure image URLs are absolute
-        const images = data.images.map(img => {
+        // Ensure image URLs are absolute for main product
+        const images = data.images?.map(img => {
           if (img.startsWith('http')) return img;
           return `https://api2.onlineartfestival.com${img}`;
-        });
+        }) || [];
 
-        console.log('Processed images:', images);
+        // Process children if they exist
+        const processedChildren = data.children ? data.children.map(child => ({
+          ...child,
+          images: child.images?.map(img => {
+            if (img.startsWith('http')) return img;
+            return `https://api2.onlineartfestival.com${img}`;
+          }) || []
+        })) : [];
 
         setProduct({
           ...data,
-          images: images
+          images: images,
+          children: processedChildren
         });
         
-        // If this is a variable product, fetch variation data
-        if (data.product_type === 'variable') {
+        // If this is a variable product with children, fetch proper variation data
+        if (data.product_type === 'variable' && data.children && data.children.length > 0) {
           await fetchVariationData(data.id);
         }
       } catch (err) {
@@ -72,29 +79,49 @@ export default function ProductView() {
 
     const fetchVariationData = async (productId) => {
       try {
-        const token = document.cookie.split('token=')[1]?.split(';')[0];
-        const res = await fetch(`https://api2.onlineartfestival.com/products/${productId}/variations`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (res.ok) {
-          const variations = await res.json();
-          setVariationData(variations);
-          console.log('Variation data loaded:', variations);
-        } else {
-          console.error('Failed to fetch variations');
+        if (!productId) {
+          console.log('No product ID provided for variation data');
+          return;
         }
+        
+        const res = await authenticatedApiRequest(
+          `https://api2.onlineartfestival.com/products/${productId}/variations`,
+          {
+            method: 'GET'
+          }
+        );
+        
+        if (!res.ok) {
+          if (res.status === 404) {
+            console.log('No variations found for this product');
+            return;
+          }
+          throw new Error('Failed to fetch variation data');
+        }
+        
+        const data = await res.json();
+        
+        // Add inventory data to child products if available
+        const childProductsWithInventory = data.child_products.map(child => ({
+          ...child,
+          inventory: child.inventory || { qty_available: 0 }
+        }));
+        
+        setVariationData({
+          variation_types: data.variation_types,
+          variation_options: data.variation_options,
+          child_products: childProductsWithInventory
+        });
       } catch (err) {
-        console.error('Error fetching variations:', err);
+        console.error('Error fetching variation data:', err);
+        setError('Error loading product variations: ' + err.message);
       }
     };
 
-    if (params.id) {
+    if (params?.id) {
       fetchProduct();
     }
-  }, [params.id]);
+  }, [params?.id]);
 
   const handleAddToCart = async (productToAdd = null, quantityToAdd = null) => {
     // For variable products, use the selected variation product
@@ -104,25 +131,15 @@ export default function ProductView() {
 
     if (!targetProduct?.id) {
       setError(product?.product_type === 'variable' ? 'Please select a variation' : 'No product selected');
-      return;
-    }
-
-    try {
-      const token = document.cookie.split('token=')[1]?.split(';')[0];
-      if (!token) {
-        setError('Authentication required');
         return;
       }
 
+    try {
       // First, get or create a cart for the user
       let cartId;
       
       // Try to get existing cart
-      const cartRes = await fetch('https://api2.onlineartfestival.com/cart', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const cartRes = await authenticatedApiRequest('https://api2.onlineartfestival.com/cart');
 
       if (cartRes.ok) {
         const carts = await cartRes.json();
@@ -133,10 +150,9 @@ export default function ProductView() {
           cartId = activeCart.id;
         } else {
           // Create a new cart
-          const createCartRes = await fetch('https://api2.onlineartfestival.com/cart', {
+          const createCartRes = await authenticatedApiRequest('https://api2.onlineartfestival.com/cart', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
@@ -154,10 +170,9 @@ export default function ProductView() {
       }
 
       // Now add the item to the cart
-      const addItemRes = await fetch(`https://api2.onlineartfestival.com/cart/${cartId}/items`, {
+      const addItemRes = await authenticatedApiRequest(`https://api2.onlineartfestival.com/cart/${cartId}/items`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -203,153 +218,204 @@ export default function ProductView() {
     }
   };
 
+  const handlePolicyClick = async (policyType) => {
+    if (!product || !product.vendor_id) {
+      alert('Unable to load policy - vendor information not available');
+      return;
+    }
+
+    setPolicyModalContent({ type: policyType, content: '', loading: true });
+    setShowPolicyModal(true);
+
+    try {
+      // Check if we already have policies cached
+      let policiesData = policies;
+      
+      if (!policiesData) {
+        // Fetch all policies at once
+        const res = await fetch(`https://api2.onlineartfestival.com/users/${product.vendor_id}/policies`);
+        
+        if (!res.ok) {
+          throw new Error('Failed to fetch policies');
+        }
+        
+        const data = await res.json();
+        
+        if (data.success && data.policies) {
+          policiesData = data.policies;
+          setPolicies(policiesData); // Cache for future use
+        } else {
+          throw new Error('No policies returned');
+        }
+      }
+      
+      // Get the specific policy requested
+      const policy = policiesData[policyType];
+      
+      if (policy && policy.policy_text) {
+        setPolicyModalContent({ 
+          type: policyType, 
+          content: policy.policy_text, 
+          loading: false,
+          source: policy.policy_source 
+        });
+      } else {
+        setPolicyModalContent({ 
+          type: policyType, 
+          content: 'No policy available for this artist.', 
+          loading: false 
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching policies:', error);
+      setPolicyModalContent({ 
+        type: policyType, 
+        content: 'Error loading policy. Please try again later.', 
+        loading: false 
+      });
+    }
+  };
+
   if (loading) {
     return (
-      <div className={styles.container}>
+      <>
         <Header />
-        <div className={styles.loading}>Loading...</div>
-      </div>
+        <div className={styles.container}>
+          <div className={styles.loading}>Loading...</div>
+        </div>
+      </>
     );
   }
 
   if (error) {
     return (
-      <div className={styles.container}>
+      <>
         <Header />
-        <div className={styles.error}>{error}</div>
-      </div>
+        <div className={styles.container}>
+          <div className={styles.error}>{error}</div>
+        </div>
+      </>
     );
   }
 
   if (!product) {
     return (
-      <div className={styles.container}>
+      <>
         <Header />
-        <div className={styles.error}>Product not found</div>
-      </div>
+        <div className={styles.container}>
+          <div className={styles.error}>Product not found</div>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className={styles.container}>
+    <>
       <Header />
-      <div className={styles.content}>
-        <div className={styles.productGrid}>
-          <div className={styles.imageSection}>
-            {(() => {
-              // Get images to display (variation images if available, otherwise product images)
-              const displayImages = (selectedVariationProduct?.images?.length > 0) 
-                ? selectedVariationProduct.images 
-                : product.images;
-              
-              return displayImages?.length > 0 ? (
-                <>
-                  <div className={styles.mainImage}>
+      <div className={styles.container}>
+        <div className={styles.content}>
+          
+          {/* Product Card - Full Width */}
+          <div className={styles.productCard}>
+            <div className={styles.productGrid}>
+              {/* Product Image Section - Left */}
+              <div className={styles.imageSection}>
+                <div className={styles.mainImage}>
+                  {(selectedVariationProduct || product).images && (selectedVariationProduct || product).images.length > 0 ? (
                     <img 
-                      src={displayImages[selectedImage]} 
-                      alt={product.name || 'Product image'}
+                      src={(selectedVariationProduct || product).images[selectedImage]} 
+                      alt={product.name}
                       className={styles.image}
-                      onError={(e) => {
-                        console.error('Main image failed to load:', displayImages[selectedImage]);
-                        e.target.style.display = 'none';
-                      }}
                     />
-                  </div>
-                  {displayImages.length > 1 && (
-                    <div className={styles.thumbnailGrid}>
-                      {displayImages.map((image, index) => (
-                        <button
-                          key={index}
-                          className={`${styles.thumbnail} ${selectedImage === index ? styles.selected : ''}`}
-                          onClick={() => setSelectedImage(index)}
-                        >
-                          <img 
-                            src={image} 
-                            alt={`${product.name} ${index + 1}`}
-                            onError={(e) => {
-                              console.error('Thumbnail failed to load:', image);
-                              e.target.style.display = 'none';
-                            }}
-                          />
-                        </button>
-                      ))}
-                    </div>
+                  ) : (
+                    <div className={styles.noImage}>No image available</div>
                   )}
-                </>
+                </div>
+                
+                {/* Thumbnails */}
+                {(selectedVariationProduct || product).images && (selectedVariationProduct || product).images.length > 1 && (
+                  <div className={styles.thumbnailGrid}>
+                    {(selectedVariationProduct || product).images.map((image, index) => (
+                      <div 
+                        key={index}
+                        className={`${styles.thumbnail} ${index === selectedImage ? styles.selected : ''}`}
+                        onClick={() => setSelectedImage(index)}
+                      >
+                        <img src={image} alt={`${product.name} ${index + 1}`} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Product Details Section - Right */}
+              <div className={styles.detailsSection}>
+                {/* Enhanced Title */}
+                <div className={styles.titleSection}>
+                  <h1 className={styles.enhancedTitle}>
+                    {product.name} by {' '}
+                    {product.vendor?.business_name || 
+                     (product.vendor?.first_name && product.vendor?.last_name 
+                       ? `${product.vendor.first_name} ${product.vendor.last_name}` 
+                       : 'Artist')}
+                    {product.category_name && `, ${product.category_name}`}
+                  </h1>
+                  
+                  {/* Artist Info Icon */}
+                  <div className={styles.artistInfoTag}>
+                    <button 
+                      onClick={() => setShowArtistModal(true)}
+                      className={styles.artistInfoButton}
+                    >
+                      <span className={styles.infoIcon}>ℹ️</span>
+                      Learn about the artist
+                    </button>
+                  </div>
+                </div>
+
+                {/* Show price for simple products only */}
+                {product.product_type !== 'variable' && (
+                  <div className={styles.price}>
+                    ${parseFloat(product.price || 0).toFixed(2)}
+                  </div>
+                )}
+
+                {/* Short Description */}
+                {product.short_description && (
+                  <div className={styles.shortDescription}>
+                    {product.short_description}
+                  </div>
+                )}
+
+                {/* Variation Selector or Add to Cart for Simple Products */}
+                <div className={styles.selectorSection}>
+              {product.product_type === 'variable' ? (
+                variationData ? (
+                  <VariationSelector
+                    variationData={variationData}
+                    onVariationChange={handleVariationChange}
+                    onAddToCart={handleAddToCart}
+                    initialQuantity={quantity}
+                  />
+                ) : (
+                  <div className={styles.loading}>Loading product variations...</div>
+                )
               ) : (
-                <div className={styles.noImage}>
-                  No images available
-                </div>
-              );
-            })()}
-          </div>
+                /* Simple Product Add to Cart Section */
+                <>
+                  <div className={styles.availability}>
+                    <span className={styles.label}>Availability:</span>
+                    <span className={styles.value}>
+                      {(product.inventory?.qty_available || 0) > 0 ? 'In Stock' : 'Out of Stock'}
+                    </span>
+                  </div>
 
-          <div className={styles.detailsSection}>
-            <h1 className={styles.title}>{product.name}</h1>
-            
-            {/* Show price for simple products only */}
-            {product.product_type !== 'variable' && (
-              <div className={styles.price}>
-                ${parseFloat(product.price || 0).toFixed(2)}
-              </div>
-            )}
-
-            <div className={styles.description}>
-              {product.short_description}
-            </div>
-
-            <div className={styles.fullDescription}>
-              {product.description}
-            </div>
-
-            {/* Show variation selector for variable products */}
-            {product.product_type === 'variable' && variationData && (
-              <VariationSelector
-                variationData={variationData}
-                onVariationChange={handleVariationChange}
-                onAddToCart={handleAddToCart}
-                initialQuantity={quantity}
-              />
-            )}
-
-            <div className={styles.dimensions}>
-              <h3>Dimensions</h3>
-              <div className={styles.dimensionGrid}>
-                <div className={styles.dimension}>
-                  <span>Width:</span>
-                  <span>{(selectedVariationProduct || product).width} {(selectedVariationProduct || product).dimension_unit}</span>
-                </div>
-                <div className={styles.dimension}>
-                  <span>Height:</span>
-                  <span>{(selectedVariationProduct || product).height} {(selectedVariationProduct || product).dimension_unit}</span>
-                </div>
-                <div className={styles.dimension}>
-                  <span>Depth:</span>
-                  <span>{(selectedVariationProduct || product).depth} {(selectedVariationProduct || product).dimension_unit}</span>
-                </div>
-                <div className={styles.dimension}>
-                  <span>Weight:</span>
-                  <span>{(selectedVariationProduct || product).weight} {(selectedVariationProduct || product).weight_unit}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Show availability and add to cart for simple products only */}
-            {product.product_type !== 'variable' && (
-              <>
-                <div className={styles.availability}>
-                  <span className={styles.label}>Availability:</span>
-                  <span className={styles.value}>
-                    {product.available_qty > 0 ? 'In Stock' : 'Out of Stock'}
-                  </span>
-                </div>
-
-                {product.available_qty > 0 && (
                   <div className={styles.addToCart}>
                     <div className={styles.quantity}>
                       <button 
                         onClick={() => setQuantity(Math.max(1, quantity - 1))}
                         className={styles.quantityButton}
+                        disabled={(product.inventory?.qty_available || 0) === 0}
                       >
                         -
                       </button>
@@ -358,12 +424,14 @@ export default function ProductView() {
                         value={quantity}
                         onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
                         min="1"
-                        max={product.available_qty}
+                        max={product.inventory?.qty_available || 0}
                         className={styles.quantityInput}
+                        disabled={(product.inventory?.qty_available || 0) === 0}
                       />
                       <button 
-                        onClick={() => setQuantity(Math.min(product.available_qty, quantity + 1))}
+                        onClick={() => setQuantity(Math.min(product.inventory?.qty_available || 0, quantity + 1))}
                         className={styles.quantityButton}
+                        disabled={(product.inventory?.qty_available || 0) === 0}
                       >
                         +
                       </button>
@@ -372,21 +440,175 @@ export default function ProductView() {
                     <button 
                       onClick={handleAddToCart}
                       className={styles.addToCartButton}
+                      disabled={(product.inventory?.qty_available || 0) === 0}
                     >
                       Add to Cart
                     </button>
+                    
+                    {(product.inventory?.qty_available || 0) === 0 && (
+                      <button 
+                        onClick={() => alert('Email notification feature coming soon!')}
+                        className={styles.emailNotifyButton}
+                      >
+                        📧 Email me when back in stock
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Details Card with Tabs */}
+          <div className={styles.detailsCard}>
+            <div className={styles.tabsContainer}>
+              <div className={styles.tabHeaders}>
+                <button 
+                  className={`${styles.tabHeader} ${activeTab === 'dimensions' ? styles.activeTab : ''}`}
+                  onClick={() => setActiveTab('dimensions')}
+                >
+                  Dimensions
+                </button>
+                <button 
+                  className={`${styles.tabHeader} ${activeTab === 'policies' ? styles.activeTab : ''}`}
+                  onClick={() => setActiveTab('policies')}
+                >
+                  Artist Policies
+                </button>
+              </div>
+              
+              <div className={styles.tabContent}>
+                {activeTab === 'dimensions' && (
+                  <div className={styles.dimensions}>
+                    <div className={styles.dimensionGrid}>
+                      <div className={styles.dimension}>
+                        <span>Width:</span>
+                        <span>{(selectedVariationProduct || product).width} {(selectedVariationProduct || product).dimension_unit}</span>
+                      </div>
+                      <div className={styles.dimension}>
+                        <span>Height:</span>
+                        <span>{(selectedVariationProduct || product).height} {(selectedVariationProduct || product).dimension_unit}</span>
+                      </div>
+                      <div className={styles.dimension}>
+                        <span>Depth:</span>
+                        <span>{(selectedVariationProduct || product).depth} {(selectedVariationProduct || product).dimension_unit}</span>
+                      </div>
+                      <div className={styles.dimension}>
+                        <span>Weight:</span>
+                        <span>{(selectedVariationProduct || product).weight} {(selectedVariationProduct || product).weight_unit}</span>
+                      </div>
+                    </div>
                   </div>
                 )}
-              </>
-            )}
+                
+                {activeTab === 'policies' && (
+                  <div className={styles.policies}>
+                    <div className={styles.policyButtons}>
+                      <button 
+                        className={styles.policyButton}
+                        onClick={() => handlePolicyClick('shipping')}
+                      >
+                        📦 Shipping Policy
+                      </button>
+                      <button 
+                        className={styles.policyButton}
+                        onClick={() => handlePolicyClick('return')}
+                      >
+                        🔄 Returns Policy
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-        
-        {/* Artist Information Section */}
-        <div className={styles.artistSection}>
-          <AboutTheArtist vendorId={product?.vendor_id || product?.user_id} />
+
+          {/* About the Artist Section - 2/3 width, centered */}
+          {product && (product.vendor_id || product.user_id) && (
+            <div className={styles.artistSection}>
+              <AboutTheArtist vendorId={product.vendor_id || product.user_id} vendorData={product.vendor} />
+            </div>
+          )}
+          
+          {/* More from this artist carousel */}
+          {product && (product.vendor_id || product.user_id) && (
+            <ArtistProductCarousel 
+              vendorId={product.vendor_id || product.user_id}
+              currentProductId={product.id}
+              artistName={product.vendor?.business_name || 
+                         (product.vendor?.first_name && product.vendor?.last_name 
+                           ? `${product.vendor.first_name} ${product.vendor.last_name}` 
+                           : 'this artist')}
+            />
+          )}
+          
         </div>
       </div>
-    </div>
+      
+      {/* Artist Info Modal */}
+      {showArtistModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowArtistModal(false)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2>About the Artist</h2>
+              <button 
+                onClick={() => setShowArtistModal(false)}
+                className={styles.modalCloseButton}
+              >
+                ×
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              {product && (product.vendor_id || product.user_id) && (
+                <AboutTheArtist vendorId={product.vendor_id || product.user_id} vendorData={product.vendor} />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Policy Modal */}
+      {showPolicyModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowPolicyModal(false)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2>
+                {policyModalContent.type === 'shipping' ? '📦 Shipping Policy' : '🔄 Returns Policy'}
+              </h2>
+              <button 
+                onClick={() => setShowPolicyModal(false)}
+                className={styles.modalCloseButton}
+              >
+                ×
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              {policyModalContent.loading ? (
+                <div className={styles.loading}>Loading policy...</div>
+              ) : (
+                <div className={styles.policyContent}>
+                  {policyModalContent.content ? (
+                    <div 
+                      dangerouslySetInnerHTML={{ __html: policyModalContent.content.replace(/\n/g, '<br/>') }}
+                    />
+                  ) : (
+                    <p>No policy available for this artist.</p>
+                  )}
+                  {policyModalContent.source && (
+                    <div className={styles.policySource}>
+                      <small>
+                        Policy source: {policyModalContent.source === 'custom' ? 'Artist-specific' : 'Default'}
+                      </small>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 } 

@@ -65,6 +65,94 @@ router.get('/me', verifyToken, async (req, res) => {
   }
 });
 
+// GET /users?permissions=vendor,admin - Filter users by permissions
+router.get('/', verifyToken, async (req, res) => {
+  try {
+    const { permissions } = req.query;
+    
+    if (!permissions) {
+      return res.status(400).json({ error: 'permissions query parameter is required' });
+    }
+    
+    // Parse comma-separated permissions
+    const requestedPermissions = permissions.split(',').map(p => p.trim()).filter(p => p);
+    
+    if (requestedPermissions.length === 0) {
+      return res.status(400).json({ error: 'At least one permission must be specified' });
+    }
+    
+    // Separate user types from actual permissions
+    const userTypes = [];
+    const actualPermissions = [];
+    
+    for (const permission of requestedPermissions) {
+      if (permission === 'admin') {
+        userTypes.push('admin');
+      } else {
+        actualPermissions.push(permission);
+      }
+    }
+    
+    // Build dynamic query to find users with any of the requested permissions or user types
+    let whereConditions = [];
+    let queryParams = [];
+    
+    // Add user type conditions (like admin)
+    if (userTypes.length > 0) {
+      const userTypePlaceholders = userTypes.map(() => '?').join(',');
+      whereConditions.push(`u.user_type IN (${userTypePlaceholders})`);
+      queryParams.push(...userTypes);
+    }
+    
+    // Add actual permission conditions (like vendor)
+    for (const permission of actualPermissions) {
+      whereConditions.push(`up.${permission} = ?`);
+      queryParams.push(true);
+    }
+    
+    if (whereConditions.length === 0) {
+      return res.status(400).json({ error: 'No valid permissions or user types specified' });
+    }
+    
+    const whereClause = whereConditions.join(' OR ');
+    
+    const query = `
+      SELECT DISTINCT 
+        u.id, 
+        u.username, 
+        u.user_type, 
+        u.status,
+        prof.first_name, 
+        prof.last_name
+      FROM users u
+      LEFT JOIN user_permissions up ON u.id = up.user_id
+      LEFT JOIN user_profiles prof ON u.id = prof.user_id
+      WHERE u.status = 'active' AND (${whereClause})
+      ORDER BY prof.first_name, prof.last_name, u.username
+    `;
+    
+    const [users] = await db.query(query, queryParams);
+    
+    // Transform to a format suitable for dropdowns
+    const formattedUsers = users.map(user => ({
+      id: user.id,
+      username: user.username,
+      user_type: user.user_type,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      display_name: user.first_name && user.last_name ? 
+        `${user.first_name} ${user.last_name}` : user.username,
+      email: user.username // username is email in your system
+    }));
+    
+    res.json(formattedUsers);
+  } catch (err) {
+    console.error('Error fetching users by permissions:', err.message, err.stack);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ error: 'Failed to fetch users by permissions' });
+  }
+});
+
 // PATCH /users/me - Update current user's profile with image uploads
 router.patch('/me', 
   verifyToken,
@@ -407,6 +495,40 @@ router.get('/artists', async (req, res) => {
   }
 });
 
+// GET /users/:id/policies - Get user's policies (public endpoint)
+router.get('/:id/policies', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Verify user exists and is active
+    const [user] = await db.query(
+      'SELECT id, username, user_type, status FROM users WHERE id = ? AND status = ?',
+      [id, 'active']
+    );
+    
+    if (!user[0]) {
+      return res.status(404).json({ error: 'User not found or inactive' });
+    }
+    
+    const [shippingPolicy, returnPolicy] = await Promise.all([
+      getVendorShippingPolicy(id),
+      getVendorReturnPolicy(id)
+    ]);
+    
+    res.json({
+      success: true,
+      policies: {
+        shipping: shippingPolicy,
+        return: returnPolicy
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error getting user policies:', error);
+    res.status(500).json({ error: 'Failed to get policies' });
+  }
+});
+
 // GET /users/profile-completion-status - Check if user's profile is complete
 router.get('/profile-completion-status', verifyToken, async (req, res) => {
   try {
@@ -591,5 +713,101 @@ router.post('/select-user-type', verifyToken, async (req, res) => {
     res.status(500).json({ error: 'Failed to update user type' });
   }
 });
+
+/**
+ * Get vendor's shipping policy (with fallback to default)
+ */
+async function getVendorShippingPolicy(vendorId) {
+  // First try to get vendor's custom policy
+  const vendorQuery = `
+    SELECT 
+      sp.id,
+      sp.policy_text,
+      sp.created_at,
+      sp.updated_at,
+      u.username as created_by_username,
+      'custom' as policy_source
+    FROM shipping_policies sp
+    JOIN users u ON sp.created_by = u.id
+    WHERE sp.user_id = ? AND sp.status = 'active'
+  `;
+  
+  const [vendorRows] = await db.execute(vendorQuery, [vendorId]);
+  
+  if (vendorRows.length > 0) {
+    return vendorRows[0];
+  }
+  
+  // If no custom policy, get default policy (user_id = NULL)
+  const defaultQuery = `
+    SELECT 
+      sp.id,
+      sp.policy_text,
+      sp.created_at,
+      sp.updated_at,
+      u.username as created_by_username,
+      'default' as policy_source
+    FROM shipping_policies sp
+    JOIN users u ON sp.created_by = u.id
+    WHERE sp.user_id IS NULL AND sp.status = 'active'
+  `;
+  
+  const [defaultRows] = await db.execute(defaultQuery);
+  
+  if (defaultRows.length > 0) {
+    return defaultRows[0];
+  }
+  
+  // If no default policy exists, return null
+  return null;
+}
+
+/**
+ * Get vendor's return policy (with fallback to default)
+ */
+async function getVendorReturnPolicy(vendorId) {
+  // First try to get vendor's custom policy
+  const vendorQuery = `
+    SELECT 
+      rp.id,
+      rp.policy_text,
+      rp.created_at,
+      rp.updated_at,
+      u.username as created_by_username,
+      'custom' as policy_source
+    FROM return_policies rp
+    JOIN users u ON rp.created_by = u.id
+    WHERE rp.user_id = ? AND rp.status = 'active'
+  `;
+  
+  const [vendorRows] = await db.execute(vendorQuery, [vendorId]);
+  
+  if (vendorRows.length > 0) {
+    return vendorRows[0];
+  }
+  
+  // If no custom policy, get default policy (user_id = NULL)
+  const defaultQuery = `
+    SELECT 
+      rp.id,
+      rp.policy_text,
+      rp.created_at,
+      rp.updated_at,
+      u.username as created_by_username,
+      'default' as policy_source
+    FROM return_policies rp
+    JOIN users u ON rp.created_by = u.id
+    WHERE rp.user_id IS NULL AND rp.status = 'active'
+  `;
+  
+  const [defaultRows] = await db.execute(defaultQuery);
+  
+  if (defaultRows.length > 0) {
+    return defaultRows[0];
+  }
+  
+  // If no default policy exists, return null
+  return null;
+}
 
 module.exports = router;

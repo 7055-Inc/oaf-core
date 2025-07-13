@@ -3,120 +3,40 @@ import { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../lib/csrf';
 import styles from './InventoryLog.module.css';
 
-export default function InventoryLog({ productId, onInventoryUpdate }) {
-  const [inventoryData, setInventoryData] = useState(null);
+export default function InventoryLog({ productId }) {
   const [inventoryHistory, setInventoryHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [showQuickAdjust, setShowQuickAdjust] = useState(false);
-  const [quickAdjustment, setQuickAdjustment] = useState({
-    type: 'set',
-    value: '',
-    reason: ''
-  });
-  const [adjustingInventory, setAdjustingInventory] = useState(false);
-  const [success, setSuccess] = useState(null);
 
+  // Fetch inventory history from the new product API
   useEffect(() => {
     if (productId) {
-      fetchInventoryData();
+      fetchInventoryHistory();
     }
   }, [productId]);
 
-  const fetchInventoryData = async () => {
+  const fetchInventoryHistory = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // Fetch current inventory status
-      const inventoryResponse = await authenticatedApiRequest(
-        `https://api2.onlineartfestival.com/inventory/${productId}`
+      // Use the new product API to get inventory history
+      const response = await authenticatedApiRequest(
+        `https://api2.onlineartfestival.com/products/${productId}?include=inventory`
       );
       
-      if (inventoryResponse.ok) {
-        const data = await inventoryResponse.json();
-        setInventoryData(data.inventory);
-        setInventoryHistory(data.history || []);
+      if (response.ok) {
+        const data = await response.json();
+        setInventoryHistory(data.inventory?.history || []);
       } else {
-        // If inventory record doesn't exist, create a default one
-        setInventoryData({
-          qty_on_hand: 0,
-          qty_on_order: 0,
-          qty_available: 0,
-          reorder_qty: 0
-        });
+        setError('Failed to load inventory history');
         setInventoryHistory([]);
       }
     } catch (err) {
-      console.error('Error fetching inventory data:', err);
-      setError('Failed to load inventory data');
+      console.error('Error fetching inventory history:', err);
+      setError('Failed to load inventory history');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleQuickAdjustment = async () => {
-    if (!quickAdjustment.value || !quickAdjustment.reason) {
-      setError('Please enter both a value and reason for the adjustment');
-      return;
-    }
-
-    setAdjustingInventory(true);
-    setError(null);
-    
-    try {
-      let newQuantity;
-      switch (quickAdjustment.type) {
-        case 'set':
-          newQuantity = parseInt(quickAdjustment.value);
-          break;
-        case 'add':
-          newQuantity = (inventoryData?.qty_on_hand || 0) + parseInt(quickAdjustment.value);
-          break;
-        case 'subtract':
-          newQuantity = Math.max(0, (inventoryData?.qty_on_hand || 0) - parseInt(quickAdjustment.value));
-          break;
-        default:
-          newQuantity = inventoryData?.qty_on_hand || 0;
-      }
-
-      const response = await authenticatedApiRequest(
-        `https://api2.onlineartfestival.com/inventory/${productId}`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            qty_on_hand: newQuantity,
-            change_type: 'manual_adjustment',
-            reason: quickAdjustment.reason
-          })
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to update inventory');
-      }
-
-      // Refresh inventory data
-      await fetchInventoryData();
-      
-      // Call parent callback if provided
-      if (onInventoryUpdate) {
-        onInventoryUpdate(productId, newQuantity);
-      }
-      
-      // Reset form
-      setQuickAdjustment({ type: 'set', value: '', reason: '' });
-      setShowQuickAdjust(false);
-      setSuccess('Inventory updated successfully');
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      console.error('Error updating inventory:', err);
-      setError('Failed to update inventory');
-    } finally {
-      setAdjustingInventory(false);
     }
   };
 
@@ -155,7 +75,7 @@ export default function InventoryLog({ productId, onInventoryUpdate }) {
   if (loading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Loading inventory data...</div>
+        <div className={styles.loading}>Loading inventory history...</div>
       </div>
     );
   }
@@ -163,104 +83,13 @@ export default function InventoryLog({ productId, onInventoryUpdate }) {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h3>Inventory Management</h3>
-        <button
-          onClick={() => setShowQuickAdjust(!showQuickAdjust)}
-          className={styles.quickAdjustButton}
-        >
-          Quick Adjust
-        </button>
+        <h3>Inventory History</h3>
       </div>
 
       {error && <div className={styles.error}>{error}</div>}
-      {success && <div className={styles.success}>{success}</div>}
-
-      {/* Current Inventory Status */}
-      <div className={styles.currentStatus}>
-        <h4>Current Inventory Status</h4>
-        <div className={styles.statusGrid}>
-          <div className={styles.statusItem}>
-            <span className={styles.statusLabel}>On Hand:</span>
-            <span className={styles.statusValue}>{inventoryData?.qty_on_hand || 0}</span>
-          </div>
-          <div className={styles.statusItem}>
-            <span className={styles.statusLabel}>On Order:</span>
-            <span className={styles.statusValue}>{inventoryData?.qty_on_order || 0}</span>
-          </div>
-          <div className={styles.statusItem}>
-            <span className={styles.statusLabel}>Available:</span>
-            <span className={styles.statusValue}>{inventoryData?.qty_available || 0}</span>
-          </div>
-          <div className={styles.statusItem}>
-            <span className={styles.statusLabel}>Reorder Level:</span>
-            <span className={styles.statusValue}>{inventoryData?.reorder_qty || 0}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Adjustment Form */}
-      {showQuickAdjust && (
-        <div className={styles.quickAdjustForm}>
-          <h4>Quick Inventory Adjustment</h4>
-          <div className={styles.adjustmentForm}>
-            <div className={styles.formGroup}>
-              <label>Adjustment Type:</label>
-              <select
-                value={quickAdjustment.type}
-                onChange={(e) => setQuickAdjustment({...quickAdjustment, type: e.target.value})}
-                className={styles.select}
-              >
-                <option value="set">Set to specific value</option>
-                <option value="add">Add to current inventory</option>
-                <option value="subtract">Subtract from current inventory</option>
-              </select>
-            </div>
-
-            <div className={styles.formGroup}>
-              <label>Value:</label>
-              <input
-                type="number"
-                value={quickAdjustment.value}
-                onChange={(e) => setQuickAdjustment({...quickAdjustment, value: e.target.value})}
-                className={styles.input}
-                min="0"
-                placeholder="Enter quantity"
-              />
-            </div>
-
-            <div className={styles.formGroup}>
-              <label>Reason:</label>
-              <input
-                type="text"
-                value={quickAdjustment.reason}
-                onChange={(e) => setQuickAdjustment({...quickAdjustment, reason: e.target.value})}
-                className={styles.input}
-                placeholder="e.g., Inventory count correction, New stock received"
-              />
-            </div>
-
-            <div className={styles.formActions}>
-              <button
-                onClick={handleQuickAdjustment}
-                disabled={adjustingInventory || !quickAdjustment.value || !quickAdjustment.reason}
-                className={styles.updateButton}
-              >
-                {adjustingInventory ? 'Updating...' : 'Update Inventory'}
-              </button>
-              <button
-                onClick={() => setShowQuickAdjust(false)}
-                className={styles.cancelButton}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Inventory History */}
       <div className={styles.historySection}>
-        <h4>Inventory History</h4>
         {inventoryHistory.length === 0 ? (
           <p className={styles.noHistory}>No inventory history available.</p>
         ) : (

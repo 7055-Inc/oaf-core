@@ -14,7 +14,7 @@ module.exports = {
       }
     },
     {
-      name: 'api-gateway',
+      name: 'api-service',
       script: 'src/server.js',
       cwd: '/var/www/main/api-service',
       exec_mode: 'fork',

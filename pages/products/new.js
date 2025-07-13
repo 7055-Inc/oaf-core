@@ -18,17 +18,21 @@ export default function NewProduct() {
   const [workflowStep, setWorkflowStep] = useState('type-selection'); // 'type-selection', 'variation-setup', 'bulk-edit'
   const [parentProduct, setParentProduct] = useState(null);
   const [variations, setVariations] = useState([]);
+  const [currentVariationStep, setCurrentVariationStep] = useState(2); // Track which variation step we're on
 
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     short_description: '',
     price: '',
-    available_qty: 10,
+
     category_id: '',
     user_category_id: '',
     sku: '',
     status: 'draft',
+    // Inventory fields for initial setup
+    beginning_inventory: 0,
+    reorder_qty: 0,
     width: '',
     height: '',
     depth: '',
@@ -80,11 +84,8 @@ export default function NewProduct() {
     setFormData(prev => ({ ...prev, product_type: type }));
     setShowModal(false);
     
-    if (type === 'variable') {
-      setWorkflowStep('variation-setup');
-    } else {
+    // Both simple and variable products start with the form
       setWorkflowStep('simple-form');
-    }
   };
 
   // Handle variation workflow steps
@@ -92,33 +93,26 @@ export default function NewProduct() {
     setVariations(newVariations);
   };
 
-  const handleVariationSetupComplete = () => {
-    // Create parent product data for bulk editor
-    const parentData = {
-      name: formData.name,
-      description: formData.description,
-      short_description: formData.short_description,
-      price: formData.price,
-      available_qty: formData.available_qty,
-      category_id: formData.category_id,
-      sku: formData.sku,
-      status: formData.status,
-      width: formData.width,
-      height: formData.height,
-      depth: formData.depth,
-      weight: formData.weight,
-      dimension_unit: formData.dimension_unit,
-      weight_unit: formData.weight_unit,
-      images: formData.images,
-      ship_method: formData.ship_method,
-      ship_rate: formData.ship_rate,
-      shipping_services: formData.shipping_services,
-      product_type: 'variable' // This will be the parent product
-    };
+  // Generate SKU for variation
+  const generateSKU = (baseSKU, combinationName, index) => {
+    if (!baseSKU) return `VAR-${index + 1}`;
     
-    setParentProduct(parentData);
-    setWorkflowStep('bulk-edit');
+    const combinationCode = combinationName
+      .split(' × ')
+      .map(val => val.substring(0, 2).toUpperCase())
+      .join('');
+    
+    return `${baseSKU}-${combinationCode}`;
   };
+
+  // Generate unique SKU for main product
+  const generateUniqueSKU = (productName) => {
+    const cleanName = (productName || 'PROD').replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '').toUpperCase();
+    const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
+    return `${cleanName}-${timestamp}`;
+  };
+
+
 
   const handleProductTypeToggle = () => {
     const newType = selectedProductType === 'simple' ? 'variable' : 'simple';
@@ -133,106 +127,79 @@ export default function NewProduct() {
     }
   };
 
-  // Handle creating all variable products
+  // Handle activating all draft products (they're already created!)
   const handleCreateVariableProducts = async (finalizedVariations) => {
     setLoading(true);
     setError(null);
 
     try {
-      // First create the parent product
-      const parentPayload = {
-        ...parentProduct,
-        parent_id: null,
-        category_id: parseInt(parentProduct.category_id),
-        price: parseFloat(parentProduct.price),
-        available_qty: parseInt(parentProduct.available_qty),
-        product_type: 'variable' // Parent product type
-      };
+      const parentProductId = parentProduct.id;
 
-      const parentResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/products', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(parentPayload)
-      });
-
-      if (!parentResponse.ok) {
-        const errorData = await parentResponse.json();
-        throw new Error(errorData.error || 'Failed to create parent product');
+      if (!parentProductId) {
+        throw new Error('Parent product not found.');
       }
 
-      const parentProductResult = await parentResponse.json();
-      const parentProductId = parentProductResult.id;
-
-      // Now create all the variant products
-      const variantCreationPromises = finalizedVariations.map(async (variation) => {
-        const variantPayload = {
+      // Update all draft products with final edits and activate them
+      const activationPromises = finalizedVariations.map(async (variation) => {
+        const updatePayload = {
+          // Only send user-editable fields from bulk editor + activation
+          // DO NOT send backend fields like parent_id, product_type, etc.
           name: variation.name,
           description: variation.description,
           short_description: variation.shortDescription,
           price: parseFloat(variation.price),
-          available_qty: parseInt(variation.inventory),
-          category_id: parseInt(variation.category_id),
+          beginning_inventory: parseInt(variation.inventory) || 0,
+          reorder_qty: parseInt(variation.reorder_qty) || parseInt(variation.inventory) || 0,
           sku: variation.sku,
-          status: variation.status,
-          width: variation.dimensions.width,
-          height: variation.dimensions.height,
-          depth: variation.dimensions.depth,
-          weight: variation.dimensions.weight,
-          dimension_unit: variation.dimensions.dimension_unit,
-          weight_unit: variation.dimensions.weight_unit,
-          ship_method: variation.shipping.ship_method,
-          ship_rate: variation.shipping.ship_rate,
-          shipping_services: variation.shipping.shipping_services,
-          images: variation.images,
-          parent_id: parentProductId,
-          product_type: 'variant' // Variant product type
+          width: variation.dimensions?.width || '',
+          height: variation.dimensions?.height || '',
+          depth: variation.dimensions?.depth || '',
+          weight: variation.dimensions?.weight || '',
+          dimension_unit: variation.dimensions?.dimension_unit || 'in',
+          weight_unit: variation.dimensions?.weight_unit || 'lbs',
+          ship_method: variation.shipping?.ship_method || 'free',
+          ship_rate: variation.shipping?.ship_rate || '',
+          shipping_services: variation.shipping?.shipping_services || '',
+          images: variation.images || [],
+          status: 'active' // ACTIVATE the draft!
         };
 
-        const variantResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/products', {
-          method: 'POST',
+        const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/products/${variation.id}`, {
+          method: 'PATCH',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(variantPayload)
+          body: JSON.stringify(updatePayload)
         });
 
-        if (!variantResponse.ok) {
-          const errorData = await variantResponse.json();
-          throw new Error(`Failed to create variant "${variation.name}": ${errorData.error}`);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(`Failed to activate variant "${variation.name}": ${errorData.error}`);
         }
 
-        const variantResult = await variantResponse.json();
-        
-        // Create variation records in the database
-        await Promise.all(variation.combination.map(async (combo) => {
-          const variationPayload = {
-            product_id: variantResult.id,
-            variation_type_id: combo.typeId,
-            variation_value_id: combo.valueId
-          };
-
-          const variationResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/products/variations', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(variationPayload)
-          });
-
-          if (!variationResponse.ok) {
-            console.error('Failed to create variation record:', await variationResponse.text());
-          }
-        }));
-
-        return variantResult;
+        return await response.json();
       });
 
-      await Promise.all(variantCreationPromises);
+      await Promise.all(activationPromises);
 
-      // Success! Redirect to dashboard
-      router.push('/dashboard?success=Variable product created successfully');
+      // Also activate the parent product (change from draft to active)
+      const parentActivationResponse = await authenticatedApiRequest(`https://api2.onlineartfestival.com/products/${parentProductId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          status: 'active'
+        })
+      });
+
+      if (!parentActivationResponse.ok) {
+        const errorData = await parentActivationResponse.json();
+        throw new Error(`Failed to activate parent product: ${errorData.error}`);
+      }
+
+      // Success! All drafts are now active products
+      router.push(`/products/${parentProductId}`);
       
     } catch (err) {
       setError(err.message);
@@ -395,7 +362,7 @@ export default function NewProduct() {
         uploadFormData.append('images', file);
       });
 
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/products/upload', {
+      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/products/upload?product_id=new', {
         method: 'POST',
         body: uploadFormData
       });
@@ -405,13 +372,7 @@ export default function NewProduct() {
       const data = await response.json();
       setFormData(prev => ({
         ...prev,
-        images: [...(Array.isArray(prev.images) ? prev.images : []), ...(Array.isArray(data.urls) ? data.urls.map(url => ({
-          url: url,
-          alt_text: '',
-          friendly_name: '',
-          is_primary: false,
-          order: (Array.isArray(prev.images) ? prev.images.length : 0) + 1
-        })) : [])]
+        images: [...(Array.isArray(prev.images) ? prev.images : []), ...(Array.isArray(data.urls) ? data.urls : [])]
       }));
     } catch (err) {
       setError(err.message);
@@ -420,23 +381,7 @@ export default function NewProduct() {
     }
   };
 
-  const handleImageMetadataChange = (index, field, value) => {
-    if (!Array.isArray(formData.images) || !formData.images[index]) {
-      return;
-    }
-    
-    const updatedImages = [...formData.images];
-    updatedImages[index][field] = value;
-    
-    // If setting as primary, unset others
-    if (field === 'is_primary' && value) {
-      updatedImages.forEach((img, i) => {
-        if (i !== index) img.is_primary = false;
-      });
-    }
-    
-    setFormData(prev => ({ ...prev, images: updatedImages }));
-  };
+
 
   const removeImage = (index) => {
     if (!Array.isArray(formData.images)) {
@@ -474,9 +419,12 @@ export default function NewProduct() {
         category_id: parseInt(formData.category_id),
         user_category_id: formData.user_category_id ? parseInt(formData.user_category_id) : null,
         price: parseFloat(formData.price),
-        available_qty: parseInt(formData.available_qty),
-        status: saveAsDraft ? 'draft' : 'active',
-        packages: formData.ship_method === 'calculated' ? packages : []
+        beginning_inventory: parseInt(formData.beginning_inventory) || 0,
+        reorder_qty: parseInt(formData.reorder_qty) || 0,
+        // Variable products are ALWAYS saved as draft initially (activated at the end)
+        status: (selectedProductType === 'variable' || saveAsDraft) ? 'draft' : 'active',
+        packages: formData.ship_method === 'calculated' ? packages : [],
+        product_type: selectedProductType
       };
 
       const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/products', {
@@ -489,10 +437,31 @@ export default function NewProduct() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create product');
+        let errorMessage = errorData.error || 'Failed to create product';
+        
+        // Handle duplicate SKU error with user-friendly message
+        if (errorMessage.includes('Duplicate entry') && errorMessage.includes('uk_products_sku')) {
+          errorMessage = `SKU "${formData.sku}" already exists. Please use a different SKU.`;
+        }
+        
+        throw new Error(errorMessage);
       }
 
-      router.push('/dashboard');
+      const newProduct = await response.json();
+      
+      // For variable products, move to variation setup instead of redirecting
+      if (selectedProductType === 'variable') {
+        // Store the parent product data with the new ID
+        setParentProduct({
+          ...newProduct,
+          id: newProduct.id
+        });
+        setCurrentVariationStep(2); // Reset to step 2 when starting variation setup
+        setWorkflowStep('variation-setup');
+      } else {
+        // For simple products, redirect to the product page
+        router.push(`/products/${newProduct.id}`);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -629,13 +598,21 @@ export default function NewProduct() {
       />
       
       {/* Product Form */}
-      {!showModal && selectedProductType && (
+      {!showModal && selectedProductType && workflowStep === 'simple-form' && (
         <div className={styles.container}>
       <div className={styles.content}>
             <div className={styles.titleSection}>
               <h1 className={styles.title}>
-                Add New {selectedProductType === 'simple' ? 'Simple' : 'Variable'} Product
+                {selectedProductType === 'simple' 
+                  ? 'Add New Simple Product' 
+                  : 'Step 1: Create Your Parent Product'
+                }
               </h1>
+              {selectedProductType === 'variable' && (
+                <p className={styles.stepNote}>
+                  This parent data will populate to all variations by default. You can edit each variation on an upcoming step.
+                </p>
+              )}
             </div>
         {error && <div className={styles.error}>{error}</div>}
         
@@ -774,20 +751,40 @@ export default function NewProduct() {
               </div>
 
               <div className={styles.formGroup}>
-                  <label>Available Quantity *</label>
+                <label>Beginning Inventory</label>
             <input
               type="number"
-              name="available_qty"
-              value={formData.available_qty}
+                  name="beginning_inventory"
+                  value={formData.beginning_inventory}
               onChange={handleChange}
                     min="0"
-              required
                   className={styles.input}
-            />
+                  placeholder="Initial quantity on hand"
+                />
+                <small className={styles.helpText}>
+                  Starting inventory quantity when product is created
+                </small>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Reorder Level</label>
+                <input
+                  type="number"
+                  name="reorder_qty"
+                  value={formData.reorder_qty}
+                  onChange={handleChange}
+                  min="0"
+                  className={styles.input}
+                  placeholder="Reorder when inventory reaches this level"
+                />
+                <small className={styles.helpText}>
+                  Alert when inventory falls to this quantity
+                </small>
           </div>
 
               <div className={styles.formGroup}>
                   <label>SKU *</label>
+                  <div className={styles.inputGroup}>
             <input
               type="text"
               name="sku"
@@ -798,6 +795,17 @@ export default function NewProduct() {
                     maxLength={50}
                     placeholder="Unique product identifier"
             />
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, sku: generateUniqueSKU(prev.name) }))}
+                      className={styles.generateButton}
+                    >
+                      Generate
+                    </button>
+                  </div>
+                  <small className={styles.helpText}>
+                    Click "Generate" to create a unique SKU based on the product name
+                  </small>
           </div>
 
               
@@ -1285,34 +1293,15 @@ export default function NewProduct() {
               
                 {Array.isArray(formData.images) && formData.images.length > 0 && (
                 <div className={styles.imagePreview}>
-                    {formData.images.map((image, index) => (
+                    {formData.images.map((imageUrl, index) => (
                       <div key={index} className={styles.imageContainer}>
                         <div className={styles.imageThumbnail}>
-                          <img src={image.url} alt={image.alt_text || `Product ${index + 1}`} />
+                          <img 
+                            src={imageUrl.startsWith('http') ? imageUrl : `https://api2.onlineartfestival.com${imageUrl}`} 
+                            alt={`Product ${index + 1}`} 
+                          />
                         </div>
-                        <div className={styles.imageMetadata}>
-                          <input
-                            type="text"
-                            placeholder="Alt text"
-                            value={image.alt_text}
-                            onChange={(e) => handleImageMetadataChange(index, 'alt_text', e.target.value)}
-                            className={styles.input}
-                          />
-                          <input
-                            type="text"
-                            placeholder="Friendly name"
-                            value={image.friendly_name}
-                            onChange={(e) => handleImageMetadataChange(index, 'friendly_name', e.target.value)}
-                            className={styles.input}
-                          />
-                          <label className={styles.checkboxLabel}>
-                            <input
-                              type="checkbox"
-                              checked={image.is_primary}
-                              onChange={(e) => handleImageMetadataChange(index, 'is_primary', e.target.checked)}
-                            />
-                            Primary Image
-                          </label>
+                        <div className={styles.imageActions}>
                           <button 
                             type="button" 
                             onClick={() => removeImage(index)}
@@ -1365,6 +1354,166 @@ export default function NewProduct() {
     </div>
       )}
 
+      {/* Variation Setup */}
+      {!showModal && selectedProductType === 'variable' && workflowStep === 'variation-setup' && (
+        <div className={styles.container}>
+          <div className={styles.content}>
+            <div className={styles.titleSection}>
+              <h1 className={styles.title}>
+                {currentVariationStep === 2 ? 'Step 2: Setup Product Variations' : 'Step 3: Select Variations'}
+              </h1>
+              <p className={styles.stepNote}>
+                {currentVariationStep === 2 
+                  ? 'Choose the types of variations your product will have (color, size, style, etc.)'
+                  : 'Choose which variations you want to create. Each will become a separate product.'
+                }
+              </p>
+            </div>
+            {error && <div className={styles.error}>{error}</div>}
+            
+            <VariationManager
+              onNext={async (variations) => {
+                setVariations(variations);
+                setCurrentVariationStep(4);
+                
+                // Create draft child products with the variations data
+                setLoading(true);
+                setError(null);
+                
+                try {
+                  const parentProductId = parentProduct.id;
+                  
+                  if (!parentProductId) {
+                    setError('DEBUG: Parent product ID missing!');
+                    throw new Error('Parent product not found. Please go back and create the parent product first.');
+                  }
+                  
+                  if (!variations || variations.length === 0) {
+                    setError('DEBUG: No variations data found!');
+                    throw new Error('No variations found. Please set up variations first.');
+                  }
+                  
+                  setError(`DEBUG: Found ${variations.length} variations, Parent ID: ${parentProductId}`);
+                  
+                  // Create draft children for each variation combination
+                  // Add delay between requests to prevent rate limiting
+                  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+                  
+                  const createdDrafts = [];
+                  
+                  for (let i = 0; i < variations.length; i++) {
+                    const variation = variations[i];
+                    
+                    // Add delay between product creation requests
+                    if (i > 0) {
+                      await delay(500); // 500ms delay between product creations (light throttling)
+                    }
+                    
+                    const combinationName = variation.combination
+                      .filter(c => c && c.valueName)
+                      .map(c => c.valueName)
+                      .join(' × ');
+                    
+                    const { id, created_at, updated_at, parent_id, ...parentProductWithoutId } = parentProduct;
+                    const draftPayload = {
+                      ...parentProductWithoutId,
+                      name: `${parentProduct.name} - ${combinationName}`,
+                      sku: generateSKU(parentProduct.sku || '', combinationName, i),
+                      parent_id: parentProductId,
+                      product_type: 'variant',
+                      status: 'draft'
+                    };
+
+                    const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/products', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json'
+                      },
+                      body: JSON.stringify(draftPayload)
+                    });
+
+                    if (!response.ok) {
+                      const errorData = await response.json();
+                      throw new Error(`Failed to create draft for "${combinationName}": ${errorData.error}`);
+                    }
+
+                    const createdProduct = await response.json();
+                    
+                    // Store variation data with delays between requests
+                    const variationCombos = variation.combination.filter(combo => combo && combo.typeId && combo.valueId);
+                    
+                    for (let j = 0; j < variationCombos.length; j++) {
+                      const combo = variationCombos[j];
+                      
+                      // Add delay between variation creation requests
+                      if (j > 0) {
+                        await delay(200); // 200ms delay between variation creations (light throttling)
+                      }
+                      
+                      const variationResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/products/variations', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                          product_id: createdProduct.id,
+                          variation_type_id: combo.typeId,
+                          variation_value_id: combo.valueId
+                        })
+                      });
+
+                      if (!variationResponse.ok) {
+                        const errorData = await variationResponse.json();
+                        throw new Error(`Failed to store variation data for "${combo.typeName}": ${errorData.error}`);
+                      }
+                    }
+                    
+                    createdDrafts.push(createdProduct);
+                  }
+                  setVariations(createdDrafts);
+                  setWorkflowStep('bulk-edit');
+                  
+                } catch (err) {
+                  setError(err.message);
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              onBack={() => {
+                setWorkflowStep('simple-form');
+                setCurrentVariationStep(1);
+              }}
+              onVariationsChange={(variations) => {
+                setVariations(variations);
+              }}
+              onStepChange={setCurrentVariationStep}
+              productId={parentProduct?.id} // Pass parent product ID
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Editor */}
+      {!showModal && selectedProductType === 'variable' && workflowStep === 'bulk-edit' && (
+        <div className={styles.container}>
+          <div className={styles.content}>
+            <div className={styles.titleSection}>
+              <h1 className={styles.title}>Step 4: Customize Product Variations</h1>
+              <p className={styles.stepNote}>
+                Customize each variation before creating them as products. You can set individual prices, SKUs, and inventory levels.
+              </p>
+            </div>
+            {error && <div className={styles.error}>{error}</div>}
+            
+            <VariationBulkEditor
+              variations={variations}
+              parentProductData={parentProduct}
+              onSave={handleCreateVariableProducts}
+              onBack={() => setWorkflowStep('variation-setup')}
+            />
+          </div>
+        </div>
+      )}
 
     </>
   );

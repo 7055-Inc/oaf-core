@@ -1495,3 +1495,403 @@
     gap: 0.5rem;
   }
 }
+
+/* Enhanced Products Table Styles */
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.productCounts {
+  display: flex;
+  gap: 15px;
+  font-size: 14px;
+  color: #666;
+}
+
+.countItem {
+  padding: 4px 8px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.headerButtons {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Checkbox column styles */
+.checkboxHeader {
+  width: 50px;
+  text-align: center;
+}
+
+.checkboxCell {
+  width: 50px;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.productCheckbox,
+.selectAllCheckbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* Thumbnail column styles */
+.thumbnailHeader {
+  width: 90px;
+  text-align: center;
+}
+
+.thumbnailCell {
+  width: 90px;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.thumbnailContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 75px;
+  height: 75px;
+  margin: 0 auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.productThumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.noThumbnail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #9ca3af;
+  font-size: 1.5rem;
+  background: #f3f4f6;
+}
+
+/* Bulk Actions Bar */
+.bulkActionsBar {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.bulkActionsContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.bulkActionsText {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #495057;
+}
+
+.bulkActionsButtons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.bulkDeleteButton {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.bulkDeleteButton:hover:not(:disabled) {
+  background: #c82333;
+}
+
+.bulkDeleteButton:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.deleteButton {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.deleteButton:hover:not(:disabled) {
+  background: #c82333;
+}
+
+.deleteButton:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.cancelButton {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.cancelButton:hover:not(:disabled) {
+  background: #5a6268;
+}
+
+.cancelButton:disabled {
+  background: #adb5bd;
+  cursor: not-allowed;
+}
+
+.modalBody {
+  padding: 1rem 0;
+}
+
+.modalBody p {
+  margin-bottom: 0.75rem;
+  line-height: 1.5;
+}
+
+.modalBody p:last-child {
+  margin-bottom: 0;
+}
+
+/* Hierarchical Table Styles */
+.parentRow {
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.childRow {
+  background: #f9f9f9;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.nameCell {
+  width: 40%;
+  max-width: 0;
+}
+
+.productName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+}
+
+.expandButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: #666;
+  font-size: 12px;
+  border-radius: 3px;
+  transition: all 0.2s;
+  min-width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.expandButton:hover {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.childProduct {
+  padding-left: 20px;
+}
+
+.childIndicator {
+  color: #999;
+  font-family: monospace;
+  font-size: 14px;
+  margin-right: 4px;
+}
+
+.productNameText {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.productTypeBadge {
+  background: #e3f2fd;
+  color: #1976d2;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+/* Status Badges */
+.statusBadge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.statusActive {
+  background: #e8f5e8;
+  color: #2e7d32;
+}
+
+.statusDraft {
+  background: #fff3e0;
+  color: #f57c00;
+}
+
+.statusHidden {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.statusDeleted {
+  background: #ffebee;
+  color: #c62828;
+}
+
+/* Cell-specific styles */
+.skuCell {
+  width: 15%;
+  font-family: monospace;
+  font-size: 13px;
+}
+
+.priceCell {
+  width: 12%;
+  font-weight: 500;
+  text-align: right;
+}
+
+.statusCell {
+  width: 10%;
+  text-align: center;
+}
+
+.stockCell {
+  width: 8%;
+  text-align: center;
+  font-weight: 500;
+}
+
+.actionsCell {
+  width: 15%;
+}
+
+/* Empty State */
+.emptyState {
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
+}
+
+.emptyState p {
+  margin-bottom: 20px;
+  font-size: 16px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .headerActions {
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+  }
+  
+  .productCounts {
+    justify-content: center;
+  }
+  
+  .nameCell {
+    width: 35%;
+  }
+  
+  .skuCell {
+    width: 20%;
+  }
+  
+  .expandButton {
+    min-width: 16px;
+    height: 16px;
+    font-size: 10px;
+  }
+  
+  .childProduct {
+    padding-left: 15px;
+  }
+
+  .headerButtons {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .thumbnailContainer {
+    width: 50px;
+    height: 50px;
+  }
+
+  .thumbnailHeader {
+    width: 60px;
+  }
+
+  .thumbnailCell {
+    width: 60px;
+  }
+
+  .checkboxHeader {
+    width: 40px;
+  }
+
+  .checkboxCell {
+    width: 40px;
+  }
+
+  .bulkActionsBar {
+    padding: 0.75rem;
+  }
+
+  .bulkActionsContent {
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: stretch;
+  }
+
+  .bulkActionsButtons {
+    justify-content: center;
+  }
+}

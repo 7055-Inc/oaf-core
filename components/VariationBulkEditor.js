@@ -13,52 +13,92 @@ const VariationBulkEditor = ({
     showBulkPrice: false,
     showBulkInventory: false,
     showBulkDescription: false,
+    showBulkShortDescription: false,
+    showBulkDimensions: false,
     bulkPrice: '',
     bulkInventory: '',
-    bulkDescription: ''
+    bulkDescription: '',
+    bulkShortDescription: '',
+    bulkDimensions: {
+      width: '',
+      height: '',
+      depth: '',
+      weight: '',
+      dimension_unit: 'in',
+      weight_unit: 'lbs'
+    }
   });
   const [expandedVariations, setExpandedVariations] = useState(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Initialize edited variations with default values
+  // Initialize with real draft product records
   useEffect(() => {
-    const initializedVariations = variations.map((variation, index) => {
-      const combinationName = variation.combination.map(c => c.valueName).join(' × ');
-      const baseName = parentProductData.name || 'Product';
+    if (!variations || variations.length === 0) return;
+    
+    const processedVariations = variations.map(draftProduct => {
+      // Extract variation types from kind- properties
+      const combination = [];
+      Object.keys(draftProduct).forEach(key => {
+        if (key.startsWith('kind-')) {
+          const parts = key.split('-');
+          if (parts.length >= 3) {
+            combination.push({
+              typeName: parts[1],
+              valueName: parts.slice(2).join('-')
+            });
+          }
+        }
+      });
+      
+      // Generate combination name from properties, not product name
+      const combinationName = combination.length > 0 
+        ? combination.map(c => c.valueName).join(' × ')
+        : 'Variation';
       
       return {
-        id: variation.id || `variation-${index}`,
-        combination: variation.combination,
+        // Use the real draft product data
+        ...draftProduct,
+        // Add convenience fields for the UI
         combinationName,
-        name: `${baseName} - ${combinationName}`,
-        price: parentProductData.price || '',
-        sku: generateSKU(parentProductData.sku || '', combinationName, index),
-        inventory: parentProductData.available_qty || 10,
-        description: parentProductData.description || '',
-        shortDescription: parentProductData.short_description || '',
-        images: [...(parentProductData.images || [])],
-        status: 'draft',
-        // Inherit parent product data
-        category_id: parentProductData.category_id,
+        combination,
+        // Structure nested data for easier editing
         dimensions: {
-          width: parentProductData.width || '',
-          height: parentProductData.height || '',
-          depth: parentProductData.depth || '',
-          weight: parentProductData.weight || '',
-          dimension_unit: parentProductData.dimension_unit || 'in',
-          weight_unit: parentProductData.weight_unit || 'lbs'
+          width: draftProduct.width || '',
+          height: draftProduct.height || '',
+          depth: draftProduct.depth || '',
+          weight: draftProduct.weight || '',
+          dimension_unit: draftProduct.dimension_unit || 'in',
+          weight_unit: draftProduct.weight_unit || 'lbs'
         },
         shipping: {
-          ship_method: parentProductData.ship_method || 'free',
-          ship_rate: parentProductData.ship_rate || '',
-          shipping_services: parentProductData.shipping_services || ''
-        }
+          ship_method: draftProduct.ship_method || 'free',
+          ship_rate: draftProduct.ship_rate || '',
+          shipping_services: draftProduct.shipping_services || ''
+        },
+        // Use inventory from the draft record
+        inventory: draftProduct.beginning_inventory || 0,
+        // Process images
+        images: [...(draftProduct.images || [])].map(img => {
+          if (typeof img === 'string') {
+            return {
+              url: img.startsWith('http') ? img : `https://api2.onlineartfestival.com${img}`,
+              alt_text: '',
+              friendly_name: '',
+              is_primary: false,
+              order: 1
+            };
+          }
+          return {
+            ...img,
+            url: img.url?.startsWith('http') ? img.url : `https://api2.onlineartfestival.com${img.url || img}`
+          };
+        })
       };
     });
     
-    setEditedVariations(initializedVariations);
-  }, [variations, parentProductData]);
+    setEditedVariations(processedVariations);
+  }, [variations]);
 
   // Generate SKU for variation
   const generateSKU = (baseSKU, combinationName, index) => {
@@ -98,7 +138,9 @@ const VariationBulkEditor = ({
         uploadFormData.append('images', file);
       });
 
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/products/upload', {
+      // Use parentProductData.id as the product_id for consistent naming
+      const productId = parentProductData?.id || 'new';
+      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/products/upload?product_id=${productId}`, {
         method: 'POST',
         body: uploadFormData
       });
@@ -107,7 +149,7 @@ const VariationBulkEditor = ({
       
       const data = await response.json();
       const newImages = (data.urls || []).map(url => ({
-        url: url,
+        url: url.startsWith('http') ? url : `https://api2.onlineartfestival.com${url}`,
         alt_text: '',
         friendly_name: '',
         is_primary: false,
@@ -170,6 +212,48 @@ const VariationBulkEditor = ({
     setBulkOperations(prev => ({ ...prev, showBulkDescription: false, bulkDescription: '' }));
   };
 
+  const applyBulkShortDescription = () => {
+    if (!bulkOperations.bulkShortDescription) return;
+    
+    setEditedVariations(prev => prev.map(variation => ({
+      ...variation,
+      shortDescription: bulkOperations.bulkShortDescription
+    })));
+    
+    setBulkOperations(prev => ({ ...prev, showBulkShortDescription: false, bulkShortDescription: '' }));
+  };
+
+  const applyBulkDimensions = () => {
+    const { width, height, depth, weight, dimension_unit, weight_unit } = bulkOperations.bulkDimensions;
+    
+    if (!width && !height && !depth && !weight) return;
+    
+    setEditedVariations(prev => prev.map(variation => ({
+      ...variation,
+      dimensions: {
+        width: width || variation.dimensions.width,
+        height: height || variation.dimensions.height,
+        depth: depth || variation.dimensions.depth,
+        weight: weight || variation.dimensions.weight,
+        dimension_unit: dimension_unit || variation.dimensions.dimension_unit,
+        weight_unit: weight_unit || variation.dimensions.weight_unit
+      }
+    })));
+    
+    setBulkOperations(prev => ({ 
+      ...prev, 
+      showBulkDimensions: false, 
+      bulkDimensions: {
+        width: '',
+        height: '',
+        depth: '',
+        weight: '',
+        dimension_unit: 'in',
+        weight_unit: 'lbs'
+      }
+    }));
+  };
+
   // Toggle variation expansion
   const toggleVariationExpansion = (index) => {
     const newExpanded = new Set(expandedVariations);
@@ -222,19 +306,11 @@ const VariationBulkEditor = ({
 
   return (
     <div className={styles.bulkEditor}>
-      <div className={styles.header}>
-        <h2 className={styles.title}>Customize Your Product Variations</h2>
-        <p className={styles.description}>
-          Customize each variation before creating them as products. You can set individual prices, SKUs, and inventory levels.
-        </p>
-      </div>
 
       {error && <div className={styles.error}>{error}</div>}
 
       {/* Bulk Operations */}
       <div className={styles.bulkOperations}>
-        <h3 className={styles.sectionTitle}>Bulk Operations</h3>
-        
         <div className={styles.bulkControls}>
           <div className={styles.bulkGroup}>
             <button 
@@ -254,7 +330,7 @@ const VariationBulkEditor = ({
                   step="0.01"
                   min="0"
                 />
-                <button onClick={applyBulkPrice} className={styles.bulkApply}>Apply to All</button>
+                <button onClick={applyBulkPrice} className="secondary">Apply to All</button>
               </div>
             )}
           </div>
@@ -276,7 +352,7 @@ const VariationBulkEditor = ({
                   className={styles.bulkInput}
                   min="0"
                 />
-                <button onClick={applyBulkInventory} className={styles.bulkApply}>Apply to All</button>
+                <button onClick={applyBulkInventory} className="secondary">Apply to All</button>
               </div>
             )}
           </div>
@@ -297,7 +373,92 @@ const VariationBulkEditor = ({
                   className={styles.bulkTextarea}
                   rows="3"
                 />
-                <button onClick={applyBulkDescription} className={styles.bulkApply}>Apply to All</button>
+                <button onClick={applyBulkDescription} className="secondary">Apply to All</button>
+              </div>
+            )}
+          </div>
+
+          <div className={styles.bulkGroup}>
+            <button 
+              onClick={() => setBulkOperations(prev => ({ ...prev, showBulkShortDescription: !prev.showBulkShortDescription }))}
+              className={styles.bulkToggle}
+            >
+              📄 Bulk Short Description
+            </button>
+            {bulkOperations.showBulkShortDescription && (
+              <div className={styles.bulkForm}>
+                <textarea
+                  placeholder="Short description for all variations"
+                  value={bulkOperations.bulkShortDescription}
+                  onChange={(e) => setBulkOperations(prev => ({ ...prev, bulkShortDescription: e.target.value }))}
+                  className={styles.bulkTextarea}
+                  rows="2"
+                />
+                <button onClick={applyBulkShortDescription} className="secondary">Apply to All</button>
+              </div>
+            )}
+          </div>
+
+          <div className={styles.bulkGroup}>
+            <button 
+              onClick={() => setBulkOperations(prev => ({ ...prev, showBulkDimensions: !prev.showBulkDimensions }))}
+              className={styles.bulkToggle}
+            >
+              📐 Bulk Dimensions
+            </button>
+            {bulkOperations.showBulkDimensions && (
+              <div className={styles.bulkForm}>
+                <div className={styles.dimensionsGrid}>
+                  <input
+                    type="number"
+                    placeholder="Width"
+                    value={bulkOperations.bulkDimensions.width}
+                    onChange={(e) => setBulkOperations(prev => ({ 
+                      ...prev, 
+                      bulkDimensions: { ...prev.bulkDimensions, width: e.target.value }
+                    }))}
+                    className={styles.bulkInput}
+                    step="0.01"
+                    min="0"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Height"
+                    value={bulkOperations.bulkDimensions.height}
+                    onChange={(e) => setBulkOperations(prev => ({ 
+                      ...prev, 
+                      bulkDimensions: { ...prev.bulkDimensions, height: e.target.value }
+                    }))}
+                    className={styles.bulkInput}
+                    step="0.01"
+                    min="0"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Depth"
+                    value={bulkOperations.bulkDimensions.depth}
+                    onChange={(e) => setBulkOperations(prev => ({ 
+                      ...prev, 
+                      bulkDimensions: { ...prev.bulkDimensions, depth: e.target.value }
+                    }))}
+                    className={styles.bulkInput}
+                    step="0.01"
+                    min="0"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Weight"
+                    value={bulkOperations.bulkDimensions.weight}
+                    onChange={(e) => setBulkOperations(prev => ({ 
+                      ...prev, 
+                      bulkDimensions: { ...prev.bulkDimensions, weight: e.target.value }
+                    }))}
+                    className={styles.bulkInput}
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
+                <button onClick={applyBulkDimensions} className="secondary">Apply to All</button>
               </div>
             )}
           </div>
@@ -321,10 +482,6 @@ const VariationBulkEditor = ({
 
       {/* Variations List */}
       <div className={styles.variationsList}>
-        <h3 className={styles.sectionTitle}>
-          Product Variations ({editedVariations.length})
-        </h3>
-
         {editedVariations.map((variation, index) => (
           <div key={variation.id} className={styles.variationCard}>
             <div 
@@ -396,13 +553,67 @@ const VariationBulkEditor = ({
                     </div>
 
                     <div className={styles.formGroup}>
-                      <label>Description</label>
+                      <label>Short Description</label>
+                      <textarea
+                        value={variation.shortDescription}
+                        onChange={(e) => updateVariation(index, 'shortDescription', e.target.value)}
+                        className={styles.textarea}
+                        rows="2"
+                        placeholder="Brief description for listings"
+                      />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label>Full Description</label>
                       <textarea
                         value={variation.description}
                         onChange={(e) => updateVariation(index, 'description', e.target.value)}
                         className={styles.textarea}
-                        rows="3"
+                        rows="4"
+                        placeholder="Complete product description"
                       />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label>Dimensions</label>
+                      <div className={styles.dimensionsRow}>
+                        <input
+                          type="number"
+                          placeholder="Width"
+                          value={variation.dimensions.width}
+                          onChange={(e) => updateNestedField(index, 'dimensions', 'width', e.target.value)}
+                          className={styles.dimensionInput}
+                          step="0.01"
+                          min="0"
+                        />
+                        <input
+                          type="number"
+                          placeholder="Height"
+                          value={variation.dimensions.height}
+                          onChange={(e) => updateNestedField(index, 'dimensions', 'height', e.target.value)}
+                          className={styles.dimensionInput}
+                          step="0.01"
+                          min="0"
+                        />
+                        <input
+                          type="number"
+                          placeholder="Depth"
+                          value={variation.dimensions.depth}
+                          onChange={(e) => updateNestedField(index, 'dimensions', 'depth', e.target.value)}
+                          className={styles.dimensionInput}
+                          step="0.01"
+                          min="0"
+                        />
+                        <input
+                          type="number"
+                          placeholder="Weight"
+                          value={variation.dimensions.weight}
+                          onChange={(e) => updateNestedField(index, 'dimensions', 'weight', e.target.value)}
+                          className={styles.dimensionInput}
+                          step="0.01"
+                          min="0"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -430,7 +641,8 @@ const VariationBulkEditor = ({
                             <img src={image.url} alt={image.alt_text} className={styles.imageThumb} />
                             <button 
                               onClick={() => removeImage(index, imgIndex)}
-                              className={styles.removeImage}
+                              className="secondary"
+                              style={{ padding: '2px 6px', fontSize: '14px' }}
                             >
                               ×
                             </button>
@@ -450,7 +662,7 @@ const VariationBulkEditor = ({
       <div className={styles.actions}>
         <button 
           onClick={onBack}
-          className={styles.backButton}
+          className="secondary"
         >
           ← Back to Variations
         </button>
@@ -458,7 +670,6 @@ const VariationBulkEditor = ({
         <button 
           onClick={handleSave}
           disabled={loading || editedVariations.length === 0}
-          className={styles.saveButton}
         >
           {loading ? 'Creating Products...' : `Create ${editedVariations.length} Products`}
         </button>
