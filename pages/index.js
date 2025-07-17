@@ -28,7 +28,7 @@ export default function Home() {
         setHeroData(data);
       }
     } catch (err) {
-      console.log('No hero data found');
+      // No hero data found
     } finally {
       setIsLoading(false);
     }

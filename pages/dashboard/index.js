@@ -9,12 +9,16 @@ import CategoryChangeLog from '../../components/CategoryChangeLog';
 import UserManagement from '../../components/UserManagement';
 import EventManagement from '../../components/EventManagement';
 import PermissionsManagement from '../../components/PermissionsManagement';
+import EmailAdminDashboard from '../../components/EmailAdminDashboard';
+import EmailPreferences from '../../components/EmailPreferences';
 import ArticleManagement from '../articles/components/ArticleManagement';
 import SitesManagement from '../../components/SitesManagement';
 import AnnouncementsManagement from '../../components/AnnouncementsManagement';
 import TermsManagement from '../../components/TermsManagement';
+import CommissionManagement from '../../components/CommissionManagement';
 import { getAuthToken } from '../../lib/csrf';
 import styles from './Dashboard.module.css';
+import VendorOrders from '../../components/VendorOrders';
 
 export default function Dashboard() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -33,7 +37,6 @@ export default function Dashboard() {
       // Fetch user data and extract permissions from JWT
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
-        console.log('JWT payload:', payload);
         
         fetch('https://api2.onlineartfestival.com/users/me', {
           method: 'GET',
@@ -54,7 +57,6 @@ export default function Dashboard() {
               ...data,
               permissions: payload.permissions || []
             };
-            console.log('Dashboard - Current User Data with permissions:', userData);
             setUserData(userData);
           })
           .catch(err => {
@@ -100,11 +102,9 @@ export default function Dashboard() {
   const hasVendorPermission = userData.permissions?.includes('vendor');
   const canManageProducts = isAdmin || hasVendorPermission;
   const canManageEvents = isAdmin || isPromoter;
-  const canManageArticles = isAdmin || 
-                           userData.permissions?.includes('create_articles') || 
-                           userData.permissions?.includes('publish_articles') ||
-                           userData.permissions?.includes('manage_articles_seo') ||
-                           userData.permissions?.includes('manage_articles_topics');
+  const canManageArticles = isAdmin || userData.permissions?.includes('manage_content');
+  const canManageSites = isAdmin || userData.permissions?.includes('manage_sites');
+  const canManageSystem = isAdmin || userData.permissions?.includes('manage_system');
 
   const renderContent = () => {
     switch (activeSection) {
@@ -152,6 +152,67 @@ export default function Dashboard() {
             <p>View your order history and track current orders.</p>
           </div>
         );
+      case 'finance-dashboard':
+        return (
+          <div className={styles.contentSection}>
+            <h2>Financial Dashboard</h2>
+            <p>Overview of your financial performance, earnings, and account status.</p>
+          </div>
+        );
+      case 'transactions':
+        return (
+          <div className={styles.contentSection}>
+            <h2>Transaction History</h2>
+            <p>View all your sales, commissions, and financial transactions.</p>
+          </div>
+        );
+      case 'payouts':
+        return (
+          <div className={styles.contentSection}>
+            <h2>Payouts & Earnings</h2>
+            <p>Track your earnings and payout schedule.</p>
+          </div>
+        );
+      case 'stripe-setup':
+        return (
+          <div className={styles.contentSection}>
+            <h2>Stripe Account Setup</h2>
+            <p>Connect your Stripe account to start receiving payments.</p>
+          </div>
+        );
+      case 'vendor-orders':
+        return (
+          <div className={styles.contentSection}>
+            <VendorOrders />
+          </div>
+        );
+      case 'platform-financials':
+        return (
+          <div className={styles.contentSection}>
+            <h2>Platform Financials</h2>
+            <p>Overview of platform-wide financial metrics and performance.</p>
+          </div>
+        );
+      case 'commission-management':
+        return (
+          <div className={styles.contentSection}>
+            <CommissionManagement />
+          </div>
+        );
+      case 'vendor-settlements':
+        return (
+          <div className={styles.contentSection}>
+            <h2>Vendor Settlements</h2>
+            <p>Review and manage vendor payouts and settlements.</p>
+          </div>
+        );
+      case 'financial-reports':
+        return (
+          <div className={styles.contentSection}>
+            <h2>Financial Reports</h2>
+            <p>Generate comprehensive financial reports and analytics.</p>
+          </div>
+        );
       case 'user-management':
         return (
           <div className={styles.contentSection}>
@@ -163,6 +224,18 @@ export default function Dashboard() {
         return (
           <div className={styles.contentSection}>
             <PermissionsManagement />
+          </div>
+        );
+      case 'email-admin':
+        return (
+          <div className={styles.contentSection}>
+            <EmailAdminDashboard />
+          </div>
+        );
+      case 'email-preferences':
+        return (
+          <div className={styles.contentSection}>
+            <EmailPreferences userId={userData.id} />
           </div>
         );
       case 'hero-settings':
@@ -309,6 +382,14 @@ export default function Dashboard() {
                   View Profile
                 </Link>
               </li>
+              <li>
+                <button 
+                  className={`${styles.sidebarLink} ${activeSection === 'email-preferences' ? styles.active : ''}`}
+                  onClick={() => setActiveSection('email-preferences')}
+                >
+                  Email Settings
+                </button>
+              </li>
             </ul>
           </div>
 
@@ -325,6 +406,86 @@ export default function Dashboard() {
               </li>
             </ul>
           </div>
+
+          {/* Finance section for vendors and admins */}
+          {(hasVendorPermission || isAdmin) && (
+            <div className={styles.sidebarSection}>
+              <h3>Finance</h3>
+              <ul>
+                {/* All Users Finance Links */}
+                <li>
+                  <button 
+                    className={`${styles.sidebarLink} ${activeSection === 'finance-dashboard' ? styles.active : ''}`}
+                    onClick={() => setActiveSection('finance-dashboard')}
+                  >
+                    Financial Dashboard
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    className={`${styles.sidebarLink} ${activeSection === 'transactions' ? styles.active : ''}`}
+                    onClick={() => setActiveSection('transactions')}
+                  >
+                    Transaction History
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    className={`${styles.sidebarLink} ${activeSection === 'payouts' ? styles.active : ''}`}
+                    onClick={() => setActiveSection('payouts')}
+                  >
+                    Payouts & Earnings
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    className={`${styles.sidebarLink} ${activeSection === 'stripe-setup' ? styles.active : ''}`}
+                    onClick={() => setActiveSection('stripe-setup')}
+                  >
+                    Stripe Account Setup
+                  </button>
+                </li>
+                
+                {/* Admin Finance Links */}
+                {isAdmin && (
+                  <>
+                    <li>
+                      <button 
+                        className={`${styles.sidebarLink} ${activeSection === 'platform-financials' ? styles.active : ''}`}
+                        onClick={() => setActiveSection('platform-financials')}
+                      >
+                        Platform Financials
+                      </button>
+                    </li>
+                    <li>
+                      <button 
+                        className={`${styles.sidebarLink} ${activeSection === 'commission-management' ? styles.active : ''}`}
+                        onClick={() => setActiveSection('commission-management')}
+                      >
+                        Commission Management
+                      </button>
+                    </li>
+                    <li>
+                      <button 
+                        className={`${styles.sidebarLink} ${activeSection === 'vendor-settlements' ? styles.active : ''}`}
+                        onClick={() => setActiveSection('vendor-settlements')}
+                      >
+                        Vendor Settlements
+                      </button>
+                    </li>
+                    <li>
+                      <button 
+                        className={`${styles.sidebarLink} ${activeSection === 'financial-reports' ? styles.active : ''}`}
+                        onClick={() => setActiveSection('financial-reports')}
+                      >
+                        Financial Reports
+                      </button>
+                    </li>
+                  </>
+                )}
+              </ul>
+            </div>
+          )}
 
           {/* Event Applications section for artists */}
           <div className={styles.sidebarSection}>
@@ -398,6 +559,14 @@ export default function Dashboard() {
                   </Link>
                 </li>
                 <li>
+                  <button 
+                    className={`${styles.sidebarLink} ${activeSection === 'vendor-orders' ? styles.active : ''}`}
+                    onClick={() => setActiveSection('vendor-orders')}
+                  >
+                    Orders
+                  </button>
+                </li>
+                <li>
                   <Link href="/dashboard/inventory" className={styles.sidebarLink}>
                     Inventory Management
                   </Link>
@@ -423,7 +592,7 @@ export default function Dashboard() {
                     My Articles
                   </button>
                 </li>
-                {isAdmin && (
+                {canManageArticles && (
                   <li>
                     <button 
                       className={`${styles.sidebarLink} ${activeSection === 'article-management' ? styles.active : ''}`}
@@ -437,9 +606,9 @@ export default function Dashboard() {
             </div>
           )}
 
-          {isAdmin && (
+          {canManageSystem && (
             <div className={styles.sidebarSection}>
-              <h3>Admin Tools</h3>
+              <h3>System Management</h3>
               <ul>
                 <li>
                   <button 
@@ -455,6 +624,14 @@ export default function Dashboard() {
                     onClick={() => setActiveSection('permissions-management')}
                   >
                     Permissions Management
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    className={`${styles.sidebarLink} ${activeSection === 'email-admin' ? styles.active : ''}`}
+                    onClick={() => setActiveSection('email-admin')}
+                  >
+                    Email Administration
                   </button>
                 </li>
                 <li>
@@ -510,6 +687,14 @@ export default function Dashboard() {
                     Policy Management
                   </Link>
                 </li>
+              </ul>
+            </div>
+          )}
+
+          {canManageSites && (
+            <div className={styles.sidebarSection}>
+              <h3>Site Management</h3>
+              <ul>
                 <li>
                   <button 
                     className={`${styles.sidebarLink} ${activeSection === 'admin-sites-management' ? styles.active : ''}`}
@@ -1418,7 +1603,7 @@ function ApplicationCalendarSection({ userData }) {
       });
 
       // Fetch custom events
-      const customEventsResponse = await fetch('https://api2.onlineartfestival.com/api/custom-events/my-events', {
+      const customEventsResponse = await fetch('https://api2.onlineartfestival.com/api/events/my-events', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -1451,7 +1636,7 @@ function ApplicationCalendarSection({ userData }) {
   const addCustomEvent = async (eventData) => {
     try {
       const token = getAuthToken();
-      const response = await fetch('https://api2.onlineartfestival.com/api/custom-events', {
+      const response = await fetch('https://api2.onlineartfestival.com/api/events/custom', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -5,6 +5,51 @@
   margin: 0;
 }
 
+/* Floating Action Buttons for Edit Product */
+.floatingEditButtons {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.floatingEditLink,
+.floatingManageLink {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 50px;
+  text-decoration: none;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.floatingEditLink {
+  background: linear-gradient(135deg, #055474 0%, #3E1C56 100%);
+}
+
+.floatingManageLink {
+  background: linear-gradient(135deg, #3E1C56 0%, #055474 100%);
+}
+
+.floatingEditLink:hover,
+.floatingManageLink:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.floatingEditLink i,
+.floatingManageLink i {
+  font-size: 16px;
+}
+
 .content {
   max-width: none;
   margin: 0;

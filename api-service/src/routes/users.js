@@ -1,29 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
-const jwt = require('jsonwebtoken');
+const verifyToken = require('../middleware/jwt');
 const upload = require('../config/multer');
 const path = require('path');
 const fs = require('fs');
 
-// Middleware to verify JWT token
-const verifyToken = async (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(401).json({ error: 'No token provided' });
-  }
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.userId = decoded.userId;
-    req.roles = decoded.roles;
-    req.permissions = decoded.permissions || [];
-    next();
-  } catch (err) {
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
+
 
 
 // GET /users/me - Fetch current user's profile

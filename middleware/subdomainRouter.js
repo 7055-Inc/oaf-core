@@ -15,6 +15,18 @@ export async function subdomainRouter(req) {
   }
   
   try {
+    // Handle custom subdomains with special routing
+    // Add more custom subdomains here as needed
+    if (subdomain === 'signup') {
+      // Route signup subdomain to custom redirect page
+      return NextResponse.rewrite(new URL(`/custom-sites/signup?subdomain=${subdomain}`, req.url));
+    }
+    
+    // Example: Add more custom subdomains like this:
+    // if (subdomain === 'promo') {
+    //   return NextResponse.rewrite(new URL(`/custom-sites/promo?subdomain=${subdomain}`, req.url));
+    // }
+    
     // Check if this subdomain corresponds to an active artist site
     const response = await fetch(`https://api2.onlineartfestival.com/api/sites/resolve/${subdomain}`, {
       method: 'GET',

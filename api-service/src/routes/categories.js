@@ -1,18 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
-const authenticateToken = require('../middleware/jwt');
+const verifyToken = require('../middleware/jwt');
+const { requireRestrictedPermission } = require('../middleware/permissions');
 const { secureLogger } = require('../middleware/secureLogger');
-
-/**
- * Middleware to verify admin access
- */
-const requireAdmin = (req, res, next) => {
-  if (!req.user.roles || !req.user.roles.includes('admin')) {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
-  next();
-};
 
 /**
  * Get all categories with hierarchical structure
@@ -70,15 +61,42 @@ router.get('/', async (req, res) => {
 });
 
 /**
- * CATEGORY CHANGE LOG ENDPOINT - Must be before /:id routes
+ * Get category change log (admin only)
  * GET /api/categories/change-log
  */
-router.get('/change-log', authenticateToken, requireAdmin, async (req, res) => {
+router.get('/change-log', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM category_change_log ORDER BY changed_at DESC LIMIT 200');
-    res.json({ success: true, log: rows });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch change log' });
+    const { limit = 50, offset = 0 } = req.query;
+    
+    const [logs] = await db.query(`
+      SELECT 
+        cl.id,
+        cl.category_id,
+        cl.action,
+        cl.old_values,
+        cl.new_values,
+        cl.admin_id,
+        cl.created_at,
+        u.username as admin_username,
+        c.name as category_name
+      FROM category_change_log cl
+      JOIN users u ON cl.admin_id = u.id
+      LEFT JOIN categories c ON cl.category_id = c.id
+      ORDER BY cl.created_at DESC
+      LIMIT ? OFFSET ?
+    `, [parseInt(limit), parseInt(offset)]);
+    
+    res.json({ 
+      success: true, 
+      logs: logs.map(log => ({
+        ...log,
+        old_values: log.old_values ? JSON.parse(log.old_values) : null,
+        new_values: log.new_values ? JSON.parse(log.new_values) : null
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching category change log:', error);
+    res.status(500).json({ error: 'Failed to fetch category change log' });
   }
 });
 
@@ -148,7 +166,7 @@ router.get('/:id', async (req, res) => {
  * Create a new category
  * POST /api/categories
  */
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', verifyToken, async (req, res) => {
   try {
     const { name, parent_id, description } = req.body;
 
@@ -210,7 +228,7 @@ router.post('/', authenticateToken, async (req, res) => {
  * Update a category
  * PUT /api/categories/:id
  */
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, parent_id, description } = req.body;
@@ -293,7 +311,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
  * Delete a category
  * DELETE /api/categories/:id
  */
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -359,7 +377,7 @@ router.get('/content/:category_id', async (req, res) => {
   }
 });
 
-router.post('/content/:category_id', authenticateToken, requireAdmin, async (req, res) => {
+router.post('/content/:category_id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
     const { category_id } = req.params;
     const { hero_image, description, banner, featured_products, featured_artists } = req.body;
@@ -398,7 +416,7 @@ router.get('/seo/:category_id', async (req, res) => {
   }
 });
 
-router.post('/seo/:category_id', authenticateToken, requireAdmin, async (req, res) => {
+router.post('/seo/:category_id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
     const { category_id } = req.params;
     const { meta_title, meta_description, meta_keywords, canonical_url, json_ld } = req.body;

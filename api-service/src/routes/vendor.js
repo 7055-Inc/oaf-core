@@ -1,21 +1,130 @@
 const express = require('express');
 const stripeService = require('../services/stripeService');
 const db = require('../../config/db');
-const authenticateToken = require('../middleware/jwt');
+const verifyToken = require('../middleware/jwt');
+const { requirePermission } = require('../middleware/permissions');
 const router = express.Router();
+
+/**
+ * Get vendor orders
+ * GET /api/vendor/orders
+ */
+router.get('/orders', verifyToken, requirePermission('vendor'), async (req, res) => {
+  try {
+    const vendorId = req.userId;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
+    const status = req.query.status;
+    
+    // Build query with optional status filter
+    let whereClause = 'WHERE oi.vendor_id = ?';
+    const params = [vendorId];
+    
+    if (status && status !== 'all') {
+      whereClause += ' AND o.status = ?';
+      params.push(status);
+    }
+    
+        // Get orders for this vendor
+    const ordersQuery = `
+      SELECT 
+        o.id,
+        o.stripe_payment_intent_id,
+        o.status,
+        o.total_amount,
+        o.shipping_amount,
+        o.created_at,
+        o.updated_at,
+        oi.quantity,
+        oi.price,
+        oi.commission_rate,
+        oi.commission_amount,
+        oi.shipping_cost,
+        p.name as product_name,
+        p.id as product_id,
+        u.username as customer_email,
+        up.display_name as customer_name
+      FROM orders o
+      JOIN order_items oi ON o.id = oi.order_id
+      JOIN products p ON oi.product_id = p.id
+      JOIN users u ON o.user_id = u.id
+      LEFT JOIN user_profiles up ON u.id = up.user_id
+      ${whereClause}
+      ORDER BY o.created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `;
+
+    const [orders] = await db.execute(ordersQuery, params);
+    
+    // Get total count for pagination
+    const countQuery = `
+      SELECT COUNT(DISTINCT o.id) as total
+      FROM orders o
+      JOIN order_items oi ON o.id = oi.order_id
+      ${whereClause}
+    `;
+    
+    const [countResult] = await db.execute(countQuery, params);
+    const totalOrders = countResult[0].total;
+    
+    // Group orders by order ID
+    const groupedOrders = {};
+    orders.forEach(order => {
+      if (!groupedOrders[order.id]) {
+        groupedOrders[order.id] = {
+          id: order.id,
+          stripe_payment_intent_id: order.stripe_payment_intent_id,
+          status: order.status,
+          total_amount: parseFloat(order.total_amount),
+          shipping_amount: parseFloat(order.shipping_amount),
+          created_at: order.created_at,
+          updated_at: order.updated_at,
+          customer_email: order.customer_email,
+          customer_name: order.customer_name,
+          items: []
+        };
+      }
+      
+      groupedOrders[order.id].items.push({
+        product_id: order.product_id,
+        product_name: order.product_name,
+        quantity: order.quantity,
+        price: parseFloat(order.price),
+        commission_rate: parseFloat(order.commission_rate),
+        commission_amount: parseFloat(order.commission_amount),
+        shipping_cost: parseFloat(order.shipping_cost),
+        vendor_receives: parseFloat(order.price) * order.quantity - parseFloat(order.commission_amount)
+      });
+    });
+    
+    // Convert to array
+    const ordersList = Object.values(groupedOrders);
+    
+    res.json({
+      success: true,
+      orders: ordersList,
+      pagination: {
+        page,
+        limit,
+        total: totalOrders,
+        pages: Math.ceil(totalOrders / limit)
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching vendor orders:', error);
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
 
 /**
  * Get vendor financial dashboard
  * GET /api/vendor/dashboard
  */
-router.get('/dashboard', authenticateToken, async (req, res) => {
+router.get('/dashboard', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
-    const vendorId = req.user.id;
-    
-    // Verify user is a vendor
-    if (req.user.user_type !== 'artist') {
-      return res.status(403).json({ error: 'Access denied - vendor account required' });
-    }
+    const vendorId = req.userId;
 
     // Get vendor settings
     const vendorSettings = await stripeService.getVendorSettings(vendorId);
@@ -28,33 +137,24 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     ]);
 
     // Get Stripe account status if exists
-    let stripeAccountStatus = null;
-    if (vendorSettings?.stripe_account_id) {
-      try {
-        stripeAccountStatus = await stripeService.getAccountStatus(vendorSettings.stripe_account_id);
-      } catch (error) {
-        console.error('Error getting Stripe account status:', error);
-      }
+    let stripeAccount = null;
+    if (vendorSettings.stripe_account_id) {
+      stripeAccount = await stripeService.getStripeAccount(vendorSettings.stripe_account_id);
     }
 
     res.json({
       success: true,
       dashboard: {
-        balance: balance,
+        balance,
         recent_transactions: transactions,
-        payout_schedule: payoutSchedule,
-        vendor_settings: {
-          commission_rate: vendorSettings?.commission_rate || 15.00,
-          payout_days: vendorSettings?.payout_days || 15,
-          stripe_account_verified: vendorSettings?.stripe_account_verified || false,
-          reverse_transfer_enabled: vendorSettings?.reverse_transfer_enabled || false
-        },
-        stripe_account: stripeAccountStatus
+        upcoming_payouts: payoutSchedule,
+        vendor_settings: vendorSettings,
+        stripe_account: stripeAccount
       }
     });
     
   } catch (error) {
-    console.error('Error getting vendor dashboard:', error);
+    console.error('Error loading vendor dashboard:', error);
     res.status(500).json({ error: 'Failed to load dashboard' });
   }
 });
@@ -63,13 +163,9 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
  * Get vendor balance details
  * GET /api/vendor/balance
  */
-router.get('/balance', authenticateToken, async (req, res) => {
+router.get('/balance', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
-    const vendorId = req.user.id;
-    
-    if (req.user.user_type !== 'artist') {
-      return res.status(403).json({ error: 'Access denied - vendor account required' });
-    }
+    const vendorId = req.userId;
 
     const balance = await getVendorBalance(vendorId);
     
@@ -88,20 +184,14 @@ router.get('/balance', authenticateToken, async (req, res) => {
  * Get vendor transaction history
  * GET /api/vendor/transactions
  */
-router.get('/transactions', authenticateToken, async (req, res) => {
+router.get('/transactions', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
-    const vendorId = req.user.id;
-    const { page = 1, limit = 20, type, status } = req.query;
-    
-    if (req.user.user_type !== 'artist') {
-      return res.status(403).json({ error: 'Access denied - vendor account required' });
-    }
+    const vendorId = req.userId;
+    const { page = 1, limit = 20 } = req.query;
 
     const transactions = await getVendorTransactions(vendorId, {
       page: parseInt(page),
-      limit: parseInt(limit),
-      type,
-      status
+      limit: parseInt(limit)
     });
     
     res.json({
@@ -122,27 +212,44 @@ router.get('/transactions', authenticateToken, async (req, res) => {
 });
 
 /**
- * Get vendor payout schedule
- * GET /api/vendor/payout-schedule
+ * Get upcoming payouts
+ * GET /api/vendor/payouts
  */
-router.get('/payout-schedule', authenticateToken, async (req, res) => {
+router.get('/payouts', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
-    const vendorId = req.user.id;
-    
-    if (req.user.user_type !== 'artist') {
-      return res.status(403).json({ error: 'Access denied - vendor account required' });
-    }
+    const vendorId = req.userId;
 
     const payouts = await getUpcomingPayouts(vendorId);
     
     res.json({
       success: true,
-      payout_schedule: payouts
+      payouts: payouts
     });
     
   } catch (error) {
-    console.error('Error getting payout schedule:', error);
-    res.status(500).json({ error: 'Failed to get payout schedule' });
+    console.error('Error getting vendor payouts:', error);
+    res.status(500).json({ error: 'Failed to get payouts' });
+  }
+});
+
+/**
+ * Get vendor settings
+ * GET /api/vendor/settings
+ */
+router.get('/settings', verifyToken, requirePermission('vendor'), async (req, res) => {
+  try {
+    const vendorId = req.userId;
+
+    const settings = await stripeService.getVendorSettings(vendorId);
+    
+    res.json({
+      success: true,
+      settings: settings
+    });
+    
+  } catch (error) {
+    console.error('Error getting vendor settings:', error);
+    res.status(500).json({ error: 'Failed to get settings' });
   }
 });
 
@@ -150,14 +257,10 @@ router.get('/payout-schedule', authenticateToken, async (req, res) => {
  * Create Stripe Connect account for vendor
  * POST /api/vendor/stripe-account
  */
-router.post('/stripe-account', authenticateToken, async (req, res) => {
+router.post('/stripe-account', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
-    const vendorId = req.user.id;
+    const vendorId = req.userId;
     const { business_info = {} } = req.body;
-    
-    if (req.user.user_type !== 'artist') {
-      return res.status(403).json({ error: 'Access denied - vendor account required' });
-    }
 
     // Check if vendor already has a Stripe account
     const existingSettings = await stripeService.getVendorSettings(vendorId);
@@ -199,13 +302,9 @@ router.post('/stripe-account', authenticateToken, async (req, res) => {
  * Get Stripe account onboarding link
  * GET /api/vendor/stripe-onboarding
  */
-router.get('/stripe-onboarding', authenticateToken, async (req, res) => {
+router.get('/stripe-onboarding', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
-    const vendorId = req.user.id;
-    
-    if (req.user.user_type !== 'artist') {
-      return res.status(403).json({ error: 'Access denied - vendor account required' });
-    }
+    const vendorId = req.userId;
 
     const vendorSettings = await stripeService.getVendorSettings(vendorId);
     
@@ -230,14 +329,10 @@ router.get('/stripe-onboarding', authenticateToken, async (req, res) => {
  * Update vendor subscription preferences
  * POST /api/vendor/subscription-preferences
  */
-router.post('/subscription-preferences', authenticateToken, async (req, res) => {
+router.post('/subscription-preferences', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
-    const vendorId = req.user.id;
+    const vendorId = req.userId;
     const { payment_method, reverse_transfer_enabled } = req.body;
-    
-    if (req.user.user_type !== 'artist') {
-      return res.status(403).json({ error: 'Access denied - vendor account required' });
-    }
 
     // Validate payment method
     if (payment_method && !['balance_first', 'card_only'].includes(payment_method)) {
@@ -258,7 +353,7 @@ router.post('/subscription-preferences', authenticateToken, async (req, res) => 
     
     res.json({
       success: true,
-      message: 'Subscription preferences updated'
+      message: 'Subscription preferences updated successfully'
     });
     
   } catch (error) {
@@ -268,17 +363,12 @@ router.post('/subscription-preferences', authenticateToken, async (req, res) => 
 });
 
 /**
- * Get vendor's shipping policy
+ * Get vendor shipping policy
  * GET /api/vendor/shipping-policy
  */
-router.get('/shipping-policy', authenticateToken, async (req, res) => {
+router.get('/shipping-policy', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
-    const vendorId = req.user.id;
-    
-    // Verify user has vendor permissions
-    if (!req.user.permissions || !req.user.permissions.includes('vendor')) {
-      return res.status(403).json({ error: 'Vendor permissions required' });
-    }
+    const vendorId = req.userId;
 
     const policy = await getVendorShippingPolicy(vendorId);
     
@@ -288,26 +378,21 @@ router.get('/shipping-policy', authenticateToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error getting vendor shipping policy:', error);
+    console.error('Error getting shipping policy:', error);
     res.status(500).json({ error: 'Failed to get shipping policy' });
   }
 });
 
 /**
- * Create or update vendor's shipping policy
- * POST /api/vendor/shipping-policy
+ * Update vendor shipping policy
+ * PUT /api/vendor/shipping-policy
  */
-router.post('/shipping-policy', authenticateToken, async (req, res) => {
+router.put('/shipping-policy', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
-    const vendorId = req.user.id;
+    const vendorId = req.userId;
     const { policy_text } = req.body;
     
-    // Verify user has vendor permissions
-    if (!req.user.permissions || !req.user.permissions.includes('vendor')) {
-      return res.status(403).json({ error: 'Vendor permissions required' });
-    }
-
-    if (!policy_text || policy_text.trim() === '') {
+    if (!policy_text) {
       return res.status(400).json({ error: 'Policy text is required' });
     }
 
@@ -315,28 +400,22 @@ router.post('/shipping-policy', authenticateToken, async (req, res) => {
     
     res.json({
       success: true,
-      message: 'Shipping policy updated successfully',
       policy: updatedPolicy
     });
     
   } catch (error) {
-    console.error('Error updating vendor shipping policy:', error);
+    console.error('Error updating shipping policy:', error);
     res.status(500).json({ error: 'Failed to update shipping policy' });
   }
 });
 
 /**
- * Get vendor's shipping policy history
+ * Get vendor shipping policy history
  * GET /api/vendor/shipping-policy/history
  */
-router.get('/shipping-policy/history', authenticateToken, async (req, res) => {
+router.get('/shipping-policy/history', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
-    const vendorId = req.user.id;
-    
-    // Verify user has vendor permissions
-    if (!req.user.permissions || !req.user.permissions.includes('vendor')) {
-      return res.status(403).json({ error: 'Vendor permissions required' });
-    }
+    const vendorId = req.userId;
 
     const history = await getVendorShippingPolicyHistory(vendorId);
     
@@ -346,49 +425,39 @@ router.get('/shipping-policy/history', authenticateToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error getting vendor shipping policy history:', error);
+    console.error('Error getting shipping policy history:', error);
     res.status(500).json({ error: 'Failed to get policy history' });
   }
 });
 
 /**
- * Delete vendor's shipping policy (revert to default)
+ * Delete vendor shipping policy
  * DELETE /api/vendor/shipping-policy
  */
-router.delete('/shipping-policy', authenticateToken, async (req, res) => {
+router.delete('/shipping-policy', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
-    const vendorId = req.user.id;
-    
-    // Verify user has vendor permissions
-    if (!req.user.permissions || !req.user.permissions.includes('vendor')) {
-      return res.status(403).json({ error: 'Vendor permissions required' });
-    }
+    const vendorId = req.userId;
 
     await deleteVendorShippingPolicy(vendorId);
     
     res.json({
       success: true,
-      message: 'Shipping policy deleted successfully. Using default policy.'
+      message: 'Shipping policy deleted successfully'
     });
     
   } catch (error) {
-    console.error('Error deleting vendor shipping policy:', error);
+    console.error('Error deleting shipping policy:', error);
     res.status(500).json({ error: 'Failed to delete shipping policy' });
   }
 });
 
 /**
- * Get vendor's return policy
+ * Get vendor return policy
  * GET /api/vendor/return-policy
  */
-router.get('/return-policy', authenticateToken, async (req, res) => {
+router.get('/return-policy', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
-    const vendorId = req.user.id;
-    
-    // Verify user has vendor permissions
-    if (!req.user.permissions || !req.user.permissions.includes('vendor')) {
-      return res.status(403).json({ error: 'Vendor permissions required' });
-    }
+    const vendorId = req.userId;
 
     const policy = await getVendorReturnPolicy(vendorId);
     
@@ -398,26 +467,21 @@ router.get('/return-policy', authenticateToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error getting vendor return policy:', error);
+    console.error('Error getting return policy:', error);
     res.status(500).json({ error: 'Failed to get return policy' });
   }
 });
 
 /**
- * Create or update vendor's return policy
- * POST /api/vendor/return-policy
+ * Update vendor return policy
+ * PUT /api/vendor/return-policy
  */
-router.post('/return-policy', authenticateToken, async (req, res) => {
+router.put('/return-policy', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
-    const vendorId = req.user.id;
+    const vendorId = req.userId;
     const { policy_text } = req.body;
     
-    // Verify user has vendor permissions
-    if (!req.user.permissions || !req.user.permissions.includes('vendor')) {
-      return res.status(403).json({ error: 'Vendor permissions required' });
-    }
-
-    if (!policy_text || policy_text.trim() === '') {
+    if (!policy_text) {
       return res.status(400).json({ error: 'Policy text is required' });
     }
 
@@ -425,28 +489,22 @@ router.post('/return-policy', authenticateToken, async (req, res) => {
     
     res.json({
       success: true,
-      message: 'Return policy updated successfully',
       policy: updatedPolicy
     });
     
   } catch (error) {
-    console.error('Error updating vendor return policy:', error);
+    console.error('Error updating return policy:', error);
     res.status(500).json({ error: 'Failed to update return policy' });
   }
 });
 
 /**
- * Get vendor's return policy history
+ * Get vendor return policy history
  * GET /api/vendor/return-policy/history
  */
-router.get('/return-policy/history', authenticateToken, async (req, res) => {
+router.get('/return-policy/history', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
-    const vendorId = req.user.id;
-    
-    // Verify user has vendor permissions
-    if (!req.user.permissions || !req.user.permissions.includes('vendor')) {
-      return res.status(403).json({ error: 'Vendor permissions required' });
-    }
+    const vendorId = req.userId;
 
     const history = await getVendorReturnPolicyHistory(vendorId);
     
@@ -456,33 +514,28 @@ router.get('/return-policy/history', authenticateToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error getting vendor return policy history:', error);
+    console.error('Error getting return policy history:', error);
     res.status(500).json({ error: 'Failed to get policy history' });
   }
 });
 
 /**
- * Delete vendor's return policy (revert to default)
+ * Delete vendor return policy
  * DELETE /api/vendor/return-policy
  */
-router.delete('/return-policy', authenticateToken, async (req, res) => {
+router.delete('/return-policy', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
-    const vendorId = req.user.id;
-    
-    // Verify user has vendor permissions
-    if (!req.user.permissions || !req.user.permissions.includes('vendor')) {
-      return res.status(403).json({ error: 'Vendor permissions required' });
-    }
+    const vendorId = req.userId;
 
     await deleteVendorReturnPolicy(vendorId);
     
     res.json({
       success: true,
-      message: 'Return policy deleted successfully. Using default policy.'
+      message: 'Return policy deleted successfully'
     });
     
   } catch (error) {
-    console.error('Error deleting vendor return policy:', error);
+    console.error('Error deleting return policy:', error);
     res.status(500).json({ error: 'Failed to delete return policy' });
   }
 });

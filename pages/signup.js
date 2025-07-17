@@ -105,7 +105,7 @@ export default function Signup() {
         document.cookie = `token=${data.token}; path=/; domain=.onlineartfestival.com; secure; samesite=lax; max-age=3600`;
         document.cookie = `refreshToken=${data.refreshToken}; path=/; domain=.onlineartfestival.com; secure; samesite=lax; max-age=604800`;
         
-        console.log('Authentication successful, tokens set');
+        // Authentication successful, tokens set
         
         // Wait a moment for the cookies to be set
         await new Promise(resolve => setTimeout(resolve, 100));

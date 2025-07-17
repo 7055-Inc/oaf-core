@@ -187,7 +187,7 @@ export default function Cart() {
   };
 
   const proceedToCheckout = () => {
-    console.log('Proceed to checkout clicked!', cartItems);
+    // Proceed to checkout clicked
     // Store cart items in localStorage for the checkout page
     localStorage.setItem('checkoutCart', JSON.stringify(cartItems));
     // Navigate to checkout page

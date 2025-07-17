@@ -2056,4 +2056,185 @@ CREATE TABLE `article_restrictions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+--
+-- Table structure for table `bounce_tracking`
+--
+
+DROP TABLE IF EXISTS `bounce_tracking`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `bounce_tracking` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `email_address` varchar(255) NOT NULL,
+  `user_id` bigint DEFAULT NULL COMMENT 'User ID if applicable',
+  `bounce_count` int NOT NULL DEFAULT '0',
+  `last_bounce_date` timestamp NULL DEFAULT NULL,
+  `bounce_type` enum('hard','soft') NOT NULL,
+  `is_blacklisted` tinyint(1) NOT NULL DEFAULT '0',
+  `last_error` varchar(500) DEFAULT NULL COMMENT 'Most recent bounce reason',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_email` (`email_address`),
+  KEY `idx_blacklisted` (`is_blacklisted`,`email_address`),
+  KEY `idx_bounce_type` (`bounce_type`,`bounce_count`),
+  KEY `idx_last_bounce` (`last_bounce_date` DESC),
+  KEY `idx_bounce_user_status` (`user_id`,`is_blacklisted`,`bounce_count`),
+  CONSTRAINT `bounce_tracking_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Bounce detection and domain protection system';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `email_log`
+--
+
+DROP TABLE IF EXISTS `email_log`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `email_log` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `email_address` varchar(255) NOT NULL COMMENT 'Actual email sent to',
+  `template_id` bigint NOT NULL,
+  `subject` varchar(255) NOT NULL COMMENT 'Rendered subject line',
+  `sent_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `status` enum('sent','failed','bounced') NOT NULL,
+  `attempt_count` int NOT NULL DEFAULT '1' COMMENT 'Send attempt number',
+  `error_message` varchar(500) DEFAULT NULL COMMENT 'User-friendly error message',
+  `smtp_response` text COMMENT 'Raw SMTP response for debugging',
+  PRIMARY KEY (`id`),
+  KEY `idx_user_log` (`user_id`,`sent_at` DESC),
+  KEY `idx_email_status` (`email_address`,`status`),
+  KEY `idx_template_log` (`template_id`,`sent_at` DESC),
+  KEY `idx_status_attempts` (`status`,`attempt_count`),
+  KEY `idx_log_user_template` (`user_id`,`template_id`,`sent_at` DESC),
+  CONSTRAINT `email_log_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `email_log_ibfk_2` FOREIGN KEY (`template_id`) REFERENCES `email_templates` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Complete audit trail of all email send attempts';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `email_queue`
+--
+
+DROP TABLE IF EXISTS `email_queue`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `email_queue` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `template_id` bigint NOT NULL,
+  `priority` tinyint NOT NULL DEFAULT '3' COMMENT '1=highest, 5=lowest',
+  `data` json NOT NULL COMMENT 'Template variable data',
+  `scheduled_for` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'When to send (for frequency batching)',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `status` enum('pending','processing','sent','failed') DEFAULT 'pending',
+  PRIMARY KEY (`id`),
+  KEY `idx_queue_processing` (`status`,`priority`,`scheduled_for`),
+  KEY `idx_user_queue` (`user_id`,`status`),
+  KEY `idx_priority_schedule` (`priority`,`scheduled_for`),
+  KEY `idx_queue_user_priority` (`user_id`,`priority`,`scheduled_for`),
+  CONSTRAINT `email_queue_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Priority-based email queue with dynamic reordering';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `email_templates`
+--
+
+DROP TABLE IF EXISTS `email_templates`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `email_templates` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `template_key` varchar(100) NOT NULL COMMENT 'e.g., order_confirmation, product_update',
+  `name` varchar(255) NOT NULL COMMENT 'Human-readable name',
+  `priority_level` tinyint NOT NULL DEFAULT '3' COMMENT 'Default priority 1-5',
+  `can_compile` tinyint(1) NOT NULL DEFAULT '1' COMMENT 'Can be batched in digest emails',
+  `is_transactional` tinyint(1) NOT NULL DEFAULT '0' COMMENT 'Bypass user frequency settings',
+  `subject_template` text NOT NULL COMMENT 'Subject line template with variables',
+  `body_template` text NOT NULL COMMENT 'Email body template with variables',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `template_key` (`template_key`),
+  KEY `idx_template_key` (`template_key`),
+  KEY `idx_transactional` (`is_transactional`),
+  KEY `idx_priority` (`priority_level`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Hardcoded system email templates with priority and compilation rules';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `email_tracking`
+--
+
+DROP TABLE IF EXISTS `email_tracking`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `email_tracking` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `email_log_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  `email_address` varchar(255) NOT NULL,
+  `event_type` enum('sent','delivered','bounced','opened','clicked') NOT NULL,
+  `event_data` json DEFAULT NULL COMMENT 'Event-specific details',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_email_events` (`email_log_id`,`event_type`),
+  KEY `idx_user_tracking` (`user_id`,`created_at` DESC),
+  KEY `idx_event_type` (`event_type`,`created_at` DESC),
+  KEY `idx_tracking_email_user` (`email_address`,`user_id`,`event_type`),
+  CONSTRAINT `email_tracking_ibfk_1` FOREIGN KEY (`email_log_id`) REFERENCES `email_log` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `email_tracking_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Email delivery and engagement event tracking';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `user_email_preferences`
+--
+
+DROP TABLE IF EXISTS `user_email_preferences`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `user_email_preferences` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `frequency` enum('live','hourly','daily','weekly') NOT NULL DEFAULT 'live',
+  `categories` json DEFAULT NULL COMMENT 'Enabled/disabled email categories',
+  `is_enabled` tinyint(1) NOT NULL DEFAULT '1' COMMENT 'Master email toggle',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_user_prefs` (`user_id`),
+  KEY `idx_frequency` (`frequency`),
+  KEY `idx_enabled` (`is_enabled`),
+  KEY `idx_prefs_user_enabled` (`user_id`,`is_enabled`),
+  CONSTRAINT `user_email_preferences_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=32 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='User-controlled email frequency and category settings';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `user_email_preference_log`
+--
+
+DROP TABLE IF EXISTS `user_email_preference_log`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `user_email_preference_log` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL COMMENT 'User whose preferences changed',
+  `changed_by_user_id` bigint DEFAULT NULL COMMENT 'User who made the change (null if admin)',
+  `changed_by_admin` tinyint(1) NOT NULL DEFAULT '0' COMMENT 'Was changed by admin',
+  `old_preferences` json NOT NULL COMMENT 'Previous preferences snapshot',
+  `new_preferences` json NOT NULL COMMENT 'Updated preferences snapshot',
+  `change_reason` varchar(255) DEFAULT NULL COMMENT 'Optional reason for change',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_user_changes` (`user_id`,`created_at` DESC),
+  KEY `idx_admin_changes` (`changed_by_admin`,`created_at` DESC),
+  KEY `idx_change_by` (`changed_by_user_id`,`created_at` DESC),
+  CONSTRAINT `user_email_preference_log_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `user_email_preference_log_ibfk_2` FOREIGN KEY (`changed_by_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Complete audit trail of all preference changes';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
 -- Dump completed on 2025-06-18  4:01:28

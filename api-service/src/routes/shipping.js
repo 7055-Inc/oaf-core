@@ -2,13 +2,13 @@ const express = require('express');
 const router = express.Router();
 const shippingService = require('../services/shippingService');
 const db = require('../../config/db');
-const authenticateToken = require('../middleware/jwt');
+const verifyToken = require('../middleware/jwt');
 
 /**
  * Calculate shipping rates for a product
  * POST /api/shipping/calculate-rates
  */
-router.post('/calculate-rates', authenticateToken, async (req, res) => {
+router.post('/calculate-rates', verifyToken, async (req, res) => {
   try {
     const { product_id, recipient_address } = req.body;
     
@@ -77,7 +77,7 @@ router.post('/calculate-rates', authenticateToken, async (req, res) => {
  * Calculate shipping rates for multiple products (cart/checkout)
  * POST /api/shipping/calculate-cart-shipping
  */
-router.post('/calculate-cart-shipping', authenticateToken, async (req, res) => {
+router.post('/calculate-cart-shipping', verifyToken, async (req, res) => {
   try {
     const { cart_items, recipient_address, test_packages } = req.body;
     

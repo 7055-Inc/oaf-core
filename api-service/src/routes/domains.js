@@ -8,6 +8,7 @@ const execAsync = util.promisify(exec);
 const db = require('../../config/db');
 const jwt = require('jsonwebtoken');
 const { secureLogger } = require('../middleware/secureLogger');
+const { requirePermission, requireAllAccess, canAccessAll } = require('../middleware/permissions');
 
 // Middleware to verify JWT token
 const verifyToken = async (req, res, next) => {
@@ -326,13 +327,8 @@ router.get('/check-availability', verifyToken, async (req, res) => {
  */
 router.get('/list', verifyToken, async (req, res) => {
   try {
-    // Check if user is admin
-    const [user] = await db.query(
-      'SELECT user_type FROM users WHERE id = ?',
-      [req.userId]
-    );
-
-    if (user[0]?.user_type !== 'admin') {
+    // Check if user has manage_system permission (admin only)
+    if (!canAccessAll(req)) {
       return res.status(403).json({ error: 'Admin access required' });
     }
 

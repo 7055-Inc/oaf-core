@@ -22,6 +22,7 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: '1G',
+      env_file: '.env',
       env: {
         NODE_ENV: 'production',
         API_GATEWAY_PORT: 3001,

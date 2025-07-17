@@ -1,61 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
-const jwt = require('jsonwebtoken');
+const verifyToken = require('../middleware/jwt');
 const { secureLogger } = require('../middleware/secureLogger');
+const { requireRestrictedPermission } = require('../middleware/permissions');
 
-// Middleware to verify JWT token
-const verifyToken = async (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(401).json({ error: 'No token provided' });
-  }
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.userId = decoded.userId;
-    req.roles = decoded.roles;
-    req.permissions = decoded.permissions || [];
-    next();
-  } catch (err) {
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
-
-// Middleware to verify artist user type
-const verifyArtist = async (req, res, next) => {
-  try {
-    const [user] = await db.query(
-      'SELECT user_type FROM users WHERE id = ?',
-      [req.userId]
-    );
-    if (!user[0] || user[0].user_type !== 'artist') {
-      return res.status(403).json({ error: 'Only artists can manage sites' });
-    }
-    next();
-  } catch (err) {
-    secureLogger.error('Error verifying artist status:', err);
-    res.status(500).json({ error: 'Failed to verify user permissions' });
-  }
-};
+// Middleware to verify site management permissions (replaces verifyArtist)
+// Now uses permission-based access instead of hardcoded user types
+const verifySiteAccess = requireRestrictedPermission('manage_sites');
 
 // ============================================================================
 // SITE MANAGEMENT ROUTES
 // ============================================================================
 
 // GET /sites/me - Get current user's sites
-router.get('/me', verifyToken, async (req, res) => {
+router.get('/me', verifyToken, requireRestrictedPermission('manage_sites'), async (req, res) => {
   try {
-    // Check if user is artist or admin
-    const [user] = await db.query(
-      'SELECT user_type FROM users WHERE id = ?',
-      [req.userId]
-    );
-    if (!user[0] || (user[0].user_type !== 'artist' && user[0].user_type !== 'admin')) {
-      return res.status(403).json({ error: 'Only artists and admins can manage sites' });
-    }
-
     const [sites] = await db.query(
       'SELECT * FROM sites WHERE user_id = ? ORDER BY created_at DESC',
       [req.userId]
@@ -132,13 +92,15 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'Subdomain already exists' });
     }
 
-    // Check if user already has a site (limit 1 per artist for now)
-    const [existingSite] = await db.query(
-      'SELECT id FROM sites WHERE user_id = ?',
-      [req.userId]
-    );
-    if (existingSite.length > 0) {
-      return res.status(400).json({ error: 'You already have a site. Multiple sites coming soon!' });
+    // Check if user already has a site (limit 1 per artist, unlimited for admins)
+    if (user[0].user_type !== 'admin') {
+      const [existingSite] = await db.query(
+        'SELECT id FROM sites WHERE user_id = ?',
+        [req.userId]
+      );
+      if (existingSite.length > 0) {
+        return res.status(400).json({ error: 'You already have a site. Multiple sites coming soon!' });
+      }
     }
 
     const [result] = await db.query(
@@ -545,7 +507,7 @@ router.get('/check-subdomain/:subdomain', async (req, res) => {
     }
 
     // Check reserved subdomains
-    const reserved = ['www', 'api', 'admin', 'app', 'mail', 'ftp', 'blog', 'shop', 'store'];
+    const reserved = ['www', 'api', 'admin', 'app', 'mail', 'ftp', 'blog', 'shop', 'store', 'signup'];
     if (reserved.includes(subdomain.toLowerCase())) {
       return res.json({ available: false, reason: 'Reserved subdomain' });
     }

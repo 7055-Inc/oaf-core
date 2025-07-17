@@ -19,7 +19,7 @@ export default function TagArchivePage() {
     setLoading(true);
     
     Promise.all([
-      fetch(`https://api2.onlineartfestival.com/api/tags/${slug}`).then(res => res.json()),
+      fetch(`https://api2.onlineartfestival.com/api/articles/tags/${slug}`).then(res => res.json()),
       fetch(`https://api2.onlineartfestival.com/api/articles?tag=${slug}&limit=${pagination.limit}&page=${pagination.page}`).then(res => res.json())
     ])
       .then(([tagData, articlesData]) => {

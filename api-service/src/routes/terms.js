@@ -1,30 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
-const jwt = require('jsonwebtoken');
-
-// Middleware to verify JWT token
-const verifyToken = async (req, res, next) => {
-  console.log('Verifying token for request:', req.method, req.url, 'Headers:', req.headers);
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    console.log('No token provided');
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(401).json({ error: 'No token provided' });
-  }
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.userId = decoded.userId;
-    req.roles = decoded.roles;
-    req.permissions = decoded.permissions || [];
-    console.log('Token verified, userId:', req.userId);
-    next();
-  } catch (err) {
-    console.log('Invalid token:', err.message);
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
+const verifyToken = require('../middleware/jwt');
+const { requireRestrictedPermission } = require('../middleware/permissions');
 
 // GET /terms/current - Get current terms version
 router.get('/current', async (req, res) => {
@@ -122,14 +100,9 @@ router.post('/accept', verifyToken, async (req, res) => {
 });
 
 // Admin endpoints
-// GET /terms/all - Get all terms versions (admin only)
-router.get('/all', verifyToken, async (req, res) => {
+// GET /terms/all - Get all terms versions (system management permission required)
+router.get('/all', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
-    // Check if user is admin
-    const [user] = await db.query('SELECT user_type FROM users WHERE id = ?', [req.userId]);
-    if (!user[0] || user[0].user_type !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
     
     const [terms] = await db.query(
       `SELECT 
@@ -155,14 +128,9 @@ router.get('/all', verifyToken, async (req, res) => {
   }
 });
 
-// POST /terms/create - Create new terms version (admin only)
-router.post('/create', verifyToken, async (req, res) => {
+// POST /terms/create - Create new terms version (system management permission required)
+router.post('/create', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
-    // Check if user is admin
-    const [user] = await db.query('SELECT user_type FROM users WHERE id = ?', [req.userId]);
-    if (!user[0] || user[0].user_type !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
     
     const { version, title, content, setCurrent } = req.body;
     
@@ -202,14 +170,9 @@ router.post('/create', verifyToken, async (req, res) => {
   }
 });
 
-// PUT /terms/:id/set-current - Set terms version as current (admin only)
-router.put('/:id/set-current', verifyToken, async (req, res) => {
+// PUT /terms/:id/set-current - Set terms version as current (system management permission required)
+router.put('/:id/set-current', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
-    // Check if user is admin
-    const [user] = await db.query('SELECT user_type FROM users WHERE id = ?', [req.userId]);
-    if (!user[0] || user[0].user_type !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
     
     const termsId = req.params.id;
     
@@ -236,14 +199,9 @@ router.put('/:id/set-current', verifyToken, async (req, res) => {
   }
 });
 
-// PUT /terms/:id - Update terms version (admin only)
-router.put('/:id', verifyToken, async (req, res) => {
+// PUT /terms/:id - Update terms version (system management permission required)
+router.put('/:id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
-    // Check if user is admin
-    const [user] = await db.query('SELECT user_type FROM users WHERE id = ?', [req.userId]);
-    if (!user[0] || user[0].user_type !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
     
     const termsId = req.params.id;
     const { version, title, content, setCurrent } = req.body;
@@ -289,14 +247,9 @@ router.put('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// DELETE /terms/:id - Delete terms version (admin only)
-router.delete('/:id', verifyToken, async (req, res) => {
+// DELETE /terms/:id - Delete terms version (system management permission required)
+router.delete('/:id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
-    // Check if user is admin
-    const [user] = await db.query('SELECT user_type FROM users WHERE id = ?', [req.userId]);
-    if (!user[0] || user[0].user_type !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
     
     const termsId = req.params.id;
     

@@ -16,7 +16,7 @@ export default function TopicsPage() {
   const fetchTopics = async () => {
     try {
       setLoading(true);
-      const response = await fetch('https://api2.onlineartfestival.com/api/topics');
+      const response = await fetch('https://api2.onlineartfestival.com/api/articles/topics');
       const data = await response.json();
       setTopics(data.topics || []);
     } catch (err) {

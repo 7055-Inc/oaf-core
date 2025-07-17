@@ -134,7 +134,7 @@ const ArtistStorefront = () => {
           notification.remove();
         }, 3000);
 
-        console.log('Cart updated:', result);
+        // Cart updated
       } else {
         const error = await response.json();
         throw new Error(error.error || 'Failed to add to cart');

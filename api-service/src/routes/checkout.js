@@ -2,14 +2,14 @@ const express = require('express');
 const stripeService = require('../services/stripeService');
 const shippingService = require('../services/shippingService');
 const db = require('../../config/db');
-const authenticateToken = require('../middleware/jwt');
+const verifyToken = require('../middleware/jwt');
 const router = express.Router();
 
 /**
  * Calculate totals for cart items including commissions
  * POST /api/checkout/calculate-totals
  */
-router.post('/calculate-totals', authenticateToken, async (req, res) => {
+router.post('/calculate-totals', verifyToken, async (req, res) => {
   try {
     const { cart_items, shipping_address } = req.body;
     
@@ -49,7 +49,7 @@ router.post('/calculate-totals', authenticateToken, async (req, res) => {
  * Create payment intent for order
  * POST /api/checkout/create-payment-intent
  */
-router.post('/create-payment-intent', authenticateToken, async (req, res) => {
+router.post('/create-payment-intent', verifyToken, async (req, res) => {
   try {
     const { cart_items, shipping_info, billing_info } = req.body;
     const userId = req.user.userId;
@@ -101,7 +101,7 @@ router.post('/create-payment-intent', authenticateToken, async (req, res) => {
  * Confirm payment and finalize order
  * POST /api/checkout/confirm-payment
  */
-router.post('/confirm-payment', authenticateToken, async (req, res) => {
+router.post('/confirm-payment', verifyToken, async (req, res) => {
   try {
     const { payment_intent_id, order_id } = req.body;
     const userId = req.user.userId;
@@ -138,7 +138,7 @@ router.post('/confirm-payment', authenticateToken, async (req, res) => {
  * Get payment status
  * GET /api/checkout/payment-status/:order_id
  */
-router.get('/payment-status/:order_id', authenticateToken, async (req, res) => {
+router.get('/payment-status/:order_id', verifyToken, async (req, res) => {
   try {
     const { order_id } = req.params;
     const userId = req.user.userId;
@@ -169,7 +169,7 @@ router.get('/payment-status/:order_id', authenticateToken, async (req, res) => {
  * Get order details with items
  * GET /api/checkout/order/:order_id
  */
-router.get('/order/:order_id', authenticateToken, async (req, res) => {
+router.get('/order/:order_id', verifyToken, async (req, res) => {
   try {
     const { order_id } = req.params;
     const userId = req.user.userId;

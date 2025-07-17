@@ -29,7 +29,7 @@ export default function TopicPage() {
   const fetchTopic = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`https://api2.onlineartfestival.com/api/topics/${slug}`);
+      const response = await fetch(`https://api2.onlineartfestival.com/api/articles/topics/${slug}`);
       const data = await response.json();
       
       if (data.topic) {
@@ -47,7 +47,7 @@ export default function TopicPage() {
 
   const fetchArticles = async () => {
     try {
-      const response = await fetch(`https://api2.onlineartfestival.com/api/topics/${topic.id}/articles?page=${pagination.page}&limit=${pagination.limit}&status=published`);
+      const response = await fetch(`https://api2.onlineartfestival.com/api/articles/topics/${topic.id}/articles?page=${pagination.page}&limit=${pagination.limit}&status=published`);
       const data = await response.json();
       
       if (data.articles) {

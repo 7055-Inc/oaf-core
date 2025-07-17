@@ -1,26 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
-const jwt = require('jsonwebtoken');
+const verifyToken = require('../middleware/jwt');
 const upload = require('../config/multer');
-
-// Middleware to verify JWT token
-const verifyToken = async (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.userId = decoded.userId;
-    req.roles = decoded.roles;
-    next();
-  } catch (err) {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
-// TODO: Import authentication and role middleware
-// const { requireAdminOrPromoter } = require('../middleware/auth');
+const { requirePermission } = require('../middleware/permissions');
 
 // --- Event CRUD Endpoints ---
 
@@ -65,6 +48,31 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Get artist's custom events (MUST come before /:id route)
+router.get('/my-events', verifyToken, async (req, res) => {
+    try {
+        const artistId = req.userId;
+        const [events] = await db.query(
+            'SELECT * FROM artist_custom_events WHERE artist_id = ? ORDER BY event_date DESC',
+            [artistId]
+        );
+        res.json(events);
+    } catch (error) {
+        console.error('Error fetching custom events:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Get event types (consolidated from event-types.js)
+router.get('/types', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM event_types WHERE is_active = TRUE ORDER BY name');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch event types', details: err.message });
+  }
+});
+
 // Get single event details
 router.get('/:id', async (req, res) => {
   try {
@@ -85,8 +93,8 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create new event (admin/promoter only)
-router.post('/', /* requireAdminOrPromoter, */ async (req, res) => {
+// Create new event (content management permission required)
+router.post('/', verifyToken, requirePermission('manage_content'), async (req, res) => {
   try {
     const {
       promoter_id, event_type_id, title, description, short_description, start_date, end_date,
@@ -130,8 +138,8 @@ router.post('/', /* requireAdminOrPromoter, */ async (req, res) => {
   }
 });
 
-// Update event (admin/promoter only)
-router.put('/:id', /* requireAdminOrPromoter, */ async (req, res) => {
+// Update event (content management permission required)
+router.put('/:id', verifyToken, requirePermission('manage_content'), async (req, res) => {
   try {
     const {
       title, description, start_date, end_date, venue_name, venue_address,
@@ -169,8 +177,8 @@ router.put('/:id', /* requireAdminOrPromoter, */ async (req, res) => {
   }
 });
 
-// Archive event (soft delete)
-router.delete('/:id', /* requireAdminOrPromoter, */ async (req, res) => {
+// Archive event (soft delete, content management permission required)
+router.delete('/:id', verifyToken, requirePermission('manage_content'), async (req, res) => {
   try {
     await db.execute(
       'UPDATE events SET event_status = ?, updated_at = NOW() WHERE id = ?',
@@ -182,8 +190,8 @@ router.delete('/:id', /* requireAdminOrPromoter, */ async (req, res) => {
   }
 });
 
-// Renew event for next year
-router.post('/:id/renew', /* requireAdminOrPromoter, */ async (req, res) => {
+// Renew event for next year (content management permission required)
+router.post('/:id/renew', verifyToken, requirePermission('manage_content'), async (req, res) => {
   try {
     const [originalEvent] = await db.execute('SELECT * FROM events WHERE id = ?', [req.params.id]);
     if (originalEvent.length === 0) {
@@ -235,20 +243,20 @@ router.get('/:id/artists', (req, res) => {
   res.send('List artists for event');
 });
 
-// Add artist manually
-router.post('/:id/artists', /* requireAdminOrPromoter, */ (req, res) => {
+// Add artist manually (content management permission required)
+router.post('/:id/artists', verifyToken, requirePermission('manage_content'), (req, res) => {
   // TODO: Implement manual artist addition
   res.send('Add artist manually');
 });
 
-// Update artist status
-router.put('/:id/artists/:artistId', /* requireAdminOrPromoter, */ (req, res) => {
+// Update artist status (content management permission required)
+router.put('/:id/artists/:artistId', verifyToken, requirePermission('manage_content'), (req, res) => {
   // TODO: Implement update artist status
   res.send('Update artist status');
 });
 
-// Remove artist
-router.delete('/:id/artists/:artistId', /* requireAdminOrPromoter, */ (req, res) => {
+// Remove artist (content management permission required)
+router.delete('/:id/artists/:artistId', verifyToken, requirePermission('manage_content'), (req, res) => {
   // TODO: Implement remove artist from event
   res.send('Remove artist from event');
 });
@@ -354,6 +362,99 @@ router.get('/:id/categories', async (req, res) => {
     res.json({ success: true, categories });
   } catch (err) {
     res.status(500).json({ error: 'Failed to get event categories', details: err.message });
+  }
+});
+
+// ============================================================================
+// CUSTOM EVENTS (Artist Personal Events)
+// ============================================================================
+
+// Create new custom event
+router.post('/custom', verifyToken, async (req, res) => {
+    try {
+        const artistId = req.userId;
+        const { title, description, event_date, location, event_type } = req.body;
+        
+        const [result] = await db.query(`
+            INSERT INTO artist_custom_events (artist_id, title, description, event_date, location, event_type, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+        `, [artistId, title, description, event_date, location || null, event_type || 'other']);
+        
+        const [event] = await db.query(
+            'SELECT * FROM artist_custom_events WHERE id = ?',
+            [result.insertId]
+        );
+        
+        res.status(201).json({
+            message: 'Custom event created successfully',
+            event: event[0]
+        });
+    } catch (error) {
+        console.error('Error creating custom event:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Update custom event
+router.put('/custom/:id', verifyToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const artistId = req.userId;
+        const { title, description, event_date, location, event_type } = req.body;
+        
+        // Verify ownership
+        const [existingEvent] = await db.query(
+            'SELECT * FROM artist_custom_events WHERE id = ? AND artist_id = ?',
+            [id, artistId]
+        );
+        
+        if (existingEvent.length === 0) {
+            return res.status(404).json({ error: 'Custom event not found or access denied' });
+        }
+        
+        await db.query(`
+            UPDATE artist_custom_events 
+            SET title = ?, description = ?, event_date = ?, location = ?, event_type = ?, updated_at = NOW()
+            WHERE id = ? AND artist_id = ?
+        `, [title, description, event_date, location, event_type, id, artistId]);
+        
+        const [updatedEvent] = await db.query(
+            'SELECT * FROM artist_custom_events WHERE id = ?',
+            [id]
+        );
+        
+        res.json({
+            message: 'Custom event updated successfully',
+            event: updatedEvent[0]
+        });
+    } catch (error) {
+        console.error('Error updating custom event:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Delete custom event
+router.delete('/custom/:id', verifyToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const artistId = req.userId;
+        
+        // Verify ownership
+        const [existingEvent] = await db.query(
+            'SELECT * FROM artist_custom_events WHERE id = ? AND artist_id = ?',
+            [id, artistId]
+        );
+        
+        if (existingEvent.length === 0) {
+            return res.status(404).json({ error: 'Custom event not found or access denied' });
+        }
+        
+        await db.query('DELETE FROM artist_custom_events WHERE id = ? AND artist_id = ?', [id, artistId]);
+        
+        res.json({ message: 'Custom event deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting custom event:', error);
+        res.status(500).json({ error: 'Internal server error' });
   }
 });
 

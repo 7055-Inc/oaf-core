@@ -12,6 +12,7 @@ const SitesManagement = () => {
   const [categories, setCategories] = useState([]);
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Form states
   const [siteForm, setSiteForm] = useState({
@@ -40,7 +41,33 @@ const SitesManagement = () => {
   useEffect(() => {
     fetchSites();
     fetchCategories();
+    checkUserRole();
   }, []);
+
+  // Check if current user is admin
+  const checkUserRole = async () => {
+    try {
+      const token = document.cookie.split('token=')[1]?.split(';')[0];
+      if (!token) return;
+
+      const response = await fetch('https://api2.onlineartfestival.com/users/me', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch user data');
+      }
+
+      const userData = await response.json();
+      setIsAdmin(userData.user_type === 'admin');
+    } catch (err) {
+      console.error('Error checking user role:', err);
+    }
+  };
 
   const fetchSites = async () => {
     try {
@@ -252,8 +279,8 @@ const SitesManagement = () => {
   return (
     <div className={styles.sitesManagement}>
       <div className={styles.header}>
-        <h2>Artist Website Management</h2>
-        <p className={styles.subtitle}>Manage your personalized artist storefront</p>
+        <h2>{isAdmin ? 'Website Management' : 'Artist Website Management'}</h2>
+        <p className={styles.subtitle}>{isAdmin ? 'Create and manage multiple websites' : 'Manage your personalized artist storefront'}</p>
       </div>
 
       {error && (
@@ -265,8 +292,8 @@ const SitesManagement = () => {
       {/* Sites Section */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
-          <h3>Your Artist Website</h3>
-          {sites.length === 0 && (
+          <h3>{isAdmin ? 'Your Websites' : 'Your Artist Website'}</h3>
+          {(sites.length === 0 || isAdmin) && (
             <button 
               className={styles.primaryButton}
               onClick={() => {
@@ -282,15 +309,15 @@ const SitesManagement = () => {
                 });
               }}
             >
-              Create Your Website
+              {isAdmin ? 'Create New Website' : 'Create Your Website'}
             </button>
           )}
         </div>
 
         {sites.length === 0 && !showCreateForm && (
           <div className={styles.emptyState}>
-            <h4>No website created yet</h4>
-            <p>Create your personalized artist website to showcase your work with your own subdomain!</p>
+            <h4>{isAdmin ? 'No websites created yet' : 'No website created yet'}</h4>
+            <p>{isAdmin ? 'Create and manage multiple websites for different purposes!' : 'Create your personalized artist website to showcase your work with your own subdomain!'}</p>
             <div className={styles.features}>
               <div className={styles.feature}>
                 <strong>✨ Custom Subdomain:</strong> yourname.onlineartfestival.com
@@ -382,7 +409,7 @@ const SitesManagement = () => {
       {showCreateForm && (
         <div className={styles.modal}>
           <div className={styles.modalContent}>
-            <h3>{editingSite ? 'Edit Website' : 'Create Your Artist Website'}</h3>
+            <h3>{editingSite ? 'Edit Website' : (isAdmin ? 'Create New Website' : 'Create Your Artist Website')}</h3>
             
             <form onSubmit={handleSiteSubmit} className={styles.form}>
               <div className={styles.formGroup}>
@@ -487,7 +514,7 @@ const SitesManagement = () => {
                   className={styles.primaryButton}
                   disabled={!editingSite && (!siteForm.subdomain || subdomainCheck.available === false)}
                 >
-                  {editingSite ? 'Update Website' : 'Create Website'}
+                  {editingSite ? 'Update Website' : (isAdmin ? 'Create New Website' : 'Create Website')}
                 </button>
               </div>
             </form>

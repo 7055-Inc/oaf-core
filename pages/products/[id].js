@@ -21,6 +21,7 @@ export default function ProductView() {
   const [showPolicyModal, setShowPolicyModal] = useState(false);
   const [policyModalContent, setPolicyModalContent] = useState({ type: '', content: '', loading: false });
   const [policies, setPolicies] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
   const router = useRouter();
   const params = useParams();
 
@@ -80,7 +81,6 @@ export default function ProductView() {
     const fetchVariationData = async (productId) => {
       try {
         if (!productId) {
-          console.log('No product ID provided for variation data');
           return;
         }
         
@@ -93,7 +93,6 @@ export default function ProductView() {
         
         if (!res.ok) {
           if (res.status === 404) {
-            console.log('No variations found for this product');
             return;
           }
           throw new Error('Failed to fetch variation data');
@@ -122,6 +121,34 @@ export default function ProductView() {
       fetchProduct();
     }
   }, [params?.id]);
+
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          return;
+        }
+        
+        const response = await fetch('https://api2.onlineartfestival.com/users/me', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setCurrentUserId(data.id);
+        }
+      } catch (err) {
+        // Silently handle auth errors - user just won't see edit button
+      }
+    };
+
+    fetchCurrentUser();
+  }, []);
 
   const handleAddToCart = async (productToAdd = null, quantityToAdd = null) => {
     // For variable products, use the selected variation product
@@ -309,9 +336,26 @@ export default function ProductView() {
     );
   }
 
+  // Check if current user owns this product
+  const isOwnProduct = currentUserId && product && (
+    currentUserId.toString() === (product.vendor_id || product.user_id)?.toString()
+  );
+
   return (
     <>
       <Header />
+      {isOwnProduct && (
+        <div className={styles.floatingEditButtons}>
+          <a href={`/dashboard/products/${product.id}`} className={styles.floatingEditLink}>
+            <i className="fa-solid fa-edit"></i>
+            Edit Product
+          </a>
+          <a href="/dashboard/products" className={styles.floatingManageLink}>
+            <i className="fa-solid fa-folder"></i>
+            Manage Catalog
+          </a>
+        </div>
+      )}
       <div className={styles.container}>
         <div className={styles.content}>
           

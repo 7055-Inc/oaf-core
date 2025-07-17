@@ -4,6 +4,7 @@ const db = require('../../config/db');
 const jwt = require('jsonwebtoken');
 const { secureLogger } = require('../middleware/secureLogger');
 const crypto = require('crypto');
+const verifyToken = require('../middleware/jwt');
 
 router.post('/exchange', async (req, res) => {
   try {
@@ -31,12 +32,24 @@ router.post('/exchange', async (req, res) => {
         const [types] = await db.query('SELECT type FROM user_types WHERE user_id = ?', [userId]);
         const roles = [user[0]?.user_type, ...(types?.map(t => t.type) || [])].filter(Boolean);
         
-        // Fetch permissions
+        // Fetch permissions - updated for logical permission groups
         const [userPermissions] = await db.query('SELECT * FROM user_permissions WHERE user_id = ?', [userId]);
         const permissions = [];
         if (userPermissions[0]) {
           if (userPermissions[0].vendor) permissions.push('vendor');
-          // Add more permissions as columns are added
+          if (userPermissions[0].manage_sites) permissions.push('manage_sites');
+          if (userPermissions[0].manage_content) permissions.push('manage_content');
+          if (userPermissions[0].manage_system) permissions.push('manage_system');
+        }
+        
+        // Admin users get all permissions automatically
+        if (roles.includes('admin')) {
+          const allPermissions = ['vendor', 'manage_sites', 'manage_content', 'manage_system'];
+          for (const permission of allPermissions) {
+            if (!permissions.includes(permission)) {
+              permissions.push(permission);
+            }
+          }
         }
         
         secureLogger.audit('Token validation successful', { userId, roleCount: roles.length, permissionCount: permissions.length });
@@ -147,7 +160,7 @@ router.post('/exchange', async (req, res) => {
 
     const roles = [user[0]?.user_type, ...(types?.map(t => t.type) || [])].filter(Boolean);
     
-    // Fetch permissions
+    // Fetch permissions - updated for logical permission groups
     let userPermissions;
     try {
       [userPermissions] = await db.query('SELECT * FROM user_permissions WHERE user_id = ?', [userId]);
@@ -158,7 +171,19 @@ router.post('/exchange', async (req, res) => {
     const permissions = [];
     if (userPermissions[0]) {
       if (userPermissions[0].vendor) permissions.push('vendor');
-      // Add more permissions as columns are added
+      if (userPermissions[0].manage_sites) permissions.push('manage_sites');
+      if (userPermissions[0].manage_content) permissions.push('manage_content');
+      if (userPermissions[0].manage_system) permissions.push('manage_system');
+    }
+    
+    // Admin users get all permissions automatically
+    if (roles.includes('admin')) {
+      const allPermissions = ['vendor', 'manage_sites', 'manage_content', 'manage_system'];
+      for (const permission of allPermissions) {
+        if (!permissions.includes(permission)) {
+          permissions.push(permission);
+        }
+      }
     }
     
     // Generate 1-hour access token instead of 7-day token

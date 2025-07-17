@@ -1,38 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
-const jwt = require('jsonwebtoken');
+const verifyToken = require('../middleware/jwt');
+const { requireRestrictedPermission } = require('../middleware/permissions');
+const EmailService = require('../services/emailService');
 
-// Middleware to verify JWT token and admin role
-const verifyAdmin = async (req, res, next) => {
-  console.log('Verifying admin for request:', req.method, req.url, 'Headers:', req.headers);
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    console.log('No token provided');
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(401).json({ error: 'No token provided' });
-  }
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.userId = decoded.userId;
-    req.roles = decoded.roles;
-    req.permissions = decoded.permissions || [];
-    if (!req.roles.includes('admin')) {
-      console.log('User is not an admin:', req.userId);
-      res.setHeader('Content-Type', 'application/json');
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-    console.log('Admin verified, userId:', req.userId);
-    next();
-  } catch (err) {
-    console.log('Invalid token:', err.message);
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
+const emailService = new EmailService();
+
+// Note: All admin endpoints now use requireRestrictedPermission('manage_system') instead of hardcoded admin checks
 
 // GET /admin/users - List all users
-router.get('/users', verifyAdmin, async (req, res) => {
+router.get('/users', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   console.log('GET /admin/users request received, userId:', req.userId);
   try {
     const [users] = await db.query('SELECT id, username, status, user_type FROM users');
@@ -45,7 +23,7 @@ router.get('/users', verifyAdmin, async (req, res) => {
 });
 
 // POST /admin/users - Add a new user
-router.post('/users', verifyAdmin, async (req, res) => {
+router.post('/users', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   console.log('POST /admin/users request received, userId:', req.userId);
   const { username, status, user_type } = req.body;
   try {
@@ -72,7 +50,7 @@ router.post('/users', verifyAdmin, async (req, res) => {
 });
 
 // PUT /admin/users/:id - Update a user
-router.put('/users/:id', verifyAdmin, async (req, res) => {
+router.put('/users/:id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   console.log('PUT /admin/users/:id request received, userId:', req.userId);
   const { id } = req.params;
   const { username, status, user_type } = req.body;
@@ -90,7 +68,7 @@ router.put('/users/:id', verifyAdmin, async (req, res) => {
 });
 
 // DELETE /admin/users/:id - Delete a user
-router.delete('/users/:id', verifyAdmin, async (req, res) => {
+router.delete('/users/:id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   console.log('DELETE /admin/users/:id request received, userId:', req.userId);
   const { id } = req.params;
   try {
@@ -104,14 +82,20 @@ router.delete('/users/:id', verifyAdmin, async (req, res) => {
 });
 
 // GET /admin/users/:id/permissions - Get user's permissions
-router.get('/users/:id/permissions', verifyAdmin, async (req, res) => {
+router.get('/users/:id/permissions', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   console.log('GET /admin/users/:id/permissions request received, userId:', req.userId);
   const { id } = req.params;
   try {
     const [permissions] = await db.query('SELECT * FROM user_permissions WHERE user_id = ?', [id]);
     if (!permissions[0]) {
       // User has no permissions record yet
-      return res.json({ user_id: parseInt(id), vendor: false });
+      return res.json({ 
+        user_id: parseInt(id), 
+        vendor: false, 
+        manage_sites: false, 
+        manage_content: false, 
+        manage_system: false 
+      });
     }
     res.json(permissions[0]);
   } catch (err) {
@@ -122,10 +106,10 @@ router.get('/users/:id/permissions', verifyAdmin, async (req, res) => {
 });
 
 // PUT /admin/users/:id/permissions - Update user's permissions
-router.put('/users/:id/permissions', verifyAdmin, async (req, res) => {
+router.put('/users/:id/permissions', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   console.log('PUT /admin/users/:id/permissions request received, userId:', req.userId);
   const { id } = req.params;
-  const { vendor } = req.body;
+  const { vendor, manage_sites, manage_content, manage_system } = req.body;
   try {
     // Check if user exists
     const [user] = await db.query('SELECT id FROM users WHERE id = ?', [id]);
@@ -133,15 +117,44 @@ router.put('/users/:id/permissions', verifyAdmin, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Build update fields dynamically based on what was provided
+    const updateFields = [];
+    const updateValues = [];
+    
+    if (vendor !== undefined) {
+      updateFields.push('vendor = ?');
+      updateValues.push(vendor);
+    }
+    if (manage_sites !== undefined) {
+      updateFields.push('manage_sites = ?');
+      updateValues.push(manage_sites);
+    }
+    if (manage_content !== undefined) {
+      updateFields.push('manage_content = ?');
+      updateValues.push(manage_content);
+    }
+    if (manage_system !== undefined) {
+      updateFields.push('manage_system = ?');
+      updateValues.push(manage_system);
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'No permission fields provided' });
+    }
+    
     // Check if permissions record exists
     const [existing] = await db.query('SELECT user_id FROM user_permissions WHERE user_id = ?', [id]);
     
     if (existing[0]) {
       // Update existing permissions
-      await db.query('UPDATE user_permissions SET vendor = ? WHERE user_id = ?', [vendor, id]);
+      updateValues.push(id);
+      await db.query(`UPDATE user_permissions SET ${updateFields.join(', ')} WHERE user_id = ?`, updateValues);
     } else {
-      // Create new permissions record
-      await db.query('INSERT INTO user_permissions (user_id, vendor) VALUES (?, ?)', [id, vendor]);
+      // Create new permissions record with all fields
+      await db.query(
+        'INSERT INTO user_permissions (user_id, vendor, manage_sites, manage_content, manage_system) VALUES (?, ?, ?, ?, ?)', 
+        [id, vendor || false, manage_sites || false, manage_content || false, manage_system || false]
+      );
     }
     
     res.json({ message: 'User permissions updated successfully' });
@@ -155,7 +168,7 @@ router.put('/users/:id/permissions', verifyAdmin, async (req, res) => {
 // ===== POLICY MANAGEMENT ENDPOINTS =====
 
 // GET /admin/default-policies - Get default shipping policy
-router.get('/default-policies', verifyAdmin, async (req, res) => {
+router.get('/default-policies', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
     console.log('GET /admin/default-policies request received, userId:', req.userId);
     
@@ -187,7 +200,7 @@ router.get('/default-policies', verifyAdmin, async (req, res) => {
 });
 
 // PUT /admin/default-policies - Update default shipping policy
-router.put('/default-policies', verifyAdmin, async (req, res) => {
+router.put('/default-policies', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
     console.log('PUT /admin/default-policies request received, userId:', req.userId);
     
@@ -239,7 +252,7 @@ router.put('/default-policies', verifyAdmin, async (req, res) => {
 });
 
 // GET /admin/vendor-policies - Search and list vendor policies
-router.get('/vendor-policies', verifyAdmin, async (req, res) => {
+router.get('/vendor-policies', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   console.log('GET /admin/vendor-policies request received, userId:', req.userId);
   const { search, page = 1, limit = 20 } = req.query;
   const offset = (page - 1) * limit;
@@ -305,7 +318,7 @@ router.get('/vendor-policies', verifyAdmin, async (req, res) => {
 });
 
 // GET /admin/vendor-policies/:user_id - Get specific vendor's policy and history
-router.get('/vendor-policies/:user_id', verifyAdmin, async (req, res) => {
+router.get('/vendor-policies/:user_id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   console.log('GET /admin/vendor-policies/:user_id request received, userId:', req.userId);
   const { user_id } = req.params;
   
@@ -368,7 +381,7 @@ router.get('/vendor-policies/:user_id', verifyAdmin, async (req, res) => {
 });
 
 // PUT /admin/vendor-policies/:user_id - Update vendor's policy as admin
-router.put('/vendor-policies/:user_id', verifyAdmin, async (req, res) => {
+router.put('/vendor-policies/:user_id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   console.log('PUT /admin/vendor-policies/:user_id request received, userId:', req.userId);
   const { user_id } = req.params;
   const { policy_text } = req.body;
@@ -432,7 +445,7 @@ router.put('/vendor-policies/:user_id', verifyAdmin, async (req, res) => {
 });
 
 // DELETE /admin/vendor-policies/:user_id - Delete vendor's policy (revert to default)
-router.delete('/vendor-policies/:user_id', verifyAdmin, async (req, res) => {
+router.delete('/vendor-policies/:user_id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   console.log('DELETE /admin/vendor-policies/:user_id request received, userId:', req.userId);
   const { user_id } = req.params;
   
@@ -470,7 +483,7 @@ router.delete('/vendor-policies/:user_id', verifyAdmin, async (req, res) => {
 // ===== RETURN POLICY MANAGEMENT ENDPOINTS =====
 
 // GET /admin/default-return-policies - Get default return policy
-router.get('/default-return-policies', verifyAdmin, async (req, res) => {
+router.get('/default-return-policies', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
     console.log('GET /admin/default-return-policies request received, userId:', req.userId);
     
@@ -502,7 +515,7 @@ router.get('/default-return-policies', verifyAdmin, async (req, res) => {
 });
 
 // PUT /admin/default-return-policies - Update default return policy
-router.put('/default-return-policies', verifyAdmin, async (req, res) => {
+router.put('/default-return-policies', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
     console.log('PUT /admin/default-return-policies request received, userId:', req.userId);
     
@@ -554,7 +567,7 @@ router.put('/default-return-policies', verifyAdmin, async (req, res) => {
 });
 
 // GET /admin/vendor-return-policies - Search and list vendor return policies
-router.get('/vendor-return-policies', verifyAdmin, async (req, res) => {
+router.get('/vendor-return-policies', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   console.log('GET /admin/vendor-return-policies request received, userId:', req.userId);
   const { search, page = 1, limit = 20 } = req.query;
   const offset = (page - 1) * limit;
@@ -620,7 +633,7 @@ router.get('/vendor-return-policies', verifyAdmin, async (req, res) => {
 });
 
 // GET /admin/vendor-return-policies/:user_id - Get specific vendor's return policy and history
-router.get('/vendor-return-policies/:user_id', verifyAdmin, async (req, res) => {
+router.get('/vendor-return-policies/:user_id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   console.log('GET /admin/vendor-return-policies/:user_id request received, userId:', req.userId);
   const { user_id } = req.params;
   
@@ -683,7 +696,7 @@ router.get('/vendor-return-policies/:user_id', verifyAdmin, async (req, res) => 
 });
 
 // PUT /admin/vendor-return-policies/:user_id - Update vendor's return policy as admin
-router.put('/vendor-return-policies/:user_id', verifyAdmin, async (req, res) => {
+router.put('/vendor-return-policies/:user_id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   console.log('PUT /admin/vendor-return-policies/:user_id request received, userId:', req.userId);
   const { user_id } = req.params;
   const { policy_text } = req.body;
@@ -747,7 +760,7 @@ router.put('/vendor-return-policies/:user_id', verifyAdmin, async (req, res) => 
 });
 
 // DELETE /admin/vendor-return-policies/:user_id - Delete vendor's return policy (revert to default)
-router.delete('/vendor-return-policies/:user_id', verifyAdmin, async (req, res) => {
+router.delete('/vendor-return-policies/:user_id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   console.log('DELETE /admin/vendor-return-policies/:user_id request received, userId:', req.userId);
   const { user_id } = req.params;
   
@@ -779,6 +792,324 @@ router.delete('/vendor-return-policies/:user_id', verifyAdmin, async (req, res) 
     console.error('Error deleting vendor return policy:', err.message, err.stack);
     res.setHeader('Content-Type', 'application/json');
     res.status(500).json({ error: 'Failed to delete vendor return policy' });
+  }
+});
+
+// ===== EMAIL ADMINISTRATION ROUTES =====
+
+// GET /admin/email-stats - Get email system statistics (admin only)
+router.get('/email-stats', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+  console.log('GET /admin/email-stats request received, userId:', req.userId);
+  
+  try {
+    // Queue stats
+    const [queueStats] = await db.execute(
+      'SELECT status, COUNT(*) as count FROM email_queue GROUP BY status'
+    );
+
+    // Email log stats (last 30 days)
+    const [emailStats] = await db.execute(`
+      SELECT 
+        DATE(sent_at) as date,
+        status,
+        COUNT(*) as count
+      FROM email_log 
+      WHERE sent_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      GROUP BY DATE(sent_at), status
+      ORDER BY date DESC
+    `);
+
+    // Template usage stats
+    const [templateStats] = await db.execute(`
+      SELECT 
+        et.name,
+        et.template_key,
+        COUNT(el.id) as sent_count
+      FROM email_templates et
+      LEFT JOIN email_log el ON et.id = el.template_id AND el.status = 'sent'
+      GROUP BY et.id, et.name, et.template_key
+      ORDER BY sent_count DESC
+    `);
+
+    // Bounce stats
+    const [bounceStats] = await db.execute(`
+      SELECT 
+        SUBSTRING_INDEX(email_address, '@', -1) as domain,
+        SUM(CASE WHEN bounce_type = 'hard' THEN bounce_count ELSE 0 END) as hard_bounces,
+        SUM(CASE WHEN bounce_type = 'soft' THEN bounce_count ELSE 0 END) as soft_bounces,
+        COUNT(CASE WHEN is_blacklisted = 1 THEN 1 END) as blacklisted_count,
+        MAX(last_bounce_date) as last_bounce_at
+      FROM bounce_tracking
+      GROUP BY SUBSTRING_INDEX(email_address, '@', -1)
+      ORDER BY (SUM(bounce_count)) DESC
+      LIMIT 10
+    `);
+
+    // User preference stats
+    const [preferenceStats] = await db.execute(`
+      SELECT 
+        frequency,
+        is_enabled,
+        COUNT(*) as count
+      FROM user_email_preferences
+      GROUP BY frequency, is_enabled
+      ORDER BY count DESC
+    `);
+
+    res.json({
+      queue: queueStats,
+      emails: emailStats,
+      templates: templateStats,
+      bounces: bounceStats,
+      preferences: preferenceStats
+    });
+  } catch (err) {
+    console.error('Error fetching email stats:', err.message, err.stack);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ error: 'Failed to fetch email statistics' });
+  }
+});
+
+// GET /admin/email-queue - Get email queue status (admin only)
+router.get('/email-queue', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+  console.log('GET /admin/email-queue request received, userId:', req.userId);
+  
+  try {
+    const [stats] = await db.execute(
+      'SELECT status, COUNT(*) as count FROM email_queue GROUP BY status'
+    );
+
+    const [recent] = await db.execute(
+      'SELECT eq.*, et.name as template_name, u.username FROM email_queue eq JOIN email_templates et ON eq.template_id = et.id JOIN users u ON eq.user_id = u.id ORDER BY eq.created_at DESC LIMIT 20'
+    );
+
+    res.json({ 
+      stats: stats || [], 
+      recent: recent || [] 
+    });
+  } catch (err) {
+    console.error('Error fetching queue status:', err.message, err.stack);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ error: 'Failed to fetch queue status' });
+  }
+});
+
+// GET /admin/email-templates - Get all email templates (admin only)
+router.get('/email-templates', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+  console.log('GET /admin/email-templates request received, userId:', req.userId);
+  
+  try {
+    const [templates] = await db.execute(`
+      SELECT 
+        id,
+        template_key,
+        name,
+        priority_level as priority,
+        can_compile,
+        is_transactional,
+        subject_template,
+        body_template,
+        created_at
+      FROM email_templates 
+      ORDER BY priority_level ASC, name ASC
+    `);
+
+    // Always return an array
+    res.json(templates || []);
+  } catch (err) {
+    console.error('Error fetching templates:', err.message, err.stack);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ error: 'Failed to fetch templates' });
+  }
+});
+
+// GET /admin/email-bounces - Get bounce tracking information (admin only)
+router.get('/email-bounces', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+  console.log('GET /admin/email-bounces request received, userId:', req.userId);
+  
+  try {
+    const [bounces] = await db.execute(`
+      SELECT 
+        bt.id,
+        bt.email_address,
+        bt.user_id,
+        bt.bounce_count,
+        bt.last_bounce_date as last_bounce_at,
+        bt.bounce_type,
+        bt.is_blacklisted,
+        bt.last_error,
+        bt.created_at,
+        bt.updated_at,
+        SUBSTRING_INDEX(bt.email_address, '@', -1) as domain,
+        CASE 
+          WHEN bt.bounce_type = 'hard' THEN bt.bounce_count 
+          ELSE 0 
+        END as hard_bounces,
+        CASE 
+          WHEN bt.bounce_type = 'soft' THEN bt.bounce_count 
+          ELSE 0 
+        END as soft_bounces,
+        COUNT(el.id) as recent_attempts
+      FROM bounce_tracking bt
+      LEFT JOIN email_log el ON el.email_address = bt.email_address 
+        AND el.sent_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+      GROUP BY bt.id
+      ORDER BY bt.last_bounce_date DESC
+    `);
+
+    // Always return an array
+    res.json(bounces || []);
+  } catch (err) {
+    console.error('Error fetching bounce tracking:', err.message, err.stack);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ error: 'Failed to fetch bounce tracking' });
+  }
+});
+
+// GET /admin/email-recent - Get recent email activity (admin only)
+router.get('/email-recent', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+  console.log('GET /admin/email-recent request received, userId:', req.userId);
+  
+  try {
+    const limit = Math.max(1, parseInt(req.query.limit) || 50);
+    const offset = Math.max(0, parseInt(req.query.offset) || 0);
+    
+    console.log('Query parameters:', { limit, offset });
+
+    // Use string concatenation for LIMIT/OFFSET to avoid parameter issues
+    const [recent] = await db.execute(`
+      SELECT 
+        el.*
+      FROM email_log el
+      ORDER BY el.sent_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `);
+
+    // Get total count
+    const [countResult] = await db.execute('SELECT COUNT(*) as total FROM email_log');
+    const total = countResult[0].total;
+
+    res.json({
+      emails: recent,
+      total: total,
+      limit: limit,
+      offset: offset
+    });
+  } catch (err) {
+    console.error('Error fetching recent email activity:', err.message, err.stack);
+    console.error('SQL Error details:', err.sql, err.sqlMessage, err.errno, err.code);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ error: 'Failed to fetch recent email activity' });
+  }
+});
+
+// POST /admin/email-test - Send test email (admin only)
+router.post('/email-test', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+  console.log('POST /admin/email-test request received, userId:', req.userId);
+  console.log('Request headers:', req.headers);
+  console.log('Request body:', req.body);
+  console.log('Request body type:', typeof req.body);
+  console.log('Request body keys:', Object.keys(req.body));
+  
+  try {
+    const { recipient, templateKey, testData } = req.body;
+    
+    console.log('Extracted values:', { recipient, templateKey, testData });
+    
+    if (!recipient || !templateKey) {
+      console.log('Missing required fields:', { recipient: !!recipient, templateKey: !!templateKey });
+      return res.status(400).json({ error: 'Recipient and template key are required' });
+    }
+
+    // Check if recipient is a valid user or email
+    let targetUserId = null;
+    if (recipient.includes('@')) {
+      // Email address - find user by email domain (since email is username in this system)
+      const [userRows] = await db.execute(
+        'SELECT id FROM users WHERE username = ?',
+        [recipient]
+      );
+      
+      if (userRows.length === 0) {
+        return res.status(400).json({ error: 'User not found for email address' });
+      }
+      targetUserId = userRows[0].id;
+    } else {
+      // Assume it's a user ID
+      targetUserId = parseInt(recipient);
+    }
+
+    // Use test data or default test data
+    const emailData = testData || {
+      test_message: 'This is a test email from the admin panel',
+      admin_name: req.username || 'Admin',
+      test_timestamp: new Date().toISOString()
+    };
+
+    const emailService = new EmailService();
+    const result = await emailService.queueEmail(targetUserId, templateKey, emailData, { priority: 0.5 });
+
+    if (result.success) {
+      res.json({ 
+        success: true, 
+        message: 'Test email sent successfully',
+        emailId: result.emailId
+      });
+    } else {
+      res.status(500).json({ 
+        error: 'Failed to send test email',
+        details: result.error
+      });
+    }
+  } catch (err) {
+    console.error('Error sending test email:', err.message, err.stack);
+    res.status(500).json({ error: 'Failed to send test email' });
+  }
+});
+
+// POST /admin/email-process-queue - Manually process email queue (admin only)
+router.post('/email-process-queue', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+  console.log('POST /admin/email-process-queue request received, userId:', req.userId);
+  
+  try {
+    const emailService = new EmailService();
+    const result = await emailService.processQueue();
+
+    res.json({ 
+      success: true, 
+      message: 'Queue processing initiated',
+      result: result
+    });
+  } catch (err) {
+    console.error('Error processing queue:', err.message, err.stack);
+    res.status(500).json({ error: 'Failed to process queue' });
+  }
+});
+
+// POST /admin/email-bounces-unblacklist - Remove domain from blacklist (admin only)
+router.post('/email-bounces-unblacklist', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+  console.log('POST /admin/email-bounces-unblacklist request received, userId:', req.userId);
+  
+  try {
+    const { domain } = req.body;
+    
+    if (!domain) {
+      return res.status(400).json({ error: 'Domain is required' });
+    }
+
+    await db.execute(`
+      UPDATE bounce_tracking 
+      SET is_blacklisted = 0,
+          bounce_count = 0,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE SUBSTRING_INDEX(email_address, '@', -1) = ?
+    `, [domain]);
+
+    res.json({ success: true, message: 'Domain removed from blacklist' });
+  } catch (err) {
+    console.error('Error removing domain from blacklist:', err.message, err.stack);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ error: 'Failed to remove domain from blacklist' });
   }
 });
 

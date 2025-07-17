@@ -61,8 +61,9 @@ export default function AdminPolicies() {
       return res.json();
     })
     .then(data => {
-      // Check if user is admin
-      if (data.user_type !== 'admin') {
+      // Check if user has system management permission
+      const canManageSystem = data.user_type === 'admin' || payload.permissions?.includes('manage_system');
+      if (!canManageSystem) {
         router.push('/dashboard');
         return;
       }

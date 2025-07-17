@@ -1,42 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
-const jwt = require('jsonwebtoken');
-
-// Verify token function (following the pattern from terms.js)
-const verifyToken = async (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(401).json({ error: 'No token provided' });
-  }
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.userId = decoded.userId;
-    req.roles = decoded.roles;
-    req.permissions = decoded.permissions || [];
-    next();
-  } catch (err) {
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
-
-// Middleware to check if user is admin
-const requireAdmin = async (req, res, next) => {
-  try {
-    const [user] = await db.query('SELECT user_type FROM users WHERE id = ?', [req.userId]);
-    if (!user[0] || user[0].user_type !== 'admin') {
-      res.setHeader('Content-Type', 'application/json');
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-    next();
-  } catch (err) {
-    console.error('Error checking admin status:', err);
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(500).json({ error: 'Failed to verify admin status' });
-  }
-};
+const verifyToken = require('../middleware/jwt');
+const { requireRestrictedPermission } = require('../middleware/permissions');
 
 // GET /api/announcements/check-pending - Check if user has pending announcements (MUST BE BEFORE ADMIN ROUTES)
 router.get('/check-pending', verifyToken, async (req, res) => {
@@ -181,8 +147,8 @@ router.get('/pending', verifyToken, async (req, res) => {
   }
 });
 
-// GET /api/announcements - Get all announcements (admin only)
-router.get('/', verifyToken, requireAdmin, async (req, res) => {
+// GET /api/announcements - Get all announcements (system management permission required)
+router.get('/', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
     const [announcements] = await db.query(
       'SELECT a.*, u.username as created_by_username ' +
@@ -237,8 +203,8 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-// POST /api/announcements - Create new announcement (admin only)
-router.post('/', verifyToken, requireAdmin, async (req, res) => {
+// POST /api/announcements - Create new announcement (system management permission required)
+router.post('/', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
     const { title, content, show_from, expires_at, target_user_types, is_active = true } = req.body;
     
@@ -278,8 +244,8 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-// PUT /api/announcements/:id - Update announcement (admin only)
-router.put('/:id', verifyToken, requireAdmin, async (req, res) => {
+// PUT /api/announcements/:id - Update announcement (system management permission required)
+router.put('/:id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
     const { id } = req.params;
     const { title, content, show_from, expires_at, target_user_types, is_active } = req.body;
@@ -341,8 +307,8 @@ router.put('/:id', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-// DELETE /api/announcements/:id - Delete announcement (admin only)
-router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
+// DELETE /api/announcements/:id - Delete announcement (system management permission required)
+router.delete('/:id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -366,8 +332,8 @@ router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-// GET /api/announcements/:id/stats - Get acknowledgment statistics (admin only)
-router.get('/:id/stats', verifyToken, requireAdmin, async (req, res) => {
+// GET /api/announcements/:id/stats - Get acknowledgment statistics (system management permission required)
+router.get('/:id/stats', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
     const { id } = req.params;
     

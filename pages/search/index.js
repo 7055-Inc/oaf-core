@@ -14,28 +14,18 @@ export default function SearchPage() {
   const [availableFilters, setAvailableFilters] = useState({});
   const [activeFilters, setActiveFilters] = useState({});
 
-  // Debug logging
-  useEffect(() => {
-    console.log('SearchPage: Router query changed:', router.query);
-    console.log('SearchPage: Query param:', query);
-    console.log('SearchPage: Category param:', category);
-  }, [router.query, query, category]);
+  // Debug logging removed for production
 
   // Perform search when query or filters change
   useEffect(() => {
     if (query) {
-      console.log('SearchPage: Performing search for query:', query);
       performSearch(query, selectedCategory, activeFilters);
       fetchAvailableFilters(selectedCategory);
-    } else {
-      console.log('SearchPage: No query provided');
     }
   }, [query, selectedCategory, activeFilters]);
 
   const performSearch = async (searchQuery, searchCategory = 'all', filters = {}) => {
-    console.log('SearchPage: performSearch called with:', { searchQuery, searchCategory, filters });
     if (!searchQuery?.trim()) {
-      console.log('SearchPage: Empty search query, returning');
       return;
     }
     
@@ -58,18 +48,14 @@ export default function SearchPage() {
       });
       
       const searchUrl = `https://api2.onlineartfestival.com/search?${params.toString()}`;
-      console.log('SearchPage: Making API call to:', searchUrl);
       
       const response = await fetch(searchUrl);
-      
-      console.log('SearchPage: API response status:', response.status);
       
       if (!response.ok) {
         throw new Error('Search failed');
       }
       
       const data = await response.json();
-      console.log('SearchPage: API response data:', data);
       setSearchResults(data);
     } catch (err) {
       console.error('SearchPage: Search error:', err);

@@ -1,24 +1,15 @@
 const express = require('express');
 const stripeService = require('../services/stripeService');
 const db = require('../../config/db');
-const authenticateToken = require('../middleware/jwt');
+const verifyToken = require('../middleware/jwt');
+const { requireRestrictedPermission } = require('../middleware/permissions');
 const router = express.Router();
-
-/**
- * Middleware to verify admin access
- */
-const requireAdmin = (req, res, next) => {
-  if (req.user.user_type !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
-  next();
-};
 
 /**
  * Get platform financial overview
  * GET /api/admin/financial-overview
  */
-router.get('/financial-overview', authenticateToken, requireAdmin, async (req, res) => {
+router.get('/financial-overview', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
     const overview = await stripeService.getPlatformFinancialOverview();
     res.json({ success: true, overview });
@@ -29,18 +20,13 @@ router.get('/financial-overview', authenticateToken, requireAdmin, async (req, r
 });
 
 /**
- * Get real-time payout calculations
+ * Get detailed payout calculations for all vendors
  * GET /api/admin/payout-calculations
  */
-router.get('/payout-calculations', authenticateToken, requireAdmin, async (req, res) => {
+router.get('/payout-calculations', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
-    const calculations = await getPayoutCalculations();
-    
-    res.json({
-      success: true,
-      payout_calculations: calculations
-    });
-    
+    const calculations = await stripeService.getPayoutCalculations();
+    res.json({ success: true, calculations });
   } catch (error) {
     console.error('Error getting payout calculations:', error);
     res.status(500).json({ error: 'Failed to get payout calculations' });
@@ -48,37 +34,39 @@ router.get('/payout-calculations', authenticateToken, requireAdmin, async (req, 
 });
 
 /**
- * Create manual balance adjustment
  * POST /api/admin/manual-adjustment
+ * Create a manual adjustment for a vendor
  */
-router.post('/manual-adjustment', authenticateToken, requireAdmin, async (req, res) => {
+router.post('/manual-adjustment', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
-    const { vendor_id, amount, reason_code, internal_notes, vendor_visible_reason } = req.body;
-    const adminId = req.user.id;
+    const { vendor_id, amount, description, type } = req.body;
     
-    if (!vendor_id || !amount || !reason_code) {
-      return res.status(400).json({ error: 'vendor_id, amount, and reason_code are required' });
+    if (!vendor_id || !amount || !description || !type) {
+      return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const adjustmentQuery = `
-      INSERT INTO manual_adjustments 
-      (vendor_id, admin_id, amount, reason_code, internal_notes, vendor_visible_reason)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `;
+    if (!['credit', 'debit'].includes(type)) {
+      return res.status(400).json({ error: 'Type must be either credit or debit' });
+    }
+
+    const adjustmentAmount = type === 'credit' ? Math.abs(amount) : -Math.abs(amount);
     
-    const [result] = await db.execute(adjustmentQuery, [
-      vendor_id, adminId, amount, reason_code, internal_notes, vendor_visible_reason
-    ]);
+    const [result] = await db.query(
+      'INSERT INTO manual_adjustments (vendor_id, admin_id, amount, description, type) VALUES (?, ?, ?, ?, ?)',
+      [vendor_id, req.userId, adjustmentAmount, description, type]
+    );
 
-    await stripeService.recordVendorTransaction({
-      vendor_id: vendor_id,
-      order_id: null,
-      transaction_type: 'adjustment',
-      amount: amount,
-      status: 'completed'
-    });
+    const adjustment = {
+      id: result.insertId,
+      vendor_id,
+      admin_id: req.userId,
+      amount: adjustmentAmount,
+      description,
+      type,
+      created_at: new Date()
+    };
 
-    res.json({ success: true, adjustment_id: result.insertId });
+    res.json({ success: true, adjustment });
   } catch (error) {
     console.error('Error creating manual adjustment:', error);
     res.status(500).json({ error: 'Failed to create manual adjustment' });
@@ -86,30 +74,36 @@ router.post('/manual-adjustment', authenticateToken, requireAdmin, async (req, r
 });
 
 /**
- * Get manual adjustments history
  * GET /api/admin/manual-adjustments
+ * Get all manual adjustments with optional filters
  */
-router.get('/manual-adjustments', authenticateToken, requireAdmin, async (req, res) => {
+router.get('/manual-adjustments', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
-    const { page = 1, limit = 20, vendor_id } = req.query;
+    const { vendor_id, limit = 100, offset = 0 } = req.query;
     
-    const adjustments = await getManualAdjustments({
-      page: parseInt(page),
-      limit: parseInt(limit),
-      vendor_id: vendor_id
-    });
+    let query = `
+      SELECT 
+        ma.*,
+        u.username as vendor_username,
+        admin.username as admin_username
+      FROM manual_adjustments ma
+      JOIN users u ON ma.vendor_id = u.id
+      JOIN users admin ON ma.admin_id = admin.id
+    `;
     
-    res.json({
-      success: true,
-      adjustments: adjustments.data,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: adjustments.total,
-        pages: Math.ceil(adjustments.total / parseInt(limit))
-      }
-    });
+    const params = [];
     
+    if (vendor_id) {
+      query += ' WHERE ma.vendor_id = ?';
+      params.push(vendor_id);
+    }
+    
+    query += ' ORDER BY ma.created_at DESC LIMIT ? OFFSET ?';
+    params.push(parseInt(limit), parseInt(offset));
+    
+    const [adjustments] = await db.query(query, params);
+    
+    res.json({ success: true, adjustments });
   } catch (error) {
     console.error('Error getting manual adjustments:', error);
     res.status(500).json({ error: 'Failed to get manual adjustments' });
@@ -117,42 +111,71 @@ router.get('/manual-adjustments', authenticateToken, requireAdmin, async (req, r
 });
 
 /**
- * Update vendor commission rate and payout settings
  * POST /api/admin/vendor-settings
+ * Update vendor settings (commission rates, etc.)
  */
-router.post('/vendor-settings', authenticateToken, requireAdmin, async (req, res) => {
+router.post('/vendor-settings', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
-    const { vendor_id, commission_rate, payout_days } = req.body;
+    const { vendor_id, commission_rate, minimum_payout, payment_schedule } = req.body;
     
     if (!vendor_id) {
       return res.status(400).json({ error: 'vendor_id is required' });
     }
 
-    // Validate vendor exists
-    const vendorQuery = 'SELECT id FROM users WHERE id = ? AND user_type = ?';
-    const [vendorRows] = await db.execute(vendorQuery, [vendor_id, 'artist']);
-    
-    if (vendorRows.length === 0) {
-      return res.status(404).json({ error: 'Vendor not found' });
+    // Validate commission_rate if provided
+    if (commission_rate !== undefined) {
+      if (commission_rate < 0 || commission_rate > 1) {
+        return res.status(400).json({ error: 'commission_rate must be between 0 and 1' });
+      }
     }
 
-    // Update vendor settings
-    const updateQuery = `
-      INSERT INTO vendor_settings (vendor_id, commission_rate, payout_days) 
-      VALUES (?, ?, ?) 
-      ON DUPLICATE KEY UPDATE 
-        commission_rate = COALESCE(VALUES(commission_rate), commission_rate),
-        payout_days = COALESCE(VALUES(payout_days), payout_days),
-        updated_at = CURRENT_TIMESTAMP
-    `;
+    // Validate minimum_payout if provided
+    if (minimum_payout !== undefined) {
+      if (minimum_payout < 0) {
+        return res.status(400).json({ error: 'minimum_payout must be non-negative' });
+      }
+    }
+
+    // Check if settings already exist
+    const [existing] = await db.query(
+      'SELECT id FROM vendor_settings WHERE vendor_id = ?',
+      [vendor_id]
+    );
+
+    if (existing.length > 0) {
+      // Update existing settings
+      const updates = [];
+      const params = [];
+      
+      if (commission_rate !== undefined) {
+        updates.push('commission_rate = ?');
+        params.push(commission_rate);
+      }
+      if (minimum_payout !== undefined) {
+        updates.push('minimum_payout = ?');
+        params.push(minimum_payout);
+      }
+      if (payment_schedule !== undefined) {
+        updates.push('payment_schedule = ?');
+        params.push(payment_schedule);
+      }
+      
+      if (updates.length > 0) {
+        params.push(vendor_id);
+        await db.query(
+          `UPDATE vendor_settings SET ${updates.join(', ')}, updated_at = NOW() WHERE vendor_id = ?`,
+          params
+        );
+      }
+    } else {
+      // Create new settings
+      await db.query(
+        'INSERT INTO vendor_settings (vendor_id, commission_rate, minimum_payout, payment_schedule) VALUES (?, ?, ?, ?)',
+        [vendor_id, commission_rate || 0.1, minimum_payout || 25.00, payment_schedule || 'weekly']
+      );
+    }
     
-    await db.execute(updateQuery, [vendor_id, commission_rate, payout_days]);
-    
-    res.json({
-      success: true,
-      message: 'Vendor settings updated successfully'
-    });
-    
+    res.json({ success: true, message: 'Vendor settings updated successfully' });
   } catch (error) {
     console.error('Error updating vendor settings:', error);
     res.status(500).json({ error: 'Failed to update vendor settings' });
@@ -160,29 +183,33 @@ router.post('/vendor-settings', authenticateToken, requireAdmin, async (req, res
 });
 
 /**
- * Get all vendor settings for management
  * GET /api/admin/vendor-settings
+ * Get vendor settings for all vendors or specific vendor
  */
-router.get('/vendor-settings', authenticateToken, requireAdmin, async (req, res) => {
+router.get('/vendor-settings', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
-    const { page = 1, limit = 50 } = req.query;
+    const { vendor_id } = req.query;
     
-    const vendorSettings = await getAllVendorSettings({
-      page: parseInt(page),
-      limit: parseInt(limit)
-    });
+    let query = `
+      SELECT 
+        vs.*,
+        u.username as vendor_username
+      FROM vendor_settings vs
+      JOIN users u ON vs.vendor_id = u.id
+    `;
     
-    res.json({
-      success: true,
-      vendor_settings: vendorSettings.data,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: vendorSettings.total,
-        pages: Math.ceil(vendorSettings.total / parseInt(limit))
-      }
-    });
+    const params = [];
     
+    if (vendor_id) {
+      query += ' WHERE vs.vendor_id = ?';
+      params.push(vendor_id);
+    }
+    
+    query += ' ORDER BY u.username';
+    
+    const [settings] = await db.query(query, params);
+    
+    res.json({ success: true, settings });
   } catch (error) {
     console.error('Error getting vendor settings:', error);
     res.status(500).json({ error: 'Failed to get vendor settings' });
@@ -190,34 +217,20 @@ router.get('/vendor-settings', authenticateToken, requireAdmin, async (req, res)
 });
 
 /**
- * Get vendor financial details for admin review
  * GET /api/admin/vendor-details/:vendor_id
+ * Get comprehensive vendor information for admin review
  */
-router.get('/vendor-details/:vendor_id', authenticateToken, requireAdmin, async (req, res) => {
+router.get('/vendor-details/:vendor_id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
     const { vendor_id } = req.params;
     
-    const [vendorInfo, balance, recentTransactions, settings] = await Promise.all([
-      getVendorInfo(vendor_id),
-      getVendorBalance(vendor_id),
-      getVendorTransactions(vendor_id, { limit: 20 }),
-      stripeService.getVendorSettings(vendor_id)
-    ]);
+    const vendorInfo = await stripeService.getVendorInfo(vendor_id);
 
     if (!vendorInfo) {
       return res.status(404).json({ error: 'Vendor not found' });
     }
 
-    res.json({
-      success: true,
-      vendor: {
-        info: vendorInfo,
-        balance: balance,
-        recent_transactions: recentTransactions,
-        settings: settings
-      }
-    });
-    
+    res.json({ success: true, vendor: vendorInfo });
   } catch (error) {
     console.error('Error getting vendor details:', error);
     res.status(500).json({ error: 'Failed to get vendor details' });

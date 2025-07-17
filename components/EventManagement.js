@@ -71,7 +71,7 @@ export default function EventManagement() {
         return;
       }
       
-      const response = await fetch('https://api2.onlineartfestival.com/api/event-types', {
+      const response = await fetch('https://api2.onlineartfestival.com/api/events/types', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

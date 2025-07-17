@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const searchService = require('../services/searchService');
 const searchAnalytics = require('../services/searchAnalytics');
-const authenticateToken = require('../middleware/jwt');
+const verifyToken = require('../middleware/jwt');
+const { requireRestrictedPermission } = require('../middleware/permissions');
 
 // Helper function to get client info from request
 const getClientInfo = (req) => {
@@ -191,7 +192,7 @@ router.post('/analytics/click', async (req, res) => {
  * Get user search history (requires authentication)
  * GET /api/search/history?limit=20
  */
-router.get('/history', authenticateToken, async (req, res) => {
+router.get('/history', verifyToken, async (req, res) => {
   try {
     const { limit = 20 } = req.query;
     
@@ -214,16 +215,8 @@ router.get('/history', authenticateToken, async (req, res) => {
  * Get search analytics (admin only)
  * GET /api/search/analytics?timeframe=7d
  */
-router.get('/analytics', authenticateToken, async (req, res) => {
+router.get('/analytics', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
-    // Check if user is admin (you may need to adjust this based on your auth system)
-    if (req.user.user_type !== 'admin') {
-      return res.status(403).json({
-        error: 'Access denied',
-        message: 'Admin access required'
-      });
-    }
-
     const { timeframe = '7d' } = req.query;
     
     const analytics = await searchAnalytics.getSearchAnalytics(timeframe);
@@ -269,16 +262,8 @@ router.get('/suggestions', async (req, res) => {
  * Get search performance issues (admin only)
  * GET /api/search/performance
  */
-router.get('/performance', authenticateToken, async (req, res) => {
+router.get('/performance', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   try {
-    // Check if user is admin
-    if (req.user.user_type !== 'admin') {
-      return res.status(403).json({
-        error: 'Access denied',
-        message: 'Admin access required'
-      });
-    }
-
     const issues = await searchAnalytics.getPerformanceIssues();
     
     res.json(issues);

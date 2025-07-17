@@ -46,7 +46,15 @@ export default function PermissionsManagement() {
             return { ...user, permissions };
           }
           
-          return { ...user, permissions: { vendor: false } };
+          return { 
+            ...user, 
+            permissions: { 
+              vendor: false, 
+              manage_sites: false, 
+              manage_content: false, 
+              manage_system: false 
+            } 
+          };
         })
       );
 
@@ -95,6 +103,31 @@ export default function PermissionsManagement() {
     }
   };
 
+  // Helper function to render permission toggle
+  const renderPermissionToggle = (user, permissionType, label) => {
+    const isChecked = user.permissions?.[permissionType] || false;
+    const isAdmin = user.user_type === 'admin';
+    const isDisabled = isAdmin && ['manage_sites', 'manage_content', 'manage_system'].includes(permissionType);
+    
+    return (
+      <td key={permissionType}>
+        <label className={styles.toggleSwitch}>
+          <input
+            type="checkbox"
+            checked={isChecked || (isAdmin && ['manage_sites', 'manage_content', 'manage_system'].includes(permissionType))}
+            onChange={(e) => updatePermission(user.id, permissionType, e.target.checked)}
+            disabled={isDisabled}
+          />
+          <span className={`${styles.slider} ${isDisabled ? styles.disabled : ''}`}></span>
+        </label>
+        <span className={styles.permissionStatus}>
+          {(isChecked || (isAdmin && ['manage_sites', 'manage_content', 'manage_system'].includes(permissionType))) ? 'Enabled' : 'Disabled'}
+          {isDisabled && ' (Auto)'}
+        </span>
+      </td>
+    );
+  };
+
   if (loading) {
     return <div className={styles.loading}>Loading permissions...</div>;
   }
@@ -107,7 +140,7 @@ export default function PermissionsManagement() {
     <div className={styles.container}>
       <div className={styles.header}>
         <h2>Permissions Management</h2>
-        <p>Manage user permissions for vendor access and other features</p>
+        <p>Manage user permissions for vendor access, content management, site management, and system administration</p>
       </div>
 
       <div className={styles.controls}>
@@ -130,7 +163,10 @@ export default function PermissionsManagement() {
               <th>User ID</th>
               <th>Username</th>
               <th>User Type</th>
-              <th>Vendor Permission</th>
+              <th>Vendor</th>
+              <th>Manage Sites</th>
+              <th>Manage Content</th>
+              <th>Manage System</th>
             </tr>
           </thead>
           <tbody>
@@ -143,19 +179,10 @@ export default function PermissionsManagement() {
                     {user.user_type}
                   </span>
                 </td>
-                <td>
-                  <label className={styles.toggleSwitch}>
-                    <input
-                      type="checkbox"
-                      checked={user.permissions?.vendor || false}
-                      onChange={(e) => updatePermission(user.id, 'vendor', e.target.checked)}
-                    />
-                    <span className={styles.slider}></span>
-                  </label>
-                  <span className={styles.permissionStatus}>
-                    {user.permissions?.vendor ? 'Enabled' : 'Disabled'}
-                  </span>
-                </td>
+                {renderPermissionToggle(user, 'vendor', 'Vendor')}
+                {renderPermissionToggle(user, 'manage_sites', 'Manage Sites')}
+                {renderPermissionToggle(user, 'manage_content', 'Manage Content')}
+                {renderPermissionToggle(user, 'manage_system', 'Manage System')}
               </tr>
             ))}
           </tbody>

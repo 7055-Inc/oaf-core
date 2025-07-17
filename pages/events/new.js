@@ -67,8 +67,8 @@ export default function NewEvent() {
     })
     .then(data => {
       setUserData(data);
-      if (data.user_type !== 'promoter' && data.user_type !== 'admin') {
-        setError('Access denied. Only promoters can create events.');
+      if (!data.permissions.manage_content) {
+        setError('Access denied. Content management permission required to create events.');
         return;
       }
     })
@@ -83,7 +83,7 @@ export default function NewEvent() {
   const fetchEventTypes = async () => {
     try {
       const token = document.cookie.split('token=')[1]?.split(';')[0];
-      const response = await fetch('https://api2.onlineartfestival.com/api/event-types', {
+              const response = await fetch('https://api2.onlineartfestival.com/api/events/types', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -195,13 +195,13 @@ export default function NewEvent() {
     );
   }
 
-  if (userData.user_type !== 'promoter' && userData.user_type !== 'admin') {
+  if (!userData.permissions.manage_content) {
     return (
       <div className={styles.container}>
         <Header />
         <div className={styles.content}>
           <h1>Access Denied</h1>
-          <p>Only promoters can create events.</p>
+          <p>Content management permission required to create events.</p>
         </div>
       </div>
     );

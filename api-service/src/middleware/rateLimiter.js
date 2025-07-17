@@ -160,6 +160,10 @@ const adminLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Skip OPTIONS requests to allow CORS preflight
+  skip: (req) => {
+    return req.method === 'OPTIONS';
+  }
 });
 
 /**

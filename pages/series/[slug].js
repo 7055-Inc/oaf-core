@@ -21,7 +21,7 @@ export default function SeriesPage() {
 
   const fetchSeries = async () => {
     try {
-      const response = await fetch(`https://api2.onlineartfestival.com/api/series/${slug}`);
+      const response = await fetch(`https://api2.onlineartfestival.com/api/articles/series/${slug}`);
       if (!response.ok) {
         throw new Error('Series not found');
       }

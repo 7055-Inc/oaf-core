@@ -160,7 +160,7 @@ export default function NewProduct() {
           ship_method: variation.shipping?.ship_method || 'free',
           ship_rate: variation.shipping?.ship_rate || '',
           shipping_services: variation.shipping?.shipping_services || '',
-          images: variation.images || [],
+          images: (variation.images || []).map(img => typeof img === 'string' ? img : img.url),
           status: 'active' // ACTIVATE the draft!
         };
 
@@ -196,6 +196,34 @@ export default function NewProduct() {
       if (!parentActivationResponse.ok) {
         const errorData = await parentActivationResponse.json();
         throw new Error(`Failed to activate parent product: ${errorData.error}`);
+      }
+
+      // Queue new product email for variable product
+      try {
+        const emailResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/emails/queue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            templateKey: 'new_product',
+            templateData: { 
+              product_name: parentProduct.name, 
+              product_id: parentProductId,
+              product_url: `https://onlineartfestival.com/products/${parentProductId}`,
+              product_description: parentProduct.description || parentProduct.short_description || '',
+              product_price: `$${parentProduct.price}`,
+              product_image_url: parentProduct.images && parentProduct.images.length > 0 ? parentProduct.images[0] : '',
+              product_variations: `${finalizedVariations.length} variations available`
+            }
+          })
+        });
+
+        if (!emailResponse.ok) {
+          const errorData = await emailResponse.json();
+          throw new Error(`Email queue failed: ${errorData.error}`);
+        }
+      } catch (queueError) {
+        // Don't fail the entire product creation if email fails
+        setError(`Product activated successfully, but failed to send notification email: ${queueError.message}`);
       }
 
       // Success! All drafts are now active products
@@ -448,7 +476,35 @@ export default function NewProduct() {
       }
 
       const newProduct = await response.json();
-      
+
+      // Queue new product email
+      try {
+        const emailResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/emails/queue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            templateKey: 'new_product',
+            templateData: { 
+              product_name: newProduct.name, 
+              product_id: newProduct.id,
+              product_url: `https://onlineartfestival.com/products/${newProduct.id}`,
+              product_description: newProduct.description || newProduct.short_description || '',
+              product_price: `$${newProduct.price}`,
+              product_image_url: newProduct.images && newProduct.images.length > 0 ? newProduct.images[0] : '',
+              product_variations: ''
+            }
+          })
+        });
+
+        if (!emailResponse.ok) {
+          const errorData = await emailResponse.json();
+          throw new Error(`Email queue failed: ${errorData.error}`);
+        }
+      } catch (queueError) {
+        // Don't fail the entire product creation if email fails
+        setError(`Product created successfully, but failed to send notification email: ${queueError.message}`);
+      }
+
       // For variable products, move to variation setup instead of redirecting
       if (selectedProductType === 'variable') {
         // Store the parent product data with the new ID
@@ -1384,16 +1440,12 @@ export default function NewProduct() {
                   const parentProductId = parentProduct.id;
                   
                   if (!parentProductId) {
-                    setError('DEBUG: Parent product ID missing!');
                     throw new Error('Parent product not found. Please go back and create the parent product first.');
                   }
                   
                   if (!variations || variations.length === 0) {
-                    setError('DEBUG: No variations data found!');
                     throw new Error('No variations found. Please set up variations first.');
                   }
-                  
-                  setError(`DEBUG: Found ${variations.length} variations, Parent ID: ${parentProductId}`);
                   
                   // Create draft children for each variation combination
                   // Add delay between requests to prevent rate limiting

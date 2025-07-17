@@ -46,7 +46,9 @@ secureLogger.info('API Gateway starting', {
 app.use((req, res, next) => {
   const allowedOrigins = [
     'https://main.onlineartfestival.com',
-    'https://api2.onlineartfestival.com'
+    'https://api2.onlineartfestival.com',
+    'https://mobile.onlineartfestival.com',
+    'http://localhost:8081'  // Mobile app development
   ];
   const origin = req.headers.origin;
   if (allowedOrigins.includes(origin)) {
@@ -65,8 +67,11 @@ app.use((req, res, next) => {
 // Add cookie parser middleware
 app.use(cookieParser());
 
+// Parse JSON bodies
+app.use(express.json());
+
 // Handle JSON parsing errors
-app.use(express.json(), (err, req, res, next) => {
+app.use((err, req, res, next) => {
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
     secureLogger.error('JSON parsing error', err);
     return res.status(400).json({ error: 'Invalid JSON in request body' });
@@ -124,9 +129,7 @@ app.use('/products', csrfProtection());
 app.use('/cart', csrfProtection());
 app.use('/events', csrfProtection());
 app.use('/api/articles', csrfProtection());
-app.use('/api/topics', csrfProtection());
-app.use('/api/series', csrfProtection());
-app.use('/api/tags', csrfProtection());
+    // Series and tags routes consolidated into articles.js
 app.use('/api/sites', csrfProtection());
 app.use('/api/domains', csrfProtection());
 app.use('/api/terms', csrfProtection());
@@ -159,9 +162,6 @@ try {
   // Categories (safe for now, mostly read operations)
   app.use('/categories', require('./routes/categories'));
   
-  // Product variations management
-  app.use('/variations', csrfProtection(), require('./routes/variations'));
-  
   // Cart operations
   app.use('/cart', require('./routes/carts'));
   
@@ -177,6 +177,9 @@ try {
   // Admin financial operations
   app.use('/admin', adminLimiter, require('./routes/admin-financial'));
   
+  // Finance operations (isolated financial data)
+  app.use('/api/finance', adminLimiter, require('./routes/finance'));
+  
   // Search (read-only, no CSRF needed)
   app.use('/search', require('./routes/search'));
   
@@ -185,15 +188,12 @@ try {
   
   // Event management
   app.use('/api/events', require('./routes/events'));
-  app.use('/api/event-types', require('./routes/event-types'));
+  // Event types route consolidated into events.js
   app.use('/api/applications', require('./routes/applications'));
-  app.use('/api/custom-events', require('./routes/custom-events'));
   
   // Articles management - all routes fixed
   app.use('/api/articles', require('./routes/articles'));
-  app.use('/api/topics', require('./routes/topics'));
-  app.use('/api/series', require('./routes/series'));
-  app.use('/api/tags', require('./routes/tags'));
+    // Series and tags routes consolidated into articles.js
   
   // Sites management (multisite functionality)
   app.use('/api/sites', require('./routes/sites'));
@@ -206,6 +206,12 @@ try {
   
   // Announcements management
   app.use('/api/announcements', require('./routes/announcements'));
+  
+  // Dashboard API (consolidates vendor, admin, and permission-based functionality)
+  app.use('/dashboard', require('./routes/dashboard'));
+  
+  // Email system routes
+  app.use('/emails', require('./routes/emails'));
   
   // Inventory management
   app.use('/inventory', csrfProtection(), require('./routes/inventory'));

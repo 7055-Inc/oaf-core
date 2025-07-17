@@ -1,98 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
-const jwt = require('jsonwebtoken');
+const verifyToken = require('../middleware/jwt');
 
-// Middleware to verify JWT token
-const verifyToken = async (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.userId = decoded.userId;
-    req.roles = decoded.roles;
-    next();
-  } catch (err) {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
-
-// Artist submits application to an event
-router.post('/events/:eventId/apply', verifyToken, async (req, res) => {
-    try {
-        const { eventId } = req.params;
-        const artistId = req.userId;
-        const { artist_statement, portfolio_url, booth_preferences, additional_info } = req.body;
-
-        // Check if artist already applied to this event
-        const [existingApp] = await db.execute(
-            'SELECT id, status FROM event_applications WHERE event_id = ? AND artist_id = ?',
-            [eventId, artistId]
-        );
-        if (existingApp.length > 0) {
-            return res.status(400).json({ 
-                error: 'You have already applied to this event' 
-            });
-        }
-
-        // Verify event exists and is accepting applications
-        const [event] = await db.execute(
-            'SELECT id, title, promoter_id, allow_applications, application_status, application_deadline FROM events WHERE id = ?',
-            [eventId]
-        );
-        if (event.length === 0) {
-            return res.status(404).json({ error: 'Event not found' });
-        }
-
-        if (!event[0].allow_applications || event[0].application_status !== 'accepting') {
-            return res.status(400).json({ 
-                error: 'This event is not currently accepting applications' 
-            });
-        }
-
-        // Create application
-        const [result] = await db.execute(`
-            INSERT INTO event_applications 
-            (event_id, artist_id, artist_statement, portfolio_url, booth_preferences, additional_info, status, submitted_at)
-            VALUES (?, ?, ?, ?, ?, ?, 'submitted', NOW())
-        `, [
-            eventId,
-            artistId,
-            artist_statement || null,
-            portfolio_url || null,
-            booth_preferences ? JSON.stringify(booth_preferences) : null,
-            additional_info || null
-        ]);
-
-        // Get the created application
-        const [application] = await db.execute(`
-            SELECT 
-                ea.*,
-                e.title as event_title,
-                e.start_date as event_start_date,
-                e.end_date as event_end_date,
-                e.venue_name as event_venue_name,
-                e.venue_city as event_venue_city,
-                e.venue_state as event_venue_state
-            FROM event_applications ea
-            JOIN events e ON ea.event_id = e.id
-            WHERE ea.id = ?
-        `, [result.insertId]);
-
-        res.status(201).json({
-            message: 'Application submitted successfully',
-            application: application[0]
-        });
-    } catch (error) {
-        console.error('Error submitting application:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-// Get artist's own applications
-router.get('/my-applications', verifyToken, async (req, res) => {
+// GET /applications - Get all applications for the authenticated user
+router.get('/', verifyToken, async (req, res) => {
     try {
         const artistId = req.userId;
         const { status, limit, offset } = req.query;

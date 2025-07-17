@@ -160,24 +160,42 @@ class StripeService {
   // ===== COMMISSION CALCULATIONS =====
 
   /**
-   * Calculate commission for order items
+   * Calculate commission for order items with proper Stripe fee handling
    */
   async calculateCommissions(orderItems) {
     const itemsWithCommissions = [];
 
     for (const item of orderItems) {
-      // Get vendor commission rate
-      const vendorSettings = await this.getVendorSettings(item.vendor_id);
-      const commissionRate = vendorSettings?.commission_rate || 15.00;
+      // Get vendor commission rate from integrated financial settings
+      const financialSettings = await this.getFinancialSettings(item.vendor_id);
+      const commissionRate = financialSettings.commission_rate;
       
-      const commissionAmount = (item.price * commissionRate) / 100;
-      const vendorAmount = item.price - commissionAmount;
+      // Calculate Stripe fee for this transaction (platform always pays)
+      const stripeFeeCalc = await this.calculateStripeFee(item.price, 'standard');
+      
+      let commissionAmount, vendorAmount, platformNet;
+      
+      if (financialSettings.fee_structure === 'pass_through') {
+        // Pass-through: Vendor pays equivalent of Stripe fee, platform gets $0
+        commissionAmount = 0.00;
+        vendorAmount = item.price - stripeFeeCalc.total_fee;
+        platformNet = 0.00;  // Platform breaks even (vendor pays Stripe fee equivalent)
+      } else {
+        // Commission: Platform takes commission and absorbs Stripe fees
+        commissionAmount = (item.price * commissionRate) / 100;
+        vendorAmount = item.price - commissionAmount;
+        platformNet = commissionAmount - stripeFeeCalc.total_fee;  // Commission minus Stripe fees
+      }
 
       itemsWithCommissions.push({
         ...item,
         commission_rate: commissionRate,
         commission_amount: commissionAmount,
-        vendor_amount: vendorAmount
+        vendor_amount: vendorAmount,
+        fee_structure: financialSettings.fee_structure,
+        stripe_fee: stripeFeeCalc.total_fee,
+        platform_net: platformNet,
+        stripe_rate_used: stripeFeeCalc.rate_used
       });
     }
 
@@ -255,6 +273,99 @@ class StripeService {
     
     const [rows] = await db.execute(query, [orderId]);
     return rows;
+  }
+
+  /**
+   * Get integrated financial settings (financial_settings + vendor_settings)
+   * Checks financial_settings first, falls back to vendor_settings
+   */
+  async getFinancialSettings(vendorId) {
+    // First check the new financial_settings table
+    const financialQuery = `
+      SELECT fee_structure, commission_rate, notes 
+      FROM financial_settings 
+      WHERE user_id = ?
+    `;
+    const [financialRows] = await db.execute(financialQuery, [vendorId]);
+    
+    if (financialRows.length > 0) {
+      const financial = financialRows[0];
+      
+      // Handle pass-through structure
+      if (financial.fee_structure === 'pass_through') {
+        return {
+          commission_rate: 0.00,
+          fee_structure: 'pass_through',
+          notes: financial.notes,
+          source: 'financial_settings'
+        };
+      }
+      
+      return {
+        commission_rate: financial.commission_rate || 15.00,
+        fee_structure: financial.fee_structure || 'commission',
+        notes: financial.notes,
+        source: 'financial_settings'
+      };
+    }
+    
+    // Fall back to vendor_settings table
+    const vendorSettings = await this.getVendorSettings(vendorId);
+    
+    return {
+      commission_rate: vendorSettings?.commission_rate || 15.00,
+      fee_structure: 'commission',
+      notes: null,
+      source: 'vendor_settings'
+    };
+  }
+
+  /**
+   * Get current Stripe rates for a given transaction type
+   */
+  async getStripeRates(rateType = 'standard', currency = 'USD', region = 'US') {
+    const query = `
+      SELECT percentage_rate, fixed_fee, rate_name
+      FROM stripe_rates 
+      WHERE rate_type = ? 
+        AND currency = ? 
+        AND region = ?
+        AND is_active = TRUE
+        AND effective_date <= CURDATE()
+        AND (end_date IS NULL OR end_date >= CURDATE())
+      ORDER BY effective_date DESC
+      LIMIT 1
+    `;
+    
+    const [rows] = await db.execute(query, [rateType, currency, region]);
+    
+    if (rows.length === 0) {
+      // Fallback to default rates if no database entry found
+      return {
+        percentage_rate: 0.0290,  // 2.9%
+        fixed_fee: 0.30,          // 30 cents
+        rate_name: 'Default Standard Rate'
+      };
+    }
+    
+    return rows[0];
+  }
+
+  /**
+   * Calculate Stripe fee for a given amount and rate type
+   */
+  async calculateStripeFee(amount, rateType = 'standard', currency = 'USD', region = 'US') {
+    const rates = await this.getStripeRates(rateType, currency, region);
+    
+    const percentageFee = amount * rates.percentage_rate;
+    const totalFee = percentageFee + rates.fixed_fee;
+    
+    return {
+      percentage_fee: percentageFee,
+      fixed_fee: rates.fixed_fee,
+      total_fee: totalFee,
+      rate_used: rates.rate_name
+    };
   }
 
   // ===== PAYOUT MANAGEMENT =====

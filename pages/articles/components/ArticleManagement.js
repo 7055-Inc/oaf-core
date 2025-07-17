@@ -71,12 +71,13 @@ const ArticleManagement = () => {
 
       const userData = await response.json();
       const isAdmin = userData.user_type === 'admin';
+      const canManageContent = isAdmin || userPermissions.includes('manage_content');
       
       setPermissions({
-        can_create: isAdmin || userPermissions.includes('create_articles'),
-        can_publish: isAdmin || userPermissions.includes('publish_articles'),
-        can_manage_seo: isAdmin || userPermissions.includes('manage_articles_seo'),
-        can_manage_topics: isAdmin || userPermissions.includes('manage_articles_topics')
+        can_create: canManageContent,
+        can_publish: canManageContent,
+        can_manage_seo: canManageContent,
+        can_manage_topics: canManageContent
       });
     } catch (err) {
       console.error('Error checking permissions:', err);
@@ -112,7 +113,7 @@ const ArticleManagement = () => {
   // Load topics from API
   const loadTopics = async () => {
     try {
-      const response = await secureApiRequest('https://api2.onlineartfestival.com/api/topics');
+      const response = await secureApiRequest('https://api2.onlineartfestival.com/api/articles/topics');
       if (!response.ok) {
         throw new Error(`Failed to load topics: ${response.status} ${response.statusText}`);
       }

@@ -12,15 +12,41 @@ export default function VendorProducts() {
   const [selectedProducts, setSelectedProducts] = useState(new Set());
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showAllProducts, setShowAllProducts] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
+    fetchCurrentUser();
     fetchProducts();
   }, []);
 
+  useEffect(() => {
+    fetchProducts();
+  }, [showAllProducts]);
+
+  const fetchCurrentUser = async () => {
+    try {
+      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/users/me', {
+        method: 'GET'
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        setIsAdmin(userData.user_type === 'admin');
+      }
+    } catch (err) {
+      // Silently handle errors - user just won't see admin features
+    }
+  };
+
   const fetchProducts = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/products/my/?include=inventory,images', {
+      const endpoint = showAllProducts && isAdmin 
+        ? 'https://api2.onlineartfestival.com/products/all?include=inventory,images,vendor'
+        : 'https://api2.onlineartfestival.com/products/my/?include=inventory,images';
+        
+      const response = await authenticatedApiRequest(endpoint, {
         method: 'GET'
       });
 
@@ -191,6 +217,14 @@ export default function VendorProducts() {
           </div>
         </td>
         <td className={styles.skuCell}>{product.sku}</td>
+        {showAllProducts && (
+          <td className={styles.vendorCell}>
+            {product.vendor?.business_name || 
+             `${product.vendor?.first_name} ${product.vendor?.last_name}`.trim() || 
+             product.vendor?.username || 
+             `ID: ${product.vendor_id}`}
+          </td>
+        )}
         <td className={styles.priceCell}>${product.price}</td>
         <td className={styles.statusCell}>
           {getStatusBadge(product.status)}
@@ -222,14 +256,37 @@ export default function VendorProducts() {
   if (error) return <div className={styles.container}>Error: {error}</div>;
 
   // Filter only parent products (no parent_id) for main display
-  const parentProducts = products.filter(product => !product.parent_id);
+  // When showing all products, also filter out deleted products
+  const parentProducts = products.filter(product => {
+    if (product.parent_id) return false; // Skip child products
+    if (showAllProducts && product.status === 'deleted') return false; // Skip deleted products in "All Products" view
+    return true;
+  });
 
   return (
     <>
       <Header />
       <div className={styles.container}>
         <div className={styles.header}>
-          <h1>My Products</h1>
+          <div className={styles.titleSection}>
+            <h1>{showAllProducts ? 'All Products' : 'My Products'}</h1>
+            {isAdmin && (
+              <div className={styles.adminToggle}>
+                <label className={styles.toggleLabel}>
+                  <input
+                    type="checkbox"
+                    checked={showAllProducts}
+                    onChange={(e) => setShowAllProducts(e.target.checked)}
+                    className={styles.toggleInput}
+                  />
+                  <span className={styles.toggleSlider}></span>
+                  <span className={styles.toggleText}>
+                    {showAllProducts ? 'Showing All Products' : 'Show All Products'}
+                  </span>
+                </label>
+              </div>
+            )}
+          </div>
           <div className={styles.headerActions}>
             <div className={styles.productCounts}>
               <span className={styles.countItem}>
@@ -301,6 +358,7 @@ export default function VendorProducts() {
               <th className={styles.thumbnailHeader}>Image</th>
               <th>Product Name</th>
               <th>SKU</th>
+              {showAllProducts && <th>Vendor</th>}
               <th>Price</th>
               <th>Status</th>
               <th>Stock</th>

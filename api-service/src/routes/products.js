@@ -7,25 +7,8 @@ const path = require('path');
 const fs = require('fs');
 const { secureLogger } = require('../middleware/secureLogger');
 const { uploadLimiter } = require('../middleware/rateLimiter');
-
-// Middleware to verify JWT token
-const verifyToken = async (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(401).json({ error: 'No token provided' });
-  }
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.userId = decoded.userId;
-    req.roles = decoded.roles;
-    req.permissions = decoded.permissions || [];
-    next();
-  } catch (err) {
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
+const verifyToken = require('../middleware/jwt');
+const { requirePermission } = require('../middleware/permissions');
 
 // GET /products - PUBLIC endpoint - active products only, no drafts, no permissions
 router.get('/', async (req, res) => {
@@ -79,6 +62,107 @@ router.get('/', async (req, res) => {
     res.json(products);
   } catch (err) {
     secureLogger.error('Error fetching products', err);
+    res.status(500).json({ error: 'Failed to fetch products' });
+  }
+});
+
+// GET /products/all - Get all products system-wide (admin only)
+router.get('/all', verifyToken, async (req, res) => {
+  try {
+    const { include } = req.query;
+    
+    // Check if user is admin
+    const isAdmin = req.roles && req.roles.includes('admin');
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    
+    // Parse include parameter
+    const includes = include ? include.split(',').map(i => i.trim()) : [];
+    
+    // Get all products (including deleted for admin)
+    const [products] = await db.query('SELECT * FROM products ORDER BY created_at DESC');
+    
+    if (products.length === 0) {
+      return res.json({ products: [] });
+    }
+    
+    // Process each product and add related data
+    const processedProducts = await Promise.all(
+      products.map(async (product) => {
+        const response = { ...product };
+        
+        // Add children if this is a parent product
+        if (product.product_type === 'variable' && product.parent_id === null) {
+          const [children] = await db.query(
+            'SELECT * FROM products WHERE parent_id = ? ORDER BY name ASC',
+            [product.id]
+          );
+          response.children = children;
+        }
+        
+        // Add parent context if this is a child product
+        if (product.parent_id !== null) {
+          const [parent] = await db.query(
+            'SELECT id, name, product_type, status FROM products WHERE id = ?',
+            [product.parent_id]
+          );
+          response.parent = parent[0] || null;
+        }
+        
+        // Add inventory data
+        if (includes.includes('inventory')) {
+          const [inventory] = await db.query(
+            'SELECT * FROM product_inventory WHERE product_id = ?',
+            [product.id]
+          );
+          response.inventory = inventory[0] || {
+            qty_on_hand: 0,
+            qty_on_order: 0,
+            qty_available: 0,
+            reorder_qty: 0
+          };
+        }
+        
+        // Add images
+        if (includes.includes('images')) {
+          const [tempImages] = await db.query(
+            'SELECT image_path FROM pending_images WHERE image_path LIKE ? AND status = ?',
+            [`/temp_images/products/${product.vendor_id}-${product.id}-%`, 'pending']
+          );
+          
+          const [permanentImages] = await db.query(
+            'SELECT image_url FROM product_images WHERE product_id = ? ORDER BY `order` ASC',
+            [product.id]
+          );
+          
+          response.images = [
+            ...permanentImages.map(img => img.image_url),
+            ...tempImages.map(img => img.image_path)
+          ];
+        }
+        
+        // Add vendor info
+        if (includes.includes('vendor')) {
+          const [vendor] = await db.query(`
+            SELECT u.id, u.username, up.first_name, up.last_name, up.display_name,
+                   ap.business_name, ap.business_website
+            FROM users u
+            LEFT JOIN user_profiles up ON u.id = up.user_id
+            LEFT JOIN artist_profiles ap ON u.id = ap.user_id
+            WHERE u.id = ?
+          `, [product.vendor_id]);
+          response.vendor = vendor[0] || {};
+        }
+        
+        return response;
+      })
+    );
+    
+    res.json({ products: processedProducts });
+    
+  } catch (err) {
+    secureLogger.error('Error fetching all products', err);
     res.status(500).json({ error: 'Failed to fetch products' });
   }
 });
@@ -583,8 +667,8 @@ router.get('/:id/variations', optionalAuth, async (req, res) => {
 });
 
 
-// POST /products - Create a new product
-router.post('/', verifyToken, uploadLimiter, async (req, res) => {
+// POST /products - Create a new product (vendor permission required)
+router.post('/', verifyToken, requirePermission('vendor'), uploadLimiter, async (req, res) => {
   try {
     secureLogger.info('Product creation request', { 
       userId: req.userId, 
@@ -783,8 +867,8 @@ router.post('/', verifyToken, uploadLimiter, async (req, res) => {
   }
 });
 
-// PUT /products/:id - Update a product
-router.put('/:id', verifyToken, uploadLimiter, async (req, res) => {
+// PUT /products/:id - Update a product (vendor permission required)
+router.put('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -832,7 +916,7 @@ router.put('/:id', verifyToken, uploadLimiter, async (req, res) => {
 
     // Handle vendor_id changes for admins
     let finalVendorId = product[0].vendor_id;
-    if (vendor_id && req.permissions && req.permissions.includes('admin')) {
+    if (vendor_id && req.roles && req.roles.includes('admin')) {
       finalVendorId = vendor_id;
     }
 
@@ -930,8 +1014,8 @@ router.put('/:id', verifyToken, uploadLimiter, async (req, res) => {
   }
 });
 
-// PATCH /products/:id - Partial update a product (only updates provided fields)
-router.patch('/:id', verifyToken, uploadLimiter, async (req, res) => {
+// PATCH /products/:id - Partial update a product (vendor permission required)
+router.patch('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -1047,7 +1131,7 @@ router.patch('/:id', verifyToken, uploadLimiter, async (req, res) => {
     }
 
     // Handle vendor_id changes for admins
-    if (vendor_id !== undefined && req.permissions && req.permissions.includes('admin')) {
+    if (vendor_id !== undefined && req.roles && req.roles.includes('admin')) {
       updateFields.push('vendor_id = ?');
       updateValues.push(vendor_id);
     }
@@ -1199,9 +1283,10 @@ router.patch('/:id', verifyToken, uploadLimiter, async (req, res) => {
   }
 });
 
-// POST /products/upload - Upload product images
+// POST /products/upload - Upload product images (vendor permission required)
 router.post('/upload', 
   verifyToken,
+  requirePermission('vendor'),
   uploadLimiter,
   upload.array('images'),
   async (req, res) => {
@@ -1259,8 +1344,8 @@ router.post('/upload',
   }
 );
 
-// POST /products/variations - Create product variation record
-router.post('/variations', verifyToken, uploadLimiter, async (req, res) => {
+// POST /products/variations - Create product variation record (vendor permission required)
+router.post('/variations', verifyToken, requirePermission('vendor'), uploadLimiter, async (req, res) => {
   try {
     secureLogger.info('Variation creation request', { 
       userId: req.userId, 
@@ -1332,8 +1417,301 @@ router.post('/variations', verifyToken, uploadLimiter, async (req, res) => {
   }
 });
 
-// POST /products/bulk-delete - Bulk delete products (soft delete)
-router.post('/bulk-delete', verifyToken, uploadLimiter, async (req, res) => {
+// GET /products/variations/types - Get all variation types for current user with usage counts
+router.get('/variations/types', verifyToken, async (req, res) => {
+  try {
+    const [types] = await db.query(`
+      SELECT 
+        vt.id, 
+        vt.variation_name, 
+        vt.created_at,
+        COUNT(DISTINCT p.parent_id) as usage_count
+      FROM user_variation_types vt
+      LEFT JOIN product_variations pv ON vt.id = pv.variation_type_id
+      LEFT JOIN products p ON pv.product_id = p.id AND p.product_type = 'variant' AND p.status != 'deleted'
+      WHERE vt.user_id = ? AND vt.user_id IS NOT NULL
+      GROUP BY vt.id, vt.variation_name, vt.created_at
+      ORDER BY vt.variation_name
+    `, [req.userId]);
+    
+    res.json(types);
+  } catch (err) {
+    secureLogger.error('Error fetching variation types', err);
+    res.status(500).json({ error: 'Failed to fetch variation types' });
+  }
+});
+
+// POST /products/variations/types - Create new variation type (vendor permission required)
+router.post('/variations/types', verifyToken, requirePermission('vendor'), async (req, res) => {
+  try {
+    const { variation_name } = req.body;
+    
+    if (!variation_name || !variation_name.trim()) {
+      return res.status(400).json({ error: 'Variation name is required' });
+    }
+    
+    const trimmedName = variation_name.trim();
+    
+    // Check if this variation type already exists for this user
+    const [existing] = await db.query(
+      'SELECT id FROM user_variation_types WHERE user_id = ? AND variation_name = ?',
+      [req.userId, trimmedName]
+    );
+    
+    if (existing.length > 0) {
+      return res.status(409).json({ error: 'Variation type already exists' });
+    }
+    
+    const [result] = await db.query(
+      'INSERT INTO user_variation_types (user_id, variation_name) VALUES (?, ?)',
+      [req.userId, trimmedName]
+    );
+    
+    const [newType] = await db.query(
+      'SELECT id, variation_name, created_at FROM user_variation_types WHERE id = ?',
+      [result.insertId]
+    );
+    
+    res.status(201).json(newType[0]);
+  } catch (err) {
+    secureLogger.error('Error creating variation type', err);
+    res.status(500).json({ error: 'Failed to create variation type' });
+  }
+});
+
+// GET /products/variations/types/:id/values - Get all values for a variation type (optionally filtered by product)
+router.get('/variations/types/:id/values', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { product_id } = req.query;
+    
+    // First verify the variation type belongs to this user
+    const [typeCheck] = await db.query(
+      'SELECT id FROM user_variation_types WHERE id = ? AND user_id = ? AND user_id IS NOT NULL',
+      [id, req.userId]
+    );
+    
+    if (typeCheck.length === 0) {
+      return res.status(404).json({ error: 'Variation type not found' });
+    }
+    
+    let query = 'SELECT id, value_name, product_id, created_at FROM user_variation_values WHERE variation_type_id = ? AND user_id = ? AND user_id IS NOT NULL';
+    let params = [id, req.userId];
+    
+    // If product_id is provided, filter by product
+    if (product_id) {
+      query += ' AND product_id = ?';
+      params.push(product_id);
+    }
+    
+    query += ' ORDER BY value_name';
+    
+    const [values] = await db.query(query, params);
+    
+    res.json(values);
+  } catch (err) {
+    secureLogger.error('Error fetching variation values', err);
+    res.status(500).json({ error: 'Failed to fetch variation values' });
+  }
+});
+
+// POST /products/variations/values - Create new variation value (vendor permission required)
+router.post('/variations/values', verifyToken, requirePermission('vendor'), async (req, res) => {
+  try {
+    const { variation_type_id, value_name, product_id } = req.body;
+    
+    if (!variation_type_id || !value_name || !value_name.trim()) {
+      return res.status(400).json({ error: 'Variation type ID and value name are required' });
+    }
+
+    if (!product_id) {
+      return res.status(400).json({ error: 'Product ID is required' });
+    }
+    
+    const trimmedValue = value_name.trim();
+    
+    // Verify the variation type belongs to this user
+    const [typeCheck] = await db.query(
+      'SELECT id FROM user_variation_types WHERE id = ? AND user_id = ?',
+      [variation_type_id, req.userId]
+    );
+    
+    if (typeCheck.length === 0) {
+      return res.status(404).json({ error: 'Variation type not found' });
+    }
+
+    // Verify the product exists and belongs to this user
+    const [productCheck] = await db.query(
+      'SELECT id FROM products WHERE id = ? AND vendor_id = ?',
+      [product_id, req.userId]
+    );
+    
+    if (productCheck.length === 0) {
+      return res.status(404).json({ error: 'Product not found or access denied' });
+    }
+    
+    // Check if this value already exists for this product and variation type
+    const [existing] = await db.query(
+      'SELECT id FROM user_variation_values WHERE product_id = ? AND variation_type_id = ? AND value_name = ?',
+      [product_id, variation_type_id, trimmedValue]
+    );
+    
+    if (existing.length > 0) {
+      return res.status(409).json({ error: 'Variation value already exists for this product' });
+    }
+    
+    const [result] = await db.query(
+      'INSERT INTO user_variation_values (variation_type_id, value_name, user_id, product_id) VALUES (?, ?, ?, ?)',
+      [variation_type_id, trimmedValue, req.userId, product_id]
+    );
+    
+    const [newValue] = await db.query(
+      'SELECT id, variation_type_id, value_name, product_id, created_at FROM user_variation_values WHERE id = ?',
+      [result.insertId]
+    );
+    
+    res.status(201).json(newValue[0]);
+  } catch (err) {
+    secureLogger.error('Error creating variation value', err);
+    res.status(500).json({ error: 'Failed to create variation value' });
+  }
+});
+
+// DELETE /products/variations/types/:id - Delete a variation type (vendor permission required)
+router.delete('/variations/types/:id', verifyToken, requirePermission('vendor'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Verify the variation type belongs to this user
+    const [typeCheck] = await db.query(
+      'SELECT id FROM user_variation_types WHERE id = ? AND user_id = ?',
+      [id, req.userId]
+    );
+    
+    if (typeCheck.length === 0) {
+      return res.status(404).json({ error: 'Variation type not found' });
+    }
+    
+    // Delete all values first (foreign key constraint)
+    await db.query('DELETE FROM user_variation_values WHERE variation_type_id = ?', [id]);
+    
+    // Delete the variation type
+    await db.query('DELETE FROM user_variation_types WHERE id = ?', [id]);
+    
+    res.json({ message: 'Variation type deleted successfully' });
+  } catch (err) {
+    secureLogger.error('Error deleting variation type', err);
+    res.status(500).json({ error: 'Failed to delete variation type' });
+  }
+});
+
+// DELETE /products/variations/values/:id - Delete a variation value (vendor permission required)
+router.delete('/variations/values/:id', verifyToken, requirePermission('vendor'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Verify the variation value belongs to this user (through the variation type)
+    const [valueCheck] = await db.query(
+      `SELECT uv.id 
+       FROM user_variation_values uv 
+       JOIN user_variation_types ut ON uv.variation_type_id = ut.id 
+       WHERE uv.id = ? AND ut.user_id = ?`,
+      [id, req.userId]
+    );
+    
+    if (valueCheck.length === 0) {
+      return res.status(404).json({ error: 'Variation value not found' });
+    }
+    
+    await db.query('DELETE FROM user_variation_values WHERE id = ?', [id]);
+    
+    res.json({ message: 'Variation value deleted successfully' });
+  } catch (err) {
+    secureLogger.error('Error deleting variation value', err);
+    res.status(500).json({ error: 'Failed to delete variation value' });
+  }
+});
+
+// DELETE /products/:id - Delete a single product (vendor permission required)
+router.delete('/:id', verifyToken, requirePermission('vendor'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get product to verify ownership and get children
+    const [product] = await db.query(
+      'SELECT id, name, vendor_id, parent_id, product_type FROM products WHERE id = ? AND status != "deleted"',
+      [id]
+    );
+    
+    if (product.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    // Check authorization: user must own the product or be admin
+    const isAdmin = req.permissions && req.permissions.includes('admin');
+    const isOwner = product[0].vendor_id === req.userId;
+    
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({ error: 'Not authorized to delete this product' });
+    }
+    
+    // Get all product IDs to delete (including children of variable products)
+    const allProductsToDelete = [product[0].id];
+    
+    // If this is a variable product (parent), also delete all its children
+    if (product[0].product_type === 'variable' && product[0].parent_id === null) {
+      const [children] = await db.query(
+        'SELECT id FROM products WHERE parent_id = ? AND status != "deleted"',
+        [product[0].id]
+      );
+      
+      children.forEach(child => {
+        allProductsToDelete.push(child.id);
+      });
+    }
+    
+    // Start transaction for atomic deletion
+    await db.query('START TRANSACTION');
+    
+    try {
+      // Perform soft delete by setting status to 'deleted'
+      const deletePlaceholders = allProductsToDelete.map(() => '?').join(',');
+      await db.query(
+        `UPDATE products SET status = 'deleted', updated_by = ? WHERE id IN (${deletePlaceholders})`,
+        [req.userId, ...allProductsToDelete]
+      );
+      
+      // Dis-associate variation types and values from user for cleanup
+      await cleanupUserVariationsAfterProductDeletion(req.userId);
+      
+      await db.query('COMMIT');
+      
+      secureLogger.info('Product delete completed', {
+        userId: req.userId,
+        productId: id,
+        totalDeleted: allProductsToDelete.length,
+        deletedIds: allProductsToDelete
+      });
+      
+      res.json({ 
+        success: true, 
+        message: `Product deleted successfully`,
+        deleted_product_ids: allProductsToDelete
+      });
+      
+    } catch (err) {
+      await db.query('ROLLBACK');
+      throw err;
+    }
+    
+  } catch (err) {
+    secureLogger.error('Error deleting product', err);
+    res.status(500).json({ error: 'Failed to delete product' });
+  }
+});
+
+// POST /products/bulk-delete - Bulk delete products (vendor permission required)
+router.post('/bulk-delete', verifyToken, requirePermission('vendor'), uploadLimiter, async (req, res) => {
   try {
     const { product_ids } = req.body;
     
@@ -1392,32 +1770,119 @@ router.post('/bulk-delete', verifyToken, uploadLimiter, async (req, res) => {
     // Remove duplicates
     const uniqueProductIds = [...new Set(allProductsToDelete)];
     
-    // Perform soft delete by setting status to 'deleted'
-    if (uniqueProductIds.length > 0) {
-      const deletePlaceholders = uniqueProductIds.map(() => '?').join(',');
-      await db.query(
-        `UPDATE products SET status = 'deleted', updated_by = ? WHERE id IN (${deletePlaceholders})`,
-        [req.userId, ...uniqueProductIds]
-      );
+    // Start transaction for atomic deletion
+    await db.query('START TRANSACTION');
+    
+    try {
+      // Perform soft delete by setting status to 'deleted'
+      if (uniqueProductIds.length > 0) {
+        const deletePlaceholders = uniqueProductIds.map(() => '?').join(',');
+        await db.query(
+          `UPDATE products SET status = 'deleted', updated_by = ? WHERE id IN (${deletePlaceholders})`,
+          [req.userId, ...uniqueProductIds]
+        );
+      }
+      
+      // Dis-associate variation types and values from user for cleanup
+      await cleanupUserVariationsAfterProductDeletion(req.userId);
+      
+      await db.query('COMMIT');
+      
+      secureLogger.info('Bulk delete completed', {
+        userId: req.userId,
+        requestedProducts: validIds.length,
+        actuallyDeleted: uniqueProductIds.length,
+        productIds: uniqueProductIds
+      });
+      
+      res.json({ 
+        success: true, 
+        message: `${uniqueProductIds.length} products deleted successfully`,
+        deleted_product_ids: uniqueProductIds
+      });
+      
+    } catch (err) {
+      await db.query('ROLLBACK');
+      throw err;
     }
-    
-    secureLogger.info('Bulk delete completed', {
-      userId: req.userId,
-      requestedProducts: validIds.length,
-      actuallyDeleted: uniqueProductIds.length,
-      productIds: uniqueProductIds
-    });
-    
-    res.json({ 
-      success: true, 
-      message: `${uniqueProductIds.length} products deleted successfully`,
-      deleted_product_ids: uniqueProductIds
-    });
     
   } catch (err) {
     secureLogger.error('Error in bulk delete', err);
     res.status(500).json({ error: 'Failed to delete products' });
   }
 });
+
+// Helper function to clean up user variations after product deletion
+async function cleanupUserVariationsAfterProductDeletion(userId) {
+  try {
+    // Find variation types that are no longer used by any active products for this user
+    const [unusedVariationTypes] = await db.query(`
+      SELECT vt.id
+      FROM user_variation_types vt
+      WHERE vt.user_id = ?
+      AND NOT EXISTS (
+        SELECT 1 
+        FROM product_variations pv
+        JOIN products p ON pv.product_id = p.id
+        WHERE pv.variation_type_id = vt.id
+        AND p.vendor_id = ?
+        AND p.status != 'deleted'
+      )
+    `, [userId, userId]);
+    
+    // Set user_id to NULL for unused variation types (dis-associate from user)
+    if (unusedVariationTypes.length > 0) {
+      const typeIds = unusedVariationTypes.map(type => type.id);
+      const typePlaceholders = typeIds.map(() => '?').join(',');
+      
+      await db.query(
+        `UPDATE user_variation_types SET user_id = NULL WHERE id IN (${typePlaceholders})`,
+        typeIds
+      );
+      
+      // Also dis-associate the related variation values
+      await db.query(
+        `UPDATE user_variation_values SET user_id = NULL WHERE variation_type_id IN (${typePlaceholders})`,
+        typeIds
+      );
+    }
+    
+    // Find variation values that are no longer used by any active products for this user
+    const [unusedVariationValues] = await db.query(`
+      SELECT vv.id
+      FROM user_variation_values vv
+      WHERE vv.user_id = ?
+      AND NOT EXISTS (
+        SELECT 1 
+        FROM product_variations pv
+        JOIN products p ON pv.product_id = p.id
+        WHERE pv.variation_value_id = vv.id
+        AND p.vendor_id = ?
+        AND p.status != 'deleted'
+      )
+    `, [userId, userId]);
+    
+    // Set user_id to NULL for unused variation values (dis-associate from user)
+    if (unusedVariationValues.length > 0) {
+      const valueIds = unusedVariationValues.map(value => value.id);
+      const valuePlaceholders = valueIds.map(() => '?').join(',');
+      
+      await db.query(
+        `UPDATE user_variation_values SET user_id = NULL WHERE id IN (${valuePlaceholders})`,
+        valueIds
+      );
+    }
+    
+    secureLogger.info('Variation cleanup completed', {
+      userId: userId,
+      disassociatedTypes: unusedVariationTypes.length,
+      disassociatedValues: unusedVariationValues.length
+    });
+    
+  } catch (err) {
+    secureLogger.error('Error in variation cleanup', err);
+    throw err;
+  }
+}
 
 module.exports = router;
