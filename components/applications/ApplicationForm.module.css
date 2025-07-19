@@ -887,3 +887,16 @@
   color: #f59e0b;
   font-size: 0.6rem;
 } 
+
+/* Disabled input styling for auto-filled fields */
+.disabledInput {
+  background: #f8fafc !important;
+  color: #6b7280 !important;
+  cursor: not-allowed !important;
+  border-color: #e2e8f0 !important;
+}
+
+.disabledInput::placeholder {
+  color: #9ca3af !important;
+  font-style: italic;
+} 

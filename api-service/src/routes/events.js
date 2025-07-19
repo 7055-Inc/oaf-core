@@ -101,10 +101,12 @@ router.post('/', verifyToken, requirePermission('events'), async (req, res) => {
     const {
       event_type_id, title, description, short_description, start_date, end_date,
       venue_name, venue_address, venue_city, venue_state, venue_zip, venue_country,
+      venue_capacity, age_restrictions, age_minimum, dress_code,
+      has_rsvp, has_tickets, rsvp_url,
       allow_applications, application_status, application_deadline,
       jury_date, notification_date, admission_fee, parking_fee, parking_info, parking_details,
       accessibility_info, application_fee, booth_fee, jury_fee, max_applications, max_artists,
-      seo_title, meta_description
+      seo_title, meta_description, event_keywords
     } = req.body;
 
     // Use user ID from JWT token
@@ -122,20 +124,22 @@ router.post('/', verifyToken, requirePermission('events'), async (req, res) => {
         promoter_id, event_type_id, parent_id, series_id, title, description, short_description, 
         event_status, application_status, allow_applications, start_date, end_date, 
         application_deadline, jury_date, notification_date, venue_name, venue_address, 
-        venue_city, venue_state, venue_zip, venue_country, latitude, longitude, 
-        parking_info, accessibility_info, admission_fee, parking_fee, parking_details, 
+        venue_city, venue_state, venue_zip, venue_country, venue_capacity,
+        age_restrictions, age_minimum, dress_code, has_rsvp, has_tickets, rsvp_url,
+        latitude, longitude, parking_info, accessibility_info, admission_fee, parking_fee, parking_details, 
         application_fee, jury_fee, booth_fee, max_artists, max_applications, 
-        seo_title, meta_description, event_schema, event_tags, 
+        seo_title, meta_description, event_keywords, event_schema, event_tags, 
         created_at, updated_at, created_by, updated_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?)
     `, [
       promoter_id, event_type_id, null, null, title, description, short_description || null,
       event_status, application_status || 'not_accepting', allow_applications || 0, start_date, end_date,
       application_deadline || null, jury_date || null, notification_date || null, venue_name, venue_address || null,
-      venue_city, venue_state, venue_zip || null, 'USA', latitude, longitude,
-      parking_info || null, accessibility_info || null, admission_fee || null, parking_fee || null, parking_details || null,
+      venue_city, venue_state, venue_zip || null, 'USA', venue_capacity || null,
+      age_restrictions || 'all_ages', age_minimum || null, dress_code || null, has_rsvp || false, has_tickets || false, rsvp_url || null,
+      latitude, longitude, parking_info || null, accessibility_info || null, admission_fee || null, parking_fee || null, parking_details || null,
       application_fee || null, jury_fee || null, booth_fee || null, max_artists || null, max_applications || null,
-      seo_title || null, meta_description || null, null, null,
+      seo_title || null, meta_description || null, event_keywords || null, null, null,
       created_by, created_by
     ]);
 
@@ -220,23 +224,28 @@ router.put('/:id', verifyToken, requirePermission('events'), async (req, res) =>
   try {
     const {
       title, description, start_date, end_date, venue_name, venue_address,
-      venue_city, venue_state, venue_zip, event_status, allow_applications,
+      venue_city, venue_state, venue_zip, venue_capacity, age_restrictions, age_minimum,
+      dress_code, has_rsvp, has_tickets, rsvp_url, event_status, allow_applications,
       application_status, application_deadline, application_fee, booth_fee,
-      jury_fee, max_applications
+      jury_fee, max_applications, seo_title, meta_description, event_keywords
     } = req.body;
 
     await db.execute(`
       UPDATE events SET 
         title = ?, description = ?, start_date = ?, end_date = ?,
         venue_name = ?, venue_address = ?, venue_city = ?, venue_state = ?, venue_zip = ?,
+        venue_capacity = ?, age_restrictions = ?, age_minimum = ?, dress_code = ?,
+        has_rsvp = ?, has_tickets = ?, rsvp_url = ?,
         event_status = ?, allow_applications = ?, application_status = ?, application_deadline = ?,
-        application_fee = ?, booth_fee = ?, jury_fee = ?, max_applications = ?, updated_at = NOW()
+        application_fee = ?, booth_fee = ?, jury_fee = ?, max_applications = ?, 
+        seo_title = ?, meta_description = ?, event_keywords = ?, updated_at = NOW()
       WHERE id = ?
     `, [
       title, description, start_date, end_date, venue_name, venue_address,
-      venue_city, venue_state, venue_zip, event_status, allow_applications,
-      application_status, application_deadline, application_fee, booth_fee,
-      jury_fee, max_applications, req.params.id
+      venue_city, venue_state, venue_zip, venue_capacity || null, age_restrictions || 'all_ages', age_minimum || null,
+      dress_code || null, has_rsvp || false, has_tickets || false, rsvp_url || null,
+      event_status, allow_applications, application_status, application_deadline, application_fee, booth_fee,
+      jury_fee, max_applications, seo_title || null, meta_description || null, event_keywords || null, req.params.id
     ]);
 
     const [updatedEvent] = await db.execute(`
@@ -314,10 +323,68 @@ router.post('/:id/renew', verifyToken, requirePermission('events'), async (req, 
 
 // --- Artist Management Endpoints ---
 
-// List artists for event
-router.get('/:id/artists', (req, res) => {
-  // TODO: Implement list artists for event
-  res.send('List artists for event');
+// List artists for event (public - shows accepted/confirmed artists)
+router.get('/:id/artists', async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    
+    const [artists] = await db.execute(`
+      SELECT 
+        ea.status as application_status,
+        ea.artist_statement,
+        ea.portfolio_url,
+        u.id as artist_id,
+        u.username,
+        up.first_name,
+        up.last_name,
+        up.bio,
+        up.profile_image_path,
+        ap.business_name,
+        ap.artist_biography,
+        ap.studio_city,
+        ap.studio_state,
+        ap.art_categories,
+        ap.art_mediums,
+        ap.business_website,
+        ap.business_social_instagram,
+        ap.business_social_facebook
+      FROM event_applications ea
+      JOIN users u ON ea.artist_id = u.id
+      LEFT JOIN user_profiles up ON u.id = up.user_id
+      LEFT JOIN artist_profiles ap ON u.id = ap.user_id
+      WHERE ea.event_id = ? 
+        AND ea.status IN ('accepted', 'confirmed')
+      ORDER BY ea.status DESC, ea.submitted_at ASC
+    `, [eventId]);
+
+    // Transform data for public display
+    const transformedArtists = artists.map(artist => ({
+      artist_id: artist.artist_id,
+      name: artist.business_name || `${artist.first_name} ${artist.last_name}`,
+      display_name: artist.business_name || artist.first_name,
+      bio: artist.artist_biography || artist.bio,
+      location: artist.studio_city && artist.studio_state ? 
+        `${artist.studio_city}, ${artist.studio_state}` : null,
+      profile_image: artist.profile_image_path,
+      portfolio_url: artist.portfolio_url,
+      website: artist.business_website,
+      social_instagram: artist.business_social_instagram,
+      social_facebook: artist.business_social_facebook,
+      art_categories: artist.art_categories,
+      art_mediums: artist.art_mediums,
+      status_label: artist.application_status === 'confirmed' ? 'Exhibiting' : 'Invited',
+      application_status: artist.application_status
+    }));
+
+    res.json({ 
+      artists: transformedArtists,
+      total: transformedArtists.length,
+      event_id: eventId 
+    });
+  } catch (err) {
+    console.error('Error fetching event artists:', err);
+    res.status(500).json({ error: 'Failed to fetch event artists', details: err.message });
+  }
 });
 
 // Add artist manually (events permission required)
@@ -787,5 +854,243 @@ router.delete('/:id/application-fields/:field_id', verifyToken, requirePermissio
     res.status(500).json({ error: 'Failed to delete event application field' });
   }
 });
+
+// ============================================================================
+// TICKET SALES SYSTEM
+// ============================================================================
+
+// Get tickets for an event (public)
+router.get('/:id/tickets', async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    
+    const [tickets] = await db.execute(`
+      SELECT id, ticket_type, price, quantity_available, quantity_sold, description
+      FROM event_tickets 
+      WHERE event_id = ? AND is_active = TRUE
+      ORDER BY price ASC
+    `, [eventId]);
+
+    res.json({ 
+      success: true,
+      tickets,
+      event_id: eventId 
+    });
+  } catch (err) {
+    console.error('Error fetching event tickets:', err);
+    res.status(500).json({ error: 'Failed to fetch tickets', details: err.message });
+  }
+});
+
+// Create tickets for event (promoter with tickets permission only)
+router.post('/:id/tickets', verifyToken, async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const promoterId = req.userId;
+    const { ticket_type, price, quantity_available, description } = req.body;
+
+    // Verify promoter owns this event AND has tickets permission
+    const [event] = await db.execute(`
+      SELECT e.promoter_id, up.tickets
+      FROM events e
+      JOIN user_permissions up ON e.promoter_id = up.user_id
+      WHERE e.id = ?
+    `, [eventId]);
+
+    if (event.length === 0 || event[0].promoter_id !== promoterId) {
+      return res.status(403).json({ error: 'Access denied - not your event' });
+    }
+
+    if (!event[0].tickets) {
+      return res.status(403).json({ error: 'Access denied - tickets permission required' });
+    }
+
+    const [result] = await db.execute(`
+      INSERT INTO event_tickets (event_id, ticket_type, price, quantity_available, description)
+      VALUES (?, ?, ?, ?, ?)
+    `, [eventId, ticket_type, parseFloat(price), parseInt(quantity_available), description || null]);
+
+    res.status(201).json({ 
+      success: true,
+      ticket: {
+        id: result.insertId,
+        event_id: eventId,
+        ticket_type,
+        price: parseFloat(price),
+        quantity_available: parseInt(quantity_available),
+        description
+      }
+    });
+  } catch (err) {
+    console.error('Error creating ticket:', err);
+    res.status(500).json({ error: 'Failed to create ticket', details: err.message });
+  }
+});
+
+// Update ticket (promoter only)  
+router.put('/:id/tickets/:ticketId', verifyToken, async (req, res) => {
+  try {
+    const { id: eventId, ticketId } = req.params;
+    const promoterId = req.userId;
+    const { ticket_type, price, quantity_available, description } = req.body;
+
+    // Verify ownership and permissions
+    const [verification] = await db.execute(`
+      SELECT e.promoter_id, up.tickets
+      FROM events e
+      JOIN event_tickets et ON e.id = et.event_id
+      JOIN user_permissions up ON e.promoter_id = up.user_id
+      WHERE e.id = ? AND et.id = ?
+    `, [eventId, ticketId]);
+
+    if (verification.length === 0 || verification[0].promoter_id !== promoterId || !verification[0].tickets) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    await db.execute(`
+      UPDATE event_tickets 
+      SET ticket_type = ?, price = ?, quantity_available = ?, description = ?, updated_at = NOW()
+      WHERE id = ? AND event_id = ?
+    `, [ticket_type, parseFloat(price), parseInt(quantity_available), description || null, ticketId, eventId]);
+
+    res.json({ success: true, message: 'Ticket updated successfully' });
+  } catch (err) {
+    console.error('Error updating ticket:', err);
+    res.status(500).json({ error: 'Failed to update ticket', details: err.message });
+  }
+});
+
+// Delete ticket (promoter only)
+router.delete('/:id/tickets/:ticketId', verifyToken, async (req, res) => {
+  try {
+    const { id: eventId, ticketId } = req.params;
+    const promoterId = req.userId;
+
+    // Verify ownership and permissions
+    const [verification] = await db.execute(`
+      SELECT e.promoter_id, up.tickets, et.quantity_sold
+      FROM events e
+      JOIN event_tickets et ON e.id = et.event_id
+      JOIN user_permissions up ON e.promoter_id = up.user_id
+      WHERE e.id = ? AND et.id = ?
+    `, [eventId, ticketId]);
+
+    if (verification.length === 0 || verification[0].promoter_id !== promoterId || !verification[0].tickets) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Don't delete if tickets have been sold
+    if (verification[0].quantity_sold > 0) {
+      return res.status(400).json({ error: 'Cannot delete ticket type with existing sales' });
+    }
+
+    await db.execute('DELETE FROM event_tickets WHERE id = ? AND event_id = ?', [ticketId, eventId]);
+    res.json({ success: true, message: 'Ticket deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting ticket:', err);
+    res.status(500).json({ error: 'Failed to delete ticket', details: err.message });
+  }
+});
+
+// Purchase tickets (public)
+router.post('/:id/tickets/:ticketId/purchase', async (req, res) => {
+  try {
+    const { id: eventId, ticketId } = req.params;
+    const { buyer_email, buyer_name, quantity = 1 } = req.body;
+
+    if (!buyer_email || quantity < 1) {
+      return res.status(400).json({ error: 'Valid buyer email and quantity required' });
+    }
+
+    // Get ticket and event info
+    const [ticketInfo] = await db.execute(`
+      SELECT 
+        et.*, e.title as event_title, e.start_date, e.venue_name, e.venue_city, e.venue_state
+      FROM event_tickets et
+      JOIN events e ON et.event_id = e.id
+      WHERE et.id = ? AND et.event_id = ? AND et.is_active = TRUE
+    `, [ticketId, eventId]);
+
+    if (ticketInfo.length === 0) {
+      return res.status(404).json({ error: 'Ticket not found or not available' });
+    }
+
+    const ticket = ticketInfo[0];
+
+    // Check availability
+    if (ticket.quantity_available && (ticket.quantity_sold + quantity > ticket.quantity_available)) {
+      return res.status(400).json({ error: 'Not enough tickets available' });
+    }
+
+    // Calculate pricing
+    const unitPrice = parseFloat(ticket.price);
+    const totalPrice = unitPrice * quantity;
+
+    // Generate unique ticket codes
+    const ticketCodes = [];
+    for (let i = 0; i < quantity; i++) {
+      const uniqueCode = generateUniqueTicketCode();
+      ticketCodes.push(uniqueCode);
+    }
+
+    // Create Stripe payment intent
+    const stripeService = require('../services/stripeService');
+    const paymentIntent = await stripeService.createPaymentIntent({
+      total_amount: totalPrice,
+      currency: 'usd',
+      metadata: {
+        event_id: eventId.toString(),
+        ticket_id: ticketId.toString(),
+        event_title: ticket.event_title,
+        buyer_email: buyer_email,
+        buyer_name: buyer_name || '',
+        quantity: quantity.toString(),
+        ticket_codes: ticketCodes.join(',')
+      }
+    });
+
+    // Create pending purchase records
+    for (let i = 0; i < quantity; i++) {
+      await db.execute(`
+        INSERT INTO ticket_purchases (
+          event_id, ticket_id, buyer_email, buyer_name, quantity, unit_price, total_price,
+          unique_code, stripe_payment_intent_id, status
+        ) VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, 'pending')
+      `, [
+        eventId, ticketId, buyer_email, buyer_name || null, 
+        unitPrice, unitPrice, ticketCodes[i], paymentIntent.id
+      ]);
+    }
+
+    res.json({
+      success: true,
+      payment_intent: {
+        id: paymentIntent.id,
+        client_secret: paymentIntent.client_secret,
+        amount: paymentIntent.amount
+      },
+      ticket_info: {
+        event_title: ticket.event_title,
+        ticket_type: ticket.ticket_type,
+        quantity: quantity,
+        unit_price: unitPrice,
+        total_price: totalPrice
+      }
+    });
+  } catch (err) {
+    console.error('Error processing ticket purchase:', err);
+    res.status(500).json({ error: 'Failed to process purchase', details: err.message });
+  }
+});
+
+// Generate unique ticket code
+function generateUniqueTicketCode() {
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < 8; i++) {
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return `TKT-${result}`;
+}
 
 module.exports = router; 

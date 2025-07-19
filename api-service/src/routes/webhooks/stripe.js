@@ -3,6 +3,9 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const stripeService = require('../../services/stripeService');
 const db = require('../../../config/db');
 const router = express.Router();
+const EmailService = require('../../services/emailService');
+
+const emailService = new EmailService();
 
 // Webhook endpoint secret for signature verification
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -95,6 +98,14 @@ async function handlePaymentSuccess(paymentIntent, event) {
       return;
     }
 
+    // Check if this is a ticket purchase
+    const ticketEventId = paymentIntent.metadata.event_id;
+    const ticketId = paymentIntent.metadata.ticket_id;
+    if (ticketEventId && ticketId) {
+      await handleTicketPayment(paymentIntent);
+      return;
+    }
+
     // Check if this is an e-commerce order
     const orderId = paymentIntent.metadata.order_id;
     if (orderId) {
@@ -178,6 +189,139 @@ async function handleEcommercePayment(paymentIntent, orderId) {
   } catch (error) {
     console.error('Error handling e-commerce payment:', error);
     throw error;
+  }
+}
+
+/**
+ * Handle ticket purchase payment success
+ */
+async function handleTicketPayment(paymentIntent) {
+  console.log(`🎫 Ticket payment succeeded: ${paymentIntent.id}`);
+  
+  try {
+    // Update all ticket purchases for this payment intent
+    await db.execute(`
+      UPDATE ticket_purchases 
+      SET status = 'confirmed', purchase_date = NOW()
+      WHERE stripe_payment_intent_id = ? AND status = 'pending'
+    `, [paymentIntent.id]);
+
+    // Update ticket quantity sold
+    const [purchases] = await db.execute(`
+      SELECT ticket_id, COUNT(*) as quantity_purchased
+      FROM ticket_purchases 
+      WHERE stripe_payment_intent_id = ?
+      GROUP BY ticket_id
+    `, [paymentIntent.id]);
+
+    for (const purchase of purchases) {
+      await db.execute(`
+        UPDATE event_tickets 
+        SET quantity_sold = quantity_sold + ?
+        WHERE id = ?
+      `, [purchase.quantity_purchased, purchase.ticket_id]);
+    }
+
+    // Send ticket email with codes
+    await sendTicketConfirmationEmail(paymentIntent);
+    
+    console.log(`✅ Ticket purchase confirmed and email sent for payment ${paymentIntent.id}`);
+    
+  } catch (error) {
+    console.error('Error handling ticket payment:', error);
+    throw error;
+  }
+}
+
+/**
+ * Send ticket confirmation email with unique codes using the proper email service
+ */
+async function sendTicketConfirmationEmail(paymentIntent) {
+  try {
+    const eventId = paymentIntent.metadata.event_id;
+    const buyerEmail = paymentIntent.metadata.buyer_email;
+    const buyerName = paymentIntent.metadata.buyer_name;
+
+    // Find user by email (since username = email in this system)
+    const [userRows] = await db.execute(
+      'SELECT id FROM users WHERE username = ?',
+      [buyerEmail]
+    );
+
+    if (userRows.length === 0) {
+      console.error('No user found for email:', buyerEmail);
+      return;
+    }
+
+    const userId = userRows[0].id;
+
+    // Get ticket codes and details
+    const [tickets] = await db.execute(`
+      SELECT tp.unique_code, tp.unit_price, et.ticket_type, et.description
+      FROM ticket_purchases tp
+      JOIN event_tickets et ON tp.ticket_id = et.id
+      WHERE tp.stripe_payment_intent_id = ? AND tp.status = 'confirmed'
+      ORDER BY et.ticket_type
+    `, [paymentIntent.id]);
+
+    if (tickets.length === 0) {
+      console.error('No confirmed tickets found for email');
+      return;
+    }
+
+    // Get event details  
+    const [eventDetails] = await db.execute(`
+      SELECT title, start_date, end_date, venue_name, venue_address, venue_city, venue_state
+      FROM events WHERE id = ?
+    `, [eventId]);
+
+    if (eventDetails.length === 0) {
+      console.error('Event not found for ticket email');
+      return;
+    }
+
+    const event = eventDetails[0];
+    const totalAmount = tickets.reduce((sum, ticket) => sum + parseFloat(ticket.unit_price), 0);
+
+    // Format ticket list for email template
+    const ticketList = tickets.map(ticket => 
+      `${ticket.ticket_type} - Code: ${ticket.unique_code} ($${parseFloat(ticket.unit_price).toFixed(2)})`
+    ).join('<br>');
+
+    const templateData = {
+      buyer_name: buyerName || 'Valued Customer',
+      event_title: event.title,
+      event_start_date: new Date(event.start_date).toLocaleDateString('en-US', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+      }),
+      event_end_date: new Date(event.end_date).toLocaleDateString('en-US', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+      }),
+      venue_name: event.venue_name,
+      venue_address: event.venue_address || '',
+      venue_city: event.venue_city,
+      venue_state: event.venue_state,
+      ticket_list: ticketList,
+      ticket_count: tickets.length,
+      total_amount: totalAmount.toFixed(2),
+      event_url: `https://onlineartfestival.com/events/${eventId}`,
+      unique_codes: tickets.map(t => t.unique_code).join(', ')
+    };
+
+    // Queue the email using the template system
+    const result = await emailService.queueEmail(userId, 'ticket_purchase_confirmation', templateData, {
+      priority: 2 // High priority for transactional emails
+    });
+
+    if (result.success) {
+      console.log(`✅ Ticket confirmation email queued successfully for ${buyerEmail}`);
+    } else {
+      console.error('Failed to queue ticket confirmation email:', result.error);
+    }
+
+  } catch (error) {
+    console.error('Error sending ticket confirmation email:', error);
+    // Don't throw - payment was successful, email is secondary
   }
 }
 

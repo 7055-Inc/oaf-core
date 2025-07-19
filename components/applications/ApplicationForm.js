@@ -3,6 +3,7 @@ import styles from './ApplicationForm.module.css';
 
 export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
+    // Keep these for legacy support, but they'll be populated from dynamic fields
     artist_statement: '',
     portfolio_url: '',
     additional_info: '',
@@ -102,6 +103,36 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
       }
     }
   }, [event?.id]);
+
+  // Auto-fill portfolio URL with on-site profile links
+  useEffect(() => {
+    if (user) {
+      // Default to artist profile page
+      const portfolioUrl = `/artist/${user.id}`;
+      setFormData(prev => ({
+        ...prev,
+        portfolio_url: portfolioUrl
+      }));
+    }
+  }, [user]);
+
+  // Update portfolio URL when persona is selected via jury packet
+  useEffect(() => {
+    if (selectedPersona) {
+      const portfolioUrl = `/persona/${selectedPersona.id}`;
+      setFormData(prev => ({
+        ...prev,
+        portfolio_url: portfolioUrl
+      }));
+    } else if (user && !selectedPacket) {
+      // Reset to artist profile if no persona selected
+      const portfolioUrl = `/artist/${user.id}`;
+      setFormData(prev => ({
+        ...prev,
+        portfolio_url: portfolioUrl
+      }));
+    }
+  }, [selectedPersona, user, selectedPacket]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -623,44 +654,6 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
       )}
 
       <form onSubmit={selectedPacket ? handleApplyWithPacket : handleSubmit} className={styles.form}>
-        {/* Artist Statement */}
-        <div className={styles.formGroup}>
-          <label htmlFor="artist_statement" className={styles.label}>
-            Artist Statement *
-          </label>
-          <textarea
-            id="artist_statement"
-            name="artist_statement"
-            value={formData.artist_statement}
-            onChange={handleInputChange}
-            placeholder="Tell us about your art, your inspiration, and why you want to participate in this event..."
-            rows={6}
-            required
-            className={styles.textarea}
-          />
-          <div className={styles.charCount}>
-            {formData.artist_statement.length} characters
-          </div>
-        </div>
-
-        {/* Portfolio URL */}
-        <div className={styles.formGroup}>
-          <label htmlFor="portfolio_url" className={styles.label}>
-            Portfolio URL
-          </label>
-          <input
-            type="url"
-            id="portfolio_url"
-            name="portfolio_url"
-            value={formData.portfolio_url}
-            onChange={handleInputChange}
-            placeholder="https://yourportfolio.com"
-            className={styles.input}
-          />
-          <div className={styles.fieldHelp}>
-            Link to your online portfolio, website, or social media showcasing your work
-          </div>
-        </div>
 
         {/* Booth Preferences & Add-ons */}
         <div className={styles.formSection}>
@@ -730,10 +723,10 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
           )}
         </div>
 
-        {/* Custom Application Fields */}
+        {/* Application Fields */}
         {applicationFields.length > 0 && (
           <div className={styles.formSection}>
-            <h3>Additional Requirements</h3>
+            <h3>Application Requirements</h3>
             <p className={styles.sectionDescription}>
               Please complete the following fields required by the event organizer.
               {isVerified && (
@@ -748,6 +741,7 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
               const response = fieldResponses[field.id] || {};
               const canSkip = isVerified && field.verified_can_skip;
               const isRequired = field.is_required && !canSkip;
+              const isPortfolioUrl = field.field_name.toLowerCase().includes('portfolio url');
               
               return (
                 <div key={field.id} className={styles.formGroup}>
@@ -766,6 +760,31 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
                     <div className={styles.fieldHelp}>
                       {field.field_description}
                     </div>
+                  )}
+                  
+                  {field.field_type === 'textarea' && (
+                    <textarea
+                      id={`field_${field.id}`}
+                      value={response.response_value || ''}
+                      onChange={(e) => handleFieldResponse(field.id, e.target.value)}
+                      placeholder={`Enter your ${field.field_name.toLowerCase()}...`}
+                      rows={field.field_name.toLowerCase().includes('artist statement') ? 6 : 3}
+                      required={isRequired}
+                      className={styles.textarea}
+                    />
+                  )}
+                  
+                  {field.field_type === 'url' && (
+                    <input
+                      type="url"
+                      id={`field_${field.id}`}
+                      value={isPortfolioUrl ? formData.portfolio_url : (response.response_value || '')}
+                      onChange={isPortfolioUrl ? (() => {}) : (e) => handleFieldResponse(field.id, e.target.value)}
+                      placeholder={isPortfolioUrl ? "Auto-filled from your profile" : `Enter ${field.field_name.toLowerCase()}...`}
+                      required={isRequired}
+                      disabled={isPortfolioUrl}
+                      className={`${styles.input} ${isPortfolioUrl ? styles.disabledInput : ''}`}
+                    />
                   )}
                   
                   {field.field_type === 'text' && (
@@ -805,43 +824,18 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
                       )}
                     </div>
                   )}
+
+                  {/* Character count for artist statement */}
+                  {field.field_type === 'textarea' && field.field_name.toLowerCase().includes('artist statement') && (
+                    <div className={styles.charCount}>
+                      {(response.response_value || '').length} characters
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         )}
-
-        {/* Additional Information */}
-        <div className={styles.formGroup}>
-          <label htmlFor="additional_info" className={styles.label}>
-            Additional Information
-          </label>
-          <textarea
-            id="additional_info"
-            name="additional_info"
-            value={formData.additional_info}
-            onChange={handleInputChange}
-            placeholder="Any additional information you'd like to share..."
-            rows={4}
-            className={styles.textarea}
-          />
-        </div>
-
-        {/* Additional Notes */}
-        <div className={styles.formGroup}>
-          <label htmlFor="additional_notes" className={styles.label}>
-            Additional Notes
-          </label>
-          <textarea
-            id="additional_notes"
-            name="additional_notes"
-            value={formData.additional_notes}
-            onChange={handleInputChange}
-            placeholder="Any notes or special requests for the organizer..."
-            rows={3}
-            className={styles.textarea}
-          />
-        </div>
 
         {/* Error Display */}
         {error && (

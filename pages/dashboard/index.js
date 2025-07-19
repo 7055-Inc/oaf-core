@@ -19,6 +19,7 @@ import CommissionManagement from '../../components/CommissionManagement';
 import { getAuthToken } from '../../lib/csrf';
 import styles from './Dashboard.module.css';
 import VendorOrders from '../../components/VendorOrders';
+import SubscriptionManager from '../../components/SubscriptionManager';
 
 export default function Dashboard() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -294,6 +295,12 @@ export default function Dashboard() {
             <AnnouncementsManagement />
           </div>
         );
+      case 'subscription-management':
+        return (
+          <div className={styles.contentSection}>
+            <SubscriptionManager />
+          </div>
+        );
       case 'terms-management':
         return (
           <div className={styles.contentSection}>
@@ -525,6 +532,23 @@ export default function Dashboard() {
               </li>
             </ul>
           </div>
+
+          {/* Subscription Management section for artists */}
+          {(userData.user_type === 'artist' || isAdmin) && (
+            <div className={styles.sidebarSection}>
+              <h3>Verification & Subscriptions</h3>
+              <ul>
+                <li>
+                  <button 
+                    className={`${styles.sidebarLink} ${activeSection === 'subscription-management' ? styles.active : ''}`}
+                    onClick={() => setActiveSection('subscription-management')}
+                  >
+                    Subscription Management
+                  </button>
+                </li>
+              </ul>
+            </div>
+          )}
 
           {/* Artist Website section for artists and admins */}
           {(userData.user_type === 'artist' || isAdmin) && (
