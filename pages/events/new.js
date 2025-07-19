@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '../../components/Header';
+import { authenticatedApiRequest } from '../../lib/csrf';
 import styles from './styles/EventForm.module.css';
 
 export default function NewEvent() {
@@ -10,7 +11,7 @@ export default function NewEvent() {
     description: '',
     short_description: '',
     event_type_id: '',
-    event_status: 'draft',
+
     application_status: 'not_accepting',
     allow_applications: false,
     start_date: '',
@@ -23,7 +24,7 @@ export default function NewEvent() {
     venue_city: '',
     venue_state: '',
     venue_zip: '',
-    venue_country: 'USA',
+
     parking_info: '',
     accessibility_info: '',
     admission_fee: 0.00,
@@ -43,6 +44,24 @@ export default function NewEvent() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [userData, setUserData] = useState(null);
+  const [availableAddons, setAvailableAddons] = useState([]);
+  const [newAddon, setNewAddon] = useState({
+    addon_name: '',
+    addon_description: '',
+    addon_price: '',
+    display_order: 0
+  });
+
+  // Application Fields Management
+  const [applicationFields, setApplicationFields] = useState([]);
+  const [newField, setNewField] = useState({
+    field_type: 'text',
+    field_name: '',
+    field_description: '',
+    is_required: false,
+    verified_can_skip: false,
+    display_order: 0
+  });
   const router = useRouter();
 
   useEffect(() => {
@@ -53,7 +72,11 @@ export default function NewEvent() {
       return;
     }
 
-    // Fetch user data to verify promoter access
+    // Get user info from JWT token
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const userRoles = payload.roles || [];
+
+    // Fetch user data for profile information
     fetch('https://api2.onlineartfestival.com/users/me', {
       method: 'GET',
       headers: {
@@ -66,11 +89,19 @@ export default function NewEvent() {
       return res.json();
     })
     .then(data => {
-      setUserData(data);
-      if (!data.permissions.manage_content) {
-        setError('Access denied. Content management permission required to create events.');
+      // Check if user is promoter or admin
+      const isPromoter = data.user_type === 'promoter';
+      const isAdmin = data.user_type === 'admin';
+      
+      if (!isPromoter && !isAdmin) {
+        setError('Access denied. Only promoters and admins can create events.');
         return;
       }
+      
+      setUserData({ 
+        ...data, 
+        roles: userRoles 
+      });
     })
     .catch(err => {
       setError(err.message);
@@ -106,22 +137,108 @@ export default function NewEvent() {
     }));
   };
 
+  const handleAddonChange = (e) => {
+    const { name, value } = e.target;
+    setNewAddon(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const addAddon = () => {
+    if (!newAddon.addon_name || !newAddon.addon_price) {
+      setError('Add-on name and price are required');
+      return;
+    }
+
+    const addon = {
+      id: Date.now(), // Temporary ID for new events
+      ...newAddon,
+      addon_price: parseFloat(newAddon.addon_price),
+      display_order: availableAddons.length
+    };
+
+    setAvailableAddons(prev => [...prev, addon]);
+    setNewAddon({
+      addon_name: '',
+      addon_description: '',
+      addon_price: '',
+      display_order: 0
+    });
+  };
+
+  const removeAddon = (addonId) => {
+    setAvailableAddons(prev => prev.filter(addon => addon.id !== addonId));
+  };
+
+  const updateAddon = (addonId, field, value) => {
+    setAvailableAddons(prev => 
+      prev.map(addon => 
+        addon.id === addonId 
+          ? { ...addon, [field]: field === 'addon_price' ? parseFloat(value) : value }
+          : addon
+      )
+    );
+  };
+
+  // Application Fields Management Functions
+  const handleFieldChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setNewField(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const addField = () => {
+    if (!newField.field_name.trim()) {
+      setError('Field name is required');
+      return;
+    }
+
+    const field = {
+      id: Date.now(), // Temporary ID for new events
+      ...newField,
+      display_order: applicationFields.length
+    };
+
+    setApplicationFields(prev => [...prev, field]);
+    setNewField({
+      field_type: 'text',
+      field_name: '',
+      field_description: '',
+      is_required: false,
+      verified_can_skip: false,
+      display_order: 0
+    });
+  };
+
+  const removeField = (fieldId) => {
+    setApplicationFields(prev => prev.filter(field => field.id !== fieldId));
+  };
+
+  const updateField = (fieldId, fieldName, value) => {
+    setApplicationFields(prev => 
+      prev.map(field => 
+        field.id === fieldId 
+          ? { ...field, [fieldName]: value }
+          : field
+      )
+    );
+  };
+
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
     setLoading(true);
     try {
-      const formData = new FormData();
+      const uploadFormData = new FormData();
       files.forEach(file => {
-        formData.append('images', file);
+        uploadFormData.append('images', file);
       });
 
-      const token = document.cookie.split('token=')[1]?.split(';')[0];
-      const res = await fetch('https://api2.onlineartfestival.com/api/events/upload', {
+      const res = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/events/upload', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
+        body: uploadFormData
       });
 
       if (!res.ok) throw new Error('Failed to upload images');
@@ -129,7 +246,7 @@ export default function NewEvent() {
       const data = await res.json();
       setFormData(prev => ({
         ...prev,
-        images: [...prev.images, ...data.urls]
+        images: [...(Array.isArray(prev.images) ? prev.images : []), ...(Array.isArray(data.urls) ? data.urls : [])]
       }));
     } catch (err) {
       setError(err.message);
@@ -155,16 +272,12 @@ export default function NewEvent() {
         jury_fee: parseFloat(formData.jury_fee) || 0.00,
         booth_fee: parseFloat(formData.booth_fee) || 0.00,
         max_artists: formData.max_artists ? parseInt(formData.max_artists) : null,
-        max_applications: formData.max_applications ? parseInt(formData.max_applications) : null,
-        promoter_id: userData.id,
-        created_by: userData.id,
-        updated_by: userData.id
+        max_applications: formData.max_applications ? parseInt(formData.max_applications) : null
       };
 
-      const res = await fetch('https://api2.onlineartfestival.com/api/events', {
+      const res = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/events', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(payload)
@@ -176,6 +289,55 @@ export default function NewEvent() {
       }
       
       const result = await res.json();
+      
+      // Save add-ons if any were defined
+      if (availableAddons.length > 0) {
+        try {
+          for (const addon of availableAddons) {
+            await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/events/${result.id}/available-addons`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                addon_name: addon.addon_name,
+                addon_description: addon.addon_description,
+                addon_price: addon.addon_price,
+                display_order: addon.display_order
+              })
+            });
+          }
+        } catch (addonError) {
+          console.error('Failed to save add-ons:', addonError);
+          // Continue with redirect even if add-ons fail
+        }
+      }
+
+      // Save application fields if any were defined
+      if (applicationFields.length > 0) {
+        try {
+          for (const field of applicationFields) {
+            await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/events/${result.id}/application-fields`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                field_type: field.field_type,
+                field_name: field.field_name,
+                field_description: field.field_description,
+                is_required: field.is_required,
+                verified_can_skip: field.verified_can_skip,
+                display_order: field.display_order
+              })
+            });
+          }
+        } catch (fieldError) {
+          console.error('Failed to save application fields:', fieldError);
+          // Continue with redirect even if fields fail
+        }
+      }
+      
       router.push(`/dashboard?section=event-management`);
     } catch (err) {
       setError(err.message);
@@ -195,13 +357,13 @@ export default function NewEvent() {
     );
   }
 
-  if (!userData.permissions.manage_content) {
+  if (userData.user_type !== 'promoter' && userData.user_type !== 'admin') {
     return (
       <div className={styles.container}>
         <Header />
         <div className={styles.content}>
           <h1>Access Denied</h1>
-          <p>Content management permission required to create events.</p>
+          <p>Only promoters and admins can create events.</p>
         </div>
       </div>
     );
@@ -506,26 +668,249 @@ export default function NewEvent() {
                   />
                 </div>
               </div>
+
+              {/* Add-ons Management */}
+              <div className={styles.formGroup}>
+                <label>Available Add-ons</label>
+                <p className={styles.helpText}>
+                  Define add-ons that artists can request during application (Corner Booth, Extra Booth, Tent Rental, etc.)
+                </p>
+                
+                {/* Current Add-ons */}
+                {availableAddons.length > 0 && (
+                  <div className={styles.addonsList}>
+                    {availableAddons.map(addon => (
+                      <div key={addon.id} className={styles.addonItem}>
+                        <input
+                          type="text"
+                          value={addon.addon_name}
+                          onChange={(e) => updateAddon(addon.id, 'addon_name', e.target.value)}
+                          placeholder="Add-on name"
+                          className={styles.addonInput}
+                        />
+                        <input
+                          type="text"
+                          value={addon.addon_description}
+                          onChange={(e) => updateAddon(addon.id, 'addon_description', e.target.value)}
+                          placeholder="Description (optional)"
+                          className={styles.addonInput}
+                        />
+                        <div className={styles.inputGroup}>
+                          <span className={styles.currency}>$</span>
+                          <input
+                            type="number"
+                            value={addon.addon_price}
+                            onChange={(e) => updateAddon(addon.id, 'addon_price', e.target.value)}
+                            step="0.01"
+                            min="0"
+                            placeholder="Price"
+                            className={styles.addonPriceInput}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeAddon(addon.id)}
+                          className={styles.removeAddonBtn}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add New Add-on */}
+                <div className={styles.newAddonForm}>
+                  <h4>Add New Add-on</h4>
+                  <div className={styles.addonInputRow}>
+                    <input
+                      type="text"
+                      name="addon_name"
+                      value={newAddon.addon_name}
+                      onChange={handleAddonChange}
+                      placeholder="Add-on name (e.g., Corner Booth)"
+                      className={styles.addonInput}
+                    />
+                    <input
+                      type="text"
+                      name="addon_description"
+                      value={newAddon.addon_description}
+                      onChange={handleAddonChange}
+                      placeholder="Description (optional)"
+                      className={styles.addonInput}
+                    />
+                    <div className={styles.inputGroup}>
+                      <span className={styles.currency}>$</span>
+                      <input
+                        type="number"
+                        name="addon_price"
+                        value={newAddon.addon_price}
+                        onChange={handleAddonChange}
+                        step="0.01"
+                        min="0"
+                        placeholder="Price"
+                        className={styles.addonPriceInput}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addAddon}
+                      className={styles.addAddonBtn}
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Application Fields Management */}
+            <div className={styles.formSection}>
+              <h2>Application Requirements</h2>
+              <p className={styles.helpText}>
+                Customize what information and materials you want from artists when they apply to your event.
+              </p>
+              
+              {/* Standard Fields (Pre-checked) */}
+              <div className={styles.formGroup}>
+                <label>Standard Application Fields</label>
+                <p className={styles.helpText}>
+                  These common fields are always available (Name, Email, Artist Statement, Portfolio URL, Additional Notes).
+                </p>
+              </div>
+
+              {/* Current Application Fields */}
+              {applicationFields.length > 0 && (
+                <div className={styles.fieldsList}>
+                  <h4>Custom Fields</h4>
+                  {applicationFields.map(field => (
+                    <div key={field.id} className={styles.fieldItem}>
+                      <div className={styles.fieldHeader}>
+                        <select
+                          value={field.field_type}
+                          onChange={(e) => updateField(field.id, 'field_type', e.target.value)}
+                          className={styles.fieldTypeSelect}
+                        >
+                          <option value="text">Text Field</option>
+                          <option value="image">Image Upload</option>
+                          <option value="video">Video Upload</option>
+                        </select>
+                        <input
+                          type="text"
+                          value={field.field_name}
+                          onChange={(e) => updateField(field.id, 'field_name', e.target.value)}
+                          placeholder="Field name (e.g., Work in Progress Photos)"
+                          className={styles.fieldInput}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeField(field.id)}
+                          className={styles.removeFieldBtn}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <div className={styles.fieldOptions}>
+                        <input
+                          type="text"
+                          value={field.field_description || ''}
+                          onChange={(e) => updateField(field.id, 'field_description', e.target.value)}
+                          placeholder="Description (optional)"
+                          className={styles.fieldDescInput}
+                        />
+                        <div className={styles.fieldCheckboxes}>
+                          <label className={styles.checkboxLabel}>
+                            <input
+                              type="checkbox"
+                              checked={field.is_required}
+                              onChange={(e) => updateField(field.id, 'is_required', e.target.checked)}
+                              className={styles.checkbox}
+                            />
+                            Required Field
+                          </label>
+                          <label className={styles.checkboxLabel}>
+                            <input
+                              type="checkbox"
+                              checked={field.verified_can_skip}
+                              onChange={(e) => updateField(field.id, 'verified_can_skip', e.target.checked)}
+                              className={styles.checkbox}
+                            />
+                            Verified Artists Can Skip
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add New Field */}
+              <div className={styles.newFieldForm}>
+                <h4>Add New Field</h4>
+                <div className={styles.fieldInputRow}>
+                  <select
+                    name="field_type"
+                    value={newField.field_type}
+                    onChange={handleFieldChange}
+                    className={styles.fieldTypeSelect}
+                  >
+                    <option value="text">Text Field</option>
+                    <option value="image">Image Upload</option>
+                    <option value="video">Video Upload</option>
+                  </select>
+                  <input
+                    type="text"
+                    name="field_name"
+                    value={newField.field_name}
+                    onChange={handleFieldChange}
+                    placeholder="Field name (e.g., Business License)"
+                    className={styles.fieldInput}
+                  />
+                  <input
+                    type="text"
+                    name="field_description"
+                    value={newField.field_description}
+                    onChange={handleFieldChange}
+                    placeholder="Description (optional)"
+                    className={styles.fieldDescInput}
+                  />
+                </div>
+                <div className={styles.fieldOptionsRow}>
+                  <label className={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      name="is_required"
+                      checked={newField.is_required}
+                      onChange={handleFieldChange}
+                      className={styles.checkbox}
+                    />
+                    Required Field
+                  </label>
+                  <label className={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      name="verified_can_skip"
+                      checked={newField.verified_can_skip}
+                      onChange={handleFieldChange}
+                      className={styles.checkbox}
+                    />
+                    Verified Artists Can Skip
+                  </label>
+                  <button
+                    type="button"
+                    onClick={addField}
+                    className={styles.addFieldBtn}
+                  >
+                    Add Field
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Event Settings */}
             <div className={styles.formSection}>
               <h2>Event Settings</h2>
               
-              <div className={styles.formGroup}>
-                <label>Event Status</label>
-                <select
-                  name="event_status"
-                  value={formData.event_status}
-                  onChange={handleChange}
-                  className={styles.select}
-                >
-                  <option value="draft">Draft</option>
-                  <option value="active">Active</option>
-                  <option value="archived">Archived</option>
-                </select>
-              </div>
-
               <div className={styles.formGroup}>
                 <label>Application Status</label>
                 <select
@@ -583,35 +968,37 @@ export default function NewEvent() {
               </div>
             </div>
 
-            {/* SEO Settings */}
-            <div className={styles.formSection}>
-              <h2>SEO Settings</h2>
-              
-              <div className={styles.formGroup}>
-                <label>SEO Title</label>
-                <input
-                  type="text"
-                  name="seo_title"
-                  value={formData.seo_title}
-                  onChange={handleChange}
-                  className={styles.input}
-                  maxLength="60"
-                  placeholder="Custom title for search engines (60 chars max)"
-                />
-              </div>
+            {/* SEO Settings - Admin Only */}
+            {userData.user_type === 'admin' && (
+              <div className={styles.formSection}>
+                <h2>SEO Settings</h2>
+                
+                <div className={styles.formGroup}>
+                  <label>SEO Title</label>
+                  <input
+                    type="text"
+                    name="seo_title"
+                    value={formData.seo_title}
+                    onChange={handleChange}
+                    className={styles.input}
+                    maxLength="60"
+                    placeholder="Custom title for search engines (60 chars max)"
+                  />
+                </div>
 
-              <div className={styles.formGroup}>
-                <label>Meta Description</label>
-                <textarea
-                  name="meta_description"
-                  value={formData.meta_description}
-                  onChange={handleChange}
-                  className={styles.textarea}
-                  maxLength="160"
-                  placeholder="Description for search engines (160 chars max)"
-                />
+                <div className={styles.formGroup}>
+                  <label>Meta Description</label>
+                  <textarea
+                    name="meta_description"
+                    value={formData.meta_description}
+                    onChange={handleChange}
+                    className={styles.textarea}
+                    maxLength="160"
+                    placeholder="Description for search engines (160 chars max)"
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Event Images */}
             <div className={styles.formSection}>

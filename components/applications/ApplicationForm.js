@@ -5,26 +5,101 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
     artist_statement: '',
     portfolio_url: '',
-    booth_preferences: {
-      booth_type: 'single',
-      corner_booth: false,
-      electricity: false,
-      special_requests: ''
-    },
-    additional_info: ''
+    additional_info: '',
+    additional_notes: ''
   });
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [applicationStats, setApplicationStats] = useState(null);
+  const [availableAddons, setAvailableAddons] = useState([]);
+  const [selectedAddons, setSelectedAddons] = useState([]);
+  const [applicationFields, setApplicationFields] = useState([]);
+  const [fieldResponses, setFieldResponses] = useState({});
+  const [juryPackets, setJuryPackets] = useState([]);
+  const [selectedPacket, setSelectedPacket] = useState(null);
+  const [showPacketOptions, setShowPacketOptions] = useState(false);
+  const [showSavePacketForm, setShowSavePacketForm] = useState(false);
+  const [packetName, setPacketName] = useState('');
+  const [personas, setPersonas] = useState([]);
+  const [selectedPersona, setSelectedPersona] = useState(null);
+  const [isVerified, setIsVerified] = useState(false);
 
-  // Fetch application stats when component loads
+  // Fetch application stats and available add-ons when component loads
   useEffect(() => {
     if (event?.id) {
+      // Fetch application stats
       fetch(`https://api2.onlineartfestival.com/api/applications/events/${event.id}/stats`)
         .then(res => res.json())
         .then(data => setApplicationStats(data.stats))
         .catch(err => console.error('Error fetching application stats:', err));
+
+      // Fetch available add-ons
+      fetch(`https://api2.onlineartfestival.com/api/events/${event.id}/available-addons`)
+        .then(res => res.json())
+        .then(data => setAvailableAddons(data))
+        .catch(err => console.error('Error fetching available add-ons:', err));
+
+      // Fetch custom application fields
+      const token = localStorage.getItem('token');
+      if (token) {
+        fetch(`https://api2.onlineartfestival.com/api/events/${event.id}/application-fields`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        .then(res => res.json())
+        .then(data => setApplicationFields(data))
+        .catch(err => console.error('Error fetching application fields:', err));
+
+      // Fetch jury packets
+      fetch('https://api2.onlineartfestival.com/api/jury-packets', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        setJuryPackets(data);
+        if (data.length > 0) {
+          setShowPacketOptions(true);
+        }
+      })
+      .catch(err => console.error('Error fetching jury packets:', err));
+
+      // Fetch personas
+      fetch('https://api2.onlineartfestival.com/api/personas', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        setPersonas(data);
+        // Set default persona if available
+        const defaultPersona = data.find(p => p.is_default);
+        if (defaultPersona) {
+          setSelectedPersona(defaultPersona);
+        }
+      })
+      .catch(err => console.error('Error fetching personas:', err));
+
+      // Check user's verification status
+      fetch('https://api2.onlineartfestival.com/api/verification/status', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        setIsVerified(data.verification_status?.is_verified || false);
+      })
+      .catch(err => console.error('Error fetching verification status:', err));
+      }
     }
   }, [event?.id]);
 
@@ -36,15 +111,199 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
     }));
   };
 
-  const handleBoothPreferenceChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
+  const handleFieldResponse = (fieldId, value, file = null) => {
+    setFieldResponses(prev => ({
       ...prev,
-      booth_preferences: {
-        ...prev.booth_preferences,
-        [name]: type === 'checkbox' ? checked : value
+      [fieldId]: {
+        response_value: file ? null : value,
+        file_url: file ? file : null
       }
     }));
+  };
+
+  const handlePacketSelect = async (packet) => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      // Get full packet details
+      const response = await fetch(`https://api2.onlineartfestival.com/api/jury-packets/${packet.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load packet');
+      }
+
+      const fullPacket = await response.json();
+      const packetData = JSON.parse(fullPacket.packet_data || '{}');
+
+      // Pre-fill form with packet data
+      setFormData(prev => ({
+        ...prev,
+        artist_statement: packetData.artist_statement || '',
+        portfolio_url: packetData.portfolio_url || '',
+        additional_info: formData.additional_info, // Keep any user-entered data
+        additional_notes: formData.additional_notes
+      }));
+
+      // Pre-fill field responses
+      if (packetData.field_responses) {
+        setFieldResponses(packetData.field_responses);
+      }
+
+      // Set persona if packet has one
+      if (fullPacket.persona_id) {
+        const packetPersona = personas.find(p => p.id === fullPacket.persona_id);
+        if (packetPersona) {
+          setSelectedPersona(packetPersona);
+        }
+      }
+
+      setSelectedPacket(fullPacket);
+      setShowPacketOptions(false);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApplyWithPacket = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Please log in to submit an application');
+      }
+
+      const response = await fetch('https://api2.onlineartfestival.com/api/applications/apply-with-packet', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          event_id: event.id,
+          packet_id: selectedPacket.id,
+          additional_info: formData.additional_info,
+          additional_notes: formData.additional_notes
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to submit application');
+      }
+
+      const result = await response.json();
+      
+      if (onSubmit) {
+        onSubmit(result);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveAsPacket = async () => {
+    try {
+      if (!packetName.trim()) {
+        setError('Packet name is required');
+        return;
+      }
+
+      setLoading(true);
+      const token = localStorage.getItem('token');
+
+      const packetData = {
+        artist_statement: formData.artist_statement,
+        portfolio_url: formData.portfolio_url,
+        field_responses: fieldResponses
+      };
+
+      const response = await fetch('https://api2.onlineartfestival.com/api/jury-packets', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          packet_name: packetName.trim(),
+          packet_data: packetData,
+          photos_data: [],
+          persona_id: selectedPersona?.id || null
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save packet');
+      }
+
+      // Refresh packets list
+      const packetsResponse = await fetch('https://api2.onlineartfestival.com/api/jury-packets', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (packetsResponse.ok) {
+        const packetsData = await packetsResponse.json();
+        setJuryPackets(packetsData);
+      }
+
+      setShowSavePacketForm(false);
+      setPacketName('');
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+
+  const handleAddonToggle = (addonId, requested) => {
+    setSelectedAddons(prev => {
+      const existing = prev.find(addon => addon.available_addon_id === addonId);
+      if (existing) {
+        // Update existing selection
+        return prev.map(addon =>
+          addon.available_addon_id === addonId
+            ? { ...addon, requested }
+            : addon
+        );
+      } else {
+        // Add new selection
+        return [...prev, { available_addon_id: addonId, requested, priority: 0, notes: '' }];
+      }
+    });
+  };
+
+  const handleAddonNotesChange = (addonId, notes) => {
+    setSelectedAddons(prev => {
+      const existing = prev.find(addon => addon.available_addon_id === addonId);
+      if (existing) {
+        return prev.map(addon =>
+          addon.available_addon_id === addonId
+            ? { ...addon, notes }
+            : addon
+        );
+      } else {
+        return [...prev, { available_addon_id: addonId, requested: false, priority: 0, notes }];
+      }
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -64,13 +323,40 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          persona_id: selectedPersona?.id || null
+        })
       });
 
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to submit application');
+      }
+
+      // Save add-on requests if any were selected
+      if (selectedAddons.length > 0) {
+        try {
+          const addonsToSave = selectedAddons.filter(addon => addon.requested);
+          for (const addon of addonsToSave) {
+            await fetch(`https://api2.onlineartfestival.com/api/applications/${data.application.id}/addon-requests`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                available_addon_id: addon.available_addon_id,
+                requested: addon.requested,
+                notes: addon.notes || ''
+              })
+            });
+          }
+        } catch (addonError) {
+          console.error('Failed to save add-on requests:', addonError);
+          // Continue with success even if add-on requests fail
+        }
       }
 
       // Success - call parent callback
@@ -91,6 +377,23 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
     return total;
   };
 
+  const calculateBoothFees = () => {
+    let total = 0;
+    if (event?.booth_fee) total += parseFloat(event.booth_fee);
+    
+    // Add selected add-on fees
+    selectedAddons.forEach(addon => {
+      if (addon.requested) {
+        const addonDetails = availableAddons.find(a => a.id === addon.available_addon_id);
+        if (addonDetails) {
+          total += parseFloat(addonDetails.addon_price);
+        }
+      }
+    });
+    
+    return total;
+  };
+
   if (!event) {
     return <div className={styles.error}>Event information not available</div>;
   }
@@ -103,6 +406,140 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
           Submit your application to participate in this event
         </p>
       </div>
+
+      {/* Jury Packet Selection */}
+      {showPacketOptions && !selectedPacket && (
+        <div className={styles.packetSelection}>
+          <h3>Choose Application Method</h3>
+          <p className={styles.packetDescription}>
+            You can apply from scratch or use one of your saved jury packets to speed up the process.
+          </p>
+          
+          <div className={styles.packetOptions}>
+            <div className={styles.packetOption}>
+              <button
+                type="button"
+                className={styles.fromScratchButton}
+                onClick={() => setShowPacketOptions(false)}
+              >
+                <i className="fas fa-edit"></i>
+                <div>
+                  <strong>Apply from Scratch</strong>
+                  <p>Fill out the application form manually</p>
+                </div>
+              </button>
+            </div>
+
+            <div className={styles.packetOptionsGrid}>
+              {juryPackets.map(packet => (
+                <div key={packet.id} className={styles.packetOption}>
+                  <button
+                    type="button"
+                    className={styles.packetButton}
+                    onClick={() => handlePacketSelect(packet)}
+                  >
+                    <i className="fas fa-folder"></i>
+                    <div>
+                      <strong>{packet.packet_name}</strong>
+                      <p>Use saved application data</p>
+                    </div>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+             {/* Selected Packet Info */}
+      {selectedPacket && (
+        <div className={styles.selectedPacket}>
+          <div className={styles.selectedPacketHeader}>
+            <i className="fas fa-folder-open"></i>
+            <div>
+              <strong>Using: {selectedPacket.packet_name}</strong>
+              <p>Your application has been pre-filled with saved data. You can edit any fields below.</p>
+            </div>
+            <button
+              type="button"
+              className={styles.changePacketButton}
+              onClick={() => {
+                setSelectedPacket(null);
+                setShowPacketOptions(true);
+                // Reset form data
+                setFormData({
+                  artist_statement: '',
+                  portfolio_url: '',
+                  additional_info: '',
+                  additional_notes: ''
+                });
+                setFieldResponses({});
+              }}
+            >
+              Change
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Persona Selection */}
+      {personas.length > 0 && !showPacketOptions && (
+        <div className={styles.personaSelection}>
+          <h3>Apply as Persona</h3>
+          <p className={styles.personaDescription}>
+            Choose which artistic identity to present for this application.
+          </p>
+          
+          <div className={styles.personaOptions}>
+            <div className={styles.personaOption}>
+              <button
+                type="button"
+                className={`${styles.personaButton} ${!selectedPersona ? styles.selected : ''}`}
+                onClick={() => setSelectedPersona(null)}
+              >
+                <i className="fas fa-user"></i>
+                <div>
+                  <strong>My Main Profile</strong>
+                  <p>Apply with your default artist information</p>
+                </div>
+              </button>
+            </div>
+
+            {personas.map(persona => (
+              <div key={persona.id} className={styles.personaOption}>
+                <button
+                  type="button"
+                  className={`${styles.personaButton} ${selectedPersona?.id === persona.id ? styles.selected : ''}`}
+                  onClick={() => setSelectedPersona(persona)}
+                >
+                  <i className="fas fa-mask"></i>
+                  <div>
+                    <strong>{persona.display_name}</strong>
+                    <p>{persona.persona_name}{persona.specialty ? ` - ${persona.specialty}` : ''}</p>
+                  </div>
+                  {persona.is_default && (
+                    <div className={styles.defaultBadge}>
+                      <i className="fas fa-star"></i>
+                    </div>
+                  )}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {selectedPersona && (
+            <div className={styles.selectedPersonaInfo}>
+              <div className={styles.selectedPersonaHeader}>
+                <i className="fas fa-info-circle"></i>
+                <div>
+                  <strong>Applying as: {selectedPersona.display_name}</strong>
+                  <p>This persona's information will be shown to the event organizer.</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Application Stats */}
       {applicationStats && (
@@ -123,35 +560,69 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
       )}
 
       {/* Fee Information */}
-      {calculateTotalFees() > 0 && (
+      {(calculateTotalFees() > 0 || calculateBoothFees() > 0) && (
         <div className={styles.feeInfo}>
-          <h3>Application Fees</h3>
+          <h3>Fees & Pricing</h3>
           <div className={styles.feeBreakdown}>
-            {event.application_fee > 0 && (
-              <div className={styles.feeItem}>
-                <span>Application Fee:</span>
-                <span>${parseFloat(event.application_fee).toFixed(2)}</span>
+            {/* Application & Jury Fees (due at submission) */}
+            {calculateTotalFees() > 0 && (
+              <>
+                <div className={styles.feeSection}>
+                  <h4>Due at Application Submission:</h4>
+                  {event.application_fee > 0 && (
+                    <div className={styles.feeItem}>
+                      <span>Application Fee:</span>
+                      <span>${parseFloat(event.application_fee).toFixed(2)}</span>
+                    </div>
+                  )}
+                  {event.jury_fee > 0 && (
+                    <div className={styles.feeItem}>
+                      <span>Jury Fee:</span>
+                      <span>${parseFloat(event.jury_fee).toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className={styles.feeSubtotal}>
+                    <span>Application Total:</span>
+                    <span>${calculateTotalFees().toFixed(2)}</span>
+                  </div>
+                </div>
+              </>
+            )}
+            
+            {/* Booth Fees (due after acceptance) */}
+            {calculateBoothFees() > 0 && (
+              <div className={styles.feeSection}>
+                <h4>Due if Accepted:</h4>
+                {event.booth_fee > 0 && (
+                  <div className={styles.feeItem}>
+                    <span>Booth Fee:</span>
+                    <span>${parseFloat(event.booth_fee).toFixed(2)}</span>
+                  </div>
+                )}
+                {selectedAddons.filter(a => a.requested).map(addon => {
+                  const addonDetails = availableAddons.find(a => a.id === addon.available_addon_id);
+                  return addonDetails ? (
+                    <div key={addon.available_addon_id} className={styles.feeItem}>
+                      <span>{addonDetails.addon_name}:</span>
+                      <span>+${parseFloat(addonDetails.addon_price).toFixed(2)}</span>
+                    </div>
+                  ) : null;
+                })}
+                <div className={styles.feeSubtotal}>
+                  <span>Booth Total:</span>
+                  <span>${calculateBoothFees().toFixed(2)}</span>
+                </div>
               </div>
             )}
-            {event.jury_fee > 0 && (
-              <div className={styles.feeItem}>
-                <span>Jury Fee:</span>
-                <span>${parseFloat(event.jury_fee).toFixed(2)}</span>
-              </div>
-            )}
-            <div className={styles.feeTotal}>
-              <span>Total Due at Submission:</span>
-              <span>${calculateTotalFees().toFixed(2)}</span>
-            </div>
           </div>
           <p className={styles.feeNote}>
             <i className="fas fa-info-circle"></i>
-            Application and jury fees are non-refundable
+            Application and jury fees are non-refundable. Booth fees are due only if your application is accepted.
           </p>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className={styles.form}>
+      <form onSubmit={selectedPacket ? handleApplyWithPacket : handleSubmit} className={styles.form}>
         {/* Artist Statement */}
         <div className={styles.formGroup}>
           <label htmlFor="artist_statement" className={styles.label}>
@@ -191,66 +662,154 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
           </div>
         </div>
 
-        {/* Booth Preferences */}
+        {/* Booth Preferences & Add-ons */}
         <div className={styles.formSection}>
           <h3>Booth Preferences</h3>
+          <p className={styles.sectionDescription}>
+            Select any add-ons you're interested in. These are requests only - final assignments will be made by the event organizer based on availability.
+          </p>
           
-          <div className={styles.formGroup}>
-            <label htmlFor="booth_type" className={styles.label}>
-              Booth Type
-            </label>
-            <select
-              id="booth_type"
-              name="booth_type"
-              value={formData.booth_preferences.booth_type}
-              onChange={handleBoothPreferenceChange}
-              className={styles.select}
-            >
-              <option value="single">Single Booth</option>
-              <option value="double">Double Booth</option>
-              <option value="premium">Premium Booth</option>
-            </select>
-          </div>
+          {/* Display base booth fee */}
+          {event.booth_fee > 0 && (
+            <div className={styles.baseFeeInfo}>
+              <div className={styles.baseFeeItem}>
+                <span>Base Booth Fee:</span>
+                <span>${parseFloat(event.booth_fee).toFixed(2)}</span>
+              </div>
+              <p className={styles.baseFeeNote}>This fee is due only if your application is accepted.</p>
+            </div>
+          )}
 
-          <div className={styles.checkboxGroup}>
-            <label className={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                name="corner_booth"
-                checked={formData.booth_preferences.corner_booth}
-                onChange={handleBoothPreferenceChange}
-                className={styles.checkbox}
-              />
-              <span>Corner booth preferred (if available)</span>
-            </label>
-
-            <label className={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                name="electricity"
-                checked={formData.booth_preferences.electricity}
-                onChange={handleBoothPreferenceChange}
-                className={styles.checkbox}
-              />
-              <span>Electricity required</span>
-            </label>
-          </div>
-
-          <div className={styles.formGroup}>
-            <label htmlFor="special_requests" className={styles.label}>
-              Special Requests
-            </label>
-            <textarea
-              id="special_requests"
-              name="special_requests"
-              value={formData.booth_preferences.special_requests}
-              onChange={handleBoothPreferenceChange}
-              placeholder="Any special booth requirements or requests..."
-              rows={3}
-              className={styles.textarea}
-            />
-          </div>
+          {/* Available Add-ons */}
+          {availableAddons.length > 0 ? (
+            <div className={styles.formGroup}>
+              <label className={styles.label}>
+                Available Add-ons
+              </label>
+              <div className={styles.addonsContainer}>
+                {availableAddons.map(addon => {
+                  const selection = selectedAddons.find(s => s.available_addon_id === addon.id);
+                  const isSelected = selection?.requested || false;
+                  return (
+                    <div key={addon.id} className={styles.addonItem}>
+                      <label className={styles.addonLabel}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => handleAddonToggle(addon.id, e.target.checked)}
+                          className={styles.checkbox}
+                        />
+                        <div className={styles.addonInfo}>
+                          <span className={styles.addonName}>{addon.addon_name}</span>
+                          <span className={styles.addonPrice}>+${addon.addon_price}</span>
+                          {addon.addon_description && (
+                            <span className={styles.addonDescription}>{addon.addon_description}</span>
+                          )}
+                        </div>
+                      </label>
+                      {isSelected && (
+                        <div className={styles.addonNotes}>
+                          <input
+                            type="text"
+                            placeholder="Optional notes about this add-on request..."
+                            value={selection?.notes || ''}
+                            onChange={(e) => handleAddonNotesChange(addon.id, e.target.value)}
+                            className={styles.notesInput}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className={styles.noAddons}>
+              <p>No add-ons available for this event.</p>
+            </div>
+          )}
         </div>
+
+        {/* Custom Application Fields */}
+        {applicationFields.length > 0 && (
+          <div className={styles.formSection}>
+            <h3>Additional Requirements</h3>
+            <p className={styles.sectionDescription}>
+              Please complete the following fields required by the event organizer.
+              {isVerified && (
+                <span className={styles.verifiedNote}>
+                  <i className="fas fa-certificate"></i>
+                  As a verified artist, you can skip optional fields marked with a star.
+                </span>
+              )}
+            </p>
+            
+            {applicationFields.map(field => {
+              const response = fieldResponses[field.id] || {};
+              const canSkip = isVerified && field.verified_can_skip;
+              const isRequired = field.is_required && !canSkip;
+              
+              return (
+                <div key={field.id} className={styles.formGroup}>
+                  <label htmlFor={`field_${field.id}`} className={styles.label}>
+                    {field.field_name}
+                    {isRequired && <span className={styles.required}>*</span>}
+                    {canSkip && (
+                      <span className={styles.skippable}>
+                        <i className="fas fa-star"></i>
+                        Verified Skip Available
+                      </span>
+                    )}
+                  </label>
+                  
+                  {field.field_description && (
+                    <div className={styles.fieldHelp}>
+                      {field.field_description}
+                    </div>
+                  )}
+                  
+                  {field.field_type === 'text' && (
+                    <textarea
+                      id={`field_${field.id}`}
+                      value={response.response_value || ''}
+                      onChange={(e) => handleFieldResponse(field.id, e.target.value)}
+                      placeholder={`Enter your ${field.field_name.toLowerCase()}...`}
+                      rows={3}
+                      required={isRequired}
+                      className={styles.textarea}
+                    />
+                  )}
+                  
+                  {(field.field_type === 'image' || field.field_type === 'video') && (
+                    <div className={styles.fileUpload}>
+                      <input
+                        type="file"
+                        id={`field_${field.id}`}
+                        accept={field.field_type === 'image' ? 'image/*' : 'video/*'}
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            handleFieldResponse(field.id, file.name, file);
+                          }
+                        }}
+                        required={isRequired}
+                        className={styles.fileInput}
+                      />
+                      <div className={styles.fileHelp}>
+                        Upload {field.field_type === 'image' ? 'an image' : 'a video'} for {field.field_name}
+                      </div>
+                      {response.file_url && (
+                        <div className={styles.fileSelected}>
+                          Selected: {response.file_url.name || 'File uploaded'}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Additional Information */}
         <div className={styles.formGroup}>
@@ -268,6 +827,22 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
           />
         </div>
 
+        {/* Additional Notes */}
+        <div className={styles.formGroup}>
+          <label htmlFor="additional_notes" className={styles.label}>
+            Additional Notes
+          </label>
+          <textarea
+            id="additional_notes"
+            name="additional_notes"
+            value={formData.additional_notes}
+            onChange={handleInputChange}
+            placeholder="Any notes or special requests for the organizer..."
+            rows={3}
+            className={styles.textarea}
+          />
+        </div>
+
         {/* Error Display */}
         {error && (
           <div className={styles.error}>
@@ -276,34 +851,87 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
           </div>
         )}
 
+        {/* Save as Packet Form */}
+        {showSavePacketForm && (
+          <div className={styles.savePacketForm}>
+            <div className={styles.savePacketHeader}>
+              <h4>Save as Jury Packet</h4>
+              <button
+                type="button"
+                className={styles.closeSaveButton}
+                onClick={() => {
+                  setShowSavePacketForm(false);
+                  setPacketName('');
+                  setError(null);
+                }}
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <div className={styles.savePacketBody}>
+              <p>Save your current application data as a reusable jury packet.</p>
+              <div className={styles.savePacketInputGroup}>
+                <input
+                  type="text"
+                  value={packetName}
+                  onChange={(e) => setPacketName(e.target.value)}
+                  placeholder="e.g., My Photography Application"
+                  className={styles.packetNameInput}
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveAsPacket}
+                  className={styles.savePacketConfirmButton}
+                  disabled={loading || !packetName.trim()}
+                >
+                  {loading ? 'Saving...' : 'Save Packet'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Form Actions */}
         <div className={styles.formActions}>
-          <button
-            type="button"
-            onClick={onCancel}
-            className={styles.cancelButton}
-            disabled={loading}
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className={styles.submitButton}
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <i className="fas fa-spinner fa-spin"></i>
-                Submitting...
-              </>
-            ) : (
-              <>
-                <i className="fas fa-paper-plane"></i>
-                Submit Application
-                {calculateTotalFees() > 0 && ` ($${calculateTotalFees().toFixed(2)})`}
-              </>
-            )}
-          </button>
+          <div className={styles.leftActions}>
+            <button
+              type="button"
+              onClick={() => setShowSavePacketForm(true)}
+              className={styles.savePacketButton}
+              disabled={loading}
+            >
+              <i className="fas fa-save"></i>
+              Save as Packet
+            </button>
+          </div>
+          <div className={styles.rightActions}>
+            <button
+              type="button"
+              onClick={onCancel}
+              className={styles.cancelButton}
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className={styles.submitButton}
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <i className="fas fa-spinner fa-spin"></i>
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-paper-plane"></i>
+                  Submit Application
+                  {calculateTotalFees() > 0 && ` ($${calculateTotalFees().toFixed(2)})`}
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </form>
     </div>

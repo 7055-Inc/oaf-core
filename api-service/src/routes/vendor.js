@@ -257,7 +257,7 @@ router.get('/settings', verifyToken, requirePermission('vendor'), async (req, re
  * Create Stripe Connect account for vendor
  * POST /api/vendor/stripe-account
  */
-router.post('/stripe-account', verifyToken, requirePermission('vendor'), async (req, res) => {
+router.post('/stripe-account', verifyToken, requirePermission('stripe_connect'), async (req, res) => {
   try {
     const vendorId = req.userId;
     const { business_info = {} } = req.body;
@@ -302,7 +302,7 @@ router.post('/stripe-account', verifyToken, requirePermission('vendor'), async (
  * Get Stripe account onboarding link
  * GET /api/vendor/stripe-onboarding
  */
-router.get('/stripe-onboarding', verifyToken, requirePermission('vendor'), async (req, res) => {
+router.get('/stripe-onboarding', verifyToken, requirePermission('stripe_connect'), async (req, res) => {
   try {
     const vendorId = req.userId;
 

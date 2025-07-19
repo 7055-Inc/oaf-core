@@ -191,6 +191,18 @@ try {
   // Event types route consolidated into events.js
   app.use('/api/applications', require('./routes/applications'));
   
+  // Jury packets management
+  app.use('/api/jury-packets', require('./routes/jury-packets'));
+  
+  // Artist personas management
+  app.use('/api/personas', require('./routes/personas'));
+  
+  // Artist verification system
+  app.use('/api/verification', require('./routes/verification'));
+  
+  // Subscription management (verification subscriptions)
+  app.use('/api/subscriptions', require('./routes/subscriptions'));
+  
   // Articles management - all routes fixed
   app.use('/api/articles', require('./routes/articles'));
     // Series and tags routes consolidated into articles.js

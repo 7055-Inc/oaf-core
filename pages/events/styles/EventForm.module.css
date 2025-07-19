@@ -307,4 +307,144 @@
   .title {
     font-size: 1.5rem;
   }
+}
+
+/* Application Fields Management Styles */
+.fieldsList {
+  margin-bottom: 1.5rem;
+}
+
+.fieldItem {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.fieldHeader {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.fieldTypeSelect {
+  min-width: 120px;
+  padding: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  background-color: white;
+}
+
+.fieldInput {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.removeFieldBtn {
+  padding: 0.5rem 0.75rem;
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.removeFieldBtn:hover {
+  background-color: #dc2626;
+}
+
+.fieldOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.fieldDescInput {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-style: italic;
+  color: #6b7280;
+}
+
+.fieldCheckboxes {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.newFieldForm {
+  background-color: #ffffff;
+  border: 2px dashed #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+}
+
+.fieldInputRow {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.fieldOptionsRow {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.addFieldBtn {
+  padding: 0.5rem 1rem;
+  background-color: #22c55e;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  margin-left: auto;
+}
+
+.addFieldBtn:hover {
+  background-color: #16a34a;
+}
+
+@media (max-width: 768px) {
+  .fieldHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .fieldInputRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .fieldOptionsRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .addFieldBtn {
+    margin-left: 0;
+    width: 100%;
+  }
+  
+  .fieldCheckboxes {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
 } 

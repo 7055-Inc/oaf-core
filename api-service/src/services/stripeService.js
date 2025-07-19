@@ -109,6 +109,60 @@ class StripeService {
   }
 
   /**
+   * Create payment intent for event booth fees with custom expiration
+   */
+  async createEventPaymentIntent(eventPaymentData) {
+    try {
+      const { amount, currency = 'usd', expires_at, metadata = {} } = eventPaymentData;
+
+      const paymentIntent = await this.stripe.paymentIntents.create({
+        amount: Math.round(amount * 100), // Convert to cents
+        currency: currency.toLowerCase(),
+        expires_at: expires_at, // Custom expiration timestamp
+        metadata: {
+          platform: 'oaf',
+          payment_type: 'event_booth_fee',
+          ...metadata
+        },
+        automatic_payment_methods: {
+          enabled: true,
+        },
+      });
+
+      return paymentIntent;
+    } catch (error) {
+      console.error('Error creating event payment intent:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get payment intent details from Stripe
+   */
+  async getPaymentIntent(paymentIntentId) {
+    try {
+      const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
+      return paymentIntent;
+    } catch (error) {
+      console.error('Error getting payment intent:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cancel payment intent
+   */
+  async cancelPaymentIntent(paymentIntentId) {
+    try {
+      const paymentIntent = await this.stripe.paymentIntents.cancel(paymentIntentId);
+      return paymentIntent;
+    } catch (error) {
+      console.error('Error canceling payment intent:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Process vendor transfers after successful payment
    */
   async processVendorTransfers(orderId, paymentIntentId) {
@@ -349,6 +403,357 @@ class StripeService {
     }
     
     return rows[0];
+  }
+
+  // ===== SUBSCRIPTION MANAGEMENT =====
+
+  /**
+   * Create or retrieve subscription products in Stripe
+   */
+  async setupSubscriptionProducts() {
+    try {
+      const products = [];
+
+      // Base Verification Product - $50/year
+      let baseProduct;
+      try {
+        baseProduct = await this.stripe.products.retrieve('verification_base');
+      } catch (error) {
+        if (error.code === 'resource_missing') {
+          baseProduct = await this.stripe.products.create({
+            id: 'verification_base',
+            name: 'Artist Verification - Base',
+            description: 'Annual verified artist status with enhanced application features',
+            metadata: {
+              type: 'verification_base',
+              platform: 'oaf'
+            }
+          });
+        } else {
+          throw error;
+        }
+      }
+
+      // Create or retrieve base verification price
+      let basePrice;
+      try {
+        const prices = await this.stripe.prices.list({ product: 'verification_base', active: true });
+        basePrice = prices.data.find(p => p.unit_amount === 5000);
+        
+        if (!basePrice) {
+          basePrice = await this.stripe.prices.create({
+            product: baseProduct.id,
+            unit_amount: 5000, // $50.00 in cents
+            currency: 'usd',
+            recurring: {
+              interval: 'year',
+              interval_count: 1
+            },
+            metadata: {
+              type: 'verification_base',
+              platform: 'oaf'
+            }
+          });
+        }
+      } catch (error) {
+        throw error;
+      }
+
+      products.push({ product: baseProduct, price: basePrice });
+
+      // Additional Persona Product - $10/year
+      let personaProduct;
+      try {
+        personaProduct = await this.stripe.products.retrieve('verification_persona');
+      } catch (error) {
+        if (error.code === 'resource_missing') {
+          personaProduct = await this.stripe.products.create({
+            id: 'verification_persona',
+            name: 'Artist Verification - Additional Persona',
+            description: 'Additional verified persona/packet for multi-identity artists',
+            metadata: {
+              type: 'verification_persona',
+              platform: 'oaf'
+            }
+          });
+        } else {
+          throw error;
+        }
+      }
+
+      // Create or retrieve persona price
+      let personaPrice;
+      try {
+        const prices = await this.stripe.prices.list({ product: 'verification_persona', active: true });
+        personaPrice = prices.data.find(p => p.unit_amount === 1000);
+        
+        if (!personaPrice) {
+          personaPrice = await this.stripe.prices.create({
+            product: personaProduct.id,
+            unit_amount: 1000, // $10.00 in cents
+            currency: 'usd',
+            recurring: {
+              interval: 'year',
+              interval_count: 1
+            },
+            metadata: {
+              type: 'verification_persona',
+              platform: 'oaf'
+            }
+          });
+        }
+      } catch (error) {
+        throw error;
+      }
+
+      products.push({ product: personaProduct, price: personaPrice });
+
+      return products;
+    } catch (error) {
+      console.error('Error setting up subscription products:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a Stripe customer if not exists
+   */
+  async createOrGetCustomer(userId, email, name = null) {
+    try {
+      // Check if customer already exists in our database
+      const [existing] = await db.execute(
+        'SELECT stripe_customer_id FROM user_subscriptions WHERE user_id = ? AND stripe_customer_id IS NOT NULL LIMIT 1',
+        [userId]
+      );
+
+      if (existing.length > 0 && existing[0].stripe_customer_id) {
+        try {
+          const customer = await this.stripe.customers.retrieve(existing[0].stripe_customer_id);
+          return customer;
+        } catch (error) {
+          console.log('Customer not found in Stripe, creating new one');
+        }
+      }
+
+      // Create new Stripe customer
+      const customer = await this.stripe.customers.create({
+        email: email,
+        name: name,
+        metadata: {
+          user_id: userId.toString(),
+          platform: 'oaf'
+        }
+      });
+
+      return customer;
+    } catch (error) {
+      console.error('Error creating/getting Stripe customer:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a subscription for verification
+   */
+  async createVerificationSubscription(userId, email, name, priceIds = [], paymentMethodId = null) {
+    try {
+      // Create or get customer
+      const customer = await this.createOrGetCustomer(userId, email, name);
+
+      // Prepare subscription items
+      const items = priceIds.map(priceId => ({ price: priceId }));
+
+      // Create subscription parameters
+      const subscriptionParams = {
+        customer: customer.id,
+        items: items,
+        metadata: {
+          user_id: userId.toString(),
+          type: 'verification',
+          platform: 'oaf'
+        },
+        payment_behavior: 'default_incomplete',
+        payment_settings: { 
+          save_default_payment_method: 'on_subscription' 
+        },
+        expand: ['latest_invoice.payment_intent']
+      };
+
+      // Add payment method if provided
+      if (paymentMethodId) {
+        subscriptionParams.default_payment_method = paymentMethodId;
+      }
+
+      const subscription = await this.stripe.subscriptions.create(subscriptionParams);
+
+      return subscription;
+    } catch (error) {
+      console.error('Error creating verification subscription:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update subscription items (add/remove personas)
+   */
+  async updateVerificationSubscription(subscriptionId, priceIds) {
+    try {
+      const subscription = await this.stripe.subscriptions.retrieve(subscriptionId);
+      
+      // Build new subscription items
+      const items = priceIds.map(priceId => ({ price: priceId }));
+
+      const updatedSubscription = await this.stripe.subscriptions.update(subscriptionId, {
+        items: items,
+        proration_behavior: 'create_prorations'
+      });
+
+      return updatedSubscription;
+    } catch (error) {
+      console.error('Error updating verification subscription:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cancel a verification subscription
+   */
+  async cancelVerificationSubscription(subscriptionId, immediately = false) {
+    try {
+      if (immediately) {
+        const subscription = await this.stripe.subscriptions.cancel(subscriptionId);
+        return subscription;
+      } else {
+        const subscription = await this.stripe.subscriptions.update(subscriptionId, {
+          cancel_at_period_end: true
+        });
+        return subscription;
+      }
+    } catch (error) {
+      console.error('Error canceling verification subscription:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check Connect account balance for a user
+   */
+  async getConnectAccountBalance(userId) {
+    try {
+      const [vendorSettings] = await db.execute(
+        'SELECT stripe_account_id FROM vendor_settings WHERE vendor_id = ?',
+        [userId]
+      );
+
+      if (!vendorSettings.length || !vendorSettings[0].stripe_account_id) {
+        return { available: 0, pending: 0, connect_account_id: null };
+      }
+
+      const connectAccountId = vendorSettings[0].stripe_account_id;
+
+      // Get Connect account balance
+      const balance = await this.stripe.balance.retrieve({
+        stripeAccount: connectAccountId
+      });
+
+      const availableBalance = balance.available.reduce((total, b) => total + b.amount, 0);
+      const pendingBalance = balance.pending.reduce((total, b) => total + b.amount, 0);
+
+      return {
+        available: availableBalance / 100, // Convert to dollars
+        pending: pendingBalance / 100,
+        connect_account_id: connectAccountId
+      };
+    } catch (error) {
+      console.error('Error getting Connect account balance:', error);
+      return { available: 0, pending: 0, connect_account_id: null };
+    }
+  }
+
+  /**
+   * Process subscription payment with Connect balance priority
+   */
+  async processSubscriptionPaymentWithConnectBalance(userId, subscriptionId, amountCents) {
+    try {
+      const amountDollars = amountCents / 100;
+      
+      // Check if user prefers Connect balance payments
+      const [userPrefs] = await db.execute(
+        'SELECT prefer_connect_balance FROM user_subscriptions WHERE user_id = ? AND stripe_subscription_id = ?',
+        [userId, subscriptionId]
+      );
+
+      if (!userPrefs.length || !userPrefs[0].prefer_connect_balance) {
+        return { 
+          success: false, 
+          reason: 'User does not prefer Connect balance payments',
+          use_stripe_default: true 
+        };
+      }
+
+      // Get Connect balance
+      const balanceInfo = await this.getConnectAccountBalance(userId);
+      
+      if (!balanceInfo.connect_account_id) {
+        return { 
+          success: false, 
+          reason: 'No Connect account found',
+          use_stripe_default: true 
+        };
+      }
+
+      if (balanceInfo.available < amountDollars) {
+        return { 
+          success: false, 
+          reason: `Insufficient balance. Available: $${balanceInfo.available.toFixed(2)}, Required: $${amountDollars.toFixed(2)}`,
+          available_balance: balanceInfo.available,
+          use_stripe_default: true 
+        };
+      }
+
+      // Process transfer from Connect balance
+      const transfer = await this.stripe.transfers.create({
+        amount: amountCents,
+        currency: 'usd',
+        destination: process.env.STRIPE_PLATFORM_ACCOUNT_ID || 'default', // Platform account
+        source_transaction: balanceInfo.connect_account_id,
+        metadata: {
+          user_id: userId.toString(),
+          subscription_id: subscriptionId,
+          type: 'verification_payment',
+          platform: 'oaf'
+        }
+      });
+
+      return { 
+        success: true, 
+        transfer_id: transfer.id,
+        amount_processed: amountDollars,
+        remaining_balance: balanceInfo.available - amountDollars,
+        payment_method: 'connect_balance'
+      };
+
+    } catch (error) {
+      console.error('Error processing subscription from Connect balance:', error);
+      return { 
+        success: false, 
+        reason: error.message,
+        use_stripe_default: true 
+      };
+    }
+  }
+
+  /**
+   * Process subscription payment from Connect balance (legacy method)
+   */
+  async processSubscriptionFromConnectBalance(userId, amount, subscriptionId) {
+    const result = await this.processSubscriptionPaymentWithConnectBalance(userId, subscriptionId, amount);
+    
+    if (result.success) {
+      return { transfer_id: result.transfer_id };
+    } else {
+      throw new Error(result.reason);
+    }
   }
 
   /**

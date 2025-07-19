@@ -1,0 +1,459 @@
+/* ===== EVENT PAYMENT CONTAINER ===== */
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.paymentContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.loadingContainer,
+.errorContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+}
+
+.loading,
+.error {
+  text-align: center;
+  padding: 40px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #2c3e50;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.backButton {
+  background: #2c3e50;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  margin-top: 16px;
+  transition: background-color 0.2s;
+}
+
+.backButton:hover {
+  background: #34495e;
+}
+
+/* ===== EVENT HEADER ===== */
+.paymentHeader {
+  margin-bottom: 32px;
+}
+
+.eventBanner {
+  background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+  color: white;
+  padding: 32px;
+  border-radius: 16px;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.eventBanner h1 {
+  font-size: 2.5rem;
+  margin-bottom: 16px;
+  font-weight: 700;
+}
+
+.eventDetails {
+  font-size: 1.2rem;
+  margin-bottom: 8px;
+  opacity: 0.9;
+}
+
+.eventLocation {
+  font-size: 1.1rem;
+  opacity: 0.8;
+}
+
+/* ===== PAYMENT CONTENT ===== */
+.paymentContent {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  margin-bottom: 32px;
+}
+
+/* ===== PAYMENT SUMMARY ===== */
+.paymentSummary {
+  position: sticky;
+  top: 20px;
+  height: fit-content;
+}
+
+.summaryCard {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e9ecef;
+}
+
+.summaryCard h2 {
+  color: #2c3e50;
+  margin-bottom: 20px;
+  font-size: 1.5rem;
+  text-align: center;
+}
+
+.summaryDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.summaryLine {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f8f9fa;
+}
+
+.summaryLine span:first-child {
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.summaryLine span:last-child {
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.totalLine {
+  border-top: 2px solid #e9ecef;
+  border-bottom: none;
+  padding-top: 16px;
+  margin-top: 8px;
+}
+
+.totalLine span {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.dueDateLine {
+  background: #fff3cd;
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid #ffeaa7;
+  margin-top: 16px;
+}
+
+.dueDateLine span:first-child {
+  color: #856404;
+}
+
+.dueDateLine span:last-child {
+  color: #856404;
+  font-weight: 700;
+}
+
+/* ===== PAYMENT FORM ===== */
+.paymentForm {
+  background: white;
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e9ecef;
+}
+
+.paymentForm h2 {
+  color: #2c3e50;
+  margin-bottom: 24px;
+  font-size: 1.5rem;
+  text-align: center;
+}
+
+.paymentStatus {
+  background: #d4edda;
+  color: #155724;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  border: 1px solid #c3e6cb;
+  text-align: center;
+  font-weight: 500;
+}
+
+.formError {
+  background: #f8d7da;
+  color: #721c24;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  border: 1px solid #f5c6cb;
+  text-align: center;
+  font-weight: 500;
+}
+
+/* ===== FORM SECTIONS ===== */
+.billingSection,
+.cardSection {
+  margin-bottom: 32px;
+}
+
+.billingSection h3,
+.cardSection h3 {
+  color: #2c3e50;
+  margin-bottom: 16px;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.formRow:last-child {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.formGroup label {
+  font-weight: 600;
+  color: #495057;
+  font-size: 0.9rem;
+}
+
+.formInput {
+  padding: 12px 16px;
+  border: 1px solid #ced4da;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.formInput:focus {
+  border-color: #3498db;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+/* ===== CARD ELEMENT ===== */
+.cardElementContainer {
+  background: #f8f9fa;
+  border: 1px solid #ced4da;
+  border-radius: 8px;
+  padding: 16px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.cardElementContainer:focus-within {
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.cardElement {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+}
+
+/* ===== SUBMIT SECTION ===== */
+.submitSection {
+  text-align: center;
+  margin-top: 32px;
+}
+
+.payButton {
+  background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+  color: white;
+  border: none;
+  padding: 16px 32px;
+  border-radius: 12px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);
+  min-width: 200px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.payButton:hover:not(:disabled) {
+  background: linear-gradient(135deg, #229954 0%, #27ae60 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4);
+}
+
+.payButton:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.payButton .spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid transparent;
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0;
+}
+
+/* ===== PAYMENT FOOTER ===== */
+.paymentFooter {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e9ecef;
+}
+
+.securityBadges {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.securityBadges span {
+  background: #e9ecef;
+  color: #495057;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.termsText {
+  color: #6c757d;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 768px) {
+  .paymentContainer {
+    padding: 12px;
+  }
+  
+  .eventBanner {
+    padding: 24px 16px;
+  }
+  
+  .eventBanner h1 {
+    font-size: 2rem;
+  }
+  
+  .paymentContent {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  
+  .paymentSummary {
+    position: static;
+    order: 2;
+  }
+  
+  .paymentForm {
+    padding: 24px 16px;
+    order: 1;
+  }
+  
+  .formRow {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .formRow:last-child {
+    grid-template-columns: 1fr;
+  }
+  
+  .securityBadges {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .eventBanner h1 {
+    font-size: 1.5rem;
+  }
+  
+  .eventDetails {
+    font-size: 1rem;
+  }
+  
+  .paymentForm,
+  .summaryCard {
+    padding: 16px;
+  }
+  
+  .payButton {
+    width: 100%;
+    padding: 16px;
+  }
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.paymentContainer > * {
+  animation: fadeIn 0.6s ease-out;
+}
+
+.paymentHeader {
+  animation-delay: 0.1s;
+}
+
+.paymentContent {
+  animation-delay: 0.2s;
+}
+
+.paymentFooter {
+  animation-delay: 0.3s;
+} 

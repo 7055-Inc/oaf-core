@@ -4,6 +4,8 @@ const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
 const upload = require('../config/multer');
 const { requirePermission } = require('../middleware/permissions');
+const geocodingService = require('../services/geocodingService');
+const eventSchemaService = require('../services/eventSchemaService');
 
 // --- Event CRUD Endpoints ---
 
@@ -93,53 +95,128 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create new event (content management permission required)
-router.post('/', verifyToken, requirePermission('manage_content'), async (req, res) => {
+// Create new event (events permission required)
+router.post('/', verifyToken, requirePermission('events'), async (req, res) => {
   try {
     const {
-      promoter_id, event_type_id, title, description, short_description, start_date, end_date,
+      event_type_id, title, description, short_description, start_date, end_date,
       venue_name, venue_address, venue_city, venue_state, venue_zip, venue_country,
-      event_status, allow_applications, application_status, application_deadline,
+      allow_applications, application_status, application_deadline,
       jury_date, notification_date, admission_fee, parking_fee, parking_info, parking_details,
       accessibility_info, application_fee, booth_fee, jury_fee, max_applications, max_artists,
-      seo_title, meta_description, created_by, updated_by
+      seo_title, meta_description
     } = req.body;
+
+    // Use user ID from JWT token
+    const promoter_id = req.userId;
+    const created_by = req.userId;
+    const event_status = 'active'; // Auto-set to active
+
+    // Geocode the venue address
+    const { latitude, longitude } = await geocodingService.geocodeAddress(
+      venue_address, venue_city, venue_state, venue_zip
+    );
 
     const [result] = await db.execute(`
       INSERT INTO events (
-        promoter_id, event_type_id, title, description, short_description, start_date, end_date,
-        venue_name, venue_address, venue_city, venue_state, venue_zip, venue_country,
-        event_status, allow_applications, application_status, application_deadline,
-        jury_date, notification_date, admission_fee, parking_fee, parking_info, parking_details,
-        accessibility_info, application_fee, booth_fee, jury_fee, max_applications, max_artists,
-        seo_title, meta_description, created_by, updated_by, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        promoter_id, event_type_id, parent_id, series_id, title, description, short_description, 
+        event_status, application_status, allow_applications, start_date, end_date, 
+        application_deadline, jury_date, notification_date, venue_name, venue_address, 
+        venue_city, venue_state, venue_zip, venue_country, latitude, longitude, 
+        parking_info, accessibility_info, admission_fee, parking_fee, parking_details, 
+        application_fee, jury_fee, booth_fee, max_artists, max_applications, 
+        seo_title, meta_description, event_schema, event_tags, 
+        created_at, updated_at, created_by, updated_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), ?, ?)
     `, [
-      promoter_id, event_type_id, title, description, short_description || null, start_date, end_date,
-      venue_name, venue_address || null, venue_city, venue_state, venue_zip || null, venue_country || 'USA',
-      event_status || 'draft', allow_applications || 0, application_status || 'not_accepting', application_deadline || null,
-      jury_date || null, notification_date || null, admission_fee || null, parking_fee || null, parking_info || null, parking_details || null,
-      accessibility_info || null, application_fee || null, booth_fee || null, jury_fee || null, max_applications || null, max_artists || null,
-      seo_title || null, meta_description || null, created_by, updated_by || created_by
+      promoter_id, event_type_id, null, null, title, description, short_description || null,
+      event_status, application_status || 'not_accepting', allow_applications || 0, start_date, end_date,
+      application_deadline || null, jury_date || null, notification_date || null, venue_name, venue_address || null,
+      venue_city, venue_state, venue_zip || null, 'USA', latitude, longitude,
+      parking_info || null, accessibility_info || null, admission_fee || null, parking_fee || null, parking_details || null,
+      application_fee || null, jury_fee || null, booth_fee || null, max_artists || null, max_applications || null,
+      seo_title || null, meta_description || null, null, null,
+      created_by, created_by
     ]);
 
+    // Get the created event with related data
     const [newEvent] = await db.execute(`
       SELECT 
         e.*,
-        et.name as event_type_name
+        et.name as event_type_name,
+        up.first_name, up.last_name, u.username as email,
+        pp.business_name, pp.business_website, pp.business_phone,
+        pp.business_social_facebook, pp.business_social_instagram, pp.business_social_twitter
       FROM events e
       LEFT JOIN event_types et ON e.event_type_id = et.id
+      LEFT JOIN users u ON e.promoter_id = u.id
+      LEFT JOIN user_profiles up ON u.id = up.user_id
+      LEFT JOIN promoter_profiles pp ON u.id = pp.user_id
       WHERE e.id = ?
     `, [result.insertId]);
 
-    res.status(201).json(newEvent[0]);
+    const event = newEvent[0];
+    
+    // Generate and store Schema.org JSON-LD
+    const promoterData = {
+      first_name: event.first_name,
+      last_name: event.last_name,
+      email: event.email,
+      business_name: event.business_name,
+      business_website: event.business_website,
+      business_phone: event.business_phone,
+      business_social_facebook: event.business_social_facebook,
+      business_social_instagram: event.business_social_instagram,
+      business_social_twitter: event.business_social_twitter
+    };
+
+    const eventImages = req.body.images || [];
+    const completeSchema = eventSchemaService.generateCompleteSchema(event, promoterData, eventImages);
+    
+    // Save uploaded images to event_images table
+    if (eventImages && eventImages.length > 0) {
+      for (let i = 0; i < eventImages.length; i++) {
+        const imageUrl = eventImages[i];
+        await db.execute(`
+          INSERT INTO event_images (event_id, image_url, friendly_name, is_primary, alt_text, order_index)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `, [result.insertId, imageUrl, `Event Image ${i + 1}`, i === 0 ? 1 : 0, event.title, i]);
+      }
+    }
+
+    // Update the event with the generated schema
+    await db.execute(`
+      UPDATE events 
+      SET event_schema = ? 
+      WHERE id = ?
+    `, [JSON.stringify(completeSchema), result.insertId]);
+
+    // Return the event (clean up the response)
+    const responseEvent = {
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      short_description: event.short_description,
+      event_type_name: event.event_type_name,
+      event_status: event.event_status,
+      start_date: event.start_date,
+      end_date: event.end_date,
+      venue_name: event.venue_name,
+      venue_city: event.venue_city,
+      venue_state: event.venue_state,
+      latitude: event.latitude,
+      longitude: event.longitude,
+      created_at: event.created_at
+    };
+
+    res.status(201).json(responseEvent);
   } catch (err) {
     res.status(500).json({ error: 'Failed to create event', details: err.message });
   }
 });
 
-// Update event (content management permission required)
-router.put('/:id', verifyToken, requirePermission('manage_content'), async (req, res) => {
+// Update event (events permission required)
+router.put('/:id', verifyToken, requirePermission('events'), async (req, res) => {
   try {
     const {
       title, description, start_date, end_date, venue_name, venue_address,
@@ -177,8 +254,8 @@ router.put('/:id', verifyToken, requirePermission('manage_content'), async (req,
   }
 });
 
-// Archive event (soft delete, content management permission required)
-router.delete('/:id', verifyToken, requirePermission('manage_content'), async (req, res) => {
+// Archive event (soft delete, events permission required)
+router.delete('/:id', verifyToken, requirePermission('events'), async (req, res) => {
   try {
     await db.execute(
       'UPDATE events SET event_status = ?, updated_at = NOW() WHERE id = ?',
@@ -190,8 +267,8 @@ router.delete('/:id', verifyToken, requirePermission('manage_content'), async (r
   }
 });
 
-// Renew event for next year (content management permission required)
-router.post('/:id/renew', verifyToken, requirePermission('manage_content'), async (req, res) => {
+// Renew event for next year (events permission required)
+router.post('/:id/renew', verifyToken, requirePermission('events'), async (req, res) => {
   try {
     const [originalEvent] = await db.execute('SELECT * FROM events WHERE id = ?', [req.params.id]);
     if (originalEvent.length === 0) {
@@ -243,20 +320,20 @@ router.get('/:id/artists', (req, res) => {
   res.send('List artists for event');
 });
 
-// Add artist manually (content management permission required)
-router.post('/:id/artists', verifyToken, requirePermission('manage_content'), (req, res) => {
+// Add artist manually (events permission required)
+router.post('/:id/artists', verifyToken, requirePermission('events'), (req, res) => {
   // TODO: Implement manual artist addition
   res.send('Add artist manually');
 });
 
-// Update artist status (content management permission required)
-router.put('/:id/artists/:artistId', verifyToken, requirePermission('manage_content'), (req, res) => {
+// Update artist status (events permission required)
+router.put('/:id/artists/:artistId', verifyToken, requirePermission('events'), (req, res) => {
   // TODO: Implement update artist status
   res.send('Update artist status');
 });
 
-// Remove artist (content management permission required)
-router.delete('/:id/artists/:artistId', verifyToken, requirePermission('manage_content'), (req, res) => {
+// Remove artist (events permission required)
+router.delete('/:id/artists/:artistId', verifyToken, requirePermission('events'), (req, res) => {
   // TODO: Implement remove artist from event
   res.send('Remove artist from event');
 });
@@ -455,6 +532,259 @@ router.delete('/custom/:id', verifyToken, async (req, res) => {
     } catch (error) {
         console.error('Error deleting custom event:', error);
         res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// --- Event Add-on Management Endpoints ---
+
+// Get available add-ons for an event
+router.get('/:id/available-addons', verifyToken, async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    
+    const [addons] = await db.execute(`
+      SELECT * FROM event_available_addons 
+      WHERE event_id = ? AND is_active = 1 
+      ORDER BY display_order ASC, addon_name ASC
+    `, [eventId]);
+    
+    res.json(addons);
+  } catch (error) {
+    console.error('Error fetching event add-ons:', error);
+    res.status(500).json({ error: 'Failed to fetch event add-ons' });
+  }
+});
+
+// Add available add-on to an event (events permission required)
+router.post('/:id/available-addons', verifyToken, requirePermission('events'), async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const { addon_name, addon_description, addon_price, display_order } = req.body;
+    
+    // Verify event exists and user has access
+    const [eventCheck] = await db.execute('SELECT promoter_id FROM events WHERE id = ?', [eventId]);
+    if (eventCheck.length === 0) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+    
+    // Admin users can modify any event, others need to own it
+    if (!req.roles.includes('admin') && eventCheck[0].promoter_id !== req.userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const [result] = await db.execute(`
+      INSERT INTO event_available_addons (event_id, addon_name, addon_description, addon_price, display_order)
+      VALUES (?, ?, ?, ?, ?)
+    `, [eventId, addon_name, addon_description, addon_price, display_order || 0]);
+    
+    res.json({ 
+      id: result.insertId, 
+      event_id: eventId, 
+      addon_name, 
+      addon_description, 
+      addon_price, 
+      display_order: display_order || 0,
+      is_active: true
+    });
+  } catch (error) {
+    console.error('Error adding event add-on:', error);
+    res.status(500).json({ error: 'Failed to add event add-on' });
+  }
+});
+
+// Update available add-on (events permission required)
+router.put('/:id/available-addons/:addon_id', verifyToken, requirePermission('events'), async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const addonId = req.params.addon_id;
+    const { addon_name, addon_description, addon_price, display_order, is_active } = req.body;
+    
+    // Verify event exists and user has access
+    const [eventCheck] = await db.execute('SELECT promoter_id FROM events WHERE id = ?', [eventId]);
+    if (eventCheck.length === 0) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+    
+    // Admin users can modify any event, others need to own it
+    if (!req.roles.includes('admin') && eventCheck[0].promoter_id !== req.userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Verify add-on belongs to this event
+    const [addonCheck] = await db.execute('SELECT id FROM event_available_addons WHERE id = ? AND event_id = ?', [addonId, eventId]);
+    if (addonCheck.length === 0) {
+      return res.status(404).json({ error: 'Add-on not found' });
+    }
+    
+    await db.execute(`
+      UPDATE event_available_addons 
+      SET addon_name = ?, addon_description = ?, addon_price = ?, display_order = ?, is_active = ?
+      WHERE id = ? AND event_id = ?
+    `, [addon_name, addon_description, addon_price, display_order || 0, is_active !== undefined ? is_active : true, addonId, eventId]);
+    
+    res.json({ message: 'Add-on updated successfully' });
+  } catch (error) {
+    console.error('Error updating event add-on:', error);
+    res.status(500).json({ error: 'Failed to update event add-on' });
+  }
+});
+
+// Delete available add-on (events permission required)
+router.delete('/:id/available-addons/:addon_id', verifyToken, requirePermission('events'), async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const addonId = req.params.addon_id;
+    
+    // Verify event exists and user has access
+    const [eventCheck] = await db.execute('SELECT promoter_id FROM events WHERE id = ?', [eventId]);
+    if (eventCheck.length === 0) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+    
+    // Admin users can modify any event, others need to own it
+    if (!req.roles.includes('admin') && eventCheck[0].promoter_id !== req.userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Verify add-on belongs to this event
+    const [addonCheck] = await db.execute('SELECT id FROM event_available_addons WHERE id = ? AND event_id = ?', [addonId, eventId]);
+    if (addonCheck.length === 0) {
+      return res.status(404).json({ error: 'Add-on not found' });
+    }
+    
+    await db.execute('DELETE FROM event_available_addons WHERE id = ? AND event_id = ?', [addonId, eventId]);
+    
+    res.json({ message: 'Add-on deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting event add-on:', error);
+    res.status(500).json({ error: 'Failed to delete event add-on' });
+  }
+});
+
+// --- Application Fields Management Endpoints ---
+
+// Get application fields for an event
+router.get('/:id/application-fields', verifyToken, async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    
+    const [fields] = await db.execute(`
+      SELECT * FROM event_application_fields 
+      WHERE event_id = ? 
+      ORDER BY display_order ASC, field_name ASC
+    `, [eventId]);
+    
+    res.json(fields);
+  } catch (error) {
+    console.error('Error fetching event application fields:', error);
+    res.status(500).json({ error: 'Failed to fetch event application fields' });
+  }
+});
+
+// Add application field to an event (events permission required)
+router.post('/:id/application-fields', verifyToken, requirePermission('events'), async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const { field_type, field_name, field_description, is_required, verified_can_skip, display_order } = req.body;
+    
+    // Verify event exists and user has access
+    const [eventCheck] = await db.execute('SELECT promoter_id FROM events WHERE id = ?', [eventId]);
+    if (eventCheck.length === 0) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+    
+    // Admin users can modify any event, others need to own it
+    if (!req.roles.includes('admin') && eventCheck[0].promoter_id !== req.userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const [result] = await db.execute(`
+      INSERT INTO event_application_fields (event_id, field_type, field_name, field_description, is_required, verified_can_skip, display_order)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [eventId, field_type, field_name, field_description || null, is_required || false, verified_can_skip || false, display_order || 0]);
+    
+    res.json({ 
+      id: result.insertId, 
+      event_id: eventId, 
+      field_type,
+      field_name, 
+      field_description, 
+      is_required: is_required || false,
+      verified_can_skip: verified_can_skip || false,
+      display_order: display_order || 0
+    });
+  } catch (error) {
+    console.error('Error adding event application field:', error);
+    res.status(500).json({ error: 'Failed to add event application field' });
+  }
+});
+
+// Update application field (events permission required)
+router.put('/:id/application-fields/:field_id', verifyToken, requirePermission('events'), async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const fieldId = req.params.field_id;
+    const { field_type, field_name, field_description, is_required, verified_can_skip, display_order } = req.body;
+    
+    // Verify event exists and user has access
+    const [eventCheck] = await db.execute('SELECT promoter_id FROM events WHERE id = ?', [eventId]);
+    if (eventCheck.length === 0) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+    
+    // Admin users can modify any event, others need to own it
+    if (!req.roles.includes('admin') && eventCheck[0].promoter_id !== req.userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Verify field belongs to this event
+    const [fieldCheck] = await db.execute('SELECT id FROM event_application_fields WHERE id = ? AND event_id = ?', [fieldId, eventId]);
+    if (fieldCheck.length === 0) {
+      return res.status(404).json({ error: 'Application field not found' });
+    }
+    
+    await db.execute(`
+      UPDATE event_application_fields 
+      SET field_type = ?, field_name = ?, field_description = ?, is_required = ?, verified_can_skip = ?, display_order = ?
+      WHERE id = ? AND event_id = ?
+    `, [field_type, field_name, field_description || null, is_required || false, verified_can_skip || false, display_order || 0, fieldId, eventId]);
+    
+    res.json({ message: 'Application field updated successfully' });
+  } catch (error) {
+    console.error('Error updating event application field:', error);
+    res.status(500).json({ error: 'Failed to update event application field' });
+  }
+});
+
+// Delete application field (events permission required)
+router.delete('/:id/application-fields/:field_id', verifyToken, requirePermission('events'), async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const fieldId = req.params.field_id;
+    
+    // Verify event exists and user has access
+    const [eventCheck] = await db.execute('SELECT promoter_id FROM events WHERE id = ?', [eventId]);
+    if (eventCheck.length === 0) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+    
+    // Admin users can modify any event, others need to own it
+    if (!req.roles.includes('admin') && eventCheck[0].promoter_id !== req.userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Verify field belongs to this event
+    const [fieldCheck] = await db.execute('SELECT id FROM event_application_fields WHERE id = ? AND event_id = ?', [fieldId, eventId]);
+    if (fieldCheck.length === 0) {
+      return res.status(404).json({ error: 'Application field not found' });
+    }
+    
+    await db.execute('DELETE FROM event_application_fields WHERE id = ? AND event_id = ?', [fieldId, eventId]);
+    
+    res.json({ message: 'Application field deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting event application field:', error);
+    res.status(500).json({ error: 'Failed to delete event application field' });
   }
 });
 

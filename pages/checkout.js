@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import Script from 'next/script';
 import Header from '../components/Header';
 import { authenticatedApiRequest, handleCsrfError } from '../lib/csrf';
 import styles from '../styles/Checkout.module.css';
@@ -13,36 +14,83 @@ export default function Checkout() {
   const [error, setError] = useState(null);
   const [paymentIntent, setPaymentIntent] = useState(null);
   const [paymentStatus, setPaymentStatus] = useState('');
+  const [stripeLoaded, setStripeLoaded] = useState(false);
+  const [stripe, setStripe] = useState(null);
+  const [elements, setElements] = useState(null);
+  const [cardElement, setCardElement] = useState(null);
+  const [billingDetails, setBillingDetails] = useState({
+    name: '',
+    email: '',
+    address: {
+      line1: '',
+      line2: '',
+      city: '',
+      state: '',
+      postal_code: '',
+      country: 'US'
+    }
+  });
   const router = useRouter();
 
-  // Test card numbers for easy reference
-  const testCards = [
-    { number: '4242 4242 4242 4242', type: 'Visa - Success' },
-    { number: '4000 0000 0000 0002', type: 'Visa - Declined' },
-    { number: '4000 0000 0000 9995', type: 'Visa - Insufficient Funds' },
-    { number: '5555 5555 5555 4444', type: 'Mastercard - Success' }
-  ];
+  // Initialize Stripe when script loads
+  const initializeStripe = async () => {
+    if (typeof window !== 'undefined' && window.Stripe) {
+      const stripeInstance = window.Stripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+      setStripe(stripeInstance);
+      setStripeLoaded(true);
+    }
+  };
 
   useEffect(() => {
-    // Get cart data from localStorage or query params
+    // Get cart data from localStorage
     const cartData = localStorage.getItem('checkoutCart');
     if (cartData) {
       const items = JSON.parse(cartData);
       setCartItems(items);
       calculateOrderTotals(items);
     } else {
-      // If no cart data, redirect back to cart
       router.push('/cart');
     }
   }, []);
 
-  const getAuthToken = () => {
-    return document.cookie.split('token=')[1]?.split(';')[0];
-  };
+  useEffect(() => {
+    // Initialize Stripe Elements when stripe is loaded and we have a payment intent
+    if (stripeLoaded && stripe && paymentIntent && !elements) {
+      const elementsInstance = stripe.elements({
+        clientSecret: paymentIntent.payment_intent.client_secret,
+        appearance: {
+          theme: 'stripe',
+          variables: {
+            colorPrimary: '#2c5aa0',
+            colorBackground: '#ffffff',
+            colorText: '#30313d',
+            colorDanger: '#df1b41',
+            fontFamily: 'Inter, system-ui, sans-serif',
+            spacingUnit: '4px',
+            borderRadius: '8px',
+          }
+        }
+      });
+
+      const cardElementInstance = elementsInstance.create('payment', {
+        layout: 'tabs'
+      });
+
+      setElements(elementsInstance);
+      setCardElement(cardElementInstance);
+
+      // Mount the payment element
+      setTimeout(() => {
+        const paymentElementContainer = document.getElementById('payment-element');
+        if (paymentElementContainer) {
+          cardElementInstance.mount('#payment-element');
+        }
+      }, 100);
+    }
+  }, [stripeLoaded, stripe, paymentIntent, elements]);
 
   const calculateOrderTotals = async (items) => {
     try {
-      // Convert cart items to the format our API expects
       const cart_items = items.map(item => ({
         product_id: item.product_id,
         quantity: item.quantity
@@ -93,7 +141,7 @@ export default function Checkout() {
       if (response.ok) {
         const data = await response.json();
         setPaymentIntent(data);
-        setPaymentStatus('Payment intent created successfully!');
+        setPaymentStatus('Payment form ready');
       } else {
         const errorData = await response.json();
         setError(errorData.error || 'Failed to create payment intent');
@@ -107,44 +155,88 @@ export default function Checkout() {
     }
   };
 
-  const simulatePayment = async (testCardType) => {
-    if (!paymentIntent) {
-      setError('Please create payment intent first');
+  const handlePayment = async (event) => {
+    event.preventDefault();
+
+    if (!stripe || !elements || !cardElement) {
+      setError('Stripe has not loaded yet');
       return;
     }
 
+    setProcessing(true);
+    setError(null);
+    setPaymentStatus('Processing payment...');
+
     try {
-      setProcessing(true);
-      setError(null);
-      
-      // Simulate payment processing
-      setPaymentStatus(`Simulating payment with ${testCardType}...`);
-      
-      // Wait 2 seconds to simulate processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      if (testCardType.includes('Success')) {
-        setPaymentStatus('✅ Payment successful! (Simulated)');
-        
-        // In a real implementation, you would confirm the payment with Stripe
-        // and then call your confirm-payment endpoint
-        setTimeout(() => {
-          setPaymentStatus('🎉 Order completed! Redirecting...');
+      // Confirm payment with Stripe
+      const { error: stripeError, paymentIntent: confirmedPaymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/checkout/success`,
+          payment_method_data: {
+            billing_details: billingDetails
+          }
+        },
+        redirect: 'if_required'
+      });
+
+      if (stripeError) {
+        setError(stripeError.message);
+        setPaymentStatus('Payment failed');
+        setProcessing(false);
+        return;
+      }
+
+      if (confirmedPaymentIntent.status === 'succeeded') {
+        // Payment succeeded, confirm with backend
+        const confirmResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/checkout/confirm-payment', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            payment_intent_id: confirmedPaymentIntent.id,
+            order_id: paymentIntent.order_id
+          })
+        });
+
+        if (confirmResponse.ok) {
+          setPaymentStatus('✅ Payment successful! Order confirmed.');
+          localStorage.removeItem('checkoutCart');
+          
           setTimeout(() => {
-            localStorage.removeItem('checkoutCart');
             router.push('/dashboard?tab=orders');
           }, 2000);
-        }, 1000);
-        
+        } else {
+          const errorData = await confirmResponse.json();
+          setError(`Payment processed but order confirmation failed: ${errorData.error}`);
+        }
       } else {
-        setPaymentStatus('❌ Payment failed! (Simulated)');
-        setError(`Payment declined: ${testCardType}`);
+        setError('Payment was not completed successfully');
       }
     } catch (err) {
-      console.error('Error simulating payment:', err);
-      setError('Payment simulation failed');
+      console.error('Payment error:', err);
+      setError(err.message || 'Payment processing failed');
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const handleBillingDetailsChange = (field, value) => {
+    if (field.includes('.')) {
+      const [parent, child] = field.split('.');
+      setBillingDetails(prev => ({
+        ...prev,
+        [parent]: {
+          ...prev[parent],
+          [child]: value
+        }
+      }));
+    } else {
+      setBillingDetails(prev => ({
+        ...prev,
+        [field]: value
+      }));
     }
   };
 
@@ -177,6 +269,11 @@ export default function Checkout() {
       <Head>
         <title>Checkout - Online Art Festival</title>
       </Head>
+      
+      <Script 
+        src="https://js.stripe.com/v3/" 
+        onLoad={initializeStripe}
+      />
       
       <div className={styles.container}>
         <Header />
@@ -238,19 +335,6 @@ export default function Checkout() {
           <div className={styles.paymentSection}>
             <h2>Payment</h2>
             
-            {/* Test Card Reference */}
-            <div className={styles.testCards}>
-              <h3>Test Card Numbers:</h3>
-              {testCards.map((card, index) => (
-                <div key={index} className={styles.testCard}>
-                  <code>{card.number}</code> - {card.type}
-                </div>
-              ))}
-              <p className={styles.testNote}>
-                Use any future expiry date (12/34), any CVC (123), any ZIP (12345)
-              </p>
-            </div>
-            
             {/* Payment Intent Creation */}
             {!paymentIntent && (
               <div className={styles.paymentStep}>
@@ -259,37 +343,113 @@ export default function Checkout() {
                   disabled={processing}
                   className={styles.createIntentButton}
                 >
-                  {processing ? 'Creating...' : 'Create Payment Intent'}
+                  {processing ? 'Setting up payment...' : 'Continue to Payment'}
                 </button>
               </div>
             )}
             
-            {/* Payment Intent Details */}
-            {paymentIntent && (
-              <div className={styles.paymentIntent}>
-                <h3>✅ Payment Intent Created</h3>
-                <div className={styles.intentDetails}>
-                  <p><strong>Intent ID:</strong> {paymentIntent.payment_intent.id}</p>
-                  <p><strong>Amount:</strong> ${(paymentIntent.payment_intent.amount / 100).toFixed(2)}</p>
-                  <p><strong>Order ID:</strong> {paymentIntent.order_id}</p>
-                </div>
-                
-                {/* Test Payment Buttons */}
-                <div className={styles.testPayments}>
-                  <h4>Simulate Payment:</h4>
-                  {testCards.map((card, index) => (
-                    <button
-                      key={index}
-                      onClick={() => simulatePayment(card.type)}
-                      disabled={processing}
-                      className={`${styles.testPaymentButton} ${
-                        card.type.includes('Success') ? styles.successButton : styles.errorButton
-                      }`}
-                    >
-                      Pay with {card.type}
-                    </button>
-                  ))}
-                </div>
+            {/* Payment Form */}
+            {paymentIntent && stripeLoaded && (
+              <div className={styles.paymentForm}>
+                <form onSubmit={handlePayment}>
+                  {/* Billing Details */}
+                  <div className={styles.billingDetails}>
+                    <h3>Billing Information</h3>
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="billing-name">Full Name</label>
+                        <input
+                          id="billing-name"
+                          type="text"
+                          value={billingDetails.name}
+                          onChange={(e) => handleBillingDetailsChange('name', e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="billing-email">Email</label>
+                        <input
+                          id="billing-email"
+                          type="email"
+                          value={billingDetails.email}
+                          onChange={(e) => handleBillingDetailsChange('email', e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className={styles.formGroup}>
+                      <label htmlFor="billing-address">Address</label>
+                      <input
+                        id="billing-address"
+                        type="text"
+                        value={billingDetails.address.line1}
+                        onChange={(e) => handleBillingDetailsChange('address.line1', e.target.value)}
+                        required
+                      />
+                    </div>
+                    
+                    <div className={styles.formGroup}>
+                      <label htmlFor="billing-address2">Apartment, suite, etc. (optional)</label>
+                      <input
+                        id="billing-address2"
+                        type="text"
+                        value={billingDetails.address.line2}
+                        onChange={(e) => handleBillingDetailsChange('address.line2', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div className={styles.formRow}>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="billing-city">City</label>
+                        <input
+                          id="billing-city"
+                          type="text"
+                          value={billingDetails.address.city}
+                          onChange={(e) => handleBillingDetailsChange('address.city', e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="billing-state">State</label>
+                        <input
+                          id="billing-state"
+                          type="text"
+                          value={billingDetails.address.state}
+                          onChange={(e) => handleBillingDetailsChange('address.state', e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label htmlFor="billing-zip">ZIP Code</label>
+                        <input
+                          id="billing-zip"
+                          type="text"
+                          value={billingDetails.address.postal_code}
+                          onChange={(e) => handleBillingDetailsChange('address.postal_code', e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Stripe Payment Element */}
+                  <div className={styles.paymentElement}>
+                    <h3>Payment Method</h3>
+                    <div id="payment-element">
+                      {!stripeLoaded && <div className={styles.loadingSpinner}>Loading payment form...</div>}
+                    </div>
+                  </div>
+                  
+                  {/* Submit Button */}
+                  <button 
+                    type="submit"
+                    disabled={processing || !stripeLoaded}
+                    className={styles.payButton}
+                  >
+                    {processing ? 'Processing...' : `Pay $${orderSummary?.totals?.total_amount?.toFixed(2) || '0.00'}`}
+                  </button>
+                </form>
               </div>
             )}
             

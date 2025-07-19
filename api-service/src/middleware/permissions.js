@@ -7,7 +7,7 @@ const db = require('../../config/db');
 
 /**
  * Check if a user has a specific permission
- * Handles admin auto-permissions and permission restrictions
+ * Handles admin auto-permissions, permission restrictions, and inheritance
  */
 const hasPermission = (req, permission) => {
   // Admin users get all permissions automatically
@@ -16,8 +16,22 @@ const hasPermission = (req, permission) => {
   }
   
   // Check if user has the specific permission
-  return req.permissions && req.permissions.includes(permission);
+  if (req.permissions && req.permissions.includes(permission)) {
+    return true;
+  }
+  
+  // Handle permission inheritance: vendor and events permissions grant stripe_connect access
+  if (permission === 'stripe_connect' && req.permissions && req.permissions.includes('vendor')) {
+    return true;
+  }
+  if (permission === 'stripe_connect' && req.permissions && req.permissions.includes('events')) {
+    return true;
+  }
+  
+  return false;
 };
+
+
 
 /**
  * Require a specific permission to access an endpoint
@@ -143,7 +157,7 @@ const getEffectivePermissions = (req) => {
   
   // Admin users get all permissions automatically
   if (req.roles && req.roles.includes('admin')) {
-    const allPermissions = ['vendor', 'manage_sites', 'manage_content', 'manage_system'];
+    const allPermissions = ['vendor', 'events', 'stripe_connect', 'manage_sites', 'manage_content', 'manage_system'];
     for (const permission of allPermissions) {
       if (!permissions.includes(permission)) {
         permissions.push(permission);

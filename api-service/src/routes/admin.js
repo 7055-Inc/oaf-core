@@ -92,6 +92,8 @@ router.get('/users/:id/permissions', verifyToken, requireRestrictedPermission('m
       return res.json({ 
         user_id: parseInt(id), 
         vendor: false, 
+        events: false, 
+        stripe_connect: false, 
         manage_sites: false, 
         manage_content: false, 
         manage_system: false 
@@ -109,7 +111,7 @@ router.get('/users/:id/permissions', verifyToken, requireRestrictedPermission('m
 router.put('/users/:id/permissions', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
   console.log('PUT /admin/users/:id/permissions request received, userId:', req.userId);
   const { id } = req.params;
-  const { vendor, manage_sites, manage_content, manage_system } = req.body;
+  const { vendor, events, stripe_connect, manage_sites, manage_content, manage_system } = req.body;
   try {
     // Check if user exists
     const [user] = await db.query('SELECT id FROM users WHERE id = ?', [id]);
@@ -124,6 +126,14 @@ router.put('/users/:id/permissions', verifyToken, requireRestrictedPermission('m
     if (vendor !== undefined) {
       updateFields.push('vendor = ?');
       updateValues.push(vendor);
+    }
+    if (events !== undefined) {
+      updateFields.push('events = ?');
+      updateValues.push(events);
+    }
+    if (stripe_connect !== undefined) {
+      updateFields.push('stripe_connect = ?');
+      updateValues.push(stripe_connect);
     }
     if (manage_sites !== undefined) {
       updateFields.push('manage_sites = ?');
@@ -152,8 +162,8 @@ router.put('/users/:id/permissions', verifyToken, requireRestrictedPermission('m
     } else {
       // Create new permissions record with all fields
       await db.query(
-        'INSERT INTO user_permissions (user_id, vendor, manage_sites, manage_content, manage_system) VALUES (?, ?, ?, ?, ?)', 
-        [id, vendor || false, manage_sites || false, manage_content || false, manage_system || false]
+        'INSERT INTO user_permissions (user_id, vendor, events, stripe_connect, manage_sites, manage_content, manage_system) VALUES (?, ?, ?, ?, ?, ?, ?)', 
+        [id, vendor || false, events || false, stripe_connect || false, manage_sites || false, manage_content || false, manage_system || false]
       );
     }
     
@@ -1110,7 +1120,235 @@ router.post('/email-bounces-unblacklist', verifyToken, requireRestrictedPermissi
     console.error('Error removing domain from blacklist:', err.message, err.stack);
     res.setHeader('Content-Type', 'application/json');
     res.status(500).json({ error: 'Failed to remove domain from blacklist' });
-  }
+      }
+});
+
+// ===== EVENT EMAIL ADMINISTRATION ROUTES =====
+
+/**
+ * GET /admin/event-email-stats
+ * Get event email system statistics
+ */
+router.get('/event-email-stats', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+    try {
+        // Get application email statistics
+        const [emailStats] = await db.execute(`
+            SELECT 
+                email_type,
+                COUNT(*) as total_sent,
+                SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful,
+                SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as failed
+            FROM application_email_log 
+            WHERE sent_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            GROUP BY email_type
+        `);
+
+        // Get recent email activity
+        const [recentActivity] = await db.execute(`
+            SELECT 
+                ael.email_type,
+                ael.sent_at,
+                ael.success,
+                ea.id as application_id,
+                e.title as event_title,
+                CONCAT(u.first_name, ' ', u.last_name) as artist_name
+            FROM application_email_log ael
+            JOIN event_applications ea ON ael.application_id = ea.id
+            JOIN events e ON ea.event_id = e.id
+            JOIN users u ON ea.artist_id = u.id
+            ORDER BY ael.sent_at DESC
+            LIMIT 20
+        `);
+
+        // Get applications needing reminders
+        const [reminderStats] = await db.execute(`
+            SELECT 
+                COUNT(CASE WHEN DATE(booth_fee_due_date) = DATE(DATE_ADD(NOW(), INTERVAL 3 DAY)) THEN 1 END) as due_soon,
+                COUNT(CASE WHEN DATE(booth_fee_due_date) = DATE(DATE_SUB(NOW(), INTERVAL 1 DAY)) THEN 1 END) as overdue,
+                COUNT(CASE WHEN DATE(booth_fee_due_date) = DATE(DATE_SUB(NOW(), INTERVAL 7 DAY)) THEN 1 END) as final_notice,
+                COUNT(CASE WHEN DATE(booth_fee_due_date) < DATE(DATE_SUB(NOW(), INTERVAL 14 DAY)) AND status = 'accepted' THEN 1 END) as auto_decline_ready
+            FROM event_applications 
+            WHERE booth_fee_paid = 0 AND status IN ('accepted')
+        `);
+
+        res.json({
+            success: true,
+            email_stats: emailStats,
+            recent_activity: recentActivity,
+            reminder_stats: reminderStats[0]
+        });
+
+    } catch (error) {
+        console.error('Error fetching event email stats:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * POST /admin/process-event-reminders
+ * Manually trigger event reminder processing
+ */
+router.post('/process-event-reminders', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+    try {
+        const EventEmailService = require('../services/eventEmailService');
+        const emailService = new EventEmailService();
+
+        // Process automated reminders
+        const results = await emailService.processAutomatedReminders();
+
+        res.json({
+            success: true,
+            message: 'Event reminders processed successfully',
+            results: results
+        });
+
+    } catch (error) {
+        console.error('Error processing event reminders:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * POST /admin/process-auto-decline
+ * Manually trigger auto-decline processing
+ */
+router.post('/process-auto-decline', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+    try {
+        const EventEmailService = require('../services/eventEmailService');
+        const emailService = new EventEmailService();
+
+        // Process auto-decline
+        const results = await emailService.processAutoDecline();
+
+        res.json({
+            success: true,
+            message: 'Auto-decline processing completed',
+            results: results
+        });
+
+    } catch (error) {
+        console.error('Error processing auto-decline:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * POST /admin/send-test-booth-fee-email
+ * Send test booth fee email
+ */
+router.post('/send-test-booth-fee-email', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+    try {
+        const { application_id, email_type } = req.body;
+
+        if (!application_id || !email_type) {
+            return res.status(400).json({ error: 'Application ID and email type are required' });
+        }
+
+        const validEmailTypes = ['booth_fee_invoice', 'booth_fee_reminder', 'booth_fee_overdue', 'booth_fee_confirmation'];
+        if (!validEmailTypes.includes(email_type)) {
+            return res.status(400).json({ error: 'Invalid email type' });
+        }
+
+        const EventEmailService = require('../services/eventEmailService');
+        const emailService = new EventEmailService();
+
+        let result;
+        switch (email_type) {
+            case 'booth_fee_invoice':
+                result = await emailService.sendBoothFeeInvoice(application_id);
+                break;
+            case 'booth_fee_reminder':
+                result = await emailService.sendBoothFeeReminder(application_id);
+                break;
+            case 'booth_fee_overdue':
+                result = await emailService.sendBoothFeeReminder(application_id, 'overdue');
+                break;
+            case 'booth_fee_confirmation':
+                // For testing, we'll need a payment intent ID
+                const [paymentData] = await db.execute(`
+                    SELECT payment_intent_id FROM event_booth_fees WHERE application_id = ?
+                `, [application_id]);
+                
+                if (paymentData.length === 0) {
+                    return res.status(400).json({ error: 'No payment intent found for this application' });
+                }
+                
+                result = await emailService.sendBoothFeeConfirmation(application_id, paymentData[0].payment_intent_id);
+                break;
+        }
+
+        res.json({
+            success: true,
+            message: `Test ${email_type} email sent successfully`,
+            result: result
+        });
+
+    } catch (error) {
+        console.error('Error sending test booth fee email:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * GET /admin/applications-needing-reminders
+ * Get applications that need reminders
+ */
+router.get('/applications-needing-reminders', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+    try {
+        const [applications] = await db.execute(`
+            SELECT 
+                ea.id,
+                ea.booth_fee_amount,
+                ea.booth_fee_due_date,
+                ea.reminder_sent_due_soon,
+                ea.reminder_sent_overdue,
+                ea.reminder_sent_final,
+                e.title as event_title,
+                CONCAT(u.first_name, ' ', u.last_name) as artist_name,
+                u.email as artist_email,
+                DATEDIFF(ea.booth_fee_due_date, NOW()) as days_until_due
+            FROM event_applications ea
+            JOIN events e ON ea.event_id = e.id
+            JOIN users u ON ea.artist_id = u.id
+            WHERE ea.booth_fee_paid = 0 
+                AND ea.status = 'accepted'
+            ORDER BY ea.booth_fee_due_date ASC
+        `);
+
+        // Categorize applications
+        const categorized = {
+            due_soon: [],
+            overdue: [],
+            final_notice: [],
+            auto_decline_ready: []
+        };
+
+        const now = new Date();
+        applications.forEach(app => {
+            const dueDate = new Date(app.booth_fee_due_date);
+            const daysDiff = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
+
+            if (daysDiff === 3 && !app.reminder_sent_due_soon) {
+                categorized.due_soon.push(app);
+            } else if (daysDiff === -1 && !app.reminder_sent_overdue) {
+                categorized.overdue.push(app);
+            } else if (daysDiff === -7 && !app.reminder_sent_final) {
+                categorized.final_notice.push(app);
+            } else if (daysDiff < -14) {
+                categorized.auto_decline_ready.push(app);
+            }
+        });
+
+        res.json({
+            success: true,
+            all_applications: applications,
+            categorized: categorized
+        });
+
+    } catch (error) {
+        console.error('Error fetching applications needing reminders:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
 module.exports = router;

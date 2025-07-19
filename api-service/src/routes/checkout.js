@@ -52,7 +52,7 @@ router.post('/calculate-totals', verifyToken, async (req, res) => {
 router.post('/create-payment-intent', verifyToken, async (req, res) => {
   try {
     const { cart_items, shipping_info, billing_info } = req.body;
-    const userId = req.user.userId;
+    const userId = req.userId;
     
     if (!cart_items || !Array.isArray(cart_items)) {
       return res.status(400).json({ error: 'Cart items are required' });
@@ -104,7 +104,7 @@ router.post('/create-payment-intent', verifyToken, async (req, res) => {
 router.post('/confirm-payment', verifyToken, async (req, res) => {
   try {
     const { payment_intent_id, order_id } = req.body;
-    const userId = req.user.userId;
+    const userId = req.userId;
     
     if (!payment_intent_id || !order_id) {
       return res.status(400).json({ error: 'Payment intent ID and order ID are required' });
@@ -141,7 +141,7 @@ router.post('/confirm-payment', verifyToken, async (req, res) => {
 router.get('/payment-status/:order_id', verifyToken, async (req, res) => {
   try {
     const { order_id } = req.params;
-    const userId = req.user.userId;
+    const userId = req.userId;
     
     const order = await getOrderById(order_id);
     if (!order || order.user_id !== userId) {
@@ -172,7 +172,7 @@ router.get('/payment-status/:order_id', verifyToken, async (req, res) => {
 router.get('/order/:order_id', verifyToken, async (req, res) => {
   try {
     const { order_id } = req.params;
-    const userId = req.user.userId;
+    const userId = req.userId;
     
     const order = await getOrderWithItems(order_id);
     if (!order || order.user_id !== userId) {

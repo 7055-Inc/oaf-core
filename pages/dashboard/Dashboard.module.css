@@ -1989,3 +1989,418 @@
     font-size: 12px;
   }
 }
+
+/* ===== BULK ACCEPTANCE INTERFACE STYLES ===== */
+.bulkAcceptanceInterface {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  border: 2px solid #e9ecef;
+}
+
+.bulkHeader {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.bulkHeader h4 {
+  font-size: 1.5rem;
+  color: #2c3e50;
+  margin-bottom: 8px;
+}
+
+.bulkHeader p {
+  color: #6c757d;
+  font-size: 1rem;
+}
+
+.bulkControls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+}
+
+.bulkInputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bulkInputGroup label {
+  font-weight: 600;
+  color: #495057;
+  font-size: 0.9rem;
+}
+
+.bulkInput {
+  padding: 10px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.bulkInput:focus {
+  border-color: #007bff;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+.bulkActions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.selectAllButton {
+  padding: 10px 20px;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.selectAllButton:hover {
+  background: #5a6268;
+}
+
+.bulkAcceptButton {
+  padding: 10px 24px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: background-color 0.2s;
+}
+
+.bulkAcceptButton:hover:not(:disabled) {
+  background: #218838;
+}
+
+.bulkAcceptButton:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.bulkApplicationsList {
+  display: grid;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.bulkApplicationItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.bulkApplicationItem:hover {
+  border-color: #007bff;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+}
+
+.bulkCheckbox {
+  margin-top: 4px;
+}
+
+.bulkCheckbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.bulkApplicationInfo {
+  flex: 1;
+}
+
+.bulkApplicationInfo h5 {
+  margin: 0 0 8px 0;
+  color: #2c3e50;
+  font-size: 1.1rem;
+}
+
+.bulkApplicationInfo p {
+  margin: 4px 0;
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.bulkApplicationInfo a {
+  color: #007bff;
+  text-decoration: none;
+}
+
+.bulkApplicationInfo a:hover {
+  text-decoration: underline;
+}
+
+/* ===== PAYMENT DASHBOARD STYLES ===== */
+.paymentDashboard {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  border: 2px solid #e9ecef;
+}
+
+.paymentHeader {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.paymentHeader h4 {
+  font-size: 1.5rem;
+  color: #2c3e50;
+  margin-bottom: 8px;
+}
+
+.paymentHeader p {
+  color: #6c757d;
+  font-size: 1rem;
+}
+
+.paymentSummary {
+  margin-bottom: 24px;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.summaryCard {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  border: 1px solid #dee2e6;
+  transition: transform 0.2s;
+}
+
+.summaryCard:hover {
+  transform: translateY(-2px);
+}
+
+.summaryNumber {
+  display: block;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.summaryLabel {
+  display: block;
+  color: #6c757d;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.paymentControls {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  border: 1px solid #dee2e6;
+}
+
+.reminderControls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.customMessageInput {
+  padding: 12px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 1rem;
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color 0.2s;
+}
+
+.customMessageInput:focus {
+  border-color: #007bff;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+.reminderButtons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.reminderButton {
+  padding: 10px 20px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.reminderButton:hover {
+  background: #0056b3;
+}
+
+.reminderButton:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.paymentApplicationsList {
+  display: grid;
+  gap: 12px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.paymentApplicationItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.paymentApplicationItem:hover {
+  border-color: #007bff;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+}
+
+.paymentCheckbox {
+  margin-top: 4px;
+}
+
+.paymentCheckbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.paymentLink {
+  color: #3498db;
+  text-decoration: none;
+  font-weight: 500;
+  margin-right: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.paymentLink:hover {
+  background-color: #e3f2fd;
+  text-decoration: underline;
+}
+
+.copyLinkButton {
+  background: #e3f2fd;
+  color: #3498db;
+  border: 1px solid #3498db;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  margin-left: 8px;
+  transition: all 0.2s;
+}
+
+.copyLinkButton:hover {
+  background: #3498db;
+  color: white;
+}
+
+.paymentApplicationInfo {
+  flex: 1;
+}
+
+.paymentApplicationInfo h5 {
+  margin: 0 0 8px 0;
+  color: #2c3e50;
+  font-size: 1.1rem;
+}
+
+.paymentDetails {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.paymentDetails p {
+  margin: 4px 0;
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.paymentStatus {
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+/* ===== RESPONSIVE STYLES ===== */
+@media (max-width: 768px) {
+  .bulkControls {
+    grid-template-columns: 1fr;
+  }
+  
+  .bulkActions {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .bulkApplicationItem {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .bulkCheckbox {
+    align-self: flex-start;
+  }
+  
+  .summaryGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .reminderButtons {
+    flex-direction: column;
+  }
+  
+  .paymentApplicationItem {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .paymentDetails {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1234,6 +1234,24 @@ function ApplicationManagementSection({ userData }) {
               </div>
             </div>
 
+            {/* Bulk Acceptance Interface for Submitted Applications */}
+            {statusFilter === 'submitted' && (
+              <BulkAcceptanceInterface 
+                applications={filteredApplications}
+                selectedEvent={selectedEvent}
+                onBulkAccept={() => fetchApplications(selectedEvent.id)}
+              />
+            )}
+
+            {/* Payment Dashboard Interface for Accepted Applications */}
+            {statusFilter === 'accepted' && (
+              <PaymentDashboard 
+                applications={filteredApplications}
+                selectedEvent={selectedEvent}
+                onRefresh={() => fetchApplications(selectedEvent.id)}
+              />
+            )}
+
             {applicationsLoading ? (
               <div className={styles.loading}>Loading applications...</div>
             ) : filteredApplications.length === 0 ? (
@@ -1415,6 +1433,432 @@ function ApplicationCard({ application, onStatusUpdate }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Bulk Acceptance Interface Component
+function BulkAcceptanceInterface({ applications, selectedEvent, onBulkAccept }) {
+  const [selectedApps, setSelectedApps] = useState([]);
+  const [bulkBoothFee, setBulkBoothFee] = useState('');
+  const [bulkDueDate, setBulkDueDate] = useState('');
+  const [bulkTimezone, setBulkTimezone] = useState('America/New_York');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStep, setProcessingStep] = useState('');
+
+  const handleSelectAll = (checked) => {
+    if (checked) {
+      setSelectedApps(applications.map(app => app.id));
+    } else {
+      setSelectedApps([]);
+    }
+  };
+
+  const handleSelectApp = (appId, checked) => {
+    if (checked) {
+      setSelectedApps([...selectedApps, appId]);
+    } else {
+      setSelectedApps(selectedApps.filter(id => id !== appId));
+    }
+  };
+
+  const handleBulkAccept = async () => {
+    if (selectedApps.length === 0) {
+      alert('Please select at least one application');
+      return;
+    }
+
+    if (!bulkBoothFee || !bulkDueDate) {
+      alert('Please enter booth fee and due date');
+      return;
+    }
+
+    setIsProcessing(true);
+    setProcessingStep('Accepting applications...');
+
+    try {
+      const token = getAuthToken();
+      
+      // Prepare applications for bulk acceptance
+      const applicationsToAccept = selectedApps.map(appId => ({
+        application_id: appId,
+        booth_fee_amount: parseFloat(bulkBoothFee),
+        due_date: bulkDueDate,
+        due_date_timezone: bulkTimezone,
+        add_ons: [] // Add-ons can be added later
+      }));
+
+      // Step 1: Bulk accept applications
+      const acceptResponse = await fetch('https://api2.onlineartfestival.com/api/applications/bulk-accept', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ applications: applicationsToAccept })
+      });
+
+      if (!acceptResponse.ok) {
+        throw new Error('Failed to accept applications');
+      }
+
+      const acceptResult = await acceptResponse.json();
+      
+      if (acceptResult.errors.length > 0) {
+        console.warn('Some applications failed to accept:', acceptResult.errors);
+      }
+
+      setProcessingStep('Creating payment intents...');
+
+      // Step 2: Create payment intents
+      const paymentResponse = await fetch('https://api2.onlineartfestival.com/api/applications/bulk-payment-intents', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ application_ids: selectedApps })
+      });
+
+      if (!paymentResponse.ok) {
+        throw new Error('Failed to create payment intents');
+      }
+
+      const paymentResult = await paymentResponse.json();
+
+      setProcessingStep('Sending acceptance emails...');
+
+      // Step 3: Send acceptance emails (handled by email service)
+      // This would typically be triggered by the bulk-accept endpoint
+
+      alert(`Successfully processed ${acceptResult.processed} applications! ${paymentResult.created} payment intents created.`);
+      
+      // Reset form
+      setSelectedApps([]);
+      setBulkBoothFee('');
+      setBulkDueDate('');
+      
+      // Refresh applications
+      onBulkAccept();
+
+    } catch (error) {
+      console.error('Error in bulk acceptance:', error);
+      alert('Failed to process bulk acceptance: ' + error.message);
+    } finally {
+      setIsProcessing(false);
+      setProcessingStep('');
+    }
+  };
+
+  return (
+    <div className={styles.bulkAcceptanceInterface}>
+      <div className={styles.bulkHeader}>
+        <h4>🎪 Bulk Acceptance Interface</h4>
+        <p>Select applications to accept and set booth fees</p>
+      </div>
+
+      <div className={styles.bulkControls}>
+        <div className={styles.bulkInputGroup}>
+          <label htmlFor="bulkBoothFee">Booth Fee (USD)</label>
+          <input
+            id="bulkBoothFee"
+            type="number"
+            value={bulkBoothFee}
+            onChange={(e) => setBulkBoothFee(e.target.value)}
+            placeholder="500.00"
+            step="0.01"
+            min="0"
+            className={styles.bulkInput}
+          />
+        </div>
+        
+        <div className={styles.bulkInputGroup}>
+          <label htmlFor="bulkDueDate">Payment Due Date</label>
+          <input
+            id="bulkDueDate"
+            type="datetime-local"
+            value={bulkDueDate}
+            onChange={(e) => setBulkDueDate(e.target.value)}
+            className={styles.bulkInput}
+          />
+        </div>
+
+        <div className={styles.bulkInputGroup}>
+          <label htmlFor="bulkTimezone">Timezone</label>
+          <select
+            id="bulkTimezone"
+            value={bulkTimezone}
+            onChange={(e) => setBulkTimezone(e.target.value)}
+            className={styles.bulkInput}
+          >
+            <option value="America/New_York">Eastern Time</option>
+            <option value="America/Chicago">Central Time</option>
+            <option value="America/Denver">Mountain Time</option>
+            <option value="America/Los_Angeles">Pacific Time</option>
+          </select>
+        </div>
+      </div>
+
+      <div className={styles.bulkActions}>
+        <button 
+          onClick={() => handleSelectAll(selectedApps.length !== applications.length)}
+          className={styles.selectAllButton}
+        >
+          {selectedApps.length === applications.length ? 'Deselect All' : 'Select All'}
+        </button>
+        
+        <button 
+          onClick={handleBulkAccept}
+          disabled={isProcessing || selectedApps.length === 0}
+          className={styles.bulkAcceptButton}
+        >
+          {isProcessing ? `${processingStep}` : `Accept Selected (${selectedApps.length})`}
+        </button>
+      </div>
+
+      <div className={styles.bulkApplicationsList}>
+        {applications.map((application) => (
+          <div key={application.id} className={styles.bulkApplicationItem}>
+            <div className={styles.bulkCheckbox}>
+              <input
+                type="checkbox"
+                checked={selectedApps.includes(application.id)}
+                onChange={(e) => handleSelectApp(application.id, e.target.checked)}
+              />
+            </div>
+            <div className={styles.bulkApplicationInfo}>
+              <h5>{application.artist_first_name} {application.artist_last_name}</h5>
+              <p><strong>Business:</strong> {application.artist_business_name || 'N/A'}</p>
+              <p><strong>Categories:</strong> {application.art_categories || 'N/A'}</p>
+              <p><strong>Submitted:</strong> {new Date(application.submitted_at).toLocaleDateString()}</p>
+              {application.portfolio_url && (
+                <p><strong>Portfolio:</strong> <a href={application.portfolio_url} target="_blank" rel="noopener noreferrer">View Portfolio</a></p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Payment Dashboard Component
+function PaymentDashboard({ applications, selectedEvent, onRefresh }) {
+  const [paymentSummary, setPaymentSummary] = useState(null);
+  const [selectedForReminder, setSelectedForReminder] = useState([]);
+  const [customMessage, setCustomMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPaymentDashboard();
+  }, [selectedEvent]);
+
+  const fetchPaymentDashboard = async () => {
+    if (!selectedEvent) return;
+
+    setLoading(true);
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`https://api2.onlineartfestival.com/api/applications/payment-dashboard/${selectedEvent.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch payment dashboard');
+      }
+
+      const data = await response.json();
+      setPaymentSummary(data.summary);
+    } catch (error) {
+      console.error('Error fetching payment dashboard:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendReminders = async (reminderType = 'manual') => {
+    if (selectedForReminder.length === 0) {
+      alert('Please select applications to send reminders to');
+      return;
+    }
+
+    try {
+      const token = getAuthToken();
+      const response = await fetch('https://api2.onlineartfestival.com/api/applications/send-payment-reminders', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          application_ids: selectedForReminder,
+          reminder_type: reminderType,
+          custom_message: customMessage
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send reminders');
+      }
+
+      const result = await response.json();
+      alert(`Sent ${result.sent} reminders successfully!`);
+      
+      setSelectedForReminder([]);
+      setCustomMessage('');
+      onRefresh();
+    } catch (error) {
+      console.error('Error sending reminders:', error);
+      alert('Failed to send reminders: ' + error.message);
+    }
+  };
+
+  const getPaymentStatusColor = (status) => {
+    switch (status) {
+      case 'paid': return 'green';
+      case 'pending': return 'yellow';
+      case 'overdue': return 'red';
+      default: return 'gray';
+    }
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount);
+  };
+
+  if (loading) {
+    return <div className={styles.loading}>Loading payment dashboard...</div>;
+  }
+
+  return (
+    <div className={styles.paymentDashboard}>
+      <div className={styles.paymentHeader}>
+        <h4>💰 Payment Dashboard</h4>
+        <p>Track booth fee payments and send reminders</p>
+      </div>
+
+      {paymentSummary && (
+        <div className={styles.paymentSummary}>
+          <div className={styles.summaryGrid}>
+            <div className={styles.summaryCard}>
+              <span className={styles.summaryNumber} style={{color: 'green'}}>
+                {paymentSummary.paid_count || 0}
+              </span>
+              <span className={styles.summaryLabel}>Paid</span>
+            </div>
+            <div className={styles.summaryCard}>
+              <span className={styles.summaryNumber} style={{color: 'orange'}}>
+                {paymentSummary.pending_count || 0}
+              </span>
+              <span className={styles.summaryLabel}>Pending</span>
+            </div>
+            <div className={styles.summaryCard}>
+              <span className={styles.summaryNumber} style={{color: 'red'}}>
+                {paymentSummary.overdue_count || 0}
+              </span>
+              <span className={styles.summaryLabel}>Overdue</span>
+            </div>
+            <div className={styles.summaryCard}>
+              <span className={styles.summaryNumber} style={{color: 'green'}}>
+                {formatCurrency(paymentSummary.total_collected || 0)}
+              </span>
+              <span className={styles.summaryLabel}>Collected</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className={styles.paymentControls}>
+        <div className={styles.reminderControls}>
+          <textarea
+            value={customMessage}
+            onChange={(e) => setCustomMessage(e.target.value)}
+            placeholder="Optional custom message for reminders..."
+            className={styles.customMessageInput}
+          />
+          <div className={styles.reminderButtons}>
+            <button 
+              onClick={() => handleSendReminders('manual')}
+              className={styles.reminderButton}
+            >
+              Send Manual Reminder ({selectedForReminder.length})
+            </button>
+            <button 
+              onClick={() => handleSendReminders('due_soon')}
+              className={styles.reminderButton}
+            >
+              Send Due Soon Notice ({selectedForReminder.length})
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.paymentApplicationsList}>
+        {applications.map((application) => {
+          const dueDate = new Date(application.booth_fee_due_date);
+          const now = new Date();
+          const isOverdue = dueDate < now && !application.booth_fee_paid;
+          const daysTilDue = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
+
+          return (
+            <div key={application.id} className={styles.paymentApplicationItem}>
+              <div className={styles.paymentCheckbox}>
+                <input
+                  type="checkbox"
+                  checked={selectedForReminder.includes(application.id)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedForReminder([...selectedForReminder, application.id]);
+                    } else {
+                      setSelectedForReminder(selectedForReminder.filter(id => id !== application.id));
+                    }
+                  }}
+                />
+              </div>
+              <div className={styles.paymentApplicationInfo}>
+                <h5>{application.artist_first_name} {application.artist_last_name}</h5>
+                <div className={styles.paymentDetails}>
+                  <p><strong>Booth Fee:</strong> {formatCurrency(application.booth_fee_amount)}</p>
+                  <p><strong>Due Date:</strong> {dueDate.toLocaleDateString()}</p>
+                  <p><strong>Status:</strong> 
+                    <span className={styles.paymentStatus} style={{color: getPaymentStatusColor(application.payment_status)}}>
+                      {application.booth_fee_paid ? 'PAID' : isOverdue ? 'OVERDUE' : `${daysTilDue} days remaining`}
+                    </span>
+                  </p>
+                  {application.payment_intent_id && !application.booth_fee_paid && (
+                    <p><strong>Payment Link:</strong> 
+                      <a 
+                        href={`/event-payment/${application.payment_intent_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={styles.paymentLink}
+                      >
+                        🔗 Artist Payment Page
+                      </a>
+                      <button 
+                        className={styles.copyLinkButton}
+                        onClick={() => {
+                          const paymentUrl = `/event-payment/${application.payment_intent_id}`;
+                          navigator.clipboard.writeText(`${window.location.origin}${paymentUrl}`);
+                          alert('Payment link copied to clipboard!');
+                        }}
+                      >
+                        📋 Copy
+                      </button>
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -37,14 +37,17 @@ router.post('/exchange', async (req, res) => {
         const permissions = [];
         if (userPermissions[0]) {
           if (userPermissions[0].vendor) permissions.push('vendor');
+          if (userPermissions[0].events) permissions.push('events');
+          if (userPermissions[0].stripe_connect) permissions.push('stripe_connect');
           if (userPermissions[0].manage_sites) permissions.push('manage_sites');
           if (userPermissions[0].manage_content) permissions.push('manage_content');
           if (userPermissions[0].manage_system) permissions.push('manage_system');
+          if (userPermissions[0].verified) permissions.push('verified');
         }
         
         // Admin users get all permissions automatically
         if (roles.includes('admin')) {
-          const allPermissions = ['vendor', 'manage_sites', 'manage_content', 'manage_system'];
+          const allPermissions = ['vendor', 'events', 'stripe_connect', 'manage_sites', 'manage_content', 'manage_system', 'verified'];
           for (const permission of allPermissions) {
             if (!permissions.includes(permission)) {
               permissions.push(permission);
@@ -171,14 +174,17 @@ router.post('/exchange', async (req, res) => {
     const permissions = [];
     if (userPermissions[0]) {
       if (userPermissions[0].vendor) permissions.push('vendor');
+      if (userPermissions[0].events) permissions.push('events');
+      if (userPermissions[0].stripe_connect) permissions.push('stripe_connect');
       if (userPermissions[0].manage_sites) permissions.push('manage_sites');
       if (userPermissions[0].manage_content) permissions.push('manage_content');
       if (userPermissions[0].manage_system) permissions.push('manage_system');
+      if (userPermissions[0].verified) permissions.push('verified');
     }
     
     // Admin users get all permissions automatically
     if (roles.includes('admin')) {
-      const allPermissions = ['vendor', 'manage_sites', 'manage_content', 'manage_system'];
+      const allPermissions = ['vendor', 'events', 'stripe_connect', 'manage_sites', 'manage_content', 'manage_system', 'verified'];
       for (const permission of allPermissions) {
         if (!permissions.includes(permission)) {
           permissions.push(permission);
@@ -282,7 +288,12 @@ router.post('/refresh', async (req, res) => {
     const permissions = [];
     if (userPermissions[0]) {
       if (userPermissions[0].vendor) permissions.push('vendor');
-      // Add more permissions as columns are added
+      if (userPermissions[0].events) permissions.push('events');
+      if (userPermissions[0].stripe_connect) permissions.push('stripe_connect');
+      if (userPermissions[0].manage_sites) permissions.push('manage_sites');
+      if (userPermissions[0].manage_content) permissions.push('manage_content');
+      if (userPermissions[0].manage_system) permissions.push('manage_system');
+      if (userPermissions[0].verified) permissions.push('verified');
     }
 
     // Generate new access token (1 hour expiration)

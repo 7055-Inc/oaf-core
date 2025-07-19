@@ -50,6 +50,8 @@ export default function PermissionsManagement() {
             ...user, 
             permissions: { 
               vendor: false, 
+              events: false, 
+              stripe_connect: false, 
               manage_sites: false, 
               manage_content: false, 
               manage_system: false 
@@ -140,7 +142,7 @@ export default function PermissionsManagement() {
     <div className={styles.container}>
       <div className={styles.header}>
         <h2>Permissions Management</h2>
-        <p>Manage user permissions for vendor access, content management, site management, and system administration</p>
+        <p>Manage user permissions for vendor access, event management, Stripe Connect, content management, site management, and system administration</p>
       </div>
 
       <div className={styles.controls}>
@@ -164,6 +166,8 @@ export default function PermissionsManagement() {
               <th>Username</th>
               <th>User Type</th>
               <th>Vendor</th>
+              <th>Events</th>
+              <th>Stripe Connect</th>
               <th>Manage Sites</th>
               <th>Manage Content</th>
               <th>Manage System</th>
@@ -180,6 +184,8 @@ export default function PermissionsManagement() {
                   </span>
                 </td>
                 {renderPermissionToggle(user, 'vendor', 'Vendor')}
+                {renderPermissionToggle(user, 'events', 'Events')}
+                {renderPermissionToggle(user, 'stripe_connect', 'Stripe Connect')}
                 {renderPermissionToggle(user, 'manage_sites', 'Manage Sites')}
                 {renderPermissionToggle(user, 'manage_content', 'Manage Content')}
                 {renderPermissionToggle(user, 'manage_system', 'Manage System')}
