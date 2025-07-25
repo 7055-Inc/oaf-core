@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import styles from './ApplicationStatus.module.css';
 
-export default function ApplicationStatus({ eventId, user }) {
+export default function ApplicationStatus({ eventId, user, persona_id = null }) {
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -11,14 +11,14 @@ export default function ApplicationStatus({ eventId, user }) {
 
     const fetchApplicationStatus = async () => {
       try {
-        const token = localStorage.getItem('authToken');
+        const token = localStorage.getItem('token');
         if (!token) {
           setLoading(false);
           return;
         }
 
-        // Get user's applications and find the one for this event
-        const response = await fetch('https://api2.onlineartfestival.com/api/applications/my-applications', {
+        // Get user's applications and find the one for this event and persona
+        const response = await fetch('https://api2.onlineartfestival.com/api/applications/', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -29,7 +29,10 @@ export default function ApplicationStatus({ eventId, user }) {
         }
 
         const data = await response.json();
-        const eventApplication = data.applications.find(app => app.event_id == eventId);
+        const eventApplication = data.applications.find(app => 
+          app.event_id == eventId && 
+          (!persona_id || app.persona_id == persona_id)
+        );
         
         setApplication(eventApplication || null);
       } catch (err) {
@@ -41,7 +44,7 @@ export default function ApplicationStatus({ eventId, user }) {
     };
 
     fetchApplicationStatus();
-  }, [eventId, user]);
+  }, [eventId, user, persona_id]);
 
   const getStatusInfo = (status) => {
     switch (status) {

@@ -8,6 +8,9 @@
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
+    "bull": "^4.16.5",
+    "bull-arena": "^4.5.1",
+    "clamscan": "^2.4.0",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "express-rate-limit": "^7.5.0",
@@ -15,12 +18,16 @@
     "formidable": "^3.5.4",
     "jose": "^6.0.11",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
     "mysql2": "^3.14.1",
     "next": "^15.3.2",
+    "papaparse": "^5.5.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-stateface": "^2.0.0",
     "react-usa-map": "^1.5.0",
-    "tinymce": "^7.9.1"
+    "redis": "^5.6.0",
+    "tinymce": "^7.9.1",
+    "uuid": "^11.1.0"
   }
 }

@@ -57,28 +57,11 @@ async function testSubscriptionIntegration() {
   }
 }
 
-// Test subscription status helper function
-async function testUserVerificationStatus(userId) {
-  try {
-    const [permissions] = await db.execute(
-      'SELECT verified FROM user_permissions WHERE user_id = ?',
-      [userId]
-    );
-    
-    if (permissions.length > 0) {
-      return permissions[0].verified;
-    }
-    
-    return false;
-  } catch (error) {
-    console.error('Error checking verification status:', error);
-    return false;
-  }
-}
+
 
 // Run if called directly
 if (require.main === module) {
   testSubscriptionIntegration().then(() => process.exit(0));
 }
 
-module.exports = { testSubscriptionIntegration, testUserVerificationStatus }; 
+module.exports = { testSubscriptionIntegration }; 

@@ -35,8 +35,10 @@ router.get('/', verifyToken, async (req, res) => {
         const [applications] = await db.execute(query, params);
 
         res.json({
+            success: true,
             applications,
-            total: applications.length
+            total: applications.length,
+            message: applications.length === 0 ? 'You have not submitted any applications yet.' : null
         });
     } catch (error) {
         console.error('Error fetching artist applications:', error);
@@ -60,13 +62,14 @@ router.get('/:id', verifyToken, async (req, res) => {
                 e.venue_city as event_venue_city,
                 e.venue_state as event_venue_state,
                 e.promoter_id,
-                u.first_name as artist_first_name,
-                u.last_name as artist_last_name,
-                u.email as artist_email,
+                up.first_name as artist_first_name,
+                up.last_name as artist_last_name,
+                u.username as artist_email,
                 ap.business_name as artist_business_name
             FROM event_applications ea
             JOIN events e ON ea.event_id = e.id
             JOIN users u ON ea.artist_id = u.id
+            LEFT JOIN user_profiles up ON u.id = up.user_id
             LEFT JOIN artist_profiles ap ON u.id = ap.user_id
             WHERE ea.id = ?
         `, [id]);
@@ -203,14 +206,15 @@ router.get('/events/:eventId/applications', verifyToken, async (req, res) => {
         let query = `
             SELECT 
                 ea.*,
-                u.first_name as artist_first_name,
-                u.last_name as artist_last_name,
-                u.email as artist_email,
+                up.first_name as artist_first_name,
+                up.last_name as artist_last_name,
+                u.username as artist_email,
                 ap.business_name as artist_business_name,
                 ap.art_categories,
                 ap.art_mediums
             FROM event_applications ea
             JOIN users u ON ea.artist_id = u.id
+            JOIN user_profiles up ON u.id = up.user_id
             LEFT JOIN artist_profiles ap ON u.id = ap.user_id
             WHERE ea.event_id = ?
         `;
@@ -281,12 +285,13 @@ router.put('/:id/status', verifyToken, async (req, res) => {
             SELECT 
                 ea.*,
                 e.title as event_title,
-                u.first_name as artist_first_name,
-                u.last_name as artist_last_name,
-                u.email as artist_email
+                up.first_name as artist_first_name,
+                up.last_name as artist_last_name,
+                u.username as artist_email
             FROM event_applications ea
             JOIN events e ON ea.event_id = e.id
             JOIN users u ON ea.artist_id = u.id
+            JOIN user_profiles up ON u.id = up.user_id
             WHERE ea.id = ?
         `, [id]);
 
@@ -355,9 +360,9 @@ router.get('/events/:eventId/bulk-management', verifyToken, async (req, res) => 
         const [applications] = await db.execute(`
             SELECT 
                 ea.*,
-                u.first_name as artist_first_name,
-                u.last_name as artist_last_name,
-                u.email as artist_email,
+                up.first_name as artist_first_name,
+                up.last_name as artist_last_name,
+                u.username as artist_email,
                 ap.business_name as artist_business_name,
                 ap.art_categories,
                 ap.art_mediums,
@@ -367,6 +372,7 @@ router.get('/events/:eventId/bulk-management', verifyToken, async (req, res) => 
                 COALESCE(SUM(ebp.amount_paid), 0) as total_paid
             FROM event_applications ea
             JOIN users u ON ea.artist_id = u.id
+            JOIN user_profiles up ON u.id = up.user_id
             LEFT JOIN artist_profiles ap ON u.id = ap.user_id
             LEFT JOIN event_booth_payments ebp ON ea.id = ebp.application_id
             WHERE ea.event_id = ? AND ea.status = ?
@@ -517,13 +523,14 @@ router.post('/bulk-payment-intents', verifyToken, async (req, res) => {
                         ea.*,
                         e.title as event_title,
                         e.promoter_id,
-                        u.first_name as artist_first_name,
-                        u.last_name as artist_last_name,
-                        u.email as artist_email,
+                        up.first_name as artist_first_name,
+                        up.last_name as artist_last_name,
+                        u.username as artist_email,
                         COALESCE(SUM(eba.amount), 0) as addons_total
                     FROM event_applications ea
                     JOIN events e ON ea.event_id = e.id
                     JOIN users u ON ea.artist_id = u.id
+                    JOIN user_profiles up ON u.id = up.user_id
                     LEFT JOIN event_booth_addons eba ON ea.id = eba.application_id AND eba.selected = 1
                     WHERE ea.id = ? AND ea.status = 'accepted'
                     GROUP BY ea.id
@@ -646,9 +653,9 @@ router.get('/payment-dashboard/:eventId', verifyToken, async (req, res) => {
                 ea.due_date_timezone,
                 ea.reminder_sent_at,
                 ea.final_notice_sent_at,
-                u.first_name as artist_first_name,
-                u.last_name as artist_last_name,
-                u.email as artist_email,
+                up.first_name as artist_first_name,
+                up.last_name as artist_last_name,
+                u.username as artist_email,
                 ap.business_name as artist_business_name,
                 ebf.payment_intent_id,
                 ebf.paid_at,
@@ -662,6 +669,7 @@ router.get('/payment-dashboard/:eventId', verifyToken, async (req, res) => {
                 END as payment_status
             FROM event_applications ea
             JOIN users u ON ea.artist_id = u.id
+            JOIN user_profiles up ON u.id = up.user_id
             LEFT JOIN artist_profiles ap ON u.id = ap.user_id
             LEFT JOIN event_booth_fees ebf ON ea.id = ebf.application_id
             LEFT JOIN event_booth_payments ebp ON ea.id = ebp.application_id
@@ -709,15 +717,16 @@ router.post('/send-payment-reminders', verifyToken, async (req, res) => {
                         ea.*,
                         e.title as event_title,
                         e.promoter_id,
-                        u.first_name as artist_first_name,
-                        u.last_name as artist_last_name,
-                        u.email as artist_email,
+                        up.first_name as artist_first_name,
+                        up.last_name as artist_last_name,
+                        u.username as artist_email,
                         pp.business_name as promoter_business_name,
                         ebf.payment_intent_id,
                         COALESCE(SUM(eba.amount), 0) as addons_total
                     FROM event_applications ea
                     JOIN events e ON ea.event_id = e.id
                     JOIN users u ON ea.artist_id = u.id
+                    JOIN user_profiles up ON u.id = up.user_id
                     LEFT JOIN promoter_profiles pp ON e.promoter_id = pp.user_id
                     LEFT JOIN event_booth_fees ebf ON ea.id = ebf.application_id
                     LEFT JOIN event_booth_addons eba ON ea.id = eba.application_id AND eba.selected = 1
@@ -833,15 +842,16 @@ router.get('/payment-intent/:payment_intent_id', verifyToken, async (req, res) =
                 e.venue_name as event_venue_name,
                 e.venue_city as event_venue_city,
                 e.venue_state as event_venue_state,
-                u.first_name as artist_first_name,
-                u.last_name as artist_last_name,
-                u.email as artist_email,
+                up.first_name as artist_first_name,
+                up.last_name as artist_last_name,
+                u.username as artist_email,
                 ebf.payment_intent_id,
                 COALESCE(SUM(eba.amount), 0) as addons_total
             FROM event_booth_fees ebf
             JOIN event_applications ea ON ebf.application_id = ea.id
             JOIN events e ON ea.event_id = e.id
             JOIN users u ON ea.artist_id = u.id
+            JOIN user_profiles up ON u.id = up.user_id
             LEFT JOIN event_booth_addons eba ON ea.id = eba.application_id AND eba.selected = 1
             WHERE ebf.payment_intent_id = ?
             GROUP BY ea.id
@@ -1133,14 +1143,14 @@ router.post('/events/:eventId/apply', verifyToken, async (req, res) => {
             return res.status(400).json({ error: 'Event is not accepting applications' });
         }
 
-        // Check if artist already applied
+        // Check if artist already applied with this specific persona
         const [existingApp] = await db.execute(`
             SELECT id FROM event_applications 
-            WHERE event_id = ? AND artist_id = ?
-        `, [eventId, artistId]);
+            WHERE event_id = ? AND artist_id = ? AND (persona_id = ? OR (persona_id IS NULL AND ? IS NULL))
+        `, [eventId, artistId, persona_id, persona_id]);
 
         if (existingApp.length > 0) {
-            return res.status(400).json({ error: 'You have already applied to this event' });
+            return res.status(400).json({ error: 'You have already applied to this event with this persona' });
         }
 
         // Verify persona belongs to artist if provided
@@ -1225,18 +1235,19 @@ router.post('/apply-with-packet', verifyToken, async (req, res) => {
             return res.status(400).json({ error: 'Event is not accepting applications' });
         }
 
-        // Check if artist already applied
+        // Parse packet data first to get persona_id
+        const packetData = JSON.parse(packet[0].packet_data || '{}');
+        const packetPersonaId = packet[0].persona_id;
+
+        // Check if artist already applied with this specific persona
         const [existingApp] = await db.execute(`
             SELECT id FROM event_applications 
-            WHERE event_id = ? AND artist_id = ?
-        `, [event_id, artistId]);
+            WHERE event_id = ? AND artist_id = ? AND (persona_id = ? OR (persona_id IS NULL AND ? IS NULL))
+        `, [event_id, artistId, packetPersonaId, packetPersonaId]);
 
         if (existingApp.length > 0) {
-            return res.status(400).json({ error: 'You have already applied to this event' });
+            return res.status(400).json({ error: 'You have already applied to this event with this persona' });
         }
-
-        // Parse packet data
-        const packetData = JSON.parse(packet[0].packet_data || '{}');
         
         // Create application with packet data
         const [result] = await db.execute(`

@@ -8,6 +8,7 @@ export default function TermsAcceptance() {
   const [termsData, setTermsData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
+  const [declining, setDeclining] = useState(false);
   const [error, setError] = useState(null);
   const [hasScrolled, setHasScrolled] = useState(false);
   const router = useRouter();
@@ -33,7 +34,7 @@ export default function TermsAcceptance() {
     fetchCurrentTerms();
   }, []);
 
-  // Check if scrolling is needed after terms load
+  // Simplified scroll detection
   useEffect(() => {
     if (termsData && !hasScrolled && termsContentRef.current) {
       const checkScrollNeeded = () => {
@@ -41,31 +42,31 @@ export default function TermsAcceptance() {
         if (termsContent) {
           const { scrollHeight, clientHeight } = termsContent;
           // If content doesn't need scrolling, auto-enable the button
-          if (scrollHeight <= clientHeight + 1) {
+          if (scrollHeight <= clientHeight + 5) {
             setHasScrolled(true);
           }
         }
       };
       
-      // Multiple checks with increasing delays to ensure DOM is fully rendered
-      setTimeout(checkScrollNeeded, 200);
-      setTimeout(checkScrollNeeded, 500);
-      setTimeout(checkScrollNeeded, 1000);
+      // Single check after a short delay
+      const checkTimeout = setTimeout(checkScrollNeeded, 1000);
       
       // Fallback: Always enable button after 3 seconds to prevent permanent blocking
       const fallbackTimeout = setTimeout(() => {
-        if (!hasScrolled) {
-          setHasScrolled(true);
-        }
+        setHasScrolled(true);
       }, 3000);
       
-      return () => clearTimeout(fallbackTimeout);
+      return () => {
+        clearTimeout(checkTimeout);
+        clearTimeout(fallbackTimeout);
+      };
     }
   }, [termsData, hasScrolled]);
 
   const handleScroll = (e) => {
     const { scrollTop, scrollHeight, clientHeight } = e.target;
-    if (scrollTop + clientHeight >= scrollHeight - 10) {
+    // Enable accept button when user scrolls to within 20px of bottom
+    if (scrollTop + clientHeight >= scrollHeight - 20) {
       setHasScrolled(true);
     }
   };
@@ -92,43 +93,31 @@ export default function TermsAcceptance() {
         throw new Error(errorData.error || 'Failed to accept terms');
       }
 
-      // Verify acceptance was recorded by checking status
-      let verificationAttempts = 0;
-      let acceptanceVerified = false;
-      
-      while (verificationAttempts < 3 && !acceptanceVerified) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        try {
-          const checkResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/terms/check-acceptance');
-          if (checkResponse.ok) {
-            const checkData = await checkResponse.json();
-            if (!checkData.requiresAcceptance) {
-              acceptanceVerified = true;
-              break;
-            }
-          }
-        } catch (checkErr) {
-          // Continue with attempts if check fails
-        }
-        
-        verificationAttempts++;
-      }
-
-      // Redirect to the original page or dashboard
+      // Simple redirect without complex verification
       const redirectUrl = redirect || '/dashboard';
-      router.push(redirectUrl);
+      window.location.href = redirectUrl;
+      
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Failed to accept terms. Please try again.');
     } finally {
       setAccepting(false);
     }
   };
 
-  const handleDecline = () => {
-    // Log out user and redirect to home
-    clearAuthTokens();
-    router.push('/');
+  const handleDecline = async () => {
+    setDeclining(true);
+    
+    try {
+      // Clear authentication tokens
+      clearAuthTokens();
+      
+      // Force a full page redirect
+      window.location.href = '/login?message=Terms+declined+-+please+log+in+again';
+      
+    } catch (err) {
+      console.error('Error during decline:', err);
+      window.location.href = '/';
+    }
   };
 
   if (loading) {
@@ -213,14 +202,21 @@ export default function TermsAcceptance() {
           <button 
             onClick={handleDecline}
             className={styles.declineButton}
-            disabled={accepting}
+            disabled={accepting || declining}
           >
-            Decline
+            {declining ? (
+              <>
+                <span className={styles.spinner}></span>
+                Declining...
+              </>
+            ) : (
+              'Decline'
+            )}
           </button>
           <button 
             onClick={handleAccept}
             className={`${styles.acceptButton} ${!hasScrolled ? styles.disabled : ''}`}
-            disabled={!hasScrolled || accepting}
+            disabled={!hasScrolled || accepting || declining}
           >
             {accepting ? (
               <>

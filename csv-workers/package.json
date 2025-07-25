@@ -1,0 +1,26 @@
+{
+  "name": "csv-workers",
+  "version": "1.0.0",
+  "description": "Background CSV processing workers",
+  "main": "csv-processor.js",
+  "scripts": {
+    "start": "node csv-processor.js",
+    "dev": "node --watch csv-processor.js"
+  },
+  "dependencies": {
+    "axios": "^1.11.0",
+    "bull": "^4.12.9",
+    "clamscan": "^2.3.0",
+    "dotenv": "^16.4.5",
+    "mysql2": "^3.11.4",
+    "papaparse": "^5.4.1",
+    "redis": "^4.7.0"
+  },
+  "keywords": [
+    "csv",
+    "background-jobs",
+    "worker"
+  ],
+  "author": "OAF System",
+  "license": "ISC"
+}

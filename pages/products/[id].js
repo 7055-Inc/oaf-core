@@ -505,6 +505,16 @@ export default function ProductView() {
             </div>
           </div>
 
+          {/* Full Description Section */}
+          {product.description && (
+            <div className={styles.descriptionCard}>
+              <h2 className={styles.sectionTitle}>Description</h2>
+              <div className={styles.fullDescription}>
+                {product.description}
+              </div>
+            </div>
+          )}
+
           {/* Details Card with Tabs */}
           <div className={styles.detailsCard}>
             <div className={styles.tabsContainer}>

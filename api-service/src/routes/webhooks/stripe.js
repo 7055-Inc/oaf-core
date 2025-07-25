@@ -647,7 +647,7 @@ async function updateDisputeStatus(disputeId, status) {
   console.log('Updating dispute status:', disputeId, status);
 }
 
-// ===== VERIFICATION SUBSCRIPTION HANDLERS =====
+
 
 /**
  * Handle invoice created - Try Connect balance payment first
@@ -788,13 +788,7 @@ async function handleSubscriptionUpdated(subscription, event) {
       subscription.id
     ]);
 
-    // If subscription is canceled, update verification status
-    if (subscription.status === 'canceled') {
-      const userId = subscription.metadata?.user_id;
-      if (userId) {
-        await updateUserVerificationStatus(userId, false);
-      }
-    }
+    // Subscription canceled handling removed
 
     console.log('✅ Subscription updated in database');
   } catch (error) {
@@ -816,13 +810,7 @@ async function handleSubscriptionDeleted(subscription, event) {
       WHERE stripe_subscription_id = ?
     `, [subscription.id]);
 
-    // Remove verification status
-    const userId = subscription.metadata?.user_id;
-    if (userId) {
-      await updateUserVerificationStatus(userId, false);
-    }
-
-    console.log('✅ Subscription deleted and verification removed');
+    console.log('✅ Subscription deleted');
   } catch (error) {
     console.error('❌ Error handling subscription deleted:', error);
   }
@@ -882,10 +870,7 @@ async function handleSubscriptionPaymentSucceeded(invoice, event) {
       invoice.period_end
     ]);
 
-    // Ensure user has verification status
-    await updateUserVerificationStatus(subscription.user_id, true);
-
-    console.log(`✅ Subscription payment recorded (${paymentMethod}) and verification activated`);
+    console.log(`✅ Subscription payment recorded (${paymentMethod})`);
   } catch (error) {
     console.error('❌ Error handling subscription payment succeeded:', error);
   }
@@ -941,31 +926,6 @@ async function handleSubscriptionPaymentFailed(invoice, event) {
   }
 }
 
-/**
- * Update user verification status in user_permissions
- */
-async function updateUserVerificationStatus(userId, isVerified) {
-  try {
-    if (isVerified) {
-      // Grant verification permission
-      await db.execute(`
-        UPDATE user_permissions 
-        SET verified = TRUE 
-        WHERE user_id = ?
-      `, [userId]);
-    } else {
-      // Remove verification permission
-      await db.execute(`
-        UPDATE user_permissions 
-        SET verified = FALSE 
-        WHERE user_id = ?
-      `, [userId]);
-    }
 
-    console.log(`User ${userId} verification status updated to: ${isVerified}`);
-  } catch (error) {
-    console.error('Error updating user verification status:', error);
-  }
-}
 
 module.exports = router; 

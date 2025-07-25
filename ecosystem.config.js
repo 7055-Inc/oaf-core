@@ -29,6 +29,20 @@ module.exports = {
         API_VERSION: '1.0.0',
         API_INSTANCE: '0'
       }
+    },
+    {
+      name: 'csv-worker',
+      script: 'csv-processor.js',
+      cwd: '/var/www/main/csv-workers',
+      exec_mode: 'fork',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '500M',
+      env_file: '.env',
+      env: {
+        NODE_ENV: 'production'
+      }
     }
   ]
 }; 

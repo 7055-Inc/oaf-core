@@ -93,33 +93,16 @@ const canUserTypeHavePermission = async (userType, permission) => {
 };
 
 /**
- * Enhanced permission middleware that checks both permission and user type restrictions
+ * Permission middleware that checks if user has required permission
  * Usage: router.post('/sites', verifyToken, requireRestrictedPermission('manage_sites'), handler)
  */
 const requireRestrictedPermission = (permission) => {
   return async (req, res, next) => {
-    // First check if user has the permission
+    // Check if user has the permission - permissions are independent of user type
     if (!hasPermission(req, permission)) {
       return res.status(403).json({ 
         error: `Access denied. Required permission: ${permission}` 
       });
-    }
-    
-    // For non-admin users, verify their user type is allowed to have this permission
-    if (!req.roles.includes('admin')) {
-      const userType = req.roles.find(role => ['artist', 'promoter', 'community'].includes(role));
-      if (!userType) {
-        return res.status(403).json({ 
-          error: 'Invalid user type for permission validation' 
-        });
-      }
-      
-      const canHave = await canUserTypeHavePermission(userType, permission);
-      if (!canHave) {
-        return res.status(403).json({ 
-          error: `User type '${userType}' is not allowed to have permission '${permission}'` 
-        });
-      }
     }
     
     next();

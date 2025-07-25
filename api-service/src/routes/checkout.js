@@ -190,6 +190,123 @@ router.get('/order/:order_id', verifyToken, async (req, res) => {
   }
 });
 
+/**
+ * Get customer's order history
+ * GET /orders/my
+ */
+router.get('/orders/my', verifyToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
+    const status = req.query.status;
+    
+    // Build query with optional status filter
+    let whereClause = 'WHERE o.user_id = ?';
+    const params = [userId];
+    
+    if (status && status !== 'all') {
+      whereClause += ' AND o.status = ?';
+      params.push(status);
+    }
+    
+    // Get orders for this customer
+    const ordersQuery = `
+      SELECT 
+        o.id,
+        o.stripe_payment_intent_id,
+        o.status,
+        o.total_amount,
+        o.shipping_amount,
+        o.tax_amount,
+        o.platform_fee_amount,
+        o.created_at,
+        o.updated_at,
+        oi.quantity,
+        oi.price,
+        oi.commission_rate,
+        oi.commission_amount,
+        oi.shipping_cost,
+        p.name as product_name,
+        p.id as product_id,
+        u.username as vendor_email,
+        up.display_name as vendor_name,
+        up.first_name as vendor_first_name,
+        up.last_name as vendor_last_name
+      FROM orders o
+      JOIN order_items oi ON o.id = oi.order_id
+      JOIN products p ON oi.product_id = p.id
+      JOIN users u ON oi.vendor_id = u.id
+      LEFT JOIN user_profiles up ON u.id = up.user_id
+      ${whereClause}
+      ORDER BY o.created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `;
+
+    const [orders] = await db.execute(ordersQuery, params);
+    
+    // Get total count for pagination
+    const countQuery = `
+      SELECT COUNT(DISTINCT o.id) as total
+      FROM orders o
+      JOIN order_items oi ON o.id = oi.order_id
+      ${whereClause}
+    `;
+    
+    const [countResult] = await db.execute(countQuery, params);
+    const totalOrders = countResult[0].total;
+    
+    // Group orders by order ID (customer perspective - showing what they bought)
+    const groupedOrders = {};
+    orders.forEach(order => {
+      if (!groupedOrders[order.id]) {
+        groupedOrders[order.id] = {
+          id: order.id,
+          stripe_payment_intent_id: order.stripe_payment_intent_id,
+          status: order.status,
+          total_amount: parseFloat(order.total_amount),
+          shipping_amount: parseFloat(order.shipping_amount),
+          tax_amount: parseFloat(order.tax_amount),
+          platform_fee_amount: parseFloat(order.platform_fee_amount),
+          created_at: order.created_at,
+          updated_at: order.updated_at,
+          items: []
+        };
+      }
+      
+      groupedOrders[order.id].items.push({
+        product_id: order.product_id,
+        product_name: order.product_name,
+        quantity: order.quantity,
+        price: parseFloat(order.price),
+        shipping_cost: parseFloat(order.shipping_cost),
+        vendor_email: order.vendor_email,
+        vendor_name: order.vendor_name || `${order.vendor_first_name || ''} ${order.vendor_last_name || ''}`.trim() || order.vendor_email,
+        item_total: parseFloat(order.price) * order.quantity
+      });
+    });
+    
+    // Convert to array
+    const ordersList = Object.values(groupedOrders);
+    
+    res.json({
+      success: true,
+      orders: ordersList,
+      pagination: {
+        page,
+        limit,
+        total: totalOrders,
+        pages: Math.ceil(totalOrders / limit)
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching customer orders:', error);
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
 // ===== HELPER FUNCTIONS =====
 
 /**

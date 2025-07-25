@@ -3,6 +3,7 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  position: relative; /* For slide-in overlay positioning */
 }
 
 /* Collapsed Header */
@@ -35,6 +36,7 @@
   display: flex;
   flex: 1;
   min-height: calc(100vh - 80px); /* Adjust based on header height */
+  position: relative;
 }
 
 /* Sidebar */
@@ -63,10 +65,99 @@
   border-bottom: 2px solid #e9ecef;
 }
 
+/* Collapsible Header Styles */
+.collapsibleHeader {
+  color: #055474;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 12px 0;
+  padding: 8px 0;
+  border-bottom: 2px solid #e9ecef;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.collapsibleHeader:hover {
+  color: #043a5a;
+  background: rgba(5, 84, 116, 0.05);
+  padding-left: 8px;
+  margin-left: -8px;
+  margin-right: -8px;
+  border-radius: 4px;
+}
+
+.collapsibleHeader::after {
+  content: '';
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%) rotate(0deg);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 6px solid currentColor;
+  transition: transform 0.2s ease;
+}
+
+.collapsibleHeader.collapsed::after {
+  transform: translateY(-50%) rotate(-90deg);
+}
+
+/* My Account Header */
+.accountHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+/* Service Management Header */
+.serviceHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.notificationBadge {
+  background: #e74c3c;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 8px;
+  min-width: 16px;
+  text-align: center;
+}
+
+.menuItemContent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.notificationDot {
+  width: 8px;
+  height: 8px;
+  background: #e74c3c;
+  border-radius: 50%;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
 .sidebarSection ul {
   list-style: none;
   padding: 0;
   margin: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
 }
 
 .sidebarSection li {
@@ -94,6 +185,7 @@
   background-color: #e9ecef;
   color: #055474;
   text-decoration: none;
+  transform: translateX(4px);
 }
 
 .sidebarLink.active {
@@ -113,20 +205,134 @@
   max-width: 1200px;
 }
 
-.contentSection h2 {
-  color: #055474;
-  font-size: 28px;
-  font-weight: 600;
-  margin: 0 0 20px 0;
-  padding-bottom: 10px;
-  border-bottom: 2px solid #e9ecef;
+/* Slide-In Overlay System */
+.slideInOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1100; /* Higher than header's 1001 */
+  animation: slideInOverlayFadeIn 0.3s ease;
 }
 
-.contentSection p {
-  color: #6c757d;
-  font-size: 16px;
-  line-height: 1.6;
-  margin: 0 0 20px 0;
+.slideInPanel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 95%;
+  min-width: 600px;
+  max-width: none;
+  height: 100%;
+  background: white;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+  animation: slideInPanelSlide 0.3s ease;
+  overflow: hidden;
+}
+
+/* Slide-In Content Containers */
+.slideInContainer {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.slideInHeader {
+  background: white;
+  border-bottom: 1px solid #e9ecef;
+  padding: 16px 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.slideInContent {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.backButton {
+  background: none;
+  border: none;
+  color: #055474;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.backButton:hover {
+  background: rgba(5, 84, 116, 0.1);
+  transform: translateX(-2px);
+}
+
+.backButton i {
+  font-size: 12px;
+}
+
+/* Animations */
+@keyframes slideInOverlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInPanelSlide {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .slideInPanel {
+    width: 95%;
+    min-width: 500px;
+  }
+}
+
+@media (max-width: 900px) {
+  .slideInPanel {
+    width: 95%;
+    min-width: 400px;
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: 250px;
+  }
+  
+  .slideInPanel {
+    width: 95%;
+    min-width: 350px;
+  }
+  
+  .contentArea {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 600px) {
+  .slideInPanel {
+    width: 100%;
+    min-width: auto;
+  }
+  
+  .sidebar {
+    width: 220px;
+  }
 }
 
 /* Overview Grid */
@@ -156,28 +362,6 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-
-.primaryButton {
-  display: inline-block;
-  background: #055474;
-  color: white;
-  text-decoration: none;
-  padding: 12px 20px;
-  border-radius: 0;
-  font-size: 14px;
-  font-weight: 500;
-  text-align: center;
-  transition: background-color 0.2s;
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.primaryButton:hover {
-  background: #044a63;
-  color: white;
-  text-decoration: none;
 }
 
 /* Responsive Design */
@@ -268,21 +452,6 @@
 
 .table tr:hover {
   background: #f8f9fa;
-}
-
-.secondaryButton {
-  background: #6c757d;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 0px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background 0.2s;
-}
-
-.secondaryButton:hover {
-  background: #5a6268;
 }
 
 .status {

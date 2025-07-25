@@ -113,7 +113,6 @@ router.get('/', async (req, res) => {
         a.author_id,
         a.published_at,
         a.status,
-        a.views,
         a.slug,
         a.categories,
         a.tags,

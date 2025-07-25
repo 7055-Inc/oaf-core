@@ -7,7 +7,6 @@ const uploadDir = path.join(__dirname, '../../temp_images');
 const productsDir = path.join(uploadDir, 'products');
 const profilesDir = path.join(uploadDir, 'profiles');
 const eventsDir = path.join(uploadDir, 'events');
-
 [productsDir, profilesDir, eventsDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });

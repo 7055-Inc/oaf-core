@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import Header from '../../components/Header';
+import SocialShare from '../../components/SocialShare';
 import styles from './styles/ArticleView.module.css';
 
 export default function ArticlePage() {
@@ -206,7 +207,26 @@ export default function ArticlePage() {
       "datePublished": article.published_at,
       "dateModified": article.updated_at || article.published_at,
       "url": canonicalUrl,
-      "mainEntityOfPage": canonicalUrl
+      "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": canonicalUrl
+      },
+      "isPartOf": {
+        "@type": "WebSite",
+        "name": "Online Art Festival",
+        "url": "https://onlineartfestival.com"
+      },
+      "inLanguage": "en-US",
+      "copyrightHolder": {
+        "@type": "Organization",
+        "name": "Online Art Festival LLC"
+      },
+      "copyrightYear": new Date(article.published_at).getFullYear(),
+      "genre": article.page_type === 'help_article' ? 'Help Documentation' : 'Article',
+      "audience": {
+        "@type": "Audience",
+        "audienceType": "Art Community"
+      }
     };
 
     // Add reading time
@@ -223,13 +243,31 @@ export default function ArticlePage() {
     if (article.topics && article.topics.length > 0) {
       schema.articleSection = article.topics.map(topic => topic.name);
       schema.keywords = article.topics.map(topic => topic.name).join(', ');
+      
+      // Add "about" entities for topics (enhanced for topic-based discovery)
+      schema.about = article.topics.map(topic => ({
+        "@type": "Thing",
+        "name": topic.name,
+        "url": `https://onlineartfestival.com/topics/${topic.slug}`
+      }));
     }
 
     // Add featured image if available
     if (article.featured_image || article.og_image) {
       schema.image = {
         "@type": "ImageObject",
-        "url": article.featured_image || article.og_image
+        "url": article.featured_image || article.og_image,
+        "width": 1200,
+        "height": 630
+      };
+    }
+
+    // Add interaction statistics for engagement signals
+    if (article.view_count && article.view_count > 0) {
+      schema.interactionStatistic = {
+        "@type": "InteractionCounter",
+        "interactionType": "https://schema.org/ViewAction",
+        "userInteractionCount": article.view_count
       };
     }
 
@@ -313,12 +351,14 @@ export default function ArticlePage() {
         <meta property="og:description" content={article.og_description || article.excerpt} />
         <meta property="og:type" content="article" />
         <meta property="og:url" content={`https://onlineartfestival.com/articles/${article.slug}`} />
+        <meta property="og:image" content={article.og_image || article.featured_image || 'https://onlineartfestival.com/default-article.jpg'} />
         <meta property="article:published_time" content={article.published_at} />
         <meta property="article:author" content={article.author_display_name || article.author_username} />
         
         <meta name="twitter:card" content={article.twitter_card_type || 'summary_large_image'} />
-        <meta name="twitter:title" content={article.og_title || article.title} />
-        <meta name="twitter:description" content={article.og_description || article.excerpt} />
+        <meta name="twitter:title" content={article.twitter_title || article.og_title || article.title} />
+        <meta name="twitter:description" content={article.twitter_description || article.og_description || article.excerpt} />
+        <meta name="twitter:image" content={article.twitter_image || article.og_image || article.featured_image || 'https://onlineartfestival.com/default-article.jpg'} />
         
         {/* JSON-LD Structured Data */}
         <script
@@ -388,6 +428,14 @@ export default function ArticlePage() {
           </article>
 
           <div className={styles.articleContent} dangerouslySetInnerHTML={{ __html: article.content }} />
+
+          {/* Social Share Section */}
+          <SocialShare 
+            url={`https://onlineartfestival.com/articles/${article.slug}`}
+            title={article.title}
+            description={article.excerpt || article.meta_description}
+            image={article.og_image || article.featured_image}
+          />
 
           {/* Cross-References Section */}
           {crossReferences.length > 0 && (

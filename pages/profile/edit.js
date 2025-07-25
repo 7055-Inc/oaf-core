@@ -337,7 +337,7 @@ export default function ProfileEdit() {
       formDataToSend.append('nationality', formData.nationality);
       formDataToSend.append('languages_known', JSON.stringify(formData.languages_known));
       formDataToSend.append('job_title', formData.job_title);
-      formDataToSend.append('education', formData.education);
+      formDataToSend.append('education', formData.education ? JSON.stringify([formData.education]) : '');
       formDataToSend.append('awards', formData.awards);
       formDataToSend.append('memberships', formData.memberships);
       formDataToSend.append('timezone', formData.timezone);

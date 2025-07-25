@@ -534,8 +534,8 @@ export default function NewEvent() {
       <div>
         <Header />
         <div className={styles.container}>
-          <div className={styles.content}>
-            <h1>Loading...</h1>
+        <div className={styles.content}>
+          <h1>Loading...</h1>
           </div>
         </div>
       </div>
@@ -547,8 +547,8 @@ export default function NewEvent() {
       <div>
         <Header />
         <div className={styles.container}>
-          <div className={styles.content}>
-            <h1>Access Denied</h1>
+        <div className={styles.content}>
+          <h1>Access Denied</h1>
             <p>Only promoters and admins can create events.</p>
           </div>
         </div>
@@ -560,7 +560,7 @@ export default function NewEvent() {
     <div>
       <Header />
       <div className={styles.container}>
-        <div className={styles.content}>
+      <div className={styles.content}>
         <h1>Create New Event</h1>
         {error && <div className={styles.error}>{error}</div>}
         
@@ -797,14 +797,14 @@ export default function NewEvent() {
               <p className={styles.helpText}>
                 Additional information to help attendees prepare for your event.
               </p>
-
+              
               <div className={styles.formGroup}>
                 <label>Age Restrictions</label>
                 <select
                   name="age_restrictions"
                   value={formData.age_restrictions}
-                  onChange={handleChange}
-                  className={styles.input}
+                    onChange={handleChange}
+                    className={styles.input}
                 >
                   <option value="all_ages">All Ages Welcome</option>
                   <option value="18+">18 and Over</option>
@@ -814,7 +814,7 @@ export default function NewEvent() {
               </div>
 
               {formData.age_restrictions === 'custom' && (
-                <div className={styles.formGroup}>
+              <div className={styles.formGroup}>
                   <label>Minimum Age</label>
                   <input
                     type="number"
@@ -845,29 +845,29 @@ export default function NewEvent() {
               </div>
 
               <div className={styles.formRow}>
-                <div className={styles.formGroup}>
+              <div className={styles.formGroup}>
                   <label className={styles.checkboxLabel}>
-                    <input
+                  <input
                       type="checkbox"
                       name="has_rsvp"
                       checked={formData.has_rsvp}
-                      onChange={handleChange}
-                    />
+                    onChange={handleChange}
+                  />
                     <span>Requires RSVP</span>
                   </label>
                   <div className={styles.fieldHelp}>
                     Attendees must RSVP before attending
-                  </div>
                 </div>
+              </div>
 
-                <div className={styles.formGroup}>
+              <div className={styles.formGroup}>
                   <label className={styles.checkboxLabel}>
-                    <input
+                  <input
                       type="checkbox"
                       name="has_tickets"
                       checked={formData.has_tickets}
-                      onChange={handleChange}
-                    />
+                    onChange={handleChange}
+                  />
                     <span>Ticket Sales</span>
                   </label>
                   <div className={styles.fieldHelp}>
@@ -877,7 +877,7 @@ export default function NewEvent() {
               </div>
 
               {formData.has_rsvp && (
-                <div className={styles.formGroup}>
+              <div className={styles.formGroup}>
                   <label>RSVP Link</label>
                   <input
                     type="url"
@@ -889,15 +889,15 @@ export default function NewEvent() {
                   />
                   <div className={styles.fieldHelp}>
                     Link where people can RSVP for your event
-                  </div>
                 </div>
+              </div>
               )}
             </div>
 
             {/* Event Settings */}
             <div className={styles.formSection}>
               <h2>Event Settings</h2>
-              
+
               <div className={styles.formGroup}>
                 <label>Application Status</label>
                 <select
@@ -957,15 +957,15 @@ export default function NewEvent() {
 
             {/* Application Requirements - Only show if applications allowed */}
             {formData.allow_applications && (
-              <div className={styles.formSection}>
+            <div className={styles.formSection}>
                 <h2>Application Requirements</h2>
                 <p className={styles.helpText}>
                   Configure the complete application process: fees, timeline, and what information/materials you want from artists.
                 </p>
-
+              
                 {/* Application Fees and Deadline */}
                 <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
+              <div className={styles.formGroup}>
                     <label>Application Fee</label>
                     <div className={styles.inputGroup}>
                       <span className={styles.currency}>$</span>
@@ -1454,6 +1454,9 @@ export default function NewEvent() {
             {/* Event Images */}
             <div className={styles.formSection}>
               <h2>Event Images</h2>
+              <div className={styles.fieldHelp} style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: '#e8f5f3', border: '1px solid #055474', borderRadius: '8px' }}>
+                <strong>💡 SEO Tip:</strong> Upload 5-10 high-quality images for better search engine performance! Multiple images create rich snippets, improve user engagement, and boost your event's visibility in search results.
+              </div>
               <div className={styles.imageUpload}>
                 <input
                   type="file"
@@ -1490,7 +1493,7 @@ export default function NewEvent() {
               >
                 Cancel
               </button>
-                            <button
+              <button 
                 type="submit" 
                 disabled={loading}
               >
@@ -1500,7 +1503,7 @@ export default function NewEvent() {
           </div>
         </form>
       </div>
-    </div>
+      </div>
     </div>
   );
 } 

@@ -191,17 +191,22 @@ try {
   // Event types route consolidated into events.js
   app.use('/api/applications', require('./routes/applications'));
   
+  // Event series management and automation
+  app.use('/api/series', require('./routes/series'));
+  
+  // Dashboard widgets system
+  app.use('/api/dashboard-widgets', require('./routes/dashboard-widgets'));
+  
   // Jury packets management
   app.use('/api/jury-packets', require('./routes/jury-packets'));
   
   // Artist personas management
   app.use('/api/personas', require('./routes/personas'));
   
-  // Artist verification system
-  app.use('/api/verification', require('./routes/verification'));
+  // CSV processing (no CSRF needed - internal backend process)
+  app.use('/csv', require('./routes/csv'));
   
-  // Subscription management (verification subscriptions)
-  app.use('/api/subscriptions', require('./routes/subscriptions'));
+
   
   // Articles management - all routes fixed
   app.use('/api/articles', require('./routes/articles'));
@@ -227,7 +232,7 @@ try {
   
   // Inventory management
   app.use('/inventory', csrfProtection(), require('./routes/inventory'));
-  
+
   secureLogger.info('All routes loaded successfully with CSRF protection');
 } catch (err) {
   secureLogger.error('Error loading routes', err);

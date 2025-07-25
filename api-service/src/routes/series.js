@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../../../config/db');
-const { verifyToken } = require('../../middleware/auth');
-const { requireRestrictedPermission } = require('../../middleware/permissions');
+const db = require('../../config/db');
+const verifyToken = require('../middleware/jwt');
+const { requireRestrictedPermission } = require('../middleware/permissions');
 
 // ================================
 // EVENT SERIES MANAGEMENT

@@ -1,0 +1,117 @@
+.socialShare {
+  margin: 20px 0;
+  padding: 20px;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  background: #f8f9fa;
+}
+
+.shareLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: #055474;
+  margin-bottom: 15px;
+}
+
+.shareButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.shareButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 15px;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  background: white;
+  color: var(--button-color, #6c757d);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.shareButton:hover {
+  background: var(--button-color, #6c757d);
+  color: white;
+  border-color: var(--button-color, #6c757d);
+  transform: translateY(-1px);
+}
+
+.shareButton svg {
+  flex-shrink: 0;
+}
+
+.shareButton .shareLabel {
+  margin: 0;
+  color: inherit;
+  font-weight: inherit;
+}
+
+.shareButton.copied {
+  background: #28a745;
+  color: white;
+  border-color: #28a745;
+}
+
+/* Compact mode for smaller spaces */
+.compact {
+  margin: 15px 0;
+  padding: 15px;
+}
+
+.compact .shareLabel {
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.compact .shareButtons {
+  gap: 8px;
+}
+
+.compact .shareButton {
+  padding: 8px;
+  min-width: 36px;
+  justify-content: center;
+}
+
+.compact .shareButton .shareLabel {
+  display: none;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .shareButtons {
+    justify-content: center;
+  }
+  
+  .shareButton {
+    flex: 1;
+    min-width: 60px;
+    justify-content: center;
+  }
+  
+  .shareButton .shareLabel {
+    display: none;
+  }
+  
+  .compact .shareButton {
+    min-width: 32px;
+    padding: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .shareButtons {
+    gap: 8px;
+  }
+  
+  .shareButton {
+    min-width: 44px;
+    padding: 8px;
+  }
+} 

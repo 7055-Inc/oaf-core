@@ -3,7 +3,9 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Script from 'next/script';
 import Link from 'next/link';
+import Header from '../../components/Header';
 import ApplicationForm from '../../components/applications/ApplicationForm';
+import ApplicationStatus from '../../components/applications/ApplicationStatus';
 import styles from './styles/EventView.module.css';
 import TicketPurchaseModal from '../../components/TicketPurchaseModal';
 
@@ -445,15 +447,13 @@ export default function EventPage() {
       fetch(`https://api2.onlineartfestival.com/api/events/${id}`).then(res => res.json()),
       fetch(`https://api2.onlineartfestival.com/api/events/${id}/images`).then(res => res.json()),
       fetch(`https://api2.onlineartfestival.com/api/events/${id}/categories`).then(res => res.json()),
-      fetch(`https://api2.onlineartfestival.com/api/events/${id}/artists`).then(res => res.json().catch(() => ({ artists: [] }))), // Handle artists fetch with fallback
-      checkUserApplication(id)
+      fetch(`https://api2.onlineartfestival.com/api/events/${id}/artists`).then(res => res.json().catch(() => ({ artists: [] }))) // Handle artists fetch with fallback
     ])
-      .then(async ([eventData, imagesData, categoriesData, artistsData, applicationData]) => {
+      .then(async ([eventData, imagesData, categoriesData, artistsData]) => {
         setEvent(eventData || null);
         setEventImages(imagesData.images || []);
         setEventCategories(categoriesData.categories || []);
         setExhibitingArtists(artistsData.artists || []);
-        setUserApplication(applicationData);
         setLoading(false);
         setArtistsLoading(false);
         
@@ -526,7 +526,7 @@ export default function EventPage() {
 
   const loadUserApplication = async (token) => {
     try {
-      const response = await fetch('https://api2.onlineartfestival.com/api/applications/my-applications', {
+      const response = await fetch('https://api2.onlineartfestival.com/api/applications/', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -535,8 +535,8 @@ export default function EventPage() {
       
       if (response.ok) {
         const data = await response.json();
-        const eventApplication = data.applications.find(app => app.event_id == id);
-        setUserApplication(eventApplication || null);
+        const eventApplications = (data.applications || []).filter(app => app.event_id == id);
+        setUserApplication(eventApplications); // Array of applications for this event
       }
     } catch (err) {
       console.error('Error loading user application:', err);
@@ -683,7 +683,10 @@ export default function EventPage() {
 
   // Application handling functions
   const handleApplicationSubmit = (newApplication) => {
-    setUserApplication(newApplication);
+    setUserApplication(prev => {
+      const prevArray = Array.isArray(prev) ? prev : (prev ? [prev] : []);
+      return [...prevArray, newApplication];
+    });
     setShowApplicationForm(false);
     loadApplicationStats(); // Refresh stats
   };
@@ -696,7 +699,7 @@ export default function EventPage() {
     if (!event || !event.allow_applications) return false;
     if (event.application_status !== 'accepting') return false;
     if (!user) return false;
-    if (userApplication) return false; // Already applied
+    // Removed userApplication check - users can apply multiple times with different personas
     
     // Check if application deadline has passed
     if (event.application_deadline) {
@@ -760,13 +763,7 @@ export default function EventPage() {
         )}
       </Head>
 
-      {/* Load Stripe for ticket purchases */}
-      {event?.has_tickets && (
-        <Script 
-          src="https://js.stripe.com/v3/" 
-          strategy="afterInteractive"
-        />
-      )}
+
 
       <div className={styles.container}>
         <Header />
@@ -915,6 +912,34 @@ export default function EventPage() {
                   </div>
                 </div>
 
+                <div className={styles.infoCard}>
+                  <h3><i className="fas fa-ticket-alt"></i> Event Tickets</h3>
+                  <div className={styles.infoContent}>
+                    {event.has_tickets ? (
+                      new Date(event.end_date) < new Date() ? (
+                        <p><strong>Event has ended</strong> - Tickets are no longer available</p>
+                      ) : new Date(event.start_date) < new Date() ? (
+                        <p><strong>Event in progress</strong> - Contact organizers for availability</p>
+                      ) : (
+                        <>
+                          <p><strong>Tickets Required</strong></p>
+                          <p>Advance tickets are available for purchase</p>
+                          <button 
+                            onClick={() => setShowTicketModal(true)}
+                            className={styles.buyTicketsButton}
+                            style={{ marginTop: '10px' }}
+                          >
+                            <i className="fas fa-ticket-alt"></i>
+                            Buy Tickets
+                          </button>
+                        </>
+                      )
+                    ) : (
+                      <p>This event has no tickets.</p>
+                    )}
+                  </div>
+                </div>
+
                 {(event.parking_info || event.accessibility_info) && (
                   <div className={styles.infoCard}>
                     <h3><i className="fas fa-info-circle"></i> Venue Information</h3>
@@ -973,55 +998,49 @@ export default function EventPage() {
                 )}
 
                 {/* Venue Capacity & Event Details */}
-                {(event.venue_capacity || event.age_restrictions !== 'all_ages' || event.dress_code) && (
-                  <div className={styles.infoCard}>
-                    <h3><i className="fas fa-users"></i> Event Details</h3>
-                    <div className={styles.infoContent}>
-                      {event.venue_capacity && (
-                        <p><strong>Expected Capacity:</strong> {event.venue_capacity} attendees</p>
-                      )}
-                      {event.age_restrictions !== 'all_ages' && (
-                        <p><strong>Age Requirements:</strong> 
-                          {event.age_restrictions === 'custom' 
-                            ? `${event.age_minimum}+ years old`
-                            : event.age_restrictions
-                          }
-                        </p>
-                      )}
-                      {event.dress_code && (
-                        <div>
-                          <strong>Dress Code:</strong>
-                          <p>{event.dress_code}</p>
-                        </div>
-                      )}
-                    </div>
+                <div className={styles.infoCard}>
+                  <h3><i className="fas fa-users"></i> Event Details</h3>
+                  <div className={styles.infoContent}>
+                    <p><strong>Expected Capacity:</strong> {event.venue_capacity || 'Contact Promoter'}</p>
+                    <p><strong>Age Requirements:</strong> 
+                      {event.age_restrictions === 'all_ages' ? 'All ages welcome' :
+                       event.age_restrictions === 'custom' ? `${event.age_minimum}+ years old` :
+                       event.age_restrictions || 'Contact Promoter'}
+                    </p>
+                    <p><strong>Dress Code:</strong> {event.dress_code || 'Contact Promoter'}</p>
                   </div>
-                )}
+                </div>
 
                 {/* RSVP & Tickets */}
-                {(event.has_rsvp || event.has_tickets) && (
-                  <div className={styles.infoCard}>
-                    <h3><i className="fas fa-ticket-alt"></i> Registration & Tickets</h3>
-                    <div className={styles.infoContent}>
-                      {event.has_rsvp && (
-                        <div>
-                          <p><strong>RSVP Required</strong></p>
-                          {event.rsvp_url && (
-                            <a href={event.rsvp_url} target="_blank" rel="noopener noreferrer" className={styles.rsvpLink}>
-                              RSVP Now <i className="fas fa-external-link-alt"></i>
-                            </a>
-                          )}
-                        </div>
-                      )}
-                      {event.has_tickets && (
-                        <div>
-                          <p><strong>Tickets Required</strong></p>
-                          <p>Tickets are available for purchase</p>
-                        </div>
-                      )}
-                    </div>
+                <div className={styles.infoCard}>
+                  <h3><i className="fas fa-ticket-alt"></i> Registration & Tickets</h3>
+                  <div className={styles.infoContent}>
+                    {event.has_rsvp || event.has_tickets ? (
+                      <>
+                        {event.has_rsvp && (
+                          <div>
+                            <p><strong>RSVP Required</strong></p>
+                            {event.rsvp_url ? (
+                              <a href={event.rsvp_url} target="_blank" rel="noopener noreferrer" className={styles.rsvpLink}>
+                                RSVP Now <i className="fas fa-external-link-alt"></i>
+                              </a>
+                            ) : (
+                              <p>Contact Promoter</p>
+                            )}
+                          </div>
+                        )}
+                        {event.has_tickets && (
+                          <div>
+                            <p><strong>Tickets Required</strong></p>
+                            <p>Tickets are available for purchase</p>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <p>This event is open to the public. No RSVP or tickets needed.</p>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
 
               {/* Exhibiting Artists Section */}
@@ -1142,47 +1161,29 @@ export default function EventPage() {
                 </div>
 
                 {/* Google Map */}
-                {event.latitude && event.longitude && (
-                  <div className={styles.mapContainer}>
-                    <div id="event-map" className={styles.map}></div>
-                    {!mapLoaded && (
-                      <div className={styles.mapLoading}>
-                        <i className="fas fa-spinner fa-spin"></i>
-                        Loading map...
-                      </div>
-                    )}
-                  </div>
-                )}
+                <div className={styles.mapContainer}>
+                  {event.latitude && event.longitude ? (
+                    <>
+                      <div id="event-map" className={styles.map}></div>
+                      {!mapLoaded && (
+                        <div className={styles.mapLoading}>
+                          <i className="fas fa-spinner fa-spin"></i>
+                          Loading map...
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className={styles.mapError}>
+                      <i className="fas fa-exclamation-triangle"></i>
+                      Unable to locate this event on a map.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* HR Separator for Tickets */}
-          {event.has_tickets && (
-            <div className={styles.sectionSeparator}>
-              <hr className={styles.separator} />
-            </div>
-          )}
 
-          {/* Ticket Purchase Section */}
-          {event.has_tickets && (
-            <div className={styles.ticketSectionFullWidth}>
-              <div className={styles.ticketContainer}>
-                <h2><i className="fas fa-ticket-alt"></i> Event Tickets</h2>
-                
-                <div className={styles.ticketPrompt}>
-                  <p>Get your tickets now for {event.title}!</p>
-                  <button 
-                    onClick={() => setShowTicketModal(true)}
-                    className={styles.buyTicketsButton}
-                  >
-                    <i className="fas fa-ticket-alt"></i>
-                    Buy Tickets
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* HR Separator */}
           {event.allow_applications && (
@@ -1201,51 +1202,82 @@ export default function EventPage() {
                   <div className={styles.applicationPrompt}>
                     <p>Please <a href="/login">log in</a> to apply for this event.</p>
                   </div>
-                ) : userApplication ? (
-                  <div className={styles.applicationStatus}>
-                    <h3>Your Application Status</h3>
-                    <ApplicationStatus application={userApplication} />
-                  </div>
-                ) : canApplyToEvent() ? (
-                  <div className={styles.applicationActions}>
-                    {!showApplicationForm ? (
-                      <div className={styles.applyPrompt}>
-                        <p>Ready to showcase your art at this event?</p>
-                        <button 
-                          onClick={() => setShowApplicationForm(true)}
-                          className={styles.applyButton}
-                        >
-                          <i className="fas fa-palette"></i>
-                          Apply Now
-                        </button>
-                      </div>
-                    ) : (
-                      <div className={styles.applicationForm}>
-                        <h3>Apply for {event.title}</h3>
-                        <ApplicationForm 
-                          event={event}
-                          user={user}
-                          onSubmit={handleApplicationSubmit}
-                          onCancel={handleApplicationCancel}
-                        />
+                ) : (
+                  <div>
+                    {/* Show existing applications for different personas */}
+                    {userApplication && userApplication.length > 0 && (
+                      <div className={styles.applicationStatus}>
+                        <h3>Your Application{userApplication.length > 1 ? 's' : ''}</h3>
+                        {userApplication.map((app, index) => (
+                          <div key={app.id || index} className={styles.applicationItem}>
+                            <ApplicationStatus 
+                              eventId={id} 
+                              user={user} 
+                              persona_id={app.persona_id} 
+                            />
+                          </div>
+                        ))}
                       </div>
                     )}
-                  </div>
-                ) : (
-                  <div className={styles.applicationClosed}>
-                    <p>
-                      {event.application_status === 'not_accepting' && 'Applications are not currently being accepted for this event.'}
-                      {event.application_status === 'closed' && 'The application deadline has passed.'}
-                      {event.application_status === 'jurying' && 'Applications are currently under review.'}
-                      {event.application_status === 'artists_announced' && 'Artists have been selected for this event.'}
-                      {event.application_status === 'event_completed' && 'This event has been completed.'}
-                    </p>
+                    
+                    {/* Always show apply button if applications are open (for multi-persona support) */}
+                    {canApplyToEvent() ? (
+                      <div className={styles.applicationActions}>
+                        {!showApplicationForm ? (
+                          <div className={styles.applyPrompt}>
+                            <p>
+                              {userApplication && userApplication.length > 0 
+                                ? 'Apply with a different persona or update your application:' 
+                                : 'Ready to showcase your art at this event?'
+                              }
+                            </p>
+                            <button 
+                              onClick={() => setShowApplicationForm(true)}
+                              className={styles.applyButton}
+                            >
+                              <i className="fas fa-palette"></i>
+                              {userApplication && userApplication.length > 0 ? 'Apply Again' : 'Apply Now'}
+                            </button>
+                          </div>
+                        ) : (
+                          <div className={styles.applicationForm}>
+                            <h3>Apply for {event.title}</h3>
+                            <ApplicationForm 
+                              event={event}
+                              user={user}
+                              onSubmit={handleApplicationSubmit}
+                              onCancel={handleApplicationCancel}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className={styles.applicationClosed}>
+                        <p>
+                          {!event.allow_applications && 'Applications are not enabled for this event.'}
+                          {event.allow_applications && event.application_deadline && new Date(event.application_deadline) < new Date() && 'The application deadline has passed.'}
+                          {event.allow_applications && event.application_status === 'not_accepting' && 'Applications are not currently being accepted for this event.'}
+                          {event.allow_applications && event.application_status === 'closed' && 'Applications are closed for this event.'}
+                          {event.allow_applications && event.application_status === 'jurying' && 'Applications are currently under review.'}
+                          {event.allow_applications && event.application_status === 'artists_announced' && 'Artists have been selected for this event.'}
+                          {event.allow_applications && event.application_status === 'event_completed' && 'This event has been completed.'}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             </div>
           )}
         </div>
+        
+        {/* Load Stripe for ticket purchases */}
+        {event?.has_tickets && (
+          <Script 
+            src="https://js.stripe.com/v3/" 
+            strategy="afterInteractive"
+          />
+        )}
         
         {/* Ticket Purchase Modal */}
         <TicketPurchaseModal 

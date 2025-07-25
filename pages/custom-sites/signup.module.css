@@ -54,11 +54,36 @@
   margin-bottom: 1rem;
 }
 
+.headingSuccess {
+  color: #27ae60;
+  font-size: 1.8rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.headingError {
+  color: #e74c3c;
+  font-size: 1.8rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
 .text {
   color: #7f8c8d;
   font-size: 1.1rem;
   line-height: 1.6;
   margin-bottom: 1.5rem;
+}
+
+.textError {
+  color: #c0392b;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+  background: #fdf4f4;
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid #e74c3c;
 }
 
 .actions {
@@ -80,9 +105,29 @@
   font-size: 1rem;
 }
 
-.button:hover {
+.linkButton {
+  display: inline-block;
+  background: transparent;
+  color: #667eea;
+  padding: 12px 24px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: 2px solid #667eea;
+  font-size: 1rem;
+}
+
+.button:hover,
+.linkButton:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+}
+
+.linkButton:hover {
+  background: #667eea;
+  color: white;
 }
 
 @media (max-width: 768px) {
@@ -91,11 +136,14 @@
     margin: 1rem;
   }
   
-  .heading {
+  .heading,
+  .headingSuccess,
+  .headingError {
     font-size: 1.5rem;
   }
   
-  .text {
+  .text,
+  .textError {
     font-size: 1rem;
   }
 } 

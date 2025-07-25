@@ -1,7 +1,9 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Head from 'next/head';
+import dynamic from 'next/dynamic';
 import Header from '../../components/Header';
 import HeroManagement from '../../components/HeroManagement';
 import CategoryManagement from '../../components/CategoryManagement';
@@ -16,18 +18,37 @@ import SitesManagement from '../../components/SitesManagement';
 import AnnouncementsManagement from '../../components/AnnouncementsManagement';
 import TermsManagement from '../../components/TermsManagement';
 import CommissionManagement from '../../components/CommissionManagement';
+import DashboardGrid from '../../components/dashboard/DashboardGrid';
 import { getAuthToken } from '../../lib/csrf';
 import styles from './Dashboard.module.css';
-import VendorOrders from '../../components/VendorOrders';
 import SubscriptionManager from '../../components/SubscriptionManager';
+import { MyAccountMenu, MyAccountSlideIn, myAccountSlideInTypes } from '../../components/dashboard/menu/MyAccount';
+import { VendorToolsMenu, VendorToolsSlideIn, vendorToolsSlideInTypes } from '../../components/dashboard/vendor/VendorTools';
+// import { ServiceManagementMenu, ServiceManagementSlideIn, serviceManagementSlideInTypes } from '../../components/dashboard/menu/ServiceManagement';
 
 export default function Dashboard() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userData, setUserData] = useState(null);
   const [error, setError] = useState(null);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
-  const [activeSection, setActiveSection] = useState('overview');
+  const [activeSection, setActiveSection] = useState('dashboard-widgets');
+  const [collapsedSections, setCollapsedSections] = useState({ 
+    account: true, 
+    'vendor-tools': true 
+  }); // Default sections to closed
+  const [slideInContent, setSlideInContent] = useState(null); // Track slide-in overlay content
   const router = useRouter();
+
+  // MOVED: All hooks must be at the top before any early returns
+  const openSlideIn = useCallback((contentType, props = {}) => {
+    setSlideInContent({ type: contentType, props });
+  }, []);
+
+  const closeSlideIn = () => {
+    setSlideInContent(null);
+  };
+
+  // MOVED: This useEffect is now at the top of the component
 
   useEffect(() => {
     const token = getAuthToken();
@@ -61,15 +82,13 @@ export default function Dashboard() {
             setUserData(userData);
           })
           .catch(err => {
-            console.error('Error fetching user data:', err.message);
             setError(err.message);
           });
       } catch (jwtError) {
-        console.error('Error parsing JWT:', jwtError);
         setError('Invalid authentication token');
       }
     }
-  }, [router]);
+  }, []);
 
   if (!isLoggedIn) {
     return null;
@@ -109,36 +128,8 @@ export default function Dashboard() {
 
   const renderContent = () => {
     switch (activeSection) {
-      case 'overview':
-        return (
-          <div className={styles.contentSection}>
-            <h2>Dashboard Overview</h2>
-            <div className={styles.overviewGrid}>
-              <div className={styles.overviewCard}>
-                <h3>Quick Actions</h3>
-                <div className={styles.quickActions}>
-                  {canManageProducts && (
-                    <Link href="/dashboard/products" className={styles.primaryButton}>
-                      View Products
-                    </Link>
-                  )}
-                  {canManageProducts && (
-                    <Link href="/products/new" className={styles.primaryButton}>
-                      Add New Product
-                    </Link>
-                  )}
-                  <Link href="/api-keys" className={styles.primaryButton}>
-                    Generate API Keys
-                  </Link>
-                </div>
-              </div>
-              <div className={styles.overviewCard}>
-                <h3>Recent Activity</h3>
-                <p>No recent activity to display.</p>
-              </div>
-            </div>
-          </div>
-        );
+      case 'dashboard-widgets':
+        return <div className={styles.contentSection}><DashboardGrid /></div>;
       case 'profile':
         return (
           <div className={styles.contentSection}>
@@ -146,13 +137,7 @@ export default function Dashboard() {
             <p>Manage your account settings and profile information.</p>
           </div>
         );
-      case 'orders':
-        return (
-          <div className={styles.contentSection}>
-            <h2>My Orders</h2>
-            <p>View your order history and track current orders.</p>
-          </div>
-        );
+
       case 'finance-dashboard':
         return (
           <div className={styles.contentSection}>
@@ -181,12 +166,7 @@ export default function Dashboard() {
             <p>Connect your Stripe account to start receiving payments.</p>
           </div>
         );
-      case 'vendor-orders':
-        return (
-          <div className={styles.contentSection}>
-            <VendorOrders />
-          </div>
-        );
+
       case 'platform-financials':
         return (
           <div className={styles.contentSection}>
@@ -343,9 +323,62 @@ export default function Dashboard() {
     }
   };
 
+  const toggleSection = (sectionName) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [sectionName]: !prev[sectionName]
+    }));
+  };
+
+  // MOVED: This useEffect is now at the top of the component
+
+  const renderSlideInContent = () => {
+    if (!slideInContent || !userData) return null;
+
+    // Check if MyAccount handles this slide-in type
+    if (myAccountSlideInTypes.includes(slideInContent.type)) {
+      return (
+        <MyAccountSlideIn
+          slideInContent={slideInContent}
+          userData={userData}
+          closeSlideIn={closeSlideIn}
+        />
+      );
+    }
+
+    // Check if VendorTools handles this slide-in type
+    if (vendorToolsSlideInTypes.includes(slideInContent.type)) {
+      return (
+        <VendorToolsSlideIn
+          slideInContent={slideInContent}
+          userData={userData}
+          closeSlideIn={closeSlideIn}
+        />
+      );
+    }
+
+    // Check if ServiceManagement handles this slide-in type
+    /* if (serviceManagementSlideInTypes.includes(slideInContent.type)) {
+      return (
+        <ServiceManagementSlideIn
+          slideInContent={slideInContent}
+          userData={userData}
+          closeSlideIn={closeSlideIn}
+        />
+      );
+    } */
+
+    // Handle other slide-in types here (for future menu sections)
+    return null;
+  };
+
   return (
-    <div className={styles.dashboardContainer}>
-      {/* Collapsible Header */}
+    <>
+      <Head>
+        <script src="https://js.stripe.com/v3/" async></script>
+      </Head>
+      <div className={styles.dashboardContainer}>
+        {/* Collapsible Header */}
       {headerCollapsed ? (
         <div className={styles.collapsedHeader}>
           <button 
@@ -362,57 +395,35 @@ export default function Dashboard() {
       <div className={styles.mainContent}>
         {/* Left Sidebar */}
         <div className={styles.sidebar}>
-          <div className={styles.sidebarSection}>
-            <h3>Dashboard</h3>
-            <ul>
-              <li>
-                <button 
-                  className={`${styles.sidebarLink} ${activeSection === 'overview' ? styles.active : ''}`}
-                  onClick={() => setActiveSection('overview')}
-                >
-                  Overview
-                </button>
-              </li>
-            </ul>
-          </div>
+          {/* My Account Section */}
+          {userData && (
+            <MyAccountMenu
+              userData={userData}
+              collapsedSections={collapsedSections}
+              toggleSection={toggleSection}
+              openSlideIn={openSlideIn}
+            />
+          )}
 
-          <div className={styles.sidebarSection}>
-            <h3>Manage My Account</h3>
-            <ul>
-              <li>
-                <Link href="/profile/edit" className={styles.sidebarLink}>
-                  Edit Profile
-                </Link>
-              </li>
-              <li>
-                <Link href={`/profile/${userData.id}`} className={styles.sidebarLink}>
-                  View Profile
-                </Link>
-              </li>
-              <li>
-                <button 
-                  className={`${styles.sidebarLink} ${activeSection === 'email-preferences' ? styles.active : ''}`}
-                  onClick={() => setActiveSection('email-preferences')}
-                >
-                  Email Settings
-                </button>
-              </li>
-            </ul>
-          </div>
+          {/* Manage My Store Section - Right below My Account */}
+          {userData && (
+            <VendorToolsMenu
+              userData={userData}
+              collapsedSections={collapsedSections}
+              toggleSection={toggleSection}
+              openSlideIn={openSlideIn}
+            />
+          )}
 
-          <div className={styles.sidebarSection}>
-            <h3>History</h3>
-            <ul>
-              <li>
-                <button 
-                  className={`${styles.sidebarLink} ${activeSection === 'orders' ? styles.active : ''}`}
-                  onClick={() => setActiveSection('orders')}
-                >
-                  My Orders
-                </button>
-              </li>
-            </ul>
-          </div>
+          {/* Service Management Section - Admin only */}
+          {/* {userData && (
+            <ServiceManagementMenu
+              userData={userData}
+              collapsedSections={collapsedSections}
+              toggleSection={toggleSection}
+              openSlideIn={openSlideIn}
+            />
+          )} */}
 
           {/* Finance section for vendors and admins */}
           {(hasVendorPermission || isAdmin) && (
@@ -536,7 +547,7 @@ export default function Dashboard() {
           {/* Subscription Management section for artists */}
           {(userData.user_type === 'artist' || isAdmin) && (
             <div className={styles.sidebarSection}>
-              <h3>Verification & Subscriptions</h3>
+              <h3>Subscriptions</h3>
               <ul>
                 <li>
                   <button 
@@ -567,42 +578,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Vendor section for users with vendor permissions or admins */}
-          {(hasVendorPermission || isAdmin) && (
-            <div className={styles.sidebarSection}>
-              <h3>Vendor Tools</h3>
-              <ul>
-                <li>
-                  <Link href="/dashboard/products" className={styles.sidebarLink}>
-                    Manage Products
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/products/new" className={styles.sidebarLink}>
-                    Add New Product
-                  </Link>
-                </li>
-                <li>
-                  <button 
-                    className={`${styles.sidebarLink} ${activeSection === 'vendor-orders' ? styles.active : ''}`}
-                    onClick={() => setActiveSection('vendor-orders')}
-                  >
-                    Orders
-                  </button>
-                </li>
-                <li>
-                  <Link href="/dashboard/inventory" className={styles.sidebarLink}>
-                    Inventory Management
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/policies" className={styles.sidebarLink}>
-                    Manage Custom Policies
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          )}
+
 
           {canManageArticles && (
             <div className={styles.sidebarSection}>
@@ -792,8 +768,18 @@ export default function Dashboard() {
         <div className={styles.contentArea}>
           {renderContent()}
         </div>
+
+        {/* Slide-In Overlay */}
+        {slideInContent && (
+          <div className={styles.slideInOverlay}>
+            <div className={styles.slideInPanel}>
+              {renderSlideInContent()}
+            </div>
+          </div>
+        )}
       </div>
     </div>
+    </>
   );
 } 
 
@@ -1060,7 +1046,6 @@ function ApplicationManagementSection({ userData }) {
       const data = await response.json();
       setApplications(data.applications || []);
     } catch (err) {
-      console.error('Error fetching applications:', err);
       setApplications([]);
     } finally {
       setApplicationsLoading(false);
@@ -1096,7 +1081,6 @@ function ApplicationManagementSection({ userData }) {
         fetchApplications(selectedEvent.id);
       }
     } catch (err) {
-      console.error('Error updating application status:', err);
       alert('Failed to update application status: ' + err.message);
     }
   };
@@ -1529,7 +1513,7 @@ function BulkAcceptanceInterface({ applications, selectedEvent, onBulkAccept }) 
       const acceptResult = await acceptResponse.json();
       
       if (acceptResult.errors.length > 0) {
-        console.warn('Some applications failed to accept:', acceptResult.errors);
+        // Some applications failed to accept - handled silently
       }
 
       setProcessingStep('Creating payment intents...');
@@ -1566,7 +1550,6 @@ function BulkAcceptanceInterface({ applications, selectedEvent, onBulkAccept }) 
       onBulkAccept();
 
     } catch (error) {
-      console.error('Error in bulk acceptance:', error);
       alert('Failed to process bulk acceptance: ' + error.message);
     } finally {
       setIsProcessing(false);
@@ -1697,7 +1680,6 @@ function PaymentDashboard({ applications, selectedEvent, onRefresh }) {
       const data = await response.json();
       setPaymentSummary(data.summary);
     } catch (error) {
-      console.error('Error fetching payment dashboard:', error);
     } finally {
       setLoading(false);
     }
@@ -1735,7 +1717,6 @@ function PaymentDashboard({ applications, selectedEvent, onRefresh }) {
       setCustomMessage('');
       onRefresh();
     } catch (error) {
-      console.error('Error sending reminders:', error);
       alert('Failed to send reminders: ' + error.message);
     }
   };
@@ -1904,7 +1885,7 @@ function MyApplicationsSection({ userData }) {
         throw new Error('Please log in to view applications');
       }
 
-      const response = await fetch('https://api2.onlineartfestival.com/api/applications/my-applications', {
+      const response = await fetch('https://api2.onlineartfestival.com/api/applications/', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -1916,7 +1897,7 @@ function MyApplicationsSection({ userData }) {
       }
 
       const data = await response.json();
-      setApplications(data);
+      setApplications(data.applications || []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -2091,7 +2072,6 @@ function ApplicationCalendarSection({ userData }) {
         const customData = await customEventsResponse.json();
         setCustomEvents(customData);
       } else if (customEventsResponse.status !== 404) {
-        console.error('Failed to fetch custom events');
       }
 
     } catch (err) {
@@ -2465,7 +2445,7 @@ function ApplicationHistorySection({ userData }) {
         throw new Error('Please log in to view application history');
       }
 
-      const response = await fetch('https://api2.onlineartfestival.com/api/applications/my-applications', {
+      const response = await fetch('https://api2.onlineartfestival.com/api/applications/', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -2477,7 +2457,7 @@ function ApplicationHistorySection({ userData }) {
       }
 
       const data = await response.json();
-      setApplications(data);
+      setApplications(data.applications || []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -2605,7 +2585,6 @@ function CustomEventModal({ onSave, onCancel }) {
     try {
       await onSave(formData);
     } catch (err) {
-      console.error('Error saving custom event:', err);
     } finally {
       setIsSubmitting(false);
     }
