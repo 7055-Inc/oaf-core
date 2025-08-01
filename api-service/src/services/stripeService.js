@@ -43,10 +43,13 @@ class StripeService {
    */
   async createAccountLink(stripeAccountId, vendorId) {
     try {
+      // Force HTTPS URLs for Stripe Connect onboarding
+      const baseUrl = process.env.CLIENT_URL?.replace('http://', 'https://') || 'https://main.onlineartfestival.com';
+      
       const accountLink = await this.stripe.accountLinks.create({
         account: stripeAccountId,
-        refresh_url: `${process.env.FRONTEND_URL}/vendor/onboarding/refresh`,
-        return_url: `${process.env.FRONTEND_URL}/vendor/onboarding/complete`,
+        refresh_url: `${baseUrl}/vendor/onboarding/refresh`,
+        return_url: `${baseUrl}/vendor/onboarding/complete`,
         type: 'account_onboarding',
       });
 
@@ -87,10 +90,9 @@ class StripeService {
     try {
       const { total_amount, currency = 'usd', customer_id, metadata = {} } = orderData;
 
-      const paymentIntent = await this.stripe.paymentIntents.create({
+      const paymentIntentParams = {
         amount: Math.round(total_amount * 100), // Convert to cents
         currency: currency.toLowerCase(),
-        customer: customer_id,
         metadata: {
           order_id: metadata.order_id?.toString(),
           platform: 'oaf',
@@ -99,11 +101,122 @@ class StripeService {
         automatic_payment_methods: {
           enabled: true,
         },
-      });
+      };
+
+      // Only add customer if it's provided
+      if (customer_id) {
+        paymentIntentParams.customer = customer_id;
+      }
+
+      const paymentIntent = await this.stripe.paymentIntents.create(paymentIntentParams);
 
       return paymentIntent;
     } catch (error) {
       console.error('Error creating payment intent:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Calculate tax using Stripe Tax API
+   */
+  async calculateTax(taxData) {
+    try {
+      const { line_items, customer_address, currency = 'usd' } = taxData;
+
+      const calculation = await this.stripe.tax.calculations.create({
+        currency: currency.toLowerCase(),
+        line_items: line_items,
+        customer_details: {
+          address: customer_address,
+          address_source: 'shipping'
+        }
+      });
+
+      return calculation;
+    } catch (error) {
+      console.error('Error calculating tax:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create tax transaction from calculation
+   */
+  async createTaxTransaction(calculationId, reference) {
+    try {
+      const transaction = await this.stripe.tax.transactions.createFromCalculation({
+        calculation: calculationId,
+        reference: reference
+      });
+
+      return transaction;
+    } catch (error) {
+      console.error('Error creating tax transaction:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Store tax calculation data in database
+   */
+  async storeTaxCalculation(taxData) {
+    try {
+      const {
+        order_id,
+        stripe_tax_id,
+        stripe_payment_intent_id,
+        customer_state,
+        customer_zip,
+        taxable_amount,
+        tax_collected,
+        tax_rate_used,
+        tax_breakdown,
+        order_date
+      } = taxData;
+
+      const query = `
+        INSERT INTO stripe_tax_transactions (
+          order_id, stripe_tax_id, stripe_payment_intent_id,
+          customer_state, customer_zip, taxable_amount,
+          tax_collected, tax_rate_used, tax_breakdown, order_date
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+
+      const [result] = await db.execute(query, [
+        order_id,
+        stripe_tax_id,
+        stripe_payment_intent_id,
+        customer_state,
+        customer_zip,
+        taxable_amount,
+        tax_collected,
+        tax_rate_used,
+        JSON.stringify(tax_breakdown),
+        order_date
+      ]);
+
+      return result.insertId;
+    } catch (error) {
+      console.error('Error storing tax calculation:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update order with tax amount
+   */
+  async updateOrderTaxAmount(orderId, taxAmount) {
+    try {
+      const query = `
+        UPDATE orders 
+        SET tax_amount = ?, updated_at = CURRENT_TIMESTAMP 
+        WHERE id = ?
+      `;
+
+      await db.execute(query, [taxAmount, orderId]);
+    } catch (error) {
+      console.error('Error updating order tax amount:', error);
       throw error;
     }
   }
@@ -531,7 +644,7 @@ class StripeService {
           const customer = await this.stripe.customers.retrieve(existing[0].stripe_customer_id);
           return customer;
         } catch (error) {
-          console.log('Customer not found in Stripe, creating new one');
+          // Customer not found in Stripe, will create new one
         }
       }
 
@@ -548,6 +661,27 @@ class StripeService {
       return customer;
     } catch (error) {
       console.error('Error creating/getting Stripe customer:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update customer address for tax calculation
+   */
+  async updateCustomerAddress(customerId, address) {
+    try {
+      await this.stripe.customers.update(customerId, {
+        address: {
+          line1: address.line1,
+          line2: address.line2 || null,
+          city: address.city,
+          state: address.state,
+          postal_code: address.postal_code,
+          country: address.country || 'US'
+        }
+      });
+    } catch (error) {
+      console.error('Error updating customer address:', error);
       throw error;
     }
   }
@@ -811,6 +945,285 @@ class StripeService {
     
     const [rows] = await db.execute(query);
     return rows[0];
+  }
+
+  // ===== PHASE 2: ENHANCED TAX TRACKING & REPORTING =====
+
+  /**
+   * Create order tax summary record from stripe_tax_transactions
+   */
+  async createOrderTaxSummary(orderId, stripeTaxTransactionId) {
+    try {
+      // Get the stripe tax transaction data
+      const query = `
+        SELECT 
+          stt.customer_state,
+          stt.customer_zip,
+          stt.taxable_amount,
+          stt.tax_collected,
+          stt.tax_rate_used,
+          stt.order_date,
+          stt.tax_breakdown
+        FROM stripe_tax_transactions stt
+        WHERE stt.id = ? AND stt.order_id = ?
+      `;
+      
+      const [rows] = await db.execute(query, [stripeTaxTransactionId, orderId]);
+      
+      if (rows.length === 0) {
+        throw new Error('Stripe tax transaction not found');
+      }
+
+      const taxData = rows[0];
+      
+      // Extract jurisdiction from tax breakdown JSON
+      let taxJurisdiction = 'Unknown';
+      if (taxData.tax_breakdown) {
+        try {
+          const breakdown = JSON.parse(taxData.tax_breakdown);
+          if (breakdown.tax_breakdown && breakdown.tax_breakdown.length > 0) {
+            const firstBreakdown = breakdown.tax_breakdown[0];
+            if (firstBreakdown.jurisdiction) {
+              taxJurisdiction = `${firstBreakdown.jurisdiction.country || 'US'}-${firstBreakdown.jurisdiction.state || taxData.customer_state}`;
+              if (firstBreakdown.jurisdiction.county) {
+                taxJurisdiction += `-${firstBreakdown.jurisdiction.county}`;
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Could not parse tax breakdown JSON:', e);
+        }
+      }
+
+      // Insert into order_tax_summary
+      const insertQuery = `
+        INSERT INTO order_tax_summary (
+          order_id, stripe_tax_transaction_id, customer_state, customer_zip,
+          taxable_amount, tax_collected, tax_rate_used, tax_jurisdiction, order_date
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+      
+      const [result] = await db.execute(insertQuery, [
+        orderId,
+        stripeTaxTransactionId,
+        taxData.customer_state,
+        taxData.customer_zip,
+        taxData.taxable_amount,
+        taxData.tax_collected,
+        taxData.tax_rate_used,
+        taxJurisdiction,
+        taxData.order_date
+      ]);
+
+      return result.insertId;
+    } catch (error) {
+      console.error('Error creating order tax summary:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate vendor tax summary for a specific period
+   */
+  async generateVendorTaxSummary(vendorId, reportPeriod) {
+    try {
+      // Get all orders for this vendor in the period
+      const query = `
+        SELECT 
+          o.id as order_id,
+          o.total_amount,
+          o.tax_amount,
+          o.created_at,
+          oi.product_id,
+          p.vendor_id,
+          ots.taxable_amount,
+          ots.tax_collected,
+          ots.customer_state,
+          ots.tax_jurisdiction
+        FROM orders o
+        JOIN order_items oi ON o.id = oi.order_id
+        JOIN products p ON oi.product_id = p.id
+        LEFT JOIN order_tax_summary ots ON o.id = ots.order_id
+        WHERE p.vendor_id = ?
+        AND DATE_FORMAT(o.created_at, '%Y-%m') = ?
+        AND o.status = 'paid'
+      `;
+      
+      const [rows] = await db.execute(query, [vendorId, reportPeriod]);
+      
+      if (rows.length === 0) {
+        return {
+          vendor_id: vendorId,
+          report_period: reportPeriod,
+          total_sales: 0,
+          total_taxable_amount: 0,
+          total_tax_collected: 0,
+          order_count: 0,
+          states: []
+        };
+      }
+
+      // Calculate totals
+      const totalSales = rows.reduce((sum, row) => sum + parseFloat(row.total_amount || 0), 0);
+      const totalTaxableAmount = rows.reduce((sum, row) => sum + parseFloat(row.taxable_amount || 0), 0);
+      const totalTaxCollected = rows.reduce((sum, row) => sum + parseFloat(row.tax_collected || 0), 0);
+      const orderCount = new Set(rows.map(row => row.order_id)).size;
+
+      // Group by state
+      const stateBreakdown = {};
+      rows.forEach(row => {
+        if (row.customer_state) {
+          if (!stateBreakdown[row.customer_state]) {
+            stateBreakdown[row.customer_state] = {
+              state: row.customer_state,
+              sales: 0,
+              taxable_amount: 0,
+              tax_collected: 0,
+              order_count: 0
+            };
+          }
+          stateBreakdown[row.customer_state].sales += parseFloat(row.total_amount || 0);
+          stateBreakdown[row.customer_state].taxable_amount += parseFloat(row.taxable_amount || 0);
+          stateBreakdown[row.customer_state].tax_collected += parseFloat(row.tax_collected || 0);
+          stateBreakdown[row.customer_state].order_count++;
+        }
+      });
+
+      // Update or insert vendor tax summary
+      const upsertQuery = `
+        INSERT INTO vendor_tax_summary (
+          vendor_id, report_period, total_sales, total_taxable_amount, 
+          total_tax_collected, report_generated
+        ) VALUES (?, ?, ?, ?, ?, 1)
+        ON DUPLICATE KEY UPDATE
+          total_sales = VALUES(total_sales),
+          total_taxable_amount = VALUES(total_taxable_amount),
+          total_tax_collected = VALUES(total_tax_collected),
+          report_generated = 1,
+          updated_at = CURRENT_TIMESTAMP
+      `;
+      
+      await db.execute(upsertQuery, [
+        vendorId,
+        reportPeriod,
+        totalSales,
+        totalTaxableAmount,
+        totalTaxCollected
+      ]);
+
+      return {
+        vendor_id: vendorId,
+        report_period: reportPeriod,
+        total_sales: totalSales,
+        total_taxable_amount: totalTaxableAmount,
+        total_tax_collected: totalTaxCollected,
+        order_count: orderCount,
+        states: Object.values(stateBreakdown)
+      };
+    } catch (error) {
+      console.error('Error generating vendor tax summary:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get vendor tax summary for a specific period
+   */
+  async getVendorTaxSummary(vendorId, reportPeriod) {
+    try {
+      const query = `
+        SELECT 
+          vts.*,
+          u.username as vendor_name,
+          u.username as vendor_email
+        FROM vendor_tax_summary vts
+        JOIN users u ON vts.vendor_id = u.id
+        WHERE vts.vendor_id = ? AND vts.report_period = ?
+      `;
+      
+      const [rows] = await db.execute(query, [vendorId, reportPeriod]);
+      
+      if (rows.length === 0) {
+        return null;
+      }
+
+      return rows[0];
+    } catch (error) {
+      console.error('Error getting vendor tax summary:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get state-by-state tax breakdown for a vendor
+   */
+  async getVendorStateTaxBreakdown(vendorId, reportPeriod) {
+    try {
+      const query = `
+        SELECT 
+          ots.customer_state,
+          COUNT(DISTINCT ots.order_id) as order_count,
+          SUM(ots.taxable_amount) as total_taxable_amount,
+          SUM(ots.tax_collected) as total_tax_collected,
+          AVG(ots.tax_rate_used) as avg_tax_rate
+        FROM order_tax_summary ots
+        JOIN orders o ON ots.order_id = o.id
+        JOIN order_items oi ON o.id = oi.order_id
+        JOIN products p ON oi.product_id = p.id
+        WHERE p.vendor_id = ?
+        AND DATE_FORMAT(o.created_at, '%Y-%m') = ?
+        AND o.status = 'paid'
+        GROUP BY ots.customer_state
+        ORDER BY total_tax_collected DESC
+      `;
+      
+      const [rows] = await db.execute(query, [vendorId, reportPeriod]);
+      return rows;
+    } catch (error) {
+      console.error('Error getting vendor state tax breakdown:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Populate order_tax_summary for existing orders (backfill)
+   */
+  async backfillOrderTaxSummaries() {
+    try {
+      const query = `
+        SELECT 
+          stt.id as stripe_tax_transaction_id,
+          stt.order_id
+        FROM stripe_tax_transactions stt
+        LEFT JOIN order_tax_summary ots ON stt.order_id = ots.order_id
+        WHERE ots.id IS NULL
+        AND stt.tax_collected > 0
+      `;
+      
+      const [rows] = await db.execute(query);
+      
+      let processed = 0;
+      let errors = 0;
+      
+      for (const row of rows) {
+        try {
+          await this.createOrderTaxSummary(row.order_id, row.stripe_tax_transaction_id);
+          processed++;
+        } catch (error) {
+          console.error(`Error processing order ${row.order_id}:`, error);
+          errors++;
+        }
+        }
+      
+      return {
+        processed,
+        errors,
+        total: rows.length
+      };
+    } catch (error) {
+      console.error('Error backfilling order tax summaries:', error);
+      throw error;
+    }
   }
 }
 

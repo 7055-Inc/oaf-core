@@ -24,6 +24,7 @@ import styles from './Dashboard.module.css';
 import SubscriptionManager from '../../components/SubscriptionManager';
 import { MyAccountMenu, MyAccountSlideIn, myAccountSlideInTypes } from '../../components/dashboard/menu/MyAccount';
 import { VendorToolsMenu, VendorToolsSlideIn, vendorToolsSlideInTypes } from '../../components/dashboard/vendor/VendorTools';
+import { FinanceMenu, FinanceSlideIn, financeSlideInTypes } from '../../components/dashboard/menu/Finance';
 // import { ServiceManagementMenu, ServiceManagementSlideIn, serviceManagementSlideInTypes } from '../../components/dashboard/menu/ServiceManagement';
 
 export default function Dashboard() {
@@ -34,7 +35,8 @@ export default function Dashboard() {
   const [activeSection, setActiveSection] = useState('dashboard-widgets');
   const [collapsedSections, setCollapsedSections] = useState({ 
     account: true, 
-    'vendor-tools': true 
+    'vendor-tools': true,
+    finance: true 
   }); // Default sections to closed
   const [slideInContent, setSlideInContent] = useState(null); // Track slide-in overlay content
   const router = useRouter();
@@ -357,6 +359,17 @@ export default function Dashboard() {
       );
     }
 
+    // Check if Finance handles this slide-in type
+    if (financeSlideInTypes.includes(slideInContent.type)) {
+      return (
+        <FinanceSlideIn
+          slideInContent={slideInContent}
+          userData={userData}
+          closeSlideIn={closeSlideIn}
+        />
+      );
+    }
+
     // Check if ServiceManagement handles this slide-in type
     /* if (serviceManagementSlideInTypes.includes(slideInContent.type)) {
       return (
@@ -415,6 +428,16 @@ export default function Dashboard() {
             />
           )}
 
+          {/* Finance Section - New folded menu */}
+          {userData && (
+            <FinanceMenu
+              userData={userData}
+              collapsedSections={collapsedSections}
+              toggleSection={toggleSection}
+              openSlideIn={openSlideIn}
+            />
+          )}
+
           {/* Service Management Section - Admin only */}
           {/* {userData && (
             <ServiceManagementMenu
@@ -425,7 +448,7 @@ export default function Dashboard() {
             />
           )} */}
 
-          {/* Finance section for vendors and admins */}
+          {/* Finance section for vendors and admins - OLD SYSTEM */}
           {(hasVendorPermission || isAdmin) && (
             <div className={styles.sidebarSection}>
               <h3>Finance</h3>
@@ -2612,7 +2635,7 @@ function CustomEventModal({ onSave, onCancel }) {
         </div>
 
         <form onSubmit={handleSubmit} className={styles.modalForm}>
-          <div className={styles.formGroup}>
+          <div>
             <label htmlFor="event_name">Event Name *</label>
             <input
               type="text"
@@ -2621,12 +2644,11 @@ function CustomEventModal({ onSave, onCancel }) {
               value={formData.event_name}
               onChange={handleChange}
               required
-              className={styles.formInput}
             />
           </div>
 
           <div className={styles.formRow}>
-            <div className={styles.formGroup}>
+            <div>
               <label htmlFor="event_start_date">Start Date *</label>
               <input
                 type="date"
@@ -2635,10 +2657,9 @@ function CustomEventModal({ onSave, onCancel }) {
                 value={formData.event_start_date}
                 onChange={handleChange}
                 required
-                className={styles.formInput}
               />
             </div>
-            <div className={styles.formGroup}>
+            <div>
               <label htmlFor="event_end_date">End Date *</label>
               <input
                 type="date"
@@ -2647,12 +2668,11 @@ function CustomEventModal({ onSave, onCancel }) {
                 value={formData.event_end_date}
                 onChange={handleChange}
                 required
-                className={styles.formInput}
               />
             </div>
           </div>
 
-          <div className={styles.formGroup}>
+          <div>
             <label htmlFor="venue_name">Venue Name</label>
             <input
               type="text"
@@ -2660,12 +2680,11 @@ function CustomEventModal({ onSave, onCancel }) {
               name="venue_name"
               value={formData.venue_name}
               onChange={handleChange}
-              className={styles.formInput}
             />
           </div>
 
           <div className={styles.formRow}>
-            <div className={styles.formGroup}>
+            <div>
               <label htmlFor="city">City</label>
               <input
                 type="text"
@@ -2673,10 +2692,9 @@ function CustomEventModal({ onSave, onCancel }) {
                 name="city"
                 value={formData.city}
                 onChange={handleChange}
-                className={styles.formInput}
               />
             </div>
-            <div className={styles.formGroup}>
+            <div>
               <label htmlFor="state">State</label>
               <input
                 type="text"
@@ -2684,12 +2702,11 @@ function CustomEventModal({ onSave, onCancel }) {
                 name="state"
                 value={formData.state}
                 onChange={handleChange}
-                className={styles.formInput}
               />
             </div>
           </div>
 
-          <div className={styles.formGroup}>
+          <div>
             <label htmlFor="website">Website</label>
             <input
               type="url"
@@ -2697,7 +2714,6 @@ function CustomEventModal({ onSave, onCancel }) {
               name="website"
               value={formData.website}
               onChange={handleChange}
-              className={styles.formInput}
             />
           </div>
 

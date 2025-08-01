@@ -274,7 +274,7 @@ function MyPoliciesContent({ userId, onBack }) {
           <h2>My Policies</h2>
         </div>
         <div className={slideInStyles.content}>
-          <div className={slideInStyles.loading}>Loading policies...</div>
+          <div className="loading-state">Loading policies...</div>
         </div>
       </div>
     );
@@ -611,7 +611,7 @@ function ManageInventoryContent({ userId, onBack }) {
           <h2>Manage Inventory</h2>
         </div>
         <div className={slideInStyles.content}>
-          <div className={slideInStyles.loading}>Loading inventory data...</div>
+          <div className="loading-state">Loading inventory data...</div>
         </div>
       </div>
     );
@@ -631,7 +631,7 @@ function ManageInventoryContent({ userId, onBack }) {
         {error && <div className="error-alert">{error}</div>}
         {success && <div className="success-alert">{success}</div>}
 
-        <div className={slideInStyles.formRow}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
           <div style={{ flex: 1, minWidth: '300px' }}>
             <input
               type="text"
@@ -704,20 +704,20 @@ function ManageInventoryContent({ userId, onBack }) {
         </div>
 
         {filteredProducts.length === 0 && !loading && (
-          <div className={slideInStyles.loading}>
+          <div className="empty-state">
             <p>No products found matching your search criteria.</p>
           </div>
         )}
 
         {/* Bulk Update Modal */}
         {showBulkModal && (
-          <div className={slideInStyles.modalOverlay}>
-            <div className={slideInStyles.modalContent}>
-              <h3 className={slideInStyles.modalTitle}>Bulk Inventory Update</h3>
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <h3 className="modal-title">Bulk Inventory Update</h3>
               <p>Selected {selectedProducts.length} products</p>
               
-              <div className={slideInStyles.formField}>
-                <label className={slideInStyles.fieldLabel}>Adjustment Type:</label>
+              <div>
+                <label>Adjustment Type:</label>
                 <select
                   value={bulkAdjustment.type}
                   onChange={(e) => setBulkAdjustment({...bulkAdjustment, type: e.target.value})}
@@ -728,8 +728,8 @@ function ManageInventoryContent({ userId, onBack }) {
                 </select>
               </div>
 
-              <div className={slideInStyles.formField}>
-                <label className={slideInStyles.fieldLabel}>Value:</label>
+              <div>
+                <label>Value:</label>
                 <input
                   type="number"
                   value={bulkAdjustment.value}
@@ -738,8 +738,8 @@ function ManageInventoryContent({ userId, onBack }) {
                 />
               </div>
 
-              <div className={slideInStyles.formField}>
-                <label className={slideInStyles.fieldLabel}>Reason (optional):</label>
+              <div>
+                <label>Reason (optional):</label>
                 <input
                   type="text"
                   value={bulkAdjustment.reason}
@@ -748,7 +748,7 @@ function ManageInventoryContent({ userId, onBack }) {
                 />
               </div>
 
-              <div className={slideInStyles.modalActions}>
+              <div className="modal-actions">
                 <button
                   onClick={handleBulkUpdate}
                   disabled={adjustingInventory || !bulkAdjustment.value}
@@ -1191,7 +1191,7 @@ function MyProductsContent({ userId, onBack }) {
           <h2>My Products</h2>
         </div>
         <div className={slideInStyles.content}>
-          <div className={slideInStyles.loading}>Loading products...</div>
+          <div className="loading-state">Loading products...</div>
         </div>
       </div>
     );
@@ -1207,7 +1207,7 @@ function MyProductsContent({ userId, onBack }) {
           <h2>My Products</h2>
         </div>
         <div className={slideInStyles.content}>
-          <div className={slideInStyles.error}>Error: {error}</div>
+          <div className="error-state">Error: {error}</div>
         </div>
       </div>
     );
@@ -2104,10 +2104,10 @@ function AddProductContent({ userId, onBack }) {
             {error && <div className="error-alert">{error}</div>}
             
             <form onSubmit={handleSubmit}>
-                          <div className={slideInStyles.formRow}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
                 <div className="section-box">
                 <h2>Basic Information</h2>
-                                  <div className={slideInStyles.formGroup}>
+                                  <div>
                     <label>Name *</label>
                               <input
                   type="text"
@@ -2119,7 +2119,7 @@ function AddProductContent({ userId, onBack }) {
                 />
                 </div>
 
-                  <div className={slideInStyles.formGroup}>
+                  <div>
                     <label>Category *</label>
                     <select
                       name="category_id"
@@ -2136,9 +2136,9 @@ function AddProductContent({ userId, onBack }) {
                     </select>
                   </div>
 
-                  <div className={slideInStyles.formGroup}>
+                  <div>
                     <label>Vendor Category</label>
-                    <div className={slideInStyles.inputGroup}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <select
                         name="user_category_id"
                         value={formData.user_category_id}
@@ -2164,7 +2164,7 @@ function AddProductContent({ userId, onBack }) {
                     </small>
                   </div>
 
-                  <div className={slideInStyles.formGroup}>
+                  <div>
                     <label>Product Type</label>
                     <div className="toggle-switch">
                       <input
@@ -2182,7 +2182,7 @@ function AddProductContent({ userId, onBack }) {
                     </small>
                   </div>
                 
-                <div className={slideInStyles.formGroup}>
+                <div>
                   <label>Short Description</label>
                   <textarea
                     name="short_description"
@@ -2196,7 +2196,7 @@ function AddProductContent({ userId, onBack }) {
                   </small>
                 </div>
 
-                <div className={slideInStyles.formGroup}>
+                <div>
                   <label>Full Description</label>
                   <textarea
                     name="description"
@@ -2212,9 +2212,9 @@ function AddProductContent({ userId, onBack }) {
 
               <div className="section-box">
                 <h2>Pricing & Inventory</h2>
-                                <div className={slideInStyles.formGroup}>
+                                <div>
                   <label>Price *</label>
-                  <div className={slideInStyles.inputGroup}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span className={slideInStyles.currency}>$</span>
                               <input
                   type="number"
@@ -2228,7 +2228,7 @@ function AddProductContent({ userId, onBack }) {
             </div>
                 </div>
 
-                                <div className={slideInStyles.formGroup}>
+                                <div>
                     <label>Beginning Inventory</label>
                               <input
                   type="number"
@@ -2243,7 +2243,7 @@ function AddProductContent({ userId, onBack }) {
                   </small>
                 </div>
 
-                <div className={slideInStyles.formGroup}>
+                <div>
                   <label>Reorder Level</label>
                   <input
                     type="number"
@@ -2258,9 +2258,9 @@ function AddProductContent({ userId, onBack }) {
                   </small>
             </div>
 
-                <div className={slideInStyles.formGroup}>
+                <div>
                     <label>SKU *</label>
-                    <div className={slideInStyles.inputGroup}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <input
                 type="text"
                 name="sku"
@@ -2288,10 +2288,10 @@ function AddProductContent({ userId, onBack }) {
 
                                <div className="section-box">
                   <h2>Dimensions & Weight</h2>
-                  <div className={slideInStyles.dimensionsGrid}>
-                   <div className={slideInStyles.formGroup}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                   <div>
                      <label>Width</label>
-                     <div className={slideInStyles.inputGroup}>
+                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                <input
                  type="number"
                  name="width"
@@ -2304,7 +2304,7 @@ function AddProductContent({ userId, onBack }) {
                          name="dimension_unit"
                          value={formData.dimension_unit}
                          onChange={handleChange}
-                         className={slideInStyles.unitSelect}
+                         style={{ minWidth: '60px' }}
                        >
                          <option value="in">in</option>
                          <option value="cm">cm</option>
@@ -2312,9 +2312,9 @@ function AddProductContent({ userId, onBack }) {
                      </div>
              </div>
 
-                   <div className={slideInStyles.formGroup}>
+                   <div>
                      <label>Height</label>
-                     <div className={slideInStyles.inputGroup}>
+                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                <input
                  type="number"
                  name="height"
@@ -2327,7 +2327,7 @@ function AddProductContent({ userId, onBack }) {
                          name="dimension_unit"
                          value={formData.dimension_unit}
                          onChange={handleChange}
-                         className={slideInStyles.unitSelect}
+                         style={{ minWidth: '60px' }}
                        >
                          <option value="in">in</option>
                          <option value="cm">cm</option>
@@ -2335,9 +2335,9 @@ function AddProductContent({ userId, onBack }) {
                      </div>
              </div>
 
-                   <div className={slideInStyles.formGroup}>
+                   <div>
                      <label>Depth</label>
-                     <div className={slideInStyles.inputGroup}>
+                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                <input
                  type="number"
                  name="depth"
@@ -2350,7 +2350,7 @@ function AddProductContent({ userId, onBack }) {
                          name="dimension_unit"
                          value={formData.dimension_unit}
                          onChange={handleChange}
-                         className={slideInStyles.unitSelect}
+                         style={{ minWidth: '60px' }}
                        >
                          <option value="in">in</option>
                          <option value="cm">cm</option>
@@ -2358,9 +2358,9 @@ function AddProductContent({ userId, onBack }) {
                      </div>
              </div>
 
-                   <div className={slideInStyles.formGroup}>
+                   <div>
                      <label>Weight</label>
-                     <div className={slideInStyles.inputGroup}>
+                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                <input
                  type="number"
                  name="weight"
@@ -2373,7 +2373,7 @@ function AddProductContent({ userId, onBack }) {
                          name="weight_unit"
                          value={formData.weight_unit}
                          onChange={handleChange}
-                         className={slideInStyles.unitSelect}
+                         style={{ minWidth: '60px' }}
                        >
                          <option value="lbs">lbs</option>
                          <option value="kg">kg</option>
@@ -2385,7 +2385,7 @@ function AddProductContent({ userId, onBack }) {
 
                  <div className="section-box">
                    <h2>Shipping Information</h2>
-                   <div className={slideInStyles.formGroup}>
+                   <div>
                      <label>Shipping Method</label>
                      <select
                        name="ship_method"
@@ -2400,9 +2400,9 @@ function AddProductContent({ userId, onBack }) {
                    </div>
 
                    {formData.ship_method === 'flat_rate' && (
-                     <div className={slideInStyles.formGroup}>
+                     <div>
                        <label>Shipping Rate per Item</label>
-                       <div className={slideInStyles.inputGroup}>
+                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                          <span className={slideInStyles.currency}>$</span>
                          <input
                            type="number"
@@ -2427,24 +2427,24 @@ function AddProductContent({ userId, onBack }) {
                        </p>
                        
                        {packages.map((pkg, index) => (
-                         <div key={pkg.id} className={slideInStyles.packageBox}>
-                           <div className={slideInStyles.packageHeader}>
-                             <h4>Package {index + 1}</h4>
+                         <div key={pkg.id} className="form-card">
+                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                             <h3>Package {index + 1}</h3>
                              {packages.length > 1 && (
                                <button 
                                  type="button" 
                                  onClick={() => removePackage(pkg.id)}
-                                 className={slideInStyles.removePackageButton}
+                                 style={{ background: '#dc3545', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', fontSize: '12px' }}
                                >
                                  Remove
                                </button>
                              )}
                            </div>
                            
-                           <div className={slideInStyles.packageDimensions}>
-                             <div className={slideInStyles.formGroup}>
+                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                             <div>
                                <label>Length</label>
-                               <div className={slideInStyles.inputGroup}>
+                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                  <input
                                    type="number"
                                    value={pkg.length}
@@ -2456,7 +2456,7 @@ function AddProductContent({ userId, onBack }) {
                                  <select
                                    value={pkg.dimension_unit}
                                    onChange={(e) => updatePackage(pkg.id, 'dimension_unit', e.target.value)}
-                                   className={slideInStyles.unitSelect}
+                                   style={{ minWidth: '60px' }}
                                  >
                                    <option value="in">in</option>
                                    <option value="cm">cm</option>
@@ -2464,9 +2464,9 @@ function AddProductContent({ userId, onBack }) {
                                </div>
                              </div>
 
-                             <div className={slideInStyles.formGroup}>
+                             <div>
                                <label>Width</label>
-                               <div className={slideInStyles.inputGroup}>
+                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                  <input
                                    type="number"
                                    value={pkg.width}
@@ -2478,7 +2478,7 @@ function AddProductContent({ userId, onBack }) {
                                  <select
                                    value={pkg.dimension_unit}
                                    onChange={(e) => updatePackage(pkg.id, 'dimension_unit', e.target.value)}
-                                   className={slideInStyles.unitSelect}
+                                   style={{ minWidth: '60px' }}
                                  >
                                    <option value="in">in</option>
                                    <option value="cm">cm</option>
@@ -2486,9 +2486,9 @@ function AddProductContent({ userId, onBack }) {
                                </div>
                              </div>
 
-                             <div className={slideInStyles.formGroup}>
+                             <div>
                                <label>Height</label>
-                               <div className={slideInStyles.inputGroup}>
+                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                  <input
                                    type="number"
                                    value={pkg.height}
@@ -2500,7 +2500,7 @@ function AddProductContent({ userId, onBack }) {
                                  <select
                                    value={pkg.dimension_unit}
                                    onChange={(e) => updatePackage(pkg.id, 'dimension_unit', e.target.value)}
-                                   className={slideInStyles.unitSelect}
+                                   style={{ minWidth: '60px' }}
                                  >
                                    <option value="in">in</option>
                                    <option value="cm">cm</option>
@@ -2508,9 +2508,9 @@ function AddProductContent({ userId, onBack }) {
                                </div>
                              </div>
 
-                             <div className={slideInStyles.formGroup}>
+                             <div>
                                <label>Weight</label>
-                               <div className={slideInStyles.inputGroup}>
+                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                  <input
                                    type="number"
                                    value={pkg.weight}
@@ -2522,7 +2522,7 @@ function AddProductContent({ userId, onBack }) {
                                  <select
                                    value={pkg.weight_unit}
                                    onChange={(e) => updatePackage(pkg.id, 'weight_unit', e.target.value)}
-                                   className={slideInStyles.unitSelect}
+                                   style={{ minWidth: '60px' }}
                                  >
                                    <option value="lbs">lbs</option>
                                    <option value="kg">kg</option>
@@ -2537,7 +2537,7 @@ function AddProductContent({ userId, onBack }) {
                          <button 
                            type="button" 
                            onClick={addPackage}
-                           className={slideInStyles.addPackageButton}
+                           style={{ background: 'transparent', color: 'var(--primary-color)', border: '2px dashed var(--primary-color)', padding: '12px 24px', borderRadius: '6px', cursor: 'pointer', marginTop: '16px' }}
                          >
                            Add Another Package
                          </button>
@@ -2546,7 +2546,7 @@ function AddProductContent({ userId, onBack }) {
                    )}
 
                    {formData.ship_method === 'calculated' && !showCarrierServices && (
-                     <div className={slideInStyles.formGroup}>
+                     <div>
                        <button 
                          type="button"
                          onClick={checkCarrierAvailability}
@@ -2561,7 +2561,7 @@ function AddProductContent({ userId, onBack }) {
                    )}
 
                    {formData.ship_method === 'calculated' && showCarrierServices && (
-                     <div className={slideInStyles.formGroup}>
+                     <div>
                        <label>Select Carrier Services</label>
                        <div className={slideInStyles.carrierServicesGrid}>
                                                     {availableCarriers.includes('UPS') && (
@@ -2798,7 +2798,7 @@ function AddProductContent({ userId, onBack }) {
  
              </div>
  
-                             <div className={slideInStyles.formRow}>
+                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
               <button 
                 type="button" 
                 onClick={handleSaveAsDraft}

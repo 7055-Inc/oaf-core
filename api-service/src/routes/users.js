@@ -187,24 +187,27 @@ router.patch('/me',
       let logoImagePath = null;
       
       if (req.files['profile_image']) {
-        profileImagePath = `/temp_images/profiles/${req.files['profile_image'][0].filename}`;
+        const file = req.files['profile_image'][0];
+        profileImagePath = `/temp_images/profiles/${file.filename}`;
         await db.query(
-          'INSERT INTO pending_images (user_id, image_path, status) VALUES (?, ?, ?)',
-          [req.userId, profileImagePath, 'pending']
+          'INSERT INTO pending_images (user_id, image_path, original_name, mime_type, status) VALUES (?, ?, ?, ?, ?)',
+          [req.userId, profileImagePath, file.originalname, file.mimetype, 'pending']
         );
       }
       if (req.files['header_image']) {
-        headerImagePath = `/temp_images/profiles/${req.files['header_image'][0].filename}`;
+        const file = req.files['header_image'][0];
+        headerImagePath = `/temp_images/profiles/${file.filename}`;
         await db.query(
-          'INSERT INTO pending_images (user_id, image_path, status) VALUES (?, ?, ?)',
-          [req.userId, headerImagePath, 'pending']
+          'INSERT INTO pending_images (user_id, image_path, original_name, mime_type, status) VALUES (?, ?, ?, ?, ?)',
+          [req.userId, headerImagePath, file.originalname, file.mimetype, 'pending']
         );
       }
       if (req.files['logo_image']) {
-        logoImagePath = `/temp_images/profiles/${req.files['logo_image'][0].filename}`;
+        const file = req.files['logo_image'][0];
+        logoImagePath = `/temp_images/profiles/${file.filename}`;
         await db.query(
-          'INSERT INTO pending_images (user_id, image_path, status) VALUES (?, ?, ?)',
-          [req.userId, logoImagePath, 'pending']
+          'INSERT INTO pending_images (user_id, image_path, original_name, mime_type, status) VALUES (?, ?, ?, ?, ?)',
+          [req.userId, logoImagePath, file.originalname, file.mimetype, 'pending']
         );
       }
 

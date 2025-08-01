@@ -9,7 +9,7 @@ module.exports = async (req, res, next) => {
   
   try {
     const [key] = await db.query(
-      'SELECT user_id, private_key_hashed, prefix, is_active FROM api_keys WHERE public_key = ?', 
+      'SELECT user_id, private_key_hashed, prefix, is_active, permissions FROM api_keys WHERE public_key = ?', 
       [publicKey]
     );
     
@@ -20,6 +20,9 @@ module.exports = async (req, res, next) => {
     
     // Set user context (simple - just the API key owner)
     req.userId = key[0].user_id;
+    
+    // Set permissions from API key
+    req.permissions = key[0].permissions ? JSON.parse(key[0].permissions) : [];
     
     // Update last_used_at
     await db.query('UPDATE api_keys SET last_used_at = NOW() WHERE public_key = ?', [publicKey]);

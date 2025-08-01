@@ -513,4 +513,270 @@ async function getVendorTransactions(vendorId, options = {}) {
   return rows;
 }
 
+// ===== ADMIN TAX REPORTING ENDPOINTS (/all pattern) =====
+
+/**
+ * Get all vendor tax summaries for a period
+ * GET /api/admin/financials/all-vendor-tax-summaries/:period
+ */
+router.get('/all-vendor-tax-summaries/:period', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+  try {
+    const { period } = req.params;
+    
+    // Validate period format (YYYY-MM)
+    if (!/^\d{4}-\d{2}$/.test(period)) {
+      return res.status(400).json({ error: 'Invalid period format. Use YYYY-MM' });
+    }
+
+    // Get all vendors with tax summaries for this period
+    const query = `
+      SELECT 
+        vts.*,
+        u.username as vendor_name
+      FROM vendor_tax_summary vts
+      JOIN users u ON vts.vendor_id = u.id
+      WHERE vts.report_period = ?
+      ORDER BY vts.total_tax_collected DESC
+    `;
+    
+    const [rows] = await db.execute(query, [period]);
+    
+    res.json({
+      success: true,
+      report_period: period,
+      vendors: rows,
+      total_vendors: rows.length,
+      total_tax_collected: rows.reduce((sum, row) => sum + parseFloat(row.total_tax_collected || 0), 0)
+    });
+    
+  } catch (error) {
+    console.error('Error getting all vendor tax summaries:', error);
+    res.status(500).json({ error: 'Failed to get vendor tax summaries' });
+  }
+});
+
+/**
+ * Get all state compliance overview
+ * GET /api/admin/financials/all-state-compliance/:period
+ */
+router.get('/all-state-compliance/:period', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+  try {
+    const { period } = req.params;
+    
+    // Validate period format (YYYY-MM)
+    if (!/^\d{4}-\d{2}$/.test(period)) {
+      return res.status(400).json({ error: 'Invalid period format. Use YYYY-MM' });
+    }
+
+    // Get state-by-state platform summary
+    const query = `
+      SELECT 
+        ots.customer_state,
+        COUNT(DISTINCT o.id) as total_orders,
+        COUNT(DISTINCT p.vendor_id) as active_vendors,
+        SUM(o.total_amount) as total_sales,
+        SUM(ots.tax_collected) as total_tax_collected,
+        AVG(ots.tax_rate_used) as avg_tax_rate
+      FROM order_tax_summary ots
+      JOIN orders o ON ots.order_id = o.id
+      JOIN order_items oi ON o.id = oi.order_id
+      JOIN products p ON oi.product_id = p.id
+      WHERE DATE_FORMAT(o.created_at, '%Y-%m') = ?
+      AND o.status = 'paid'
+      GROUP BY ots.customer_state
+      ORDER BY total_tax_collected DESC
+    `;
+    
+    const [rows] = await db.execute(query, [period]);
+    
+    res.json({
+      success: true,
+      report_period: period,
+      state_compliance: rows,
+      total_states: rows.length,
+      total_platform_tax: rows.reduce((sum, row) => sum + parseFloat(row.total_tax_collected || 0), 0)
+    });
+    
+  } catch (error) {
+    console.error('Error getting state compliance:', error);
+    res.status(500).json({ error: 'Failed to get state compliance' });
+  }
+});
+
+/**
+ * Get platform tax overview
+ * GET /api/admin/financials/all-tax-overview/:period
+ */
+router.get('/all-tax-overview/:period', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+  try {
+    const { period } = req.params;
+    
+    // Validate period format (YYYY-MM)
+    if (!/^\d{4}-\d{2}$/.test(period)) {
+      return res.status(400).json({ error: 'Invalid period format. Use YYYY-MM' });
+    }
+
+    // Get platform-wide tax summary
+    const query = `
+      SELECT 
+        COUNT(DISTINCT o.id) as total_orders,
+        COUNT(DISTINCT p.vendor_id) as active_vendors,
+        SUM(o.total_amount) as total_sales,
+        SUM(o.tax_amount) as total_tax_collected,
+        COUNT(DISTINCT ots.customer_state) as states_with_sales,
+        AVG(ots.tax_rate_used) as avg_tax_rate
+      FROM orders o
+      LEFT JOIN order_tax_summary ots ON o.id = ots.order_id
+      LEFT JOIN order_items oi ON o.id = oi.order_id
+      LEFT JOIN products p ON oi.product_id = p.id
+      WHERE DATE_FORMAT(o.created_at, '%Y-%m') = ?
+      AND o.status = 'paid'
+    `;
+    
+    const [rows] = await db.execute(query, [period]);
+    
+    res.json({
+      success: true,
+      report_period: period,
+      platform_overview: rows[0]
+    });
+    
+  } catch (error) {
+    console.error('Error getting platform tax overview:', error);
+    res.status(500).json({ error: 'Failed to get platform tax overview' });
+  }
+});
+
+/**
+ * Get all vendor tax compliance status
+ * GET /api/admin/financials/all-vendor-compliance/:period
+ */
+router.get('/all-vendor-compliance/:period', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+  try {
+    const { period } = req.params;
+    
+    // Validate period format (YYYY-MM)
+    if (!/^\d{4}-\d{2}$/.test(period)) {
+      return res.status(400).json({ error: 'Invalid period format. Use YYYY-MM' });
+    }
+
+    // Get all vendors with compliance status
+    const query = `
+      SELECT 
+        u.id as vendor_id,
+        u.username as vendor_name,
+        COUNT(DISTINCT ots.customer_state) as states_with_sales,
+        SUM(ots.tax_collected) as total_tax_collected,
+        SUM(ots.taxable_amount) as total_taxable_amount,
+        COUNT(DISTINCT o.id) as total_orders
+      FROM users u
+      LEFT JOIN products p ON u.id = p.vendor_id
+      LEFT JOIN order_items oi ON p.id = oi.product_id
+      LEFT JOIN orders o ON oi.order_id = o.id
+      LEFT JOIN order_tax_summary ots ON o.id = ots.order_id
+      WHERE u.user_type = 'artist'
+      AND DATE_FORMAT(o.created_at, '%Y-%m') = ?
+      AND o.status = 'paid'
+      GROUP BY u.id, u.username
+      HAVING total_tax_collected > 0
+      ORDER BY total_tax_collected DESC
+    `;
+    
+    const [rows] = await db.execute(query, [period]);
+    
+    res.json({
+      success: true,
+      report_period: period,
+      vendor_compliance: rows,
+      total_vendors_with_tax: rows.length
+    });
+    
+  } catch (error) {
+    console.error('Error getting vendor compliance:', error);
+    res.status(500).json({ error: 'Failed to get vendor compliance' });
+  }
+});
+
+/**
+ * Get all transactions across all vendors
+ * GET /api/admin/financials/all-transactions
+ */
+router.get('/all-transactions', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+  try {
+    const { page = 1, limit = 20, type, status } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    
+    let query = `
+      SELECT 
+        vt.*,
+        o.id as order_number,
+        o.total_amount as order_total,
+        u.username as vendor_name,
+        CASE 
+          WHEN vt.transaction_type = 'sale' THEN 'Sale'
+          WHEN vt.transaction_type = 'commission' THEN 'Commission'
+          WHEN vt.transaction_type = 'payout' THEN 'Payout'
+          WHEN vt.transaction_type = 'refund' THEN 'Refund'
+          WHEN vt.transaction_type = 'adjustment' THEN 'Adjustment'
+          WHEN vt.transaction_type = 'subscription_charge' THEN 'Subscription'
+          ELSE vt.transaction_type
+        END as type_display
+      FROM vendor_transactions vt
+      LEFT JOIN orders o ON vt.order_id = o.id
+      LEFT JOIN users u ON vt.vendor_id = u.id
+    `;
+    
+    const params = [];
+    
+    if (type) {
+      query += ' WHERE vt.transaction_type = ?';
+      params.push(type);
+    }
+    
+    if (status) {
+      query += type ? ' AND vt.status = ?' : ' WHERE vt.status = ?';
+      params.push(status);
+    }
+    
+    // Get total count
+    let countQuery = `
+      SELECT COUNT(*) as total
+      FROM vendor_transactions vt
+      LEFT JOIN orders o ON vt.order_id = o.id
+      LEFT JOIN users u ON vt.vendor_id = u.id
+    `;
+    
+    if (type) {
+      countQuery += ' WHERE vt.transaction_type = ?';
+    }
+    
+    if (status) {
+      countQuery += type ? ' AND vt.status = ?' : ' WHERE vt.status = ?';
+    }
+    
+    const [countRows] = await db.execute(countQuery, params);
+    const total = countRows[0].total;
+    
+    // Get paginated data (must be direct values, not parameters)
+    query += ` ORDER BY vt.created_at DESC LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`;
+    
+    const [rows] = await db.execute(query, params);
+    
+    res.json({
+      success: true,
+      transactions: rows,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error getting all transactions:', error);
+    res.status(500).json({ error: 'Failed to get all transactions' });
+  }
+});
+
 module.exports = router; 

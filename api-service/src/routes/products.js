@@ -1319,10 +1319,10 @@ router.post('/upload',
       // Record temp image URLs 
       for (const file of req.files) {
         const imagePath = `/temp_images/products/${file.filename}`;
-        // Insert into pending_images
+        // Insert into pending_images with original name and mime type
         await db.query(
-          'INSERT INTO pending_images (user_id, image_path, status) VALUES (?, ?, ?)',
-          [req.userId, imagePath, 'pending']
+          'INSERT INTO pending_images (user_id, image_path, original_name, mime_type, status) VALUES (?, ?, ?, ?, ?)',
+          [req.userId, imagePath, file.originalname, file.mimetype, 'pending']
         );
         
         // Only add to product_images if we have an existing product

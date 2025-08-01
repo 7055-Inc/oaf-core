@@ -8,6 +8,8 @@
   --text-color: #333333; /* Dark Gray */
   --background-color: #FFFFFF; /* White */
   --accent-color: #FFFFFF; /* White */
+  --success-color: #198754; /* Success status indicators */
+  --warning-color: #fd7e14; /* Warning status indicators */
 }
 
 html, body {
@@ -43,11 +45,11 @@ h3 {
 
 /* Global Button Styles */
 button {
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 50%, var(--primary-color) 100%);
   color: var(--accent-color);
   padding: 10px 20px;
   border: none;
-  border-radius: 0px;
+  border-radius: 2px;
   cursor: pointer;
   font-weight: 700;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -84,6 +86,15 @@ input, select, textarea {
 label {
   font-weight: 700;
   margin-right: 10px;
+}
+
+/* Form Card for grouping related form elements */
+.form-card {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  background: #f8f9fa;
 }
 
 /* Global Link Styles */
@@ -267,7 +278,87 @@ a:hover {
   border: 1px solid #c3e6cb;
 }
 
+.warning-alert {
+  background-color: #fff3cd;
+  color: #856404;
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  border: 1px solid #ffeaa7;
+}
+
 header {
   margin: 0 !important;
   padding: 0 !important;
+}
+
+/* Global Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 0px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-title {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 2rem;
+}
+
+/* Global List State Styles */
+.loading-state, .empty-state, .error-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  text-align: center;
+  gap: 0.5rem;
+}
+
+.loading-state, .empty-state {
+  color: #6c757d;
+}
+
+.error-state {
+  color: #e74c3c;
+}
+
+/* Global Spinner */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

@@ -2,6 +2,7 @@ require('dotenv').config({ path: '/var/www/main/api-service/.env' });
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
+const path = require('path');
 const { 
   loginLimiter,
   tokenValidationLimiter,
@@ -67,7 +68,11 @@ app.use((req, res, next) => {
 // Add cookie parser middleware
 app.use(cookieParser());
 
-// Parse JSON bodies
+// IMPORTANT: Webhooks need raw body access for Stripe signature verification
+// Load webhook routes BEFORE JSON parsing middleware
+app.use('/webhooks', require('./routes/webhooks/stripe'));
+
+// Parse JSON bodies for all other routes
 app.use(express.json());
 
 // Handle JSON parsing errors
@@ -168,14 +173,14 @@ try {
   // Checkout and payments (with payment rate limiting)
   app.use('/checkout', paymentLimiter, require('./routes/checkout'));
   
-  // Webhooks (no CSRF needed - they have signature validation)
-  app.use('/webhooks', require('./routes/webhooks/stripe'));
-  
   // Vendor management
   app.use('/vendor', require('./routes/vendor'));
   
   // Admin financial operations
   app.use('/admin', adminLimiter, require('./routes/admin-financial'));
+  
+  // Vendor financial operations
+  app.use('/api/vendor-financials', require('./routes/vendor-financials'));
   
   // Finance operations (isolated financial data)
   app.use('/api/finance', adminLimiter, require('./routes/finance'));
@@ -205,6 +210,15 @@ try {
   
   // CSV processing (no CSRF needed - internal backend process)
   app.use('/csv', require('./routes/csv'));
+  
+  // Media processing (no CSRF needed - server-to-server API key auth)
+  app.use('/api/media', require('./routes/media'));
+  
+  // Media proxy (no CSRF needed - public file serving)
+  app.use('/api/media', require('./routes/media-proxy'));
+  
+  // Serve temp images directly (fallback when processing fails/pending)
+  app.use('/temp_images', express.static(path.join(__dirname, '../temp_images')));
   
 
   

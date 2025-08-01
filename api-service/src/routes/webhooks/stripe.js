@@ -11,7 +11,8 @@ const emailService = new EmailService();
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 // Raw body parser for webhook signature verification
-router.use('/stripe', express.raw({ type: 'application/json' }));
+// This must be applied BEFORE any JSON parsing middleware
+router.use(express.raw({ type: 'application/json' }));
 
 /**
  * Main Stripe webhook handler
@@ -23,7 +24,6 @@ router.post('/stripe', async (req, res) => {
   try {
     // Verify webhook signature
     event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-    console.log(`✅ Webhook verified: ${event.type}`);
   } catch (err) {
     console.error(`❌ Webhook signature verification failed: ${err.message}`);
     return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -77,8 +77,6 @@ async function handleWebhookEvent(event) {
   const handler = handlers[event.type];
   if (handler) {
     await handler(event.data.object, event);
-  } else {
-    console.log(`⚠️ Unhandled event type: ${event.type}`);
   }
 }
 
@@ -88,8 +86,6 @@ async function handleWebhookEvent(event) {
  * Handle successful payment
  */
 async function handlePaymentSuccess(paymentIntent, event) {
-  console.log(`💰 Payment succeeded: ${paymentIntent.id}`);
-  
   try {
     // Check if this is a booth fee payment
     const applicationId = paymentIntent.metadata.application_id;
@@ -125,8 +121,6 @@ async function handlePaymentSuccess(paymentIntent, event) {
  * Handle booth fee payment success
  */
 async function handleBoothFeePayment(paymentIntent, applicationId) {
-  console.log(`🎪 Booth fee payment succeeded: ${paymentIntent.id} for application ${applicationId}`);
-  
   try {
     // Update application status to paid
     await db.execute(`
@@ -159,8 +153,6 @@ async function handleBoothFeePayment(paymentIntent, applicationId) {
     } catch (emailError) {
       console.error(`Failed to send confirmation email for application ${applicationId}:`, emailError);
     }
-
-    console.log(`✅ Booth fee payment processed for application ${applicationId}`);
     
   } catch (error) {
     console.error('Error handling booth fee payment:', error);
@@ -172,16 +164,12 @@ async function handleBoothFeePayment(paymentIntent, applicationId) {
  * Handle e-commerce payment success
  */
 async function handleEcommercePayment(paymentIntent, orderId) {
-  console.log(`🛒 E-commerce payment succeeded: ${paymentIntent.id} for order ${orderId}`);
-  
   try {
     // Update order status
     await updateOrderStatus(orderId, 'paid', paymentIntent.id);
     
     // Process vendor transfers
     const transfers = await stripeService.processVendorTransfers(orderId, paymentIntent.id);
-    
-    console.log(`✅ Processed ${transfers.length} vendor transfers for order ${orderId}`);
     
     // Record platform commission
     await recordPlatformCommission(orderId, paymentIntent.id);
@@ -196,8 +184,6 @@ async function handleEcommercePayment(paymentIntent, orderId) {
  * Handle ticket purchase payment success
  */
 async function handleTicketPayment(paymentIntent) {
-  console.log(`🎫 Ticket payment succeeded: ${paymentIntent.id}`);
-  
   try {
     // Update all ticket purchases for this payment intent
     await db.execute(`
@@ -224,8 +210,6 @@ async function handleTicketPayment(paymentIntent) {
 
     // Send ticket email with codes
     await sendTicketConfirmationEmail(paymentIntent);
-    
-    console.log(`✅ Ticket purchase confirmed and email sent for payment ${paymentIntent.id}`);
     
   } catch (error) {
     console.error('Error handling ticket payment:', error);
@@ -313,9 +297,7 @@ async function sendTicketConfirmationEmail(paymentIntent) {
       priority: 2 // High priority for transactional emails
     });
 
-    if (result.success) {
-      console.log(`✅ Ticket confirmation email queued successfully for ${buyerEmail}`);
-    } else {
+    if (!result.success) {
       console.error('Failed to queue ticket confirmation email:', result.error);
     }
 
@@ -329,8 +311,6 @@ async function sendTicketConfirmationEmail(paymentIntent) {
  * Handle failed payment
  */
 async function handlePaymentFailure(paymentIntent, event) {
-  console.log(`❌ Payment failed: ${paymentIntent.id}`);
-  
   try {
     const orderId = paymentIntent.metadata.order_id;
     if (orderId) {
@@ -348,8 +328,6 @@ async function handlePaymentFailure(paymentIntent, event) {
  * Handle transfer creation
  */
 async function handleTransferCreated(transfer, event) {
-  console.log(`📤 Transfer created: ${transfer.id}`);
-  
   try {
     const vendorId = transfer.metadata.vendor_id;
     const orderId = transfer.metadata.order_id;
@@ -367,8 +345,6 @@ async function handleTransferCreated(transfer, event) {
  * Handle transfer reversal
  */
 async function handleTransferReversed(transfer, event) {
-  console.log(`🔄 Transfer reversed: ${transfer.id}`);
-  
   try {
     const vendorId = transfer.metadata.vendor_id;
     
@@ -387,8 +363,6 @@ async function handleTransferReversed(transfer, event) {
  * Handle transfer updates
  */
 async function handleTransferUpdated(transfer, event) {
-  console.log(`📝 Transfer updated: ${transfer.id} - Status: ${transfer.status}`);
-  
   try {
     // Update transaction status based on transfer status
     const status = transfer.status === 'paid' ? 'completed' : 'processing';
@@ -405,8 +379,6 @@ async function handleTransferUpdated(transfer, event) {
  * Handle completed payout
  */
 async function handlePayoutCompleted(payout, event) {
-  console.log(`💸 Payout completed: ${payout.id}`);
-  
   try {
     // Update all transactions for this payout
     await markTransactionsAsPaidOut(payout.id, payout.arrival_date);
@@ -419,8 +391,6 @@ async function handlePayoutCompleted(payout, event) {
  * Handle failed payout
  */
 async function handlePayoutFailed(payout, event) {
-  console.log(`❌ Payout failed: ${payout.id}`);
-  
   try {
     // TODO: Admin notification for failed payout
     // TODO: Vendor notification about payout issue
@@ -435,8 +405,6 @@ async function handlePayoutFailed(payout, event) {
  * Handle successful subscription payment
  */
 async function handleSubscriptionPayment(invoice, event) {
-  console.log(`💳 Subscription payment succeeded: ${invoice.id}`);
-  
   try {
     const customerId = invoice.customer;
     const subscriptionId = invoice.subscription;
@@ -460,18 +428,13 @@ async function handleSubscriptionPayment(invoice, event) {
  * Handle account updates (verification status changes)
  */
 async function handleAccountUpdate(account, event) {
-  console.log(`🔄 Account updated: ${account.id}`);
-  
   try {
     const vendorId = account.metadata.vendor_id;
     if (vendorId) {
       const isVerified = account.charges_enabled && account.payouts_enabled;
       await updateVendorVerificationStatus(vendorId, isVerified);
       
-      if (isVerified) {
-        console.log(`✅ Vendor ${vendorId} account verified`);
-        // TODO: Send vendor notification about successful verification
-      }
+      // TODO: Send vendor notification about successful verification if verified
     }
   } catch (error) {
     console.error('Error handling account update:', error);
@@ -484,8 +447,6 @@ async function handleAccountUpdate(account, event) {
  * Handle dispute creation
  */
 async function handleDisputeCreated(dispute, event) {
-  console.log(`⚠️ Dispute created: ${dispute.id}`);
-  
   try {
     // Record dispute in database
     await recordDispute(dispute);
@@ -502,8 +463,6 @@ async function handleDisputeCreated(dispute, event) {
  * Handle dispute closure
  */
 async function handleDisputeClosed(dispute, event) {
-  console.log(`✅ Dispute closed: ${dispute.id} - Status: ${dispute.status}`);
-  
   try {
     // Update dispute status
     await updateDisputeStatus(dispute.id, dispute.status);
@@ -636,7 +595,6 @@ async function markTransactionsAsPaidOut(payoutId, arrivalDate) {
  */
 async function recordDispute(dispute) {
   // TODO: Create disputes table and record dispute details
-  console.log('Recording dispute:', dispute.id);
 }
 
 /**
@@ -644,7 +602,6 @@ async function recordDispute(dispute) {
  */
 async function updateDisputeStatus(disputeId, status) {
   // TODO: Update dispute status in disputes table
-  console.log('Updating dispute status:', disputeId, status);
 }
 
 
@@ -654,8 +611,6 @@ async function updateDisputeStatus(disputeId, status) {
  */
 async function handleInvoiceCreated(invoice, event) {
   try {
-    console.log('📄 Invoice created:', invoice.id);
-    
     // Only process subscription invoices
     if (!invoice.subscription || invoice.amount_due <= 0) {
       return;
@@ -668,7 +623,6 @@ async function handleInvoiceCreated(invoice, event) {
     );
 
     if (subscriptionRows.length === 0) {
-      console.log('No subscription found for invoice');
       return;
     }
 
@@ -676,11 +630,8 @@ async function handleInvoiceCreated(invoice, event) {
 
     // Skip if user doesn't prefer Connect balance
     if (!subscription.prefer_connect_balance) {
-      console.log('User does not prefer Connect balance payments');
       return;
     }
-
-    console.log('🔄 Attempting Connect balance payment for invoice', invoice.id);
 
     // Try to pay from Connect balance
     const stripeService = require('../../services/stripeService');
@@ -691,8 +642,6 @@ async function handleInvoiceCreated(invoice, event) {
     );
 
     if (paymentResult.success) {
-      console.log('✅ Connect balance payment successful:', paymentResult.transfer_id);
-      
       // Mark the invoice as paid by Connect balance
       await stripe.invoices.pay(invoice.id, {
         metadata: {
@@ -716,10 +665,6 @@ async function handleInvoiceCreated(invoice, event) {
         invoice.period_start,
         invoice.period_end
       ]);
-
-      console.log(`✅ Invoice ${invoice.id} paid from Connect balance ($${paymentResult.amount_processed})`);
-    } else {
-      console.log(`⚠️ Connect balance payment failed: ${paymentResult.reason}. Will fall back to card payment.`);
     }
 
   } catch (error) {
@@ -733,12 +678,9 @@ async function handleInvoiceCreated(invoice, event) {
  */
 async function handleSubscriptionCreated(subscription, event) {
   try {
-    console.log('📝 Subscription created:', subscription.id);
-    
     // Extract user ID from metadata
     const userId = subscription.metadata?.user_id;
     if (!userId) {
-      console.log('No user_id found in subscription metadata');
       return;
     }
 
@@ -757,8 +699,6 @@ async function handleSubscriptionCreated(subscription, event) {
       subscription.id,
       userId
     ]);
-
-    console.log('✅ Subscription created and database updated');
   } catch (error) {
     console.error('❌ Error handling subscription created:', error);
   }
@@ -769,8 +709,6 @@ async function handleSubscriptionCreated(subscription, event) {
  */
 async function handleSubscriptionUpdated(subscription, event) {
   try {
-    console.log('🔄 Subscription updated:', subscription.id);
-    
     // Update our database record
     await db.execute(`
       UPDATE user_subscriptions 
@@ -789,8 +727,6 @@ async function handleSubscriptionUpdated(subscription, event) {
     ]);
 
     // Subscription canceled handling removed
-
-    console.log('✅ Subscription updated in database');
   } catch (error) {
     console.error('❌ Error handling subscription updated:', error);
   }
@@ -801,16 +737,12 @@ async function handleSubscriptionUpdated(subscription, event) {
  */
 async function handleSubscriptionDeleted(subscription, event) {
   try {
-    console.log('🗑️ Subscription deleted:', subscription.id);
-    
     // Update our database record
     await db.execute(`
       UPDATE user_subscriptions 
       SET status = 'canceled', canceled_at = NOW()
       WHERE stripe_subscription_id = ?
     `, [subscription.id]);
-
-    console.log('✅ Subscription deleted');
   } catch (error) {
     console.error('❌ Error handling subscription deleted:', error);
   }
@@ -821,8 +753,6 @@ async function handleSubscriptionDeleted(subscription, event) {
  */
 async function handleSubscriptionPaymentSucceeded(invoice, event) {
   try {
-    console.log('💰 Subscription payment succeeded:', invoice.id);
-    
     if (!invoice.subscription) {
       return;
     }
@@ -834,7 +764,6 @@ async function handleSubscriptionPaymentSucceeded(invoice, event) {
     );
 
     if (subscriptionRows.length === 0) {
-      console.log('No subscription found for payment');
       return;
     }
 
@@ -869,8 +798,6 @@ async function handleSubscriptionPaymentSucceeded(invoice, event) {
       invoice.period_start,
       invoice.period_end
     ]);
-
-    console.log(`✅ Subscription payment recorded (${paymentMethod})`);
   } catch (error) {
     console.error('❌ Error handling subscription payment succeeded:', error);
   }
@@ -881,8 +808,6 @@ async function handleSubscriptionPaymentSucceeded(invoice, event) {
  */
 async function handleSubscriptionPaymentFailed(invoice, event) {
   try {
-    console.log('❌ Subscription payment failed:', invoice.id);
-    
     if (!invoice.subscription) {
       return;
     }
@@ -894,7 +819,6 @@ async function handleSubscriptionPaymentFailed(invoice, event) {
     );
 
     if (subscriptionRows.length === 0) {
-      console.log('No subscription found for failed payment');
       return;
     }
 
@@ -919,8 +843,6 @@ async function handleSubscriptionPaymentFailed(invoice, event) {
 
     // TODO: Send email notification about failed payment
     // TODO: Consider grace period before removing verification
-
-    console.log('✅ Failed subscription payment recorded');
   } catch (error) {
     console.error('❌ Error handling subscription payment failed:', error);
   }

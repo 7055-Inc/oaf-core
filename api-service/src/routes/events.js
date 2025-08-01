@@ -462,10 +462,10 @@ router.post('/upload',
       for (const file of req.files) {
         const imagePath = `/temp_images/events/${file.filename}`;
         
-        // Insert into pending_images
+        // Insert into pending_images with original name and mime type
         await db.execute(
-          'INSERT INTO pending_images (user_id, image_path, status) VALUES (?, ?, ?)',
-          [req.userId, imagePath, 'pending']
+          'INSERT INTO pending_images (user_id, image_path, original_name, mime_type, status) VALUES (?, ?, ?, ?, ?)',
+          [req.userId, imagePath, file.originalname, file.mimetype, 'pending']
         );
         
         urls.push(imagePath);

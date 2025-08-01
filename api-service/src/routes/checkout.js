@@ -69,16 +69,125 @@ router.post('/create-payment-intent', verifyToken, async (req, res) => {
     // Create order record
     const orderId = await createOrder(userId, totals, itemsWithCommissions);
     
+    // Calculate tax using Stripe Tax API
+    let taxCalculation = null;
+    let taxAmount = 0;
+    
+    if (billing_info && billing_info.address) {
+      try {
+        // Prepare line items for tax calculation
+        const line_items = itemsWithCommissions.map((item, index) => ({
+          amount: Math.round(item.price * 100), // Convert to cents
+          reference: `L${index + 1}`
+        }));
+
+        // Calculate tax
+        taxCalculation = await stripeService.calculateTax({
+          line_items: line_items,
+          customer_address: {
+            line1: billing_info.address.line1,
+            line2: billing_info.address.line2 || null,
+            city: billing_info.address.city,
+            state: billing_info.address.state,
+            postal_code: billing_info.address.postal_code,
+            country: billing_info.address.country || 'US'
+          },
+          currency: 'usd'
+        });
+
+        // Get tax amount from calculation
+        taxAmount = taxCalculation.tax_amount_exclusive / 100; // Convert from cents
+        
+        console.log('Tax calculated:', {
+          subtotal: totals.subtotal,
+          tax_amount: taxAmount,
+          total_with_tax: totals.subtotal + taxAmount
+        });
+        
+        // Store tax calculation data in database
+        try {
+          const taxRecordId = await stripeService.storeTaxCalculation({
+            order_id: orderId,
+            stripe_tax_id: taxCalculation.id,
+            stripe_payment_intent_id: null, // Will be updated after payment intent creation
+            customer_state: billing_info.address.state,
+            customer_zip: billing_info.address.postal_code,
+            taxable_amount: totals.subtotal,
+            tax_collected: taxAmount,
+            tax_rate_used: taxCalculation.tax_breakdown?.[0]?.tax_rate_details?.percentage_decimal || 0,
+            tax_breakdown: taxCalculation.tax_breakdown,
+            order_date: new Date().toISOString().split('T')[0]
+          });
+          
+          // Update order with tax amount
+          await stripeService.updateOrderTaxAmount(orderId, taxAmount);
+          
+          // Create order tax summary for Phase 2 enhanced tracking
+          try {
+            await stripeService.createOrderTaxSummary(orderId, taxRecordId);
+            console.log('Order tax summary created for order:', orderId);
+          } catch (error) {
+            console.error('Error creating order tax summary:', error);
+            // Continue without order tax summary
+          }
+          
+          console.log('Tax data stored in database for order:', orderId);
+        } catch (error) {
+          console.error('Error storing tax data:', error);
+          // Continue without storing tax data
+        }
+        
+      } catch (error) {
+        console.error('Error calculating tax:', error);
+        // Continue without tax calculation
+      }
+    }
+
+    // Create or get Stripe customer
+    let customerId = null;
+    if (billing_info && billing_info.email) {
+      try {
+        const customer = await stripeService.createOrGetCustomer(userId, billing_info.email, billing_info.name);
+        customerId = customer.id;
+        
+        // Update customer address
+        if (billing_info.address) {
+          await stripeService.updateCustomerAddress(customerId, billing_info.address);
+        }
+      } catch (error) {
+        console.error('Error creating/updating customer:', error);
+      }
+    }
+    
+    // Update totals with tax
+    const totalWithTax = totals.subtotal + totals.shipping_total + taxAmount;
+    
     // Create Stripe payment intent
     const paymentIntent = await stripeService.createPaymentIntent({
-      total_amount: totals.total_amount,
+      total_amount: totalWithTax,
       currency: 'usd',
+      customer_id: customerId,
       metadata: {
         order_id: orderId,
         user_id: userId,
-        vendor_count: totals.vendor_count
+        vendor_count: totals.vendor_count,
+        tax_calculation_id: taxCalculation?.id || null
       }
     });
+
+    // Update tax record with payment intent ID if tax was calculated
+    if (taxCalculation) {
+      try {
+        const updateQuery = `
+          UPDATE stripe_tax_transactions 
+          SET stripe_payment_intent_id = ? 
+          WHERE order_id = ? AND stripe_tax_id = ?
+        `;
+        await db.execute(updateQuery, [paymentIntent.id, orderId, taxCalculation.id]);
+      } catch (error) {
+        console.error('Error updating tax record with payment intent ID:', error);
+      }
+    }
     
     res.json({
       success: true,
@@ -88,7 +197,16 @@ router.post('/create-payment-intent', verifyToken, async (req, res) => {
         amount: paymentIntent.amount
       },
       order_id: orderId,
-      totals: totals
+      totals: {
+        ...totals,
+        tax_amount: taxAmount,
+        total_with_tax: totalWithTax
+      },
+      tax_info: taxCalculation ? {
+        calculation_id: taxCalculation.id,
+        tax_amount: taxAmount,
+        tax_breakdown: taxCalculation.tax_breakdown
+      } : null
     });
     
   } catch (error) {
@@ -118,6 +236,25 @@ router.post('/confirm-payment', verifyToken, async (req, res) => {
 
     // Update order with payment intent ID
     await updateOrderPaymentIntent(order_id, payment_intent_id);
+    
+    // Create tax transaction if tax was calculated
+    try {
+      const [taxRecords] = await db.execute(
+        'SELECT stripe_tax_id FROM stripe_tax_transactions WHERE order_id = ?',
+        [order_id]
+      );
+      
+      if (taxRecords.length > 0 && taxRecords[0].stripe_tax_id) {
+        await stripeService.createTaxTransaction(
+          taxRecords[0].stripe_tax_id,
+          `order_${order_id}`
+        );
+        console.log('Tax transaction created for order:', order_id);
+      }
+    } catch (error) {
+      console.error('Error creating tax transaction:', error);
+      // Continue without tax transaction
+    }
     
     // Clear user's cart
     await clearUserCart(userId);
