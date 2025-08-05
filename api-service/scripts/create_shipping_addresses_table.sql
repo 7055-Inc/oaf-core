@@ -1,0 +1,21 @@
+USE oaf;
+
+-- Shipping Addresses Table
+CREATE TABLE shipping_addresses (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  order_id BIGINT NOT NULL,
+  recipient_name VARCHAR(255) NOT NULL,
+  company VARCHAR(255) DEFAULT NULL,
+  address_line_1 VARCHAR(255) NOT NULL,
+  address_line_2 VARCHAR(255) DEFAULT NULL,
+  city VARCHAR(100) NOT NULL,
+  state VARCHAR(100) NOT NULL,
+  postal_code VARCHAR(20) NOT NULL,
+  country VARCHAR(100) NOT NULL DEFAULT 'US',
+  phone VARCHAR(50) DEFAULT NULL,
+  delivery_instructions TEXT DEFAULT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+  INDEX idx_order_shipping (order_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

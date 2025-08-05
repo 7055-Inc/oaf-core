@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { getAuth, onAuthStateChanged, getIdToken, applyActionCode, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, getIdToken, applyActionCode, isSignInWithEmailLink, signInWithEmailLink, confirmPasswordReset, verifyPasswordResetCode } from 'firebase/auth';
 import firebaseApp from '../../lib/firebase';
 import { clearAuthTokens } from '../../lib/csrf';
 import styles from './signup.module.css';
@@ -28,6 +28,10 @@ const SignupCallbackPage = () => {
       // Check if this is an email verification link
       if (mode === 'verifyEmail' && oobCode) {
         await handleEmailVerification();
+      }
+      // Check if this is a password reset link
+      else if (mode === 'resetPassword' && oobCode) {
+        await handlePasswordReset();
       }
       // Check if this is an email sign-in link
       else if (isSignInWithEmailLink(auth, window.location.href)) {
@@ -70,6 +74,45 @@ const SignupCallbackPage = () => {
         setError('This verification link has expired. Please request a new one.');
       } else {
         setError(err.message || 'Failed to verify email');
+      }
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    try {
+      setMessage('Verifying password reset code...');
+      
+      // Verify the password reset code is valid
+      await verifyPasswordResetCode(auth, oobCode);
+      
+      // Prompt for new password
+      const newPassword = window.prompt('Please enter your new password (minimum 6 characters):');
+      
+      if (!newPassword || newPassword.length < 6) {
+        throw new Error('Password must be at least 6 characters long');
+      }
+      
+      // Confirm the password reset
+      await confirmPasswordReset(auth, oobCode, newPassword);
+      
+      setStatus('success');
+      setMessage('Password reset successfully! You can now log in with your new password.');
+      
+      // Redirect to login after 3 seconds
+      setTimeout(() => {
+        window.location.href = 'https://main.onlineartfestival.com/login';
+      }, 3000);
+      
+    } catch (err) {
+      console.error('Password reset error:', err);
+      setStatus('error');
+      
+      if (err.code === 'auth/invalid-action-code') {
+        setError('This password reset link is invalid or has already been used.');
+      } else if (err.code === 'auth/expired-action-code') {
+        setError('This password reset link has expired. Please request a new one.');
+      } else {
+        setError(err.message || 'Failed to reset password');
       }
     }
   };

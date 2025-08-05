@@ -140,42 +140,6 @@ export default function Dashboard() {
           </div>
         );
 
-      case 'finance-dashboard':
-        return (
-          <div className={styles.contentSection}>
-            <h2>Financial Dashboard</h2>
-            <p>Overview of your financial performance, earnings, and account status.</p>
-          </div>
-        );
-      case 'transactions':
-        return (
-          <div className={styles.contentSection}>
-            <h2>Transaction History</h2>
-            <p>View all your sales, commissions, and financial transactions.</p>
-          </div>
-        );
-      case 'payouts':
-        return (
-          <div className={styles.contentSection}>
-            <h2>Payouts & Earnings</h2>
-            <p>Track your earnings and payout schedule.</p>
-          </div>
-        );
-      case 'stripe-setup':
-        return (
-          <div className={styles.contentSection}>
-            <h2>Stripe Account Setup</h2>
-            <p>Connect your Stripe account to start receiving payments.</p>
-          </div>
-        );
-
-      case 'platform-financials':
-        return (
-          <div className={styles.contentSection}>
-            <h2>Platform Financials</h2>
-            <p>Overview of platform-wide financial metrics and performance.</p>
-          </div>
-        );
       case 'commission-management':
         return (
           <div className={styles.contentSection}>
@@ -453,51 +417,9 @@ export default function Dashboard() {
             <div className={styles.sidebarSection}>
               <h3>Finance</h3>
               <ul>
-                {/* All Users Finance Links */}
-                <li>
-                  <button 
-                    className={`${styles.sidebarLink} ${activeSection === 'finance-dashboard' ? styles.active : ''}`}
-                    onClick={() => setActiveSection('finance-dashboard')}
-                  >
-                    Financial Dashboard
-                  </button>
-                </li>
-                <li>
-                  <button 
-                    className={`${styles.sidebarLink} ${activeSection === 'transactions' ? styles.active : ''}`}
-                    onClick={() => setActiveSection('transactions')}
-                  >
-                    Transaction History
-                  </button>
-                </li>
-                <li>
-                  <button 
-                    className={`${styles.sidebarLink} ${activeSection === 'payouts' ? styles.active : ''}`}
-                    onClick={() => setActiveSection('payouts')}
-                  >
-                    Payouts & Earnings
-                  </button>
-                </li>
-                <li>
-                  <button 
-                    className={`${styles.sidebarLink} ${activeSection === 'stripe-setup' ? styles.active : ''}`}
-                    onClick={() => setActiveSection('stripe-setup')}
-                  >
-                    Stripe Account Setup
-                  </button>
-                </li>
-                
                 {/* Admin Finance Links */}
                 {isAdmin && (
                   <>
-                    <li>
-                      <button 
-                        className={`${styles.sidebarLink} ${activeSection === 'platform-financials' ? styles.active : ''}`}
-                        onClick={() => setActiveSection('platform-financials')}
-                      >
-                        Platform Financials
-                      </button>
-                    </li>
                     <li>
                       <button 
                         className={`${styles.sidebarLink} ${activeSection === 'commission-management' ? styles.active : ''}`}

@@ -10,6 +10,7 @@ import ProductTypeModal from '../../ProductTypeModal';
 import AddCategoryModal from '../../AddCategoryModal';
 import VariationManager from '../../VariationManager';
 import VariationBulkEditor from '../../VariationBulkEditor';
+import ShipOrders from './ShipOrders';
 import { authenticatedApiRequest, handleCsrfError } from '../../../lib/csrf';
 import styles from '../../../pages/dashboard/Dashboard.module.css';
 import slideInStyles from '../SlideIn.module.css';
@@ -78,6 +79,14 @@ export function VendorToolsMenu({
               onClick={() => openSlideIn('vendor-orders')}
             >
               Orders
+            </button>
+          </li>
+          <li>
+            <button 
+              className={styles.sidebarLink}
+              onClick={() => openSlideIn('ship-orders')}
+            >
+              Ship Orders
             </button>
           </li>
         </ul>
@@ -3010,13 +3019,15 @@ export function VendorToolsSlideIn({
       return <MyProductsContent userId={userData.id} onBack={closeSlideIn} />;
     case 'add-product':
       return <AddProductContent userId={userData.id} onBack={closeSlideIn} />;
+    case 'ship-orders':
+      return <ShipOrders userId={userData.id} onBack={closeSlideIn} />;
     default:
       return null;
   }
 }
 
 // Helper to check if this menu handles a slide-in type
-export const vendorToolsSlideInTypes = ['my-policies', 'manage-inventory', 'vendor-orders', 'my-products', 'add-product'];
+export const vendorToolsSlideInTypes = ['my-policies', 'manage-inventory', 'vendor-orders', 'my-products', 'add-product', 'ship-orders'];
 
 // Default export for backward compatibility
 export default VendorToolsMenu; 

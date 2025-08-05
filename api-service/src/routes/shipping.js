@@ -34,15 +34,14 @@ router.post('/calculate-rates', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'This product does not use calculated shipping' });
     }
 
-    // Get company address
-    const companyAddress = await shippingService.getCompanyAddress();
+    // Get vendor's actual address for accurate rate calculation
+    const vendorAddress = await shippingService.getVendorAddress(productShipping[0].vendor_id);
     
     // Build shipment object
     const shipment = {
       shipper: {
-        name: companyAddress.name,
-        accountNumber: '', // TODO: Get from vendor settings
-        address: companyAddress
+        name: vendorAddress.name,
+        address: vendorAddress
       },
       recipient: {
         name: recipient_address.name || 'Customer',
@@ -152,15 +151,14 @@ router.post('/calculate-cart-shipping', verifyToken, async (req, res) => {
             cost: parseFloat(shippingInfo.ship_rate) * quantity
           });
         } else if (shippingInfo.ship_method === 'calculated') {
-          // Get company address
-          const companyAddress = await shippingService.getCompanyAddress();
+          // Get vendor's actual address for accurate rate calculation
+          const vendorAddress = await shippingService.getVendorAddress(productShipping[0].vendor_id);
           
           // Build shipment object
           const shipment = {
             shipper: {
-              name: companyAddress.name,
-              accountNumber: '', // TODO: Get from vendor settings
-              address: companyAddress
+              name: vendorAddress.name,
+              address: vendorAddress
             },
             recipient: {
               name: recipient_address.name || 'Customer',

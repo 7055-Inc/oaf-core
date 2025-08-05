@@ -613,6 +613,9 @@ function MyOrdersContent({ userId, onBack }) {
   const [totalPages, setTotalPages] = useState(0);
   const [statusFilter, setStatusFilter] = useState('all');
   const [expandedOrders, setExpandedOrders] = useState(new Set());
+  const [expandedTracking, setExpandedTracking] = useState(new Set());
+  const [trackingData, setTrackingData] = useState({});
+  const [trackingLoading, setTrackingLoading] = useState(new Set());
 
   useEffect(() => {
     fetchOrders();
@@ -693,6 +696,87 @@ function MyOrdersContent({ userId, onBack }) {
       style: 'currency',
       currency: 'USD'
     }).format(amount);
+  };
+
+  const toggleTrackingExpansion = async (orderId, orderItemId) => {
+    const trackingKey = `${orderId}-${orderItemId}`;
+    const newExpanded = new Set(expandedTracking);
+    
+    if (newExpanded.has(trackingKey)) {
+      newExpanded.delete(trackingKey);
+    } else {
+      newExpanded.add(trackingKey);
+      // Fetch tracking data if we don't have it yet
+      if (!trackingData[trackingKey]) {
+        await fetchTrackingData(orderId, orderItemId);
+      }
+    }
+    setExpandedTracking(newExpanded);
+  };
+
+  const fetchTrackingData = async (orderId, orderItemId) => {
+    const trackingKey = `${orderId}-${orderItemId}`;
+    const newLoading = new Set(trackingLoading);
+    newLoading.add(trackingKey);
+    setTrackingLoading(newLoading);
+
+    try {
+      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/checkout/orders/${orderId}/items/${orderItemId}/tracking`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setTrackingData(prev => ({
+            ...prev,
+            [trackingKey]: data.tracking
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching tracking data:', error);
+    } finally {
+      const newLoading = new Set(trackingLoading);
+      newLoading.delete(trackingKey);
+      setTrackingLoading(newLoading);
+    }
+  };
+
+  const formatTrackingDate = (dateString, timeString) => {
+    if (!dateString) return '';
+    
+    try {
+      let fullDateTime = dateString;
+      if (timeString) {
+        fullDateTime += ` ${timeString}`;
+      }
+      
+      return new Date(fullDateTime).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      return dateString;
+    }
+  };
+
+  const getCarrierLogo = (carrier) => {
+    const logos = {
+      'ups': '📦 UPS',
+      'fedex': '🚚 FedEx', 
+      'usps': '📮 USPS'
+    };
+    return logos[carrier.toLowerCase()] || `📋 ${carrier.toUpperCase()}`;
+  };
+
+  const getStatusIcon = (status) => {
+    const statusLower = status.toLowerCase();
+    if (statusLower.includes('delivered')) return '✅';
+    if (statusLower.includes('out for delivery')) return '🚛';
+    if (statusLower.includes('transit') || statusLower.includes('progress')) return '🚚';
+    if (statusLower.includes('picked up') || statusLower.includes('origin')) return '📋';
+    return '📦';
   };
 
   if (loading) {
@@ -820,33 +904,212 @@ function MyOrdersContent({ userId, onBack }) {
                 {expandedOrders.has(order.id) && (
                   <div style={{ padding: '16px', backgroundColor: '#f8f9fa' }}>
                     <h4 style={{ margin: '0 0 16px 0', color: '#055474' }}>Items in this order:</h4>
-                    {order.items.map((item, index) => (
-                      <div key={index} style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '12px',
-                        marginBottom: '8px',
-                        backgroundColor: 'white',
-                        borderRadius: '6px',
-                        border: '1px solid #e9ecef'
-                      }}>
-                        <div>
-                          <div style={{ fontWeight: '500', marginBottom: '4px' }}>
-                            {item.product_name}
+                    {order.items.map((item, index) => {
+                      const trackingKey = `${order.id}-${item.id}`;
+                      const hasTracking = order.status === 'shipped';
+                      const isTrackingExpanded = expandedTracking.has(trackingKey);
+                      const isTrackingLoading = trackingLoading.has(trackingKey);
+                      const itemTrackingData = trackingData[trackingKey];
+
+                      return (
+                        <div key={index}>
+                          <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '12px',
+                            marginBottom: hasTracking && isTrackingExpanded ? '0' : '8px',
+                            backgroundColor: 'white',
+                            borderRadius: hasTracking && isTrackingExpanded ? '6px 6px 0 0' : '6px',
+                            border: '1px solid #e9ecef',
+                            borderBottom: hasTracking && isTrackingExpanded ? 'none' : '1px solid #e9ecef'
+                          }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: '500', marginBottom: '4px' }}>
+                                {item.product_name}
+                              </div>
+                              <div style={{ fontSize: '14px', color: '#6c757d' }}>
+                                Sold by: {item.vendor_name}
+                              </div>
+                              <div style={{ fontSize: '14px', color: '#6c757d' }}>
+                                Quantity: {item.quantity} × {formatCurrency(item.price)}
+                              </div>
+                              {hasTracking && (
+                                <button
+                                  onClick={() => toggleTrackingExpansion(order.id, item.id)}
+                                  style={{
+                                    marginTop: '8px',
+                                    padding: '6px 12px',
+                                    fontSize: '12px',
+                                    backgroundColor: '#055474',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}
+                                  disabled={isTrackingLoading}
+                                >
+                                  {isTrackingLoading ? (
+                                    <>
+                                      <span>⏳</span> Loading...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span>📦</span>
+                                      {isTrackingExpanded ? 'Hide Tracking' : 'Track Package'}
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                            <div style={{ textAlign: 'right', fontWeight: '600' }}>
+                              {formatCurrency(item.item_total)}
+                            </div>
                           </div>
-                          <div style={{ fontSize: '14px', color: '#6c757d' }}>
-                            Sold by: {item.vendor_name}
-                          </div>
-                          <div style={{ fontSize: '14px', color: '#6c757d' }}>
-                            Quantity: {item.quantity} × {formatCurrency(item.price)}
-                          </div>
+
+                          {/* Tracking Information Expansion */}
+                          {hasTracking && isTrackingExpanded && (
+                            <div style={{
+                              backgroundColor: '#f8f9fa',
+                              border: '1px solid #e9ecef',
+                              borderTop: 'none',
+                              borderRadius: '0 0 6px 6px',
+                              padding: '16px',
+                              marginBottom: '8px'
+                            }}>
+                              {isTrackingLoading ? (
+                                <div style={{ textAlign: 'center', padding: '20px', color: '#6c757d' }}>
+                                  <div>⏳ Loading tracking information...</div>
+                                </div>
+                              ) : itemTrackingData && itemTrackingData.length > 0 ? (
+                                <div>
+                                  <h5 style={{ margin: '0 0 12px 0', color: '#055474', fontSize: '14px', fontWeight: '600' }}>
+                                    📦 Package Tracking ({itemTrackingData.length} package{itemTrackingData.length > 1 ? 's' : ''})
+                                  </h5>
+                                  {itemTrackingData.map((tracking, trackIndex) => (
+                                    <div key={trackIndex} style={{
+                                      backgroundColor: 'white',
+                                      border: '1px solid #e9ecef',
+                                      borderRadius: '6px',
+                                      padding: '12px',
+                                      marginBottom: trackIndex < itemTrackingData.length - 1 ? '12px' : '0'
+                                    }}>
+                                      {/* Package Header */}
+                                      <div style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        marginBottom: '8px',
+                                        paddingBottom: '8px',
+                                        borderBottom: '1px solid #f0f0f0'
+                                      }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                          <span style={{ fontSize: '16px' }}>{getCarrierLogo(tracking.carrier)}</span>
+                                          <div>
+                                            <div style={{ fontWeight: '600', fontSize: '14px' }}>
+                                              {itemTrackingData.length > 1 ? `Package ${tracking.packageSequence}` : 'Package'}
+                                            </div>
+                                            <div style={{ fontSize: '12px', color: '#6c757d', fontFamily: 'monospace' }}>
+                                              {tracking.trackingNumber}
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <a 
+                                          href={tracking.trackingUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          style={{
+                                            fontSize: '12px',
+                                            color: '#055474',
+                                            textDecoration: 'none',
+                                            padding: '4px 8px',
+                                            border: '1px solid #055474',
+                                            borderRadius: '4px'
+                                          }}
+                                        >
+                                          View on {tracking.carrier.toUpperCase()}
+                                        </a>
+                                      </div>
+
+                                      {/* Current Status */}
+                                      <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        marginBottom: '12px',
+                                        padding: '8px',
+                                        backgroundColor: tracking.status === 'error' ? '#ffebee' : '#e8f5e8',
+                                        borderRadius: '4px'
+                                      }}>
+                                        <span style={{ fontSize: '18px' }}>{tracking.status === 'error' ? '⚠️' : getStatusIcon(tracking.status)}</span>
+                                        <div>
+                                          <div style={{ fontWeight: '600', fontSize: '14px' }}>
+                                            {tracking.status === 'error' ? tracking.message : tracking.status}
+                                          </div>
+                                          {tracking.estimatedDelivery && (
+                                            <div style={{ fontSize: '12px', color: '#6c757d' }}>
+                                              Est. delivery: {formatTrackingDate(tracking.estimatedDelivery)}
+                                            </div>
+                                          )}
+                                          {tracking.deliveredDate && (
+                                            <div style={{ fontSize: '12px', color: '#28a745', fontWeight: '600' }}>
+                                              Delivered: {formatTrackingDate(tracking.deliveredDate, tracking.deliveredTime)}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* Scan History */}
+                                      {tracking.scanHistory && tracking.scanHistory.length > 0 && (
+                                        <div>
+                                          <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#055474' }}>
+                                            📍 Tracking History
+                                          </div>
+                                          <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                            {tracking.scanHistory.map((scan, scanIndex) => (
+                                              <div key={scanIndex} style={{
+                                                display: 'flex',
+                                                gap: '12px',
+                                                padding: '6px 0',
+                                                borderBottom: scanIndex < tracking.scanHistory.length - 1 ? '1px solid #f0f0f0' : 'none'
+                                              }}>
+                                                <div style={{ fontSize: '12px', minWidth: '80px', color: '#6c757d' }}>
+                                                  {formatTrackingDate(scan.date, scan.time)}
+                                                </div>
+                                                <div style={{ flex: 1 }}>
+                                                  <div style={{ fontSize: '12px', fontWeight: '500' }}>
+                                                    {scan.description || scan.status}
+                                                  </div>
+                                                  {scan.location && (
+                                                    <div style={{ fontSize: '11px', color: '#6c757d' }}>
+                                                      {scan.location}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div style={{ textAlign: 'center', padding: '20px', color: '#6c757d' }}>
+                                  <div>📦 No tracking information available</div>
+                                  <div style={{ fontSize: '12px', marginTop: '4px' }}>
+                                    Tracking information will appear here once the vendor ships your order
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        <div style={{ textAlign: 'right', fontWeight: '600' }}>
-                          {formatCurrency(item.item_total)}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
 
                     <div style={{ 
                       marginTop: '16px', 
