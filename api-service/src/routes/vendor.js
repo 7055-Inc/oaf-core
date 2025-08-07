@@ -540,6 +540,121 @@ router.delete('/return-policy', verifyToken, requirePermission('vendor'), async 
   }
 });
 
+// New endpoint: GET /orders/my - Fetch vendor's orders with optional status filter
+router.get('/orders/my', verifyToken, async (req, res) => {
+  try {
+    const vendorId = req.userId; // Assuming vendor is the authenticated user
+    const status = req.query.status; // Optional: 'unshipped' or 'shipped'
+
+    let whereClause = 'WHERE oi.vendor_id = ?';
+    const params = [vendorId];
+
+    if (status === 'unshipped') {
+      whereClause += ' AND o.status = "paid" AND oi.status = "pending"';
+    } else if (status === 'shipped') {
+      whereClause += ' AND oi.status IN ("shipped", "delivered")';
+    }
+
+    // Use proper backticks and structure like in successful routes
+    const query = `
+      SELECT 
+        o.id as order_id,
+        o.created_at,
+        o.status as order_status,
+        oi.id as item_id,
+        oi.product_id,
+        oi.quantity,
+        oi.price,
+        oi.shipping_cost,
+        oi.status as item_status,
+        oi.shipped_at,
+        p.name as product_name,
+        COALESCE(up.display_name, CONCAT(up.first_name, ' ', up.last_name), u.username) as customer_name,
+        COALESCE(sa.address_line_1, 'No street') as shipping_street,
+        COALESCE(sa.address_line_2, '') as shipping_address_line_2,
+        COALESCE(sa.city, 'No city') as shipping_city,
+        COALESCE(sa.state, 'No state') as shipping_state,
+        COALESCE(sa.postal_code, 'No zip') as shipping_zip,
+        COALESCE(sa.country, 'No country') as shipping_country,
+        COALESCE(sa.recipient_name, 'No name') as recipient_name
+      FROM order_items oi
+      JOIN orders o ON oi.order_id = o.id
+      JOIN products p ON oi.product_id = p.id
+      JOIN users u ON o.user_id = u.id
+      LEFT JOIN user_profiles up ON u.id = up.user_id
+      LEFT JOIN shipping_addresses sa ON o.id = sa.order_id
+      ${whereClause}
+      ORDER BY o.created_at DESC, oi.id
+    `;
+
+    // Add params to execute to prevent injection (like in events)
+    const [rows] = await db.execute(query, params);
+    console.log(`Fetched ${rows.length} rows for vendor ${vendorId}`);  // Temp log to confirm in PM2
+
+    // Group items by order_id
+    const groupedOrders = {};
+    rows.forEach(row => {
+      if (!groupedOrders[row.order_id]) {
+        groupedOrders[row.order_id] = {
+          order_id: row.order_id,
+          created_at: row.created_at,
+          order_status: row.order_status,
+          customer_name: row.customer_name,  // Move to order level
+          shipping_address: {  // Move to order level with defaults
+            street: row.shipping_street || 'No street',
+            address_line_2: row.shipping_address_line_2 || '',
+            city: row.shipping_city || 'No city',
+            state: row.shipping_state || 'No state',
+            zip: row.shipping_zip || 'No zip',
+            country: row.shipping_country || 'No country',
+            recipient_name: row.recipient_name || 'No name'  // Optional
+          },
+          items: []
+        };
+      }
+      groupedOrders[row.order_id].items.push({
+        item_id: row.item_id,
+        product_id: row.product_id,
+        product_name: row.product_name,
+        quantity: row.quantity,
+        price: row.price,
+        shipping_cost: row.shipping_cost,
+        item_status: row.item_status,
+        shipped_at: row.shipped_at
+        // Remove customer_name and shipping_address from here, as they're now on order
+      });
+    });
+
+    res.json({ success: true, orders: Object.values(groupedOrders) });
+
+  } catch (error) {
+    console.error('Error fetching vendor orders:', error);
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
+// New endpoint: GET /order-item-details - Fetch item details for pre-population
+router.get('/order-item-details', verifyToken, async (req, res) => {
+  try {
+    const { item_id } = req.query;
+    const vendorId = req.userId;
+    
+    const query = `
+      SELECT ps.length, ps.width, ps.height, ps.dimension_unit, ps.weight, ps.weight_unit
+      FROM order_items oi
+      JOIN product_shipping ps ON oi.product_id = ps.product_id AND ps.package_number = 1
+      WHERE oi.id = ? AND oi.vendor_id = ?
+    `;
+    const [rows] = await db.execute(query, [item_id, vendorId]);
+    
+    if (rows.length === 0) return res.status(404).json({ error: 'Item not found' });
+    res.json(rows[0]);
+  } catch (error) {
+    console.error('Error fetching item details:', error);
+    res.status(500).json({ error: 'Failed to fetch item details' });
+  }
+});
+
 // ===== HELPER FUNCTIONS =====
 
 /**
@@ -934,5 +1049,168 @@ async function deleteVendorReturnPolicy(vendorId) {
   
   await db.execute(query, [vendorId]);
 }
+
+// Get vendor shipping preferences
+router.get('/shipping-preferences', verifyToken, requirePermission('vendor'), async (req, res) => {
+  try {
+    const vendorId = req.userId;
+    
+    const [preferences] = await db.execute(
+      'SELECT * FROM vendor_ship_settings WHERE vendor_id = ?',
+      [vendorId]
+    );
+    
+    if (preferences.length === 0) {
+      // Return default preferences if none exist
+      return res.json({
+        success: true,
+        preferences: {
+          vendor_id: vendorId,
+          return_company_name: '',
+          return_contact_name: '',
+          return_address_line_1: '',
+          return_address_line_2: '',
+          return_city: '',
+          return_state: '',
+          return_postal_code: '',
+          return_country: 'US',
+          return_phone: '',
+          label_size_preference: '4x6',
+          signature_required_default: false,
+          insurance_default: false
+        }
+      });
+    }
+    
+    res.json({
+      success: true,
+      preferences: preferences[0]
+    });
+    
+  } catch (error) {
+    console.error('Error fetching vendor shipping preferences:', error);
+    res.status(500).json({ error: 'Failed to fetch shipping preferences' });
+  }
+});
+
+// Create or update vendor shipping preferences
+router.post('/shipping-preferences', verifyToken, requirePermission('vendor'), async (req, res) => {
+  try {
+    const vendorId = req.userId;
+    const {
+      return_company_name,
+      return_contact_name,
+      return_address_line_1,
+      return_address_line_2,
+      return_city,
+      return_state,
+      return_postal_code,
+      return_country,
+      return_phone,
+      label_size_preference,
+      signature_required_default,
+      insurance_default
+    } = req.body;
+
+    // Convert undefined and empty strings to null and properly handle booleans
+    const cleanData = {
+      return_company_name: (return_company_name === undefined || return_company_name === '') ? null : return_company_name,
+      return_contact_name: (return_contact_name === undefined || return_contact_name === '') ? null : return_contact_name,
+      return_address_line_1: (return_address_line_1 === undefined || return_address_line_1 === '') ? null : return_address_line_1,
+      return_address_line_2: (return_address_line_2 === undefined || return_address_line_2 === '') ? null : return_address_line_2,
+      return_city: (return_city === undefined || return_city === '') ? null : return_city,
+      return_state: (return_state === undefined || return_state === '') ? null : return_state,
+      return_postal_code: (return_postal_code === undefined || return_postal_code === '') ? null : return_postal_code,
+      return_country: (return_country === undefined || return_country === '') ? 'US' : return_country,
+      return_phone: (return_phone === undefined || return_phone === '') ? null : return_phone,
+      label_size_preference: (label_size_preference === undefined || label_size_preference === '') ? '4x6' : label_size_preference,
+      signature_required_default: signature_required_default === true || signature_required_default === 'true' || signature_required_default === 1 ? 1 : 0,
+      insurance_default: insurance_default === true || insurance_default === 'true' || insurance_default === 1 ? 1 : 0
+    };
+    
+    // Check if preferences already exist
+    const [existing] = await db.execute(
+      'SELECT id FROM vendor_ship_settings WHERE vendor_id = ?',
+      [vendorId]
+    );
+    
+    if (existing.length > 0) {
+      // Update existing preferences
+      await db.execute(`
+        UPDATE vendor_ship_settings SET
+          return_company_name = ?,
+          return_contact_name = ?,
+          return_address_line_1 = ?,
+          return_address_line_2 = ?,
+          return_city = ?,
+          return_state = ?,
+          return_postal_code = ?,
+          return_country = ?,
+          return_phone = ?,
+          label_size_preference = ?,
+          signature_required_default = ?,
+          insurance_default = ?,
+          updated_at = NOW()
+        WHERE vendor_id = ?
+      `, [
+        cleanData.return_company_name,
+        cleanData.return_contact_name,
+        cleanData.return_address_line_1,
+        cleanData.return_address_line_2,
+        cleanData.return_city,
+        cleanData.return_state,
+        cleanData.return_postal_code,
+        cleanData.return_country,
+        cleanData.return_phone,
+        cleanData.label_size_preference,
+        cleanData.signature_required_default,
+        cleanData.insurance_default,
+        vendorId
+      ]);
+    } else {
+      // Create new preferences
+      await db.execute(`
+        INSERT INTO vendor_ship_settings (
+          vendor_id,
+          return_company_name,
+          return_contact_name,
+          return_address_line_1,
+          return_address_line_2,
+          return_city,
+          return_state,
+          return_postal_code,
+          return_country,
+          return_phone,
+          label_size_preference,
+          signature_required_default,
+          insurance_default
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        vendorId,
+        cleanData.return_company_name,
+        cleanData.return_contact_name,
+        cleanData.return_address_line_1,
+        cleanData.return_address_line_2,
+        cleanData.return_city,
+        cleanData.return_state,
+        cleanData.return_postal_code,
+        cleanData.return_country,
+        cleanData.return_phone,
+        cleanData.label_size_preference,
+        cleanData.signature_required_default,
+        cleanData.insurance_default
+      ]);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Shipping preferences saved successfully'
+    });
+    
+  } catch (error) {
+    console.error('Error saving vendor shipping preferences:', error);
+    res.status(500).json({ error: 'Failed to save shipping preferences' });
+  }
+});
 
 module.exports = router; 

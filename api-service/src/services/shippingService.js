@@ -1,4 +1,6 @@
 const axios = require('axios');
+const fs = require('fs').promises;
+const path = require('path');
 
 class ShippingService {
   constructor() {
@@ -7,6 +9,8 @@ class ShippingService {
     this.upsAccountNumber = process.env.UPS_ACCOUNT;
     this.fedexApiKey = process.env.FEDEX_API_KEY;
     this.fedexSecretKey = process.env.FEDEX_API_SECRET;
+    this.fedexAccountNumber = process.env.FEDEX_ACCOUNT_NUMBER;
+    this.fedexMeterNumber = process.env.FEDEX_METER_NUMBER;
     this.uspsConsumerKey = process.env.USPS_CONSUMER_KEY;
     this.uspsConsumerSecret = process.env.USPS_CONSUMER_SECRET;
     this.uspsCrid = process.env.USPS_CRID;
@@ -28,25 +32,25 @@ class ShippingService {
     const rates = [];
     
     try {
-      // Get rates from all carriers in parallel
-      const [upsRates, fedexRates, uspsRates] = await Promise.allSettled([
-        this.getUPSRates(shipment),
+      // Get rates from FedEx only (for testing)
+      const [fedexRates] = await Promise.allSettled([
+        // this.getUPSRates(shipment),
         this.getFedExRates(shipment),
-        this.getUSPSRates(shipment)
+        // this.getUSPSRates(shipment)
       ]);
 
       // Combine all successful rates
-      if (upsRates.status === 'fulfilled') {
-        rates.push(...upsRates.value);
-      }
+      // if (upsRates.status === 'fulfilled') {
+      //   rates.push(...upsRates.value);
+      // }
       
       if (fedexRates.status === 'fulfilled') {
         rates.push(...fedexRates.value);
       }
       
-      if (uspsRates.status === 'fulfilled') {
-        rates.push(...uspsRates.value);
-      }
+      // if (uspsRates.status === 'fulfilled') {
+      //   rates.push(...uspsRates.value);
+      // }
 
       // Sort by price (lowest first)
       rates.sort((a, b) => a.cost - b.cost);
@@ -143,7 +147,7 @@ class ShippingService {
       };
 
       const response = await axios.post(
-        'https://wwwcie.ups.com/api/rating/v2409/Shop',
+        'https://onlinetools.ups.com/api/rating/v2409/Shop',
         rateRequest,
         {
           headers: {
@@ -171,39 +175,56 @@ class ShippingService {
       const token = await this.getFedExToken();
       
       const rateRequest = {
+        accountNumber: {
+          value: this.fedexAccountNumber
+        },
+        rateRequestControlParameters: {
+          returnTransitTimes: true
+        },
         requestedShipment: {
+          rateRequestType: ["LIST"],
+          pickupType: "DROPOFF_AT_FEDEX_LOCATION",
           shipper: {
             address: {
-              streetLines: [shipment.shipper.address.street],
               city: shipment.shipper.address.city,
               stateOrProvinceCode: shipment.shipper.address.state,
               postalCode: shipment.shipper.address.zip,
-              countryCode: shipment.shipper.address.country
+              countryCode: shipment.shipper.address.country || 'US'
             }
           },
           recipient: {
             address: {
-              streetLines: [shipment.recipient.address.street],
               city: shipment.recipient.address.city,
               stateOrProvinceCode: shipment.recipient.address.state,
               postalCode: shipment.recipient.address.zip,
-              countryCode: shipment.recipient.address.country
+              countryCode: shipment.recipient.address.country || 'US'
             }
           },
-          pickupType: "DROPOFF_AT_FEDEX_LOCATION",
-          packagingType: "YOUR_PACKAGING",
-          requestedPackageLineItems: shipment.packages.map(pkg => ({
-            weight: {
-              units: pkg.weight_unit === 'kg' ? 'KG' : 'LB',
-              value: pkg.weight
-            },
-            dimensions: {
-              length: pkg.length,
-              width: pkg.width,
-              height: pkg.height,
-              units: pkg.dimension_unit === 'cm' ? 'CM' : 'IN'
-            }
-          }))
+          requestedPackageLineItems: shipment.packages.map(pkg => {
+            const weight = parseFloat(pkg.weight);
+            const length = parseInt(pkg.length);
+            const width = parseInt(pkg.width);
+            const height = parseInt(pkg.height);
+            
+            // Validate required fields
+            if (!weight || weight <= 0) throw new Error(`Invalid weight: ${pkg.weight}`);
+            if (!length || length <= 0) throw new Error(`Invalid length: ${pkg.length}`);
+            if (!width || width <= 0) throw new Error(`Invalid width: ${pkg.width}`);
+            if (!height || height <= 0) throw new Error(`Invalid height: ${pkg.height}`);
+            
+            return {
+              weight: {
+                units: pkg.weight_unit === 'kg' ? 'KG' : 'LB',
+                value: weight
+              },
+              dimensions: {
+                length: length,
+                width: width,
+                height: height,
+                units: pkg.dimension_unit === 'cm' ? 'CM' : 'IN'
+              }
+            };
+          })
         }
       };
 
@@ -221,7 +242,7 @@ class ShippingService {
 
       return this.parseFedExResponse(response.data);
     } catch (error) {
-      console.error('FedEx API Error:', error.response?.data || error.message);
+      console.error('FedEx Rate API Error Details:', JSON.stringify(error.response?.data, null, 2));
       return [];
     }
   }
@@ -248,10 +269,10 @@ class ShippingService {
       const rateRequest = {
         "originZIPCode": shipment.shipper.address.zip,
         "destinationZIPCode": shipment.recipient.address.zip,
-        "weight": shipment.packages[0].weight,
-        "length": shipment.packages[0].length,
-        "width": shipment.packages[0].width,
-        "height": shipment.packages[0].height,
+        "weight": shipment.packages.reduce((sum, pkg) => sum + pkg.weight, 0),
+        "length": Math.max(...shipment.packages.map(p => p.length)),
+        "width": Math.max(...shipment.packages.map(p => p.width)),
+        "height": Math.max(...shipment.packages.map(p => p.height)),
         "mailClass": "PARCEL_SELECT",
         "processingCategory": "MACHINABLE",
         "destinationEntryFacilityType": "NONE",
@@ -290,7 +311,7 @@ class ShippingService {
 
     try {
       const response = await axios.post(
-        'https://wwwcie.ups.com/security/v1/oauth/token',
+        'https://onlinetools.ups.com/security/v1/oauth/token',
         'grant_type=client_credentials',
         {
           headers: {
@@ -316,18 +337,19 @@ class ShippingService {
    * Get FedEx OAuth token
    */
   async getFedExToken() {
-    if (this.tokens.fedex && this.tokens.fedex.expires > Date.now()) {
-      return this.tokens.fedex.access_token;
-    }
+    // Disable caching - get fresh token every time
+    // if (this.tokens.fedex && this.tokens.fedex.expires > Date.now()) {
+    //   return this.tokens.fedex.access_token;
+    // }
 
     try {
       const response = await axios.post(
-        'https://apis-sandbox.fedex.com/auth/oauth/v2/token',
-        {
+        'https://apis-sandbox.fedex.com/oauth/token',
+        new URLSearchParams({
           grant_type: 'client_credentials',
           client_id: this.fedexApiKey,
           client_secret: this.fedexSecretKey
-        },
+        }).toString(),
         {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
@@ -565,27 +587,379 @@ class ShippingService {
         };
       }
       
-      // Fallback to hardcoded address if no company data found
-      return {
-        name: 'Online Art Festival',
-        street: '123 Art Street',
-        city: 'Denver',
-        state: 'CO',
-        zip: '80202',
-        country: 'US'
-      };
+      throw new Error('Company address not found');
     } catch (error) {
       console.error('Error getting company address:', error);
-      // Return hardcoded address on error
-      return {
-        name: 'Online Art Festival',
-        street: '123 Art Street',
-        city: 'Denver',
-        state: 'CO',
-        zip: '80202',
-        country: 'US'
+      throw error;
+    }
+  }
+
+  async getVendorAddress(vendorId) {
+    try {
+      const db = require('../../config/db');
+      
+      // Look up vendor address from vendor_ship_settings table
+      const [vendorData] = await db.execute(`
+        SELECT return_company_name, return_contact_name, return_address_line_1, return_address_line_2, 
+               return_city, return_state, return_postal_code, return_country, return_phone,
+               label_size_preference, signature_required_default, insurance_default
+        FROM vendor_ship_settings 
+        WHERE vendor_id = ?
+      `, [vendorId]);
+      
+      if (vendorData.length > 0) {
+        const vendor = vendorData[0];
+        return {
+          name: vendor.return_company_name || vendor.return_contact_name || 'Vendor',
+          contact_name: vendor.return_contact_name,
+          company_name: vendor.return_company_name,
+          street: vendor.return_address_line_1,
+          street2: vendor.return_address_line_2,
+          city: vendor.return_city,
+          state: vendor.return_state,
+          zip: vendor.return_postal_code,
+          country: vendor.return_country || 'US',
+          phone: vendor.return_phone || '1234567890',
+          label_size_preference: vendor.label_size_preference || '4x6',
+          signature_required_default: vendor.signature_required_default,
+          insurance_default: vendor.insurance_default
+        };
+      }
+      
+      throw new Error('Must complete Shipping Preferences to create labels');
+    } catch (error) {
+      console.error('Error getting vendor address:', error);
+      throw error;
+    }
+  }
+
+  async purchaseLabel(carrier, shipment, selectedRate) {
+    let labelData;
+    switch (carrier.toUpperCase()) {
+      // case 'UPS':
+      //   labelData = await this.createUPSLabel(shipment, selectedRate);
+      //   break;
+      case 'FEDEX':
+        labelData = await this.createFedExLabel(shipment, selectedRate);
+        break;
+      // case 'USPS':
+      //   labelData = await this.createUSPSLabel(shipment, selectedRate);
+      //   break;
+      default:
+        throw new Error(`Unsupported carrier: ${carrier}. Currently supported: FedEx only (test mode)`);
+    }
+    
+    // Store the label PDF
+    const labelUrl = await this.storeLabel(labelData.pdfBase64, shipment.vendor_id, shipment.item_id, labelData, selectedRate, shipment);
+    
+    return { trackingNumber: labelData.tracking, labelUrl };
+  }
+
+  async cancelLabel(carrier, trackingNumber) {
+    try {
+      switch (carrier.toUpperCase()) {
+        case 'FEDEX':
+          return await this.cancelFedExLabel(trackingNumber);
+        // case 'UPS':
+        //   return await this.cancelUPSLabel(trackingNumber);
+        // case 'USPS':
+        //   return await this.cancelUSPSLabel(trackingNumber);
+        default:
+          throw new Error(`Unsupported carrier for cancellation: ${carrier}. Currently supported: FedEx only`);
+      }
+    } catch (error) {
+      console.error(`${carrier} Label Cancellation Error:`, error.message);
+      return { 
+        success: false, 
+        error: error.message 
       };
     }
+  }
+
+  async createUPSLabel(shipment, selectedRate) {
+      const token = await this.getUPSToken();
+    // Build UPS shipment request (simplified; expand with full payload)
+    const shipmentRequest = {
+      ShipmentRequest: {
+        Shipment: {
+          Description: 'OAF Shipment',
+          Shipper: {
+            Name: shipment.shipper.name,
+            ShipperNumber: this.upsAccountNumber,
+            Address: {
+              AddressLine: [shipment.shipper.address.street],
+              City: shipment.shipper.address.city,
+              StateProvinceCode: shipment.shipper.address.state,
+              PostalCode: shipment.shipper.address.zip,
+              CountryCode: shipment.shipper.address.country
+            }
+          },
+          ShipTo: {
+            Name: shipment.recipient.name,
+            Address: {
+              AddressLine: [shipment.recipient.address.street],
+              City: shipment.recipient.address.city,
+              StateProvinceCode: shipment.recipient.address.state,
+              PostalCode: shipment.recipient.address.zip,
+              CountryCode: shipment.recipient.address.country
+            }
+          },
+          Service: { Code: selectedRate.serviceCode, Description: selectedRate.service },
+          Package: shipment.packages.map(pkg => ({
+            PackagingType: { Code: '02' },
+            Dimensions: {
+              UnitOfMeasurement: { Code: pkg.dimension_unit.toUpperCase() },
+              Length: String(pkg.length),
+              Width: String(pkg.width),
+              Height: String(pkg.height)
+            },
+            PackageWeight: {
+              UnitOfMeasurement: { Code: pkg.weight_unit.toUpperCase() },
+              Weight: String(pkg.weight)
+            }
+          })),
+          PaymentInformation: {
+            ShipmentCharge: { Type: '01', BillShipper: { AccountNumber: this.upsAccountNumber } }
+          }
+        },
+        LabelSpecification: { LabelImageFormat: { Code: 'PDF' } }
+      }
+    };
+    
+    const response = await axios.post('https://onlinetools.ups.com/api/shipments/v2409/ship', shipmentRequest, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+      return {
+      tracking: response.data.ShipmentResponse.ShipmentResults.ShipmentIdentificationNumber,
+      pdfBase64: response.data.ShipmentResponse.ShipmentResults.PackageResults[0].ShippingLabel.GraphicImage
+    };
+  }
+
+  async cancelFedExLabel(trackingNumber, accountNumber = null) {
+    // Check if we're in sandbox/test mode - FedEx sandbox doesn't support label cancellation
+    // Since we're using sandbox URLs throughout, we're always in test mode for now
+    const isSandbox = true;
+    
+    if (isSandbox) {
+      // In sandbox mode, simulate successful cancellation for testing workflow
+      console.log(`TEST MODE: Simulating FedEx label cancellation for tracking ${trackingNumber}`);
+      return {
+        success: true,
+        message: 'Label cancelled successfully (TEST MODE - no actual API call)',
+        trackingNumber: trackingNumber,
+        testMode: true
+      };
+    }
+
+    // Production mode - make actual API call
+    const token = await this.getFedExToken();
+    
+    const cancelRequest = {
+      accountNumber: {
+        value: accountNumber || this.fedexAccountNumber
+      },
+      trackingNumber: trackingNumber
+    };
+    
+    try {
+      const response = await axios.delete('https://apis.fedex.com/ship/v1/shipments/cancel', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'X-locale': 'en_US'
+        },
+        data: cancelRequest
+      });
+      
+      return {
+        success: true,
+        message: 'Label cancelled successfully',
+        trackingNumber: trackingNumber,
+        response: response.data
+      };
+      
+    } catch (error) {
+      console.error('FedEx Label Cancellation Error:', error.response?.data || error.message);
+      throw new Error(`FedEx label cancellation failed: ${error.response?.data?.errors?.[0]?.message || error.message}`);
+    }
+  }
+
+  async createFedExLabel(shipment, selectedRate) {
+    const token = await this.getFedExToken();
+    
+    // Build address lines array, including second line if available
+    const shipperStreetLines = [shipment.shipper.address.street];
+    if (shipment.shipper.address.street2) {
+      shipperStreetLines.push(shipment.shipper.address.street2);
+    }
+    
+    // Determine label stock type from vendor preferences
+    const labelStockType = shipment.shipper.address.label_size_preference === '8.5x11' 
+      ? 'PAPER_85X11_TOP_HALF_LABEL' 
+      : 'PAPER_4X6';
+    
+    // Build FedEx shipment request according to official API documentation
+    const shipmentRequest = {
+      labelResponseOptions: 'URL_ONLY',
+      requestedShipment: {
+        shipper: {
+          contact: {
+            personName: shipment.shipper.address.contact_name || shipment.shipper.name,
+            phoneNumber: shipment.shipper.address.phone || '1234567890',
+            companyName: shipment.shipper.address.company_name || undefined
+          },
+          address: {
+            streetLines: shipperStreetLines,
+            city: shipment.shipper.address.city,
+            stateOrProvinceCode: shipment.shipper.address.state,
+            postalCode: shipment.shipper.address.zip,
+            countryCode: shipment.shipper.address.country || 'US'
+          }
+        },
+        recipients: [{
+          contact: {
+            personName: shipment.recipient.name,
+            phoneNumber: '1234567890'
+          },
+          address: {
+            streetLines: [shipment.recipient.address.street],
+            city: shipment.recipient.address.city,
+            stateOrProvinceCode: shipment.recipient.address.state,
+            postalCode: shipment.recipient.address.zip,
+            countryCode: shipment.recipient.address.country || 'US'
+          }
+        }],
+        shipDatestamp: new Date().toISOString().split('T')[0],
+        serviceType: selectedRate.serviceCode,
+        packagingType: 'YOUR_PACKAGING',
+        pickupType: 'USE_SCHEDULED_PICKUP',
+        shippingChargesPayment: {
+          paymentType: 'SENDER'
+        },
+        labelSpecification: {
+          imageType: 'PDF',
+          labelStockType: labelStockType
+        },
+        requestedPackageLineItems: shipment.packages.map((pkg, index) => ({
+          weight: {
+            units: pkg.weight_unit.toUpperCase(),
+            value: pkg.weight
+          },
+          dimensions: {
+            length: pkg.length,
+            width: pkg.width,
+            height: pkg.height,
+            units: pkg.dimension_unit.toUpperCase()
+          }
+        }))
+      },
+      accountNumber: {
+        value: this.fedexAccountNumber
+      }
+    };
+    
+    try {
+      const response = await axios.post('https://apis-sandbox.fedex.com/ship/v1/shipments', shipmentRequest, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      // Safely access the response structure
+      const output = response.data?.output;
+      const shipment = output?.transactionShipments?.[0];
+      const piece = shipment?.pieceResponses?.[0];
+
+      // Get tracking number from piece response (it's more reliable)
+      const trackingNumber = piece?.trackingNumber || shipment?.masterTrackingNumber;
+      
+      if (!trackingNumber) {
+        throw new Error('No tracking number in FedEx response');
+      }
+
+      // Get label URL from packageDocuments
+      const labelDocument = piece?.packageDocuments?.find(doc => doc.contentType === 'LABEL');
+      
+      if (!labelDocument?.url) {
+        throw new Error('No label URL in FedEx response');
+      }
+
+      // Fetch the PDF from the FedEx URL and convert to base64
+      console.log('Downloading label PDF from:', labelDocument.url);
+      const pdfResponse = await axios.get(labelDocument.url, { 
+        responseType: 'arraybuffer',
+        headers: {
+          'Authorization': `Bearer ${token}` // May need auth for FedEx document retrieval
+        }
+      });
+      
+      const pdfBase64 = Buffer.from(pdfResponse.data).toString('base64');
+
+      return {
+        tracking: trackingNumber,
+        labelUrl: labelDocument.url,
+        pdfBase64: pdfBase64
+      };
+    } catch (error) {
+      console.error('=== FedEx Ship API Error ===');
+      console.error('Error Status:', error.response?.status);
+      console.error('Error Data:', JSON.stringify(error.response?.data, null, 2));
+      console.error('Error Message:', error.message);
+      throw new Error(`FedEx label creation failed: ${error.response?.data?.errors?.[0]?.message || error.message}`);
+    }
+  }
+
+  async createUSPSLabel(shipment, selectedRate) {
+      const token = await this.getUSPSToken();
+    // Build USPS label request
+    const labelRequest = {
+      // ... build from shipment and selectedRate
+    };
+    
+    const response = await axios.post('https://apis.usps.com/labels/v3/create', labelRequest, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+      return {
+      tracking: response.data.trackingNumber,
+      pdfBase64: response.data.labelImage // Base64 or URL; convert if needed
+    };
+  }
+
+  async storeLabel(pdfBase64, userId, itemId, labelData, selectedRate, shipment) {
+    const dir = path.join(__dirname, '../../../public/static_media/labels');
+    await fs.mkdir(dir, { recursive: true });
+    
+    // Create a secure filename with user ID and random component for security
+    const fileName = `label_${userId}_${itemId}_${Date.now()}_${Math.random().toString(36).substring(7)}.pdf`;
+    const filePath = path.join(dir, fileName);
+    
+    await fs.writeFile(filePath, Buffer.from(pdfBase64, 'base64'));
+    
+    // Insert to shipping_labels table
+    const db = require('../../config/db');
+    await db.execute(
+      `INSERT INTO shipping_labels (
+        order_id, order_item_id, vendor_id, carrier, service_code, service_name, 
+        tracking_number, label_file_path, label_format, cost, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [
+        shipment.order_id || null,
+        itemId,
+        userId, // vendor_id
+        selectedRate.carrier.toLowerCase(),
+        selectedRate.service_code || selectedRate.service,
+        selectedRate.service_name || selectedRate.service,
+        labelData.tracking,
+        `/static_media/labels/${fileName}`,
+        'label', // assuming label format
+        selectedRate.cost || 0
+      ]
+    );
+    
+    return `/static_media/labels/${fileName}`;
   }
 }
 

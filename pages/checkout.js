@@ -30,6 +30,7 @@ export default function Checkout() {
       country: 'US'
     }
   });
+  const [selectedShipping, setSelectedShipping] = useState({}); // { [product_id]: { service: string, rate: number } }
   const router = useRouter();
 
   // Initialize Stripe when script loads
@@ -89,6 +90,37 @@ export default function Checkout() {
     }
   }, [stripeLoaded, stripe, paymentIntent, elements]);
 
+  useEffect(() => {
+    if (orderSummary) {
+      const initialSelections = {};
+      orderSummary.items_with_commissions.forEach(item => {
+        if (item.ship_method === 'calculated' && item.shipping_options?.length > 0) {
+          const cheapest = item.shipping_options.reduce((min, opt) => opt.cost < min.cost ? opt : min);
+          initialSelections[item.product_id] = { service: cheapest.service, rate: cheapest.cost };
+        }
+      });
+      setSelectedShipping(initialSelections);
+    }
+  }, [orderSummary]);
+
+  useEffect(() => {
+    if (orderSummary && Object.keys(selectedShipping).length > 0) {
+      let newShippingTotal = 0;
+      orderSummary.items_with_commissions.forEach(item => {
+        const selection = selectedShipping[item.product_id];
+        newShippingTotal += selection ? selection.rate * item.quantity : item.shipping_cost;
+      });
+      setOrderSummary(prev => ({
+        ...prev,
+        totals: {
+          ...prev.totals,
+          shipping_total: newShippingTotal,
+          total_amount: prev.totals.subtotal + newShippingTotal + (prev.totals.tax_total || 0) + prev.totals.platform_fee_total
+        }
+      }));
+    }
+  }, [selectedShipping]);
+
   const calculateOrderTotals = async (items) => {
     try {
       const cart_items = items.map(item => ({
@@ -127,7 +159,9 @@ export default function Checkout() {
       
       const cart_items = cartItems.map(item => ({
         product_id: item.product_id,
-        quantity: item.quantity
+        quantity: item.quantity,
+        selected_shipping_service: selectedShipping[item.product_id]?.service,
+        selected_shipping_rate: selectedShipping[item.product_id]?.rate
       }));
 
       const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/checkout/create-payment-intent', {
@@ -300,6 +334,25 @@ export default function Checkout() {
                         <span className={styles.itemQuantity}>Qty: {item.quantity}</span>
                       </div>
                       <span className={styles.itemPrice}>${item.price.toFixed(2)}</span>
+                      {item.ship_method === 'calculated' && item.shipping_options?.length > 0 && (
+                        <div className={styles.shippingSelect}>
+                          <label>Shipping Service:</label>
+                          <select 
+                            value={selectedShipping[item.product_id]?.service || ''} 
+                            onChange={(e) => {
+                              const selectedOpt = item.shipping_options.find(opt => opt.service === e.target.value);
+                              setSelectedShipping(prev => ({
+                                ...prev,
+                                [item.product_id]: { service: selectedOpt.service, rate: selectedOpt.cost }
+                              }));
+                            }}
+                          >
+                            {item.shipping_options.map(opt => (
+                              <option key={opt.service} value={opt.service}>{opt.service} - ${opt.cost.toFixed(2)}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                     </div>
                   ))}
                   

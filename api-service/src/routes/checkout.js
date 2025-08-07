@@ -498,21 +498,24 @@ async function calculateShippingCosts(items, shippingAddress) {
   
   for (const item of items) {
     let shippingCost = 0;
+    let shippingOptions = []; // New: array of available options
     
     if (item.ship_method === 'free') {
       shippingCost = 0;
+      shippingOptions = [{ service: 'Free Shipping', cost: 0 }];
     } else if (item.ship_method === 'flat_rate') {
-      // Get the flat rate for this product
+      // Existing flat rate logic
       const [shippingData] = await db.execute(`
-        SELECT ship_rate FROM product_shipping 
+        SELECT ship_rate, shipping_services FROM product_shipping 
         WHERE product_id = ? AND package_number = 1
       `, [item.product_id]);
       
       if (shippingData.length > 0 && shippingData[0].ship_rate) {
         shippingCost = parseFloat(shippingData[0].ship_rate) * item.quantity;
+        shippingOptions = [{ service: 'Flat Rate', cost: shippingCost }];
       }
     } else if (item.ship_method === 'calculated' && shippingAddress) {
-      // Use calculated shipping with carrier APIs
+      // Enhanced calculated logic
       try {
         const [productShipping] = await db.execute(`
           SELECT ps.*, p.vendor_id
@@ -523,14 +526,12 @@ async function calculateShippingCosts(items, shippingAddress) {
         `, [item.product_id]);
         
         if (productShipping.length > 0) {
-          // Get company address
           const companyAddress = await shippingService.getCompanyAddress();
           
-          // Build shipment object
           const shipment = {
             shipper: {
               name: companyAddress.name,
-              accountNumber: '', // TODO: Get from vendor settings
+              accountNumber: '',
               address: companyAddress
             },
             recipient: {
@@ -546,25 +547,36 @@ async function calculateShippingCosts(items, shippingAddress) {
               weight_unit: ps.weight_unit
             }))
           };
-
-          // Calculate shipping rates
-          const rates = await shippingService.calculateShippingRates(shipment);
           
-          // Use the cheapest rate
+          let rates = await shippingService.calculateShippingRates(shipment);
+          
+          // Filter by allowed shipping_services if specified
+          const allowedServices = productShipping[0].shipping_services ? JSON.parse(productShipping[0].shipping_services) : null;
+          if (allowedServices && allowedServices.length > 0) {
+            rates = rates.filter(rate => allowedServices.includes(rate.service));
+          }
+          
+          shippingOptions = rates.map(rate => ({
+            service: rate.service,
+            cost: rate.cost
+          }));
+          
+          // Use cheapest for initial cost
           if (rates.length > 0) {
-            shippingCost = rates[0].cost;
+            shippingCost = Math.min(...rates.map(r => r.cost)) * item.quantity; // Multiply by quantity if applicable
           }
         }
       } catch (error) {
         console.error(`Error calculating shipping for product ${item.product_id}:`, error);
-        // Fall back to free shipping if calculation fails
         shippingCost = 0;
+        shippingOptions = [];
       }
     }
     
     itemsWithShipping.push({
       ...item,
-      shipping_cost: shippingCost
+      shipping_cost: shippingCost,
+      shipping_options: shippingOptions // New field
     });
   }
   
@@ -651,8 +663,8 @@ async function createOrder(userId, totals, items) {
     // Create order items
     const itemQuery = `
       INSERT INTO order_items 
-      (order_id, product_id, vendor_id, quantity, price, shipping_cost, commission_rate, commission_amount)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      (order_id, product_id, vendor_id, quantity, price, shipping_cost, commission_rate, commission_amount, selected_shipping_service, shipping_rate)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     
     for (const item of items) {
@@ -664,7 +676,9 @@ async function createOrder(userId, totals, items) {
         item.price,
         item.shipping_cost || 0,
         item.commission_rate || 15.00,
-        item.commission_amount || 0
+        item.commission_amount || 0,
+        item.selected_shipping_service || null, // New
+        item.selected_shipping_rate || item.shipping_cost // New, fallback to calculated if not selected
       ]);
     }
     
