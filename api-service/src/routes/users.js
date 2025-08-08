@@ -165,16 +165,17 @@ router.patch('/me',
         
         // Artist-specific fields (artist_profiles table)
         artist_biography, art_categories, art_mediums, does_custom, custom_details, 
-        business_name, studio_address_line1, studio_address_line2, studio_city, 
-        studio_state, studio_zip, business_website, business_phone, 
-        business_social_facebook, business_social_instagram, business_social_tiktok, 
-        business_social_twitter, business_social_pinterest, founding_date,
+        business_name, legal_name, tax_id, customer_service_email, studio_address_line1, 
+        studio_address_line2, studio_city, studio_state, studio_zip, business_website, 
+        business_phone, business_social_facebook, business_social_instagram, 
+        business_social_tiktok, business_social_twitter, business_social_pinterest, founding_date,
         
         // Community-specific fields (community_profiles table)
         art_style_preferences, favorite_colors, art_interests, wishlist,
         
         // Promoter-specific fields (promoter_profiles table)
-        is_non_profit, organization_size, sponsorship_options, upcoming_events
+        is_non_profit, organization_size, sponsorship_options, upcoming_events,
+        office_address_line1, office_address_line2, office_city, office_state, office_zip
       } = req.body;
 
       if (!first_name || !last_name) {
@@ -216,10 +217,9 @@ router.patch('/me',
         (typeof languages_known === 'string' ? languages_known : JSON.stringify(languages_known)) : null;
       const processedEducation = education ? 
         (typeof education === 'string' ? education : JSON.stringify(education)) : null;
-      const processedAwards = awards ? 
-        (typeof awards === 'string' ? awards : JSON.stringify(awards)) : null;
-      const processedMemberships = memberships ? 
-        (typeof memberships === 'string' ? memberships : JSON.stringify(memberships)) : null;
+      // Awards and memberships are now simple text fields
+      const processedAwards = awards || null;
+      const processedMemberships = memberships || null;
 
       // Ensure user_profiles record exists, then update
       await db.query(
@@ -275,12 +275,12 @@ router.patch('/me',
 
         await db.query(
           `INSERT INTO artist_profiles (user_id, artist_biography, art_categories, art_mediums, 
-            does_custom, custom_details, business_name, studio_address_line1, 
-            studio_address_line2, studio_city, studio_state, studio_zip, 
+            does_custom, custom_details, business_name, legal_name, tax_id, customer_service_email,
+            studio_address_line1, studio_address_line2, studio_city, studio_state, studio_zip, 
             business_website, business_phone, business_social_facebook, 
             business_social_instagram, business_social_tiktok, business_social_twitter, 
             business_social_pinterest, founding_date, logo_path) 
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE 
             artist_biography = VALUES(artist_biography),
             art_categories = VALUES(art_categories),
@@ -288,6 +288,9 @@ router.patch('/me',
             does_custom = VALUES(does_custom),
             custom_details = VALUES(custom_details),
             business_name = VALUES(business_name),
+            legal_name = VALUES(legal_name),
+            tax_id = VALUES(tax_id),
+            customer_service_email = VALUES(customer_service_email),
             studio_address_line1 = VALUES(studio_address_line1),
             studio_address_line2 = VALUES(studio_address_line2),
             studio_city = VALUES(studio_city),
@@ -305,6 +308,7 @@ router.patch('/me',
           [
             req.userId, artist_biography || null, processedArtCategories, processedArtMediums, 
             does_custom || 'no', custom_details || null, business_name || null, 
+            legal_name || null, tax_id || null, customer_service_email || null,
             studio_address_line1 || null, studio_address_line2 || null, studio_city || null, 
             studio_state || null, studio_zip || null, business_website || null, 
             business_phone || null, business_social_facebook || null, 
@@ -335,21 +339,22 @@ router.patch('/me',
            processedArtInterests, processedWishlist]
         );
       } else if (userType === 'promoter') {
-        // Process JSON fields for promoter profiles
-        const processedSponsorshipOptions = sponsorship_options ? 
-          (typeof sponsorship_options === 'string' ? sponsorship_options : JSON.stringify(sponsorship_options)) : null;
-        const processedUpcomingEvents = upcoming_events ? 
-          (typeof upcoming_events === 'string' ? upcoming_events : JSON.stringify(upcoming_events)) : null;
+        // Sponsorship options and upcoming events are now simple text fields
+        const processedSponsorshipOptions = sponsorship_options || null;
+        const processedUpcomingEvents = upcoming_events || null;
 
         await db.query(
-          `INSERT INTO promoter_profiles (user_id, business_name, business_phone, 
+          `INSERT INTO promoter_profiles (user_id, business_name, legal_name, tax_id, business_phone, 
             business_website, business_social_facebook, business_social_instagram, 
             business_social_tiktok, business_social_twitter, business_social_pinterest, 
+            office_address_line1, office_address_line2, office_city, office_state, office_zip,
             is_non_profit, organization_size, sponsorship_options, upcoming_events, 
             founding_date, logo_path) 
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE 
             business_name = VALUES(business_name),
+            legal_name = VALUES(legal_name),
+            tax_id = VALUES(tax_id),
             business_phone = VALUES(business_phone),
             business_website = VALUES(business_website),
             business_social_facebook = VALUES(business_social_facebook),
@@ -357,6 +362,11 @@ router.patch('/me',
             business_social_tiktok = VALUES(business_social_tiktok),
             business_social_twitter = VALUES(business_social_twitter),
             business_social_pinterest = VALUES(business_social_pinterest),
+            office_address_line1 = VALUES(office_address_line1),
+            office_address_line2 = VALUES(office_address_line2),
+            office_city = VALUES(office_city),
+            office_state = VALUES(office_state),
+            office_zip = VALUES(office_zip),
             is_non_profit = VALUES(is_non_profit),
             organization_size = VALUES(organization_size),
             sponsorship_options = VALUES(sponsorship_options),
@@ -364,12 +374,13 @@ router.patch('/me',
             founding_date = VALUES(founding_date),
             logo_path = VALUES(logo_path)`,
           [
-            req.userId, business_name || null, business_phone || null, 
+            req.userId, business_name || null, legal_name || null, tax_id || null, business_phone || null, 
             business_website || null, business_social_facebook || null, 
             business_social_instagram || null, business_social_tiktok || null, 
             business_social_twitter || null, business_social_pinterest || null, 
-            is_non_profit || 'no', organization_size || null, processedSponsorshipOptions, 
-            processedUpcomingEvents, founding_date || null, logoImagePath
+            office_address_line1 || null, office_address_line2 || null, office_city || null,
+            office_state || null, office_zip || null, is_non_profit || 'no', organization_size || null, 
+            processedSponsorshipOptions, processedUpcomingEvents, founding_date || null, logoImagePath
           ]
         );
       }

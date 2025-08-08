@@ -21,8 +21,11 @@ import CommissionManagement from '../../components/CommissionManagement';
 import DashboardGrid from '../../components/dashboard/DashboardGrid';
 import { getAuthToken } from '../../lib/csrf';
 import styles from './Dashboard.module.css';
+import '../../components/dashboard/SlideIn.module.css';
 import SubscriptionManager from '../../components/SubscriptionManager';
 import { MyAccountMenu, MyAccountSlideIn, myAccountSlideInTypes } from '../../components/dashboard/menu/MyAccount';
+import MyAccountMenuNew from '../../components/dashboard/my-account/MyAccountMenu';
+import EditProfile from '../../components/dashboard/my-account/components/EditProfile';
 import { VendorToolsMenu, VendorToolsSlideIn, vendorToolsSlideInTypes } from '../../components/dashboard/vendor/VendorTools';
 import { FinanceMenu, FinanceSlideIn, financeSlideInTypes } from '../../components/dashboard/menu/Finance';
 // import { ServiceManagementMenu, ServiceManagementSlideIn, serviceManagementSlideInTypes } from '../../components/dashboard/menu/ServiceManagement';
@@ -43,7 +46,7 @@ export default function Dashboard() {
 
   // MOVED: All hooks must be at the top before any early returns
   const openSlideIn = useCallback((contentType, props = {}) => {
-    setSlideInContent({ type: contentType, props });
+    setSlideInContent({ type: contentType, title: props.title, props });
   }, []);
 
   const closeSlideIn = () => {
@@ -345,6 +348,15 @@ export default function Dashboard() {
       );
     } */
 
+    // Handle My Account slide-ins
+    if (slideInContent.type === 'edit-profile') {
+      return (
+        <EditProfile
+          userData={userData}
+        />
+      );
+    }
+
     // Handle other slide-in types here (for future menu sections)
     return null;
   };
@@ -372,7 +384,17 @@ export default function Dashboard() {
       <div className={styles.mainContent}>
         {/* Left Sidebar */}
         <div className={styles.sidebar}>
-          {/* My Account Section */}
+          {/* NEW My Account Section - Transitional */}
+          {userData && (
+            <MyAccountMenuNew
+              userData={userData}
+              collapsedSections={collapsedSections}
+              toggleSection={toggleSection}
+              openSlideIn={openSlideIn}
+            />
+          )}
+
+          {/* OLD My Account Section - Will be removed gradually */}
           {userData && (
             <MyAccountMenu
               userData={userData}
@@ -718,7 +740,18 @@ export default function Dashboard() {
         {slideInContent && (
           <div className={styles.slideInOverlay}>
             <div className={styles.slideInPanel}>
-              {renderSlideInContent()}
+              <div className={styles.slideInContainer}>
+                <div className={styles.slideInHeader}>
+                  <button className={styles.backButton} onClick={closeSlideIn}>
+                    <i className="fas fa-arrow-left"></i>
+                    Back to Dashboard
+                  </button>
+                  <h2 className={styles.slideInTitle}>{slideInContent.title || 'Slide-In Title'}</h2>
+                </div>
+                <div className={styles.slideInContent}>
+                  {renderSlideInContent()}
+                </div>
+              </div>
             </div>
           </div>
         )}

@@ -24,6 +24,9 @@ export function ShipOrdersContent({ userData, onBack }) {
 
   // Restore states
   const [batchResults, setBatchResults] = useState([]); // For displaying success/errors
+  
+  // Pagination for shipped orders
+  const [shippedOrdersLimit, setShippedOrdersLimit] = useState(50);
 
   useEffect(() => {
     if (activeTab === 'labels') {
@@ -167,11 +170,61 @@ export function ShipOrdersContent({ userData, onBack }) {
 
   const mergeSelected = () => {
     if (selectedForMerge.length < 2) return;
+    
+    // Validate that all selected items have the same shipping address
+    const selectedItems = orders.flatMap(order => 
+      order.items.filter(item => selectedForMerge.includes(item.item_id))
+        .map(item => ({ ...item, order }))
+    );
+    
+    if (selectedItems.length === 0) return;
+    
+    const firstAddress = selectedItems[0].order.shipping_address;
+    const addressMismatch = selectedItems.some(item => {
+      const addr = item.order.shipping_address;
+      return (
+        addr?.street !== firstAddress?.street ||
+        addr?.address_line_2 !== firstAddress?.address_line_2 ||
+        addr?.city !== firstAddress?.city ||
+        addr?.state !== firstAddress?.state ||
+        addr?.zip !== firstAddress?.zip ||
+        addr?.country !== firstAddress?.country
+      );
+    });
+    
+    if (addressMismatch) {
+      alert('Cannot merge items with different shipping addresses. All items in a merged shipment must be going to the same address.');
+      return;
+    }
+    
     const groupId = `group_${Date.now()}`;
     setMergedGroups(prev => ({ ...prev, [groupId]: selectedForMerge }));
     setSelectedForMerge([]);
     console.log('Merged group:', groupId, selectedForMerge);
-    // Next: UI to show groups
+  };
+
+  const unmergeGroup = (groupId) => {
+    if (!confirm('Are you sure you want to unmerge this shipment? Items will be returned to individual processing.')) {
+      return;
+    }
+    
+    setMergedGroups(prev => {
+      const newGroups = { ...prev };
+      delete newGroups[groupId];
+      return newGroups;
+    });
+    
+    // Clear any form data for this group
+    setGroupForms(prev => {
+      const newForms = { ...prev };
+      delete newForms[groupId];
+      return newForms;
+    });
+    
+    // Close any active sections for this group
+    if (activeSection && activeSection.isGroup && activeSection.id === groupId) {
+      setActiveSection(null);
+    }
   };
 
   const getFormData = (id, isGroup = false) => {
@@ -355,22 +408,56 @@ export function ShipOrdersContent({ userData, onBack }) {
             </div>
       <div className={slideInStyles.content}>
                 {/* Tabs */}
-        <div className="tab-container">
+        <div className="tab-container" style={{ 
+          display: 'flex', 
+          borderBottom: '2px solid #dee2e6', 
+          marginBottom: '20px' 
+        }}>
           <button 
             className={`tab ${activeTab === 'unshipped' ? 'active' : ''}`}
             onClick={() => setActiveTab('unshipped')}
+            style={{
+              padding: '12px 20px',
+              border: 'none',
+              backgroundColor: activeTab === 'unshipped' ? '#fff' : 'transparent',
+              borderBottom: activeTab === 'unshipped' ? '2px solid #3e1c56' : '2px solid transparent',
+              color: activeTab === 'unshipped' ? '#3e1c56' : '#6c757d',
+              fontWeight: activeTab === 'unshipped' ? '600' : '400',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
           >
             Unshipped Orders
           </button>
           <button 
             className={`tab ${activeTab === 'shipped' ? 'active' : ''}`}
             onClick={() => setActiveTab('shipped')}
+            style={{
+              padding: '12px 20px',
+              border: 'none',
+              backgroundColor: activeTab === 'shipped' ? '#fff' : 'transparent',
+              borderBottom: activeTab === 'shipped' ? '2px solid #3e1c56' : '2px solid transparent',
+              color: activeTab === 'shipped' ? '#3e1c56' : '#6c757d',
+              fontWeight: activeTab === 'shipped' ? '600' : '400',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
           >
             Shipped Orders
           </button>
           <button 
             className={`tab ${activeTab === 'labels' ? 'active' : ''}`}
             onClick={() => setActiveTab('labels')}
+            style={{
+              padding: '12px 20px',
+              border: 'none',
+              backgroundColor: activeTab === 'labels' ? '#fff' : 'transparent',
+              borderBottom: activeTab === 'labels' ? '2px solid #3e1c56' : '2px solid transparent',
+              color: activeTab === 'labels' ? '#3e1c56' : '#6c757d',
+              fontWeight: activeTab === 'labels' ? '600' : '400',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
           >
             Label Library
           </button>
@@ -379,188 +466,426 @@ export function ShipOrdersContent({ userData, onBack }) {
           <div>
             <div style={{ marginBottom: '15px', display: 'flex', gap: '10px' }}>
               <button className="secondary" onClick={mergeSelected} disabled={selectedForMerge.length < 2}>
-                Merge Selected ({selectedForMerge.length})
-              </button>
+              Merge Selected ({selectedForMerge.length})
+                      </button>
               <button className="secondary" onClick={processBatch}>
-                Process Completed
-              </button>
+              Process Completed
+                      </button>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
-              <span style={{ width: '30px' }}>Merge</span>
-              <span>Item</span>
+            {/* Table-like Headers - Desktop Only */}
+            <div className="orders-table-header" style={{
+              display: 'grid',
+              gridTemplateColumns: '50px minmax(60px, 80px) minmax(60px, 80px) minmax(80px, 100px) minmax(150px, 1fr) minmax(60px, 70px) minmax(120px, 140px) 50px minmax(100px, 120px)',
+              gap: '10px',
+              padding: '10px',
+              backgroundColor: '#f8f9fa',
+              border: '1px solid #dee2e6',
+              borderRadius: '4px',
+              fontWeight: 'bold',
+              fontSize: '14px',
+              marginBottom: '10px',
+              width: '100%',
+              maxWidth: '100%',
+              overflow: 'hidden'
+            }}>
+              <span>Merge</span>
+              <span>OAF PO</span>
+              <span>Order #</span>
+              <span>Order Date</span>
+              <span>Ship To</span>
+              <span>Status</span>
+              <span>Product</span>
+              <span>Qty</span>
+              <span>Process</span>
             </div>
-            {/* Order List - Only show for unshipped tab */}
+
+            {/* Add responsive styles */}
+            <style jsx>{`
+              @media (max-width: 768px) {
+                .orders-table-header {
+                  display: none !important;
+                }
+                .item-row {
+                  display: block !important;
+                  padding: 15px !important;
+                  border: none !important;
+                  background: transparent !important;
+                }
+                .mobile-label {
+                  display: inline-block;
+                  font-weight: 600;
+                  color: #6c757d;
+                  width: 80px;
+                  font-size: 12px;
+                }
+                .mobile-section {
+                  margin-bottom: 12px;
+                  padding-bottom: 8px;
+                  border-bottom: 1px solid #f0f0f0;
+                }
+                .mobile-section:last-child {
+                  border-bottom: none;
+                }
+              }
+            `}</style>
+
+            {/* Order Items List */}
             {!orders || orders.length === 0 ? (
-              <p>No unshipped orders found.</p>
+              <p style={{ padding: '20px', textAlign: 'center', color: '#6c757d' }}>No unshipped orders found.</p>
             ) : (
-              orders.map(order => (
-            <div key={order.order_id} style={{ marginBottom: '20px', border: '1px solid #ccc', padding: '10px' }}>
-              <h3>Order #{order.order_id} - {new Date(order.created_at).toLocaleDateString()}</h3>
-              <p>Customer: {order.customer_name}</p>
-              <div style={{ marginBottom: '10px' }}>
-                <strong>Ship To:</strong>
-                <p>{order.shipping_address?.street || 'No address'}, {order.shipping_address?.city || 'No city'}, {order.shipping_address?.state || 'No state'} {order.shipping_address?.zip || 'No zip'}, {order.shipping_address?.country || 'No country'}</p>
-          </div>
-              <p>Status: {order.order_status}</p>
-              <ul>
-                {(order.items || []).map(item => (
-                  <li key={item.item_id}>
-                    {item.quantity} x {item.product_name} - Status: {item.item_status}
-                    {activeTab === 'unshipped' && (
-                      <>
+              // Flatten orders to item-centric view, excluding merged items
+              orders.flatMap(order => 
+                (order.items || []).filter(item => {
+                  // Hide items that are already in merged groups
+                  const allMergedItems = Object.values(mergedGroups).flat();
+                  return !allMergedItems.includes(item.item_id);
+                }).map(item => (
+                  <div key={`${order.order_id}-${item.item_id}`} className="order-item-card" style={{
+                    marginBottom: '10px'
+                  }}>
+                    {/* Main Item Row */}
+                    <div className="item-row" style={{
+                      display: 'grid',
+                      gridTemplateColumns: '50px minmax(60px, 80px) minmax(60px, 80px) minmax(80px, 100px) minmax(150px, 1fr) minmax(60px, 70px) minmax(120px, 140px) 50px minmax(100px, 120px)',
+                      gap: '10px',
+                      padding: '15px',
+                      alignItems: 'center',
+                      width: '100%',
+                      maxWidth: '100%',
+                      border: '1px solid #dee2e6',
+                      borderRadius: '4px',
+                      backgroundColor: '#fff',
+                      overflow: 'hidden'
+                    }}>
+                      {/* Merge Checkbox */}
+                      <div className="mobile-section">
                 <input
                           type="checkbox" 
                           checked={isSelectedForMerge(item.item_id)}
                           onChange={() => toggleMergeSelection(item.item_id)}
-                          style={{ marginRight: '10px' }}
                         />
+                      </div>
+
+                      {/* OAF PO (Item ID) - Remove label */}
+                      <div className="mobile-section" style={{ 
+                        fontSize: '14px', 
+                        fontWeight: '500',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        #{item.item_id}
+                      </div>
+
+                      {/* Order Number - Remove label */}
+                      <div className="mobile-section" style={{ 
+                        fontSize: '14px', 
+                        fontWeight: '500',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        #{order.order_id}
+                      </div>
+
+                      {/* Order Date */}
+                      <div className="mobile-section" style={{ 
+                        fontSize: '13px', 
+                        color: '#6c757d',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {new Date(order.created_at).toLocaleDateString()}
+                      </div>
+
+                      {/* Ship To (4-line format) */}
+                      <div className="mobile-section" style={{ 
+                        fontSize: '13px', 
+                        lineHeight: '1.3',
+                        overflow: 'hidden',
+                        maxHeight: '80px'
+                      }}>
+                        <span className="mobile-label">Ship To:</span>
+                        <div style={{ marginTop: '4px' }}>
+                          <div style={{ 
+                            fontWeight: '500',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}>{order.customer_name || 'No name'}</div>
+                          <div style={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}>{order.shipping_address?.street || 'No address'}</div>
+                          <div style={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}>{order.shipping_address?.address_line_2 || ''}</div>
+                          <div style={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {order.shipping_address?.city || 'No city'}, {order.shipping_address?.state || 'No state'} {order.shipping_address?.zip || 'No zip'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Status - Remove label */}
+                      <div className="mobile-section">
+                        <span style={{
+                          padding: '4px 8px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          fontWeight: '500',
+                          backgroundColor: item.item_status === 'shipped' ? '#d4edda' : 
+                                         item.item_status === 'delivered' ? '#d1ecf1' : '#f8f9fa',
+                          color: item.item_status === 'shipped' ? '#155724' : 
+                                 item.item_status === 'delivered' ? '#0c5460' : '#6c757d'
+                        }}>
+                          {item.item_status || 'pending'}
+                        </span>
+                      </div>
+
+                      {/* Product - Remove label */}
+                      <div className="mobile-section" style={{ 
+                        fontSize: '14px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {item.product_name}
+                      </div>
+
+                      {/* Quantity - Separate column */}
+                      <div className="mobile-section" style={{ 
+                        fontSize: '14px',
+                        fontWeight: 'bold', 
+                        color: '#3e1c56',
+                        textAlign: 'center',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        {item.quantity}
+                      </div>
+
+                      {/* Process Buttons - Compact table style */}
+                      <div className="mobile-section" style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        gap: '3px',
+                        overflow: 'hidden',
+                        maxWidth: '100%'
+                      }}>
             <button
               className="secondary"
-                          style={{ marginLeft: '10px' }}
                           onClick={() => toggleSection('tracking', item.item_id, false)}
-            >
-                          Add Tracking
+                          style={{ 
+                            fontSize: '10px', 
+                            padding: '2px 4px',
+                            whiteSpace: 'nowrap',
+                            minWidth: '0',
+                            width: '100%',
+                            maxWidth: '100%',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}
+                        >
+                          Tracking
             </button>
                   <button
                     className="secondary"
-                          style={{ marginLeft: '5px' }}
                           onClick={() => toggleSection('label', item.item_id, false)}
-                  >
-                          Create Label
+                          style={{ 
+                            fontSize: '10px', 
+                            padding: '2px 4px',
+                            whiteSpace: 'nowrap',
+                            minWidth: '0',
+                            width: '100%',
+                            maxWidth: '100%',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}
+                        >
+                          Label
                   </button>
+                      </div>
+                    </div>
+
+                    {/* Expandable Form Section */}
                         {activeSection && activeSection.id === item.item_id && !activeSection.isGroup && (
-                          <div style={{ marginTop: '10px', padding: '10px', border: '1px dashed #ccc', background: '#f9f9f9' }}>
+                      <div className="expanded-form" style={{
+                        borderTop: '1px solid #dee2e6',
+                        padding: '15px',
+                        backgroundColor: '#f8f9fa'
+                      }}>
                             {activeSection.type === 'tracking' ? (
-                <div>
-                                <label>Carrier:</label>
-                                <select value={getFormData(item.item_id, false).carrier} onChange={e => updateFormData(item.item_id, false, { carrier: e.target.value })}>
+                          <div className="tracking-form">
+                            <h4 style={{ marginBottom: '15px', color: '#495057' }}>Add Tracking Information</h4>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '15px', alignItems: 'center' }}>
+                              <label style={{ fontWeight: '500' }}>Carrier:</label>
+                              <select 
+                                className="form-control"
+                                value={getFormData(item.item_id, false).carrier} 
+                                onChange={e => updateFormData(item.item_id, false, { carrier: e.target.value })}
+                                style={{ padding: '8px', border: '1px solid #ced4da', borderRadius: '4px' }}
+                              >
                                   <option value="">Select Carrier</option>
                                   <option value="UPS">UPS</option>
                                   <option value="FedEx">FedEx</option>
                                   <option value="USPS">USPS</option>
                   </select>
-                                <label>Tracking Number:</label>
-                                <input type="text" value={getFormData(item.item_id, false).trackingNumber} onChange={e => updateFormData(item.item_id, false, { trackingNumber: e.target.value })} />
+                              
+                              <label style={{ fontWeight: '500' }}>Tracking Number:</label>
+                              <input 
+                                type="text" 
+                                className="form-control"
+                                value={getFormData(item.item_id, false).trackingNumber} 
+                                onChange={e => updateFormData(item.item_id, false, { trackingNumber: e.target.value })}
+                                style={{ padding: '8px', border: '1px solid #ced4da', borderRadius: '4px' }}
+                                placeholder="Enter tracking number"
+                              />
+                            </div>
                 </div>
                             ) : (
-                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <div className="label-form">
+                            <h4 style={{ marginBottom: '15px', color: '#495057' }}>Create Shipping Label</h4>
+                            
+                            {/* Package Dimensions */}
+                            <div className="packages-section">
                                 {(getFormData(item.item_id, false).packages || []).map((pkg, index) => (
-                                  <div key={index} style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '5px' }}>
-                                    <input type="number" placeholder="Length" value={pkg.length} onChange={e => updatePackage(item.item_id, false, index, 'length', e.target.value)} style={{ width: '60px' }} />
-                                    <input type="number" placeholder="Width" value={pkg.width} onChange={e => updatePackage(item.item_id, false, index, 'width', e.target.value)} style={{ width: '60px' }} />
-                                    <input type="number" placeholder="Height" value={pkg.height} onChange={e => updatePackage(item.item_id, false, index, 'height', e.target.value)} style={{ width: '60px' }} />
-                                    <select value={pkg.dimUnit} onChange={e => updatePackage(item.item_id, false, index, 'dimUnit', e.target.value)} style={{ width: '80px' }}>
+                                <div key={index} className="package-row" style={{
+                                  display: 'grid',
+                                  gridTemplateColumns: 'repeat(6, 1fr) auto',
+                                  gap: '10px',
+                                  alignItems: 'center',
+                                  marginBottom: '10px',
+                                  padding: '10px',
+                                  backgroundColor: '#fff',
+                                  border: '1px solid #dee2e6',
+                                  borderRadius: '4px'
+                                }}>
+                                  <input 
+                                    type="number" 
+                                    placeholder="Length" 
+                                    value={pkg.length} 
+                                    onChange={e => updatePackage(item.item_id, false, index, 'length', e.target.value)}
+                                    style={{ padding: '6px', border: '1px solid #ced4da', borderRadius: '4px' }}
+                                  />
+                                  <input 
+                                    type="number" 
+                                    placeholder="Width" 
+                                    value={pkg.width} 
+                                    onChange={e => updatePackage(item.item_id, false, index, 'width', e.target.value)}
+                                    style={{ padding: '6px', border: '1px solid #ced4da', borderRadius: '4px' }}
+                                  />
+                                  <input 
+                                    type="number" 
+                                    placeholder="Height" 
+                                    value={pkg.height} 
+                                    onChange={e => updatePackage(item.item_id, false, index, 'height', e.target.value)}
+                                    style={{ padding: '6px', border: '1px solid #ced4da', borderRadius: '4px' }}
+                                  />
+                                  <select 
+                                    value={pkg.dimUnit} 
+                                    onChange={e => updatePackage(item.item_id, false, index, 'dimUnit', e.target.value)}
+                                    style={{ padding: '6px', border: '1px solid #ced4da', borderRadius: '4px' }}
+                                  >
                                       <option value="in">in</option>
                                       <option value="cm">cm</option>
                                     </select>
-                                    <input type="number" placeholder="Weight" value={pkg.weight} onChange={e => updatePackage(item.item_id, false, index, 'weight', e.target.value)} style={{ width: '60px' }} />
-                                    <select value={pkg.weightUnit} onChange={e => updatePackage(item.item_id, false, index, 'weightUnit', e.target.value)} style={{ width: '80px' }}>
+                                  <input 
+                                    type="number" 
+                                    placeholder="Weight" 
+                                    value={pkg.weight} 
+                                    onChange={e => updatePackage(item.item_id, false, index, 'weight', e.target.value)}
+                                    style={{ padding: '6px', border: '1px solid #ced4da', borderRadius: '4px' }}
+                                  />
+                                  <select 
+                                    value={pkg.weightUnit} 
+                                    onChange={e => updatePackage(item.item_id, false, index, 'weightUnit', e.target.value)}
+                                    style={{ padding: '6px', border: '1px solid #ced4da', borderRadius: '4px' }}
+                                  >
                                       <option value="lb">lb</option>
                                       <option value="oz">oz</option>
                                       <option value="kg">kg</option>
                                     </select>
-                                    {index > 0 && <button onClick={() => removePackage(item.item_id, false, index)}>Remove</button>}
+                                  {index > 0 && (
+                                    <button 
+                                      onClick={() => removePackage(item.item_id, false, index)}
+                                      className="secondary"
+                                      style={{ fontSize: '12px', padding: '4px 8px' }}
+                                    >
+                                      Remove
+                                    </button>
+                                  )}
         </div>
                                 ))}
-                                <button className="secondary" onClick={() => addPackage(item.item_id, false)} style={{ margin: '10px 0' }}>Add another package</button>
-                                <button className="secondary" onClick={() => fetchRates(item.item_id, false)} style={{ marginTop: '10px' }}>Get Rates</button>
+                              
+                              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                                <button 
+                                  className="secondary" 
+                                  onClick={() => addPackage(item.item_id, false)}
+                                >
+                                  Add Another Package
+                                </button>
+                                <button 
+                                  className="secondary" 
+                                  onClick={() => fetchRates(item.item_id, false)}
+                                >
+                                  Get Shipping Rates
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Rate Selection */}
                                 {(getFormData(item.item_id, false).rates || []).length > 0 && (
-      <div>
-                                    <h4>Choose Rate to Purchase Label:</h4>
+                              <div className="rates-section" style={{ marginTop: '20px' }}>
+                                <h5 style={{ marginBottom: '10px' }}>Choose Shipping Rate:</h5>
+                                <div className="rates-list">
                                     {(showAllRates ? (getFormData(item.item_id, false).rates || []) : (getFormData(item.item_id, false).rates || []).slice(0,1)).map(rate => (
-                                      <div key={rate.service}>
+                                    <div key={rate.service} style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      padding: '10px',
+                                      border: '1px solid #dee2e6',
+                                      borderRadius: '4px',
+                                      marginBottom: '8px',
+                                      backgroundColor: getFormData(item.item_id, false).selectedRate?.service === rate.service ? '#e3f2fd' : '#fff'
+                                    }}>
                 <input
                                           type="radio" 
                                           checked={getFormData(item.item_id, false).selectedRate?.service === rate.service}
                                           onChange={() => updateFormData(item.item_id, false, { selectedRate: rate })}
+                                        style={{ marginRight: '10px' }}
                                         />
-                                        {rate.service} - ${rate.cost.toFixed(2)}
+                                      <span style={{ fontWeight: '500' }}>{rate.service}</span>
+                                      <span style={{ marginLeft: 'auto', fontWeight: 'bold' }}>${rate.cost.toFixed(2)}</span>
           </div>
         ))}
-                                    {!showAllRates && (getFormData(item.item_id, false).rates || []).length > 1 && <a onClick={() => setShowAllRates(true)}>See more options</a>}
-          </div>
+                                  {!showAllRates && (getFormData(item.item_id, false).rates || []).length > 1 && (
+                                    <button 
+                                      onClick={() => setShowAllRates(true)}
+                                      style={{ color: '#007bff', background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer' }}
+                                    >
+                                      See more shipping options
+                                    </button>
         )}
                 </div>
-                            )}
               </div>
             )}
-          </>
-        )}
-                  </li>
-                ))}
-              </ul>
       </div>
-          ))
-        )}
-        {Object.entries(mergedGroups).map(([groupId, itemIds]) => (
-  <div key={groupId} style={{ marginBottom: '20px', border: '1px solid #ccc', padding: '10px' }}>
-    <h4>Merged Group {groupId}</h4>
-    <ul>
-      {itemIds.map(itemId => {
-        const item = orders.flatMap(o => o.items).find(i => i.item_id === itemId);
-        return item ? <li key={itemId}>{item.quantity} x {item.product_name}</li> : null;
-      })}
-    </ul>
-    <button className="secondary" onClick={() => toggleSection('tracking', groupId, true)}>Add Tracking (Shared)</button>
-    <button className="secondary" onClick={() => toggleSection('label', groupId, true)}>Create Label (Shared)</button>
-    {activeSection && activeSection.isGroup && activeSection.id === groupId && (
-      <div style={{ marginTop: '10px', padding: '10px', border: '1px dashed #ccc', background: '#f9f9f9' }}>
-        {activeSection.type === 'tracking' ? (
-              <div>
-            <label>Carrier:</label>
-            <select value={getFormData(groupId, true).carrier} onChange={e => updateFormData(groupId, true, { carrier: e.target.value })}>
-              <option value="">Select Carrier</option>
-              <option value="UPS">UPS</option>
-              <option value="FedEx">FedEx</option>
-              <option value="USPS">USPS</option>
-                </select>
-            <label>Tracking Number:</label>
-            <input type="text" value={getFormData(groupId, true).trackingNumber} onChange={e => updateFormData(groupId, true, { trackingNumber: e.target.value })} />
-              </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {(getFormData(groupId, true).packages || []).map((pkg, index) => (
-              <div key={index} style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '5px' }}>
-                <input type="number" placeholder="Length" value={pkg.length} onChange={e => updatePackage(groupId, true, index, 'length', e.target.value)} style={{ width: '60px' }} />
-                <input type="number" placeholder="Width" value={pkg.width} onChange={e => updatePackage(groupId, true, index, 'width', e.target.value)} style={{ width: '60px' }} />
-                <input type="number" placeholder="Height" value={pkg.height} onChange={e => updatePackage(groupId, true, index, 'height', e.target.value)} style={{ width: '60px' }} />
-                <select value={pkg.dimUnit} onChange={e => updatePackage(groupId, true, index, 'dimUnit', e.target.value)} style={{ width: '80px' }}>
-                  <option value="in">in</option>
-                  <option value="cm">cm</option>
-                </select>
-                <input type="number" placeholder="Weight" value={pkg.weight} onChange={e => updatePackage(groupId, true, index, 'weight', e.target.value)} style={{ width: '60px' }} />
-                <select value={pkg.weightUnit} onChange={e => updatePackage(groupId, true, index, 'weightUnit', e.target.value)} style={{ width: '80px' }}>
-                  <option value="lb">lb</option>
-                  <option value="oz">oz</option>
-                  <option value="kg">kg</option>
-                </select>
-                {index > 0 && <button onClick={() => removePackage(groupId, true, index)}>Remove</button>}
-              </div>
-            ))}
-            <button className="secondary" onClick={() => addPackage(groupId, true)} style={{ margin: '10px 0' }}>Add another package</button>
-            <button className="secondary" onClick={() => fetchRates(groupId, true)} style={{ marginTop: '10px' }}>Get Rates</button>
-            {(getFormData(groupId, true).rates || []).length > 0 && (
-              <div>
-                <h4>Choose Rate to Purchase Label:</h4>
-                {(showAllRates ? (getFormData(groupId, true).rates || []) : (getFormData(groupId, true).rates || []).slice(0,1)).map(rate => (
-                  <div key={rate.service}>
-                <input
-                      type="radio" 
-                      checked={getFormData(groupId, true).selectedRate?.service === rate.service}
-                      onChange={() => updateFormData(groupId, true, { selectedRate: rate })}
-                    />
-                    {rate.service} - ${rate.cost.toFixed(2)}
-          </div>
-        ))}
-                {!showAllRates && (getFormData(groupId, true).rates || []).length > 1 && <a onClick={() => setShowAllRates(true)}>See more options</a>}
+                        )}
         </div>
                               )}
                             </div>
+                ))
+              )
         )}
-                                      </div>
-                                    )}
-                                        </div>
-                                      ))}
             {batchResults.length > 0 && (
               <div style={{ marginTop: '20px' }}>
                 <h3>Batch Results</h3>
@@ -574,55 +899,289 @@ export function ShipOrdersContent({ userData, onBack }) {
                 </ul>
               </div>
             )}
-              ))
           </div>
         )}
 
         {/* Shipped Orders Tab */}
         {activeTab === 'shipped' && (
           <div>
-            <h3>Shipped Orders - Test Label Management</h3>
+            {/* Table-like Headers - Desktop Only */}
+            <div className="shipped-orders-table-header" style={{
+              display: 'grid',
+              gridTemplateColumns: 'minmax(60px, 80px) minmax(60px, 80px) minmax(80px, 100px) minmax(150px, 1fr) minmax(60px, 70px) minmax(120px, 140px) 50px minmax(100px, 120px)',
+              gap: '10px',
+              padding: '10px',
+              backgroundColor: '#f8f9fa',
+              border: '1px solid #dee2e6',
+              borderRadius: '4px',
+              fontWeight: 'bold',
+              fontSize: '14px',
+              marginBottom: '10px',
+              width: '100%',
+              maxWidth: '100%',
+              overflow: 'hidden'
+            }}>
+              <span>OAF PO</span>
+              <span>Order #</span>
+              <span>Ship Date</span>
+              <span>Ship To</span>
+              <span>Status</span>
+              <span>Product</span>
+              <span>Qty</span>
+              <span>Tracking</span>
+            </div>
+
+            {/* Add responsive styles */}
+            <style jsx>{`
+              @media (max-width: 768px) {
+                .shipped-orders-table-header {
+                  display: none !important;
+                }
+                .shipped-item-row {
+                  display: block !important;
+                  padding: 15px !important;
+                  border: none !important;
+                  background: transparent !important;
+                }
+                .shipped-mobile-label {
+                  display: inline-block;
+                  font-weight: 600;
+                  color: #6c757d;
+                  width: 80px;
+                  font-size: 12px;
+                }
+                .shipped-mobile-section {
+                  margin-bottom: 12px;
+                  padding-bottom: 8px;
+                  border-bottom: 1px solid #f0f0f0;
+                }
+                .shipped-mobile-section:last-child {
+                  border-bottom: none;
+                }
+              }
+            `}</style>
+
+            {/* Shipped Order Items List */}
             {!orders || orders.length === 0 ? (
-              <p>No shipped orders found.</p>
+              <p style={{ padding: '20px', textAlign: 'center', color: '#6c757d' }}>No shipped orders found.</p>
             ) : (
-              orders.map(order => (
-                <div key={order.order_id} style={{ marginBottom: '20px', border: '1px solid #ccc', padding: '10px' }}>
-                  <p><strong>Order #{order.order_id}</strong></p>
-                  <p>Customer: {order.customer_name}</p>
-                  <div style={{ marginBottom: '10px' }}>
-                    <strong>Ship To:</strong>
-                    <p>{order.shipping_address?.street || 'No address'}, {order.shipping_address?.city || 'No city'}, {order.shipping_address?.state || 'No state'} {order.shipping_address?.zip || 'No zip'}, {order.shipping_address?.country || 'No country'}</p>
-                  </div>
-                  <p>Status: {order.order_status}</p>
-                  <ul>
-                    {(order.items || []).map(item => (
-                      <li key={item.item_id} style={{ marginBottom: '10px' }}>
-                        {item.quantity} x {item.product_name} - Status: {item.item_status}
-                        {item.tracking_number && (
-                          <div style={{ marginTop: '5px', padding: '5px', backgroundColor: '#f0f0f0' }}>
-                            <strong>Tracking:</strong> {item.tracking_number}
+              // Flatten orders to item-centric view, sort by most recent first, limit results
+              orders
+                .flatMap(order => 
+                  (order.items || []).map(item => ({ ...item, order }))
+                )
+                .sort((a, b) => new Date(b.order.created_at) - new Date(a.order.created_at))
+                .slice(0, shippedOrdersLimit)
+                .map(({ order, ...item }) => (
+                  <div key={`${order.order_id}-${item.item_id}`} className="shipped-order-item-card" style={{
+                    marginBottom: '10px'
+                  }}>
+                    {/* Main Item Row */}
+                    <div className="shipped-item-row" style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'minmax(60px, 80px) minmax(60px, 80px) minmax(80px, 100px) minmax(150px, 1fr) minmax(60px, 70px) minmax(120px, 140px) 50px minmax(100px, 120px)',
+                      gap: '10px',
+                      padding: '15px',
+                      alignItems: 'center',
+                      width: '100%',
+                      maxWidth: '100%',
+                      border: '1px solid #dee2e6',
+                      borderRadius: '4px',
+                      backgroundColor: '#fff',
+                      overflow: 'hidden'
+                    }}>
+                      {/* OAF PO (Item ID) */}
+                      <div className="shipped-mobile-section" style={{ 
+                        fontSize: '14px', 
+                        fontWeight: '500',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        #{item.item_id}
+                      </div>
+
+                      {/* Order Number */}
+                      <div className="shipped-mobile-section" style={{ 
+                        fontSize: '14px', 
+                        fontWeight: '500',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        #{order.order_id}
+                      </div>
+
+                      {/* Ship Date (using order date for now) */}
+                      <div className="shipped-mobile-section" style={{ 
+                        fontSize: '13px', 
+                        color: '#6c757d',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {new Date(order.created_at).toLocaleDateString()}
+                      </div>
+
+                      {/* Ship To (4-line format) */}
+                      <div className="shipped-mobile-section" style={{ 
+                        fontSize: '13px', 
+                        lineHeight: '1.3',
+                        overflow: 'hidden',
+                        maxHeight: '80px'
+                      }}>
+                        <span className="shipped-mobile-label">Ship To:</span>
+                        <div style={{ marginTop: '4px' }}>
+                          <div style={{ 
+                            fontWeight: '500',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}>{order.customer_name || 'No name'}</div>
+                          <div style={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}>{order.shipping_address?.street || 'No address'}</div>
+                          <div style={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}>{order.shipping_address?.address_line_2 || ''}</div>
+                          <div style={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {order.shipping_address?.city || 'No city'}, {order.shipping_address?.state || 'No state'} {order.shipping_address?.zip || 'No zip'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Status */}
+                      <div className="shipped-mobile-section">
+                        <span style={{
+                          padding: '4px 8px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          fontWeight: '500',
+                          backgroundColor: item.item_status === 'shipped' ? '#d4edda' : 
+                                         item.item_status === 'delivered' ? '#d1ecf1' : '#f8f9fa',
+                          color: item.item_status === 'shipped' ? '#155724' : 
+                                 item.item_status === 'delivered' ? '#0c5460' : '#6c757d'
+                        }}>
+                          {item.item_status || 'pending'}
+                        </span>
+                      </div>
+
+                      {/* Product */}
+                      <div className="shipped-mobile-section" style={{ 
+                        fontSize: '14px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {item.product_name}
+                      </div>
+
+                      {/* Quantity */}
+                      <div className="shipped-mobile-section" style={{ 
+                        fontSize: '14px',
+                        fontWeight: 'bold', 
+                        color: '#3e1c56',
+                        textAlign: 'center',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        {item.quantity}
+                      </div>
+
+                      {/* Tracking Information */}
+                      <div className="shipped-mobile-section" style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        gap: '5px',
+                        overflow: 'hidden',
+                        maxWidth: '100%'
+                      }}>
+                        <span className="shipped-mobile-label">Tracking:</span>
+                        {item.tracking_number ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                            <div style={{ 
+                              fontSize: '12px', 
+                              fontWeight: '500',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              color: '#28a745'
+                            }}>
+                              {item.tracking_number}
+                            </div>
                             <button
                               className="secondary"
-                              style={{ marginLeft: '10px', backgroundColor: '#ff6b6b', color: 'white' }}
                               onClick={() => cancelLabel(item.tracking_number, item.carrier || 'FedEx')}
+                              style={{ 
+                                fontSize: '10px', 
+                                padding: '2px 4px',
+                                backgroundColor: '#ff6b6b',
+                                borderColor: '#ff5252',
+                                color: 'white',
+                                whiteSpace: 'nowrap',
+                                minWidth: '0',
+                                width: '100%',
+                                maxWidth: '100%',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}
                             >
-                              Cancel Label
+                              Cancel
                             </button>
                           </div>
+                        ) : (
+                          <span style={{ fontSize: '12px', color: '#6c757d' }}>No tracking</span>
                         )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))
+                      </div>
+                    </div>
+                  </div>
+                ))
             )}
+
+            {/* Load More Button */}
+            {orders && orders.length > 0 && (() => {
+              const totalShippedItems = orders.flatMap(order => 
+                (order.items || []).map(item => ({ ...item, order }))
+              ).length;
+              return totalShippedItems > shippedOrdersLimit && (
+                <div style={{ 
+                  textAlign: 'center', 
+                  marginTop: '20px', 
+                  padding: '15px',
+                  borderTop: '1px solid #dee2e6'
+                }}>
+                  <button
+                    onClick={() => setShippedOrdersLimit(prev => prev + 50)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#007bff',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      textDecoration: 'underline',
+                      cursor: 'pointer',
+                      padding: '5px 10px'
+                    }}
+                  >
+                    Load More ({totalShippedItems - shippedOrdersLimit} remaining)
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         )}
 
         {activeTab === 'labels' && (
           <div>
-            <h3>Label Library</h3>
-            
             {selectedLabels.length > 0 && (
               <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#f0f8ff', border: '1px solid #ccc' }}>
                 <button 
@@ -768,15 +1327,394 @@ export function ShipOrdersContent({ userData, onBack }) {
           </div>
         )}
 
-        {activeTab === 'unshipped' && (
-          <div style={{ marginTop: '20px' }}>
-            <h3>Merged Groups</h3>
-            {Object.entries(mergedGroups).map(([groupId, items]) => (
-              <div key={groupId}>
-                Group {groupId}: Items {items.join(', ')}
+        {activeTab === 'unshipped' && Object.keys(mergedGroups).length > 0 && (
+          <div style={{ marginTop: '30px' }}>
+            <h3 style={{ marginBottom: '15px', color: '#495057', fontWeight: '600' }}>Merged Shipments</h3>
+            
+            {/* Merged Groups - each group displays as table rows */}
+            {Object.entries(mergedGroups).map(([groupId, itemIds]) => {
+              // Get all items in this group with their order data
+              const groupItems = itemIds.map(itemId => {
+                const item = orders.flatMap(o => o.items).find(i => i.item_id === itemId);
+                const order = orders.find(o => o.items.some(i => i.item_id === itemId));
+                return { item, order };
+              }).filter(({ item, order }) => item && order);
+
+              if (groupItems.length === 0) return null;
+
+              const firstOrder = groupItems[0].order;
+              const totalQuantity = groupItems.reduce((sum, { item }) => sum + item.quantity, 0);
+
+              return (
+                <div key={groupId} className="merged-group-container" style={{ marginBottom: '15px' }}>
+                  {/* Group Header Row */}
+                  <div className="merged-group-header" style={{
+                    display: 'grid',
+                    gridTemplateColumns: '50px minmax(60px, 80px) minmax(60px, 80px) minmax(80px, 100px) minmax(150px, 1fr) minmax(60px, 70px) minmax(120px, 140px) 50px minmax(100px, 120px)',
+                    gap: '10px',
+                    padding: '15px',
+                    alignItems: 'center',
+                    width: '100%',
+                    maxWidth: '100%',
+                    border: '2px solid #3e1c56',
+                    borderRadius: '4px 4px 0 0',
+                    backgroundColor: '#f8f4f8',
+                    overflow: 'hidden',
+                    fontWeight: '600'
+                  }}>
+                    <span>📦</span>
+                    <span style={{ color: '#3e1c56', fontSize: '12px' }}>MERGED</span>
+                    <span style={{ color: '#3e1c56', fontSize: '12px' }}>GROUP</span>
+                    <span style={{ fontSize: '13px', color: '#6c757d', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {new Date(firstOrder.created_at).toLocaleDateString()}
+                    </span>
+                    {/* Ship To Address */}
+                    <div style={{ fontSize: '13px', lineHeight: '1.3', overflow: 'hidden', maxHeight: '80px' }}>
+                      <div style={{ marginTop: '4px' }}>
+                        <div style={{ fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {firstOrder.customer_name || 'No name'}
+                        </div>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {firstOrder.shipping_address?.street || 'No address'}
+                        </div>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {firstOrder.shipping_address?.address_line_2 || ''}
+                        </div>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {firstOrder.shipping_address?.city || 'No city'}, {firstOrder.shipping_address?.state || 'No state'} {firstOrder.shipping_address?.zip || 'No zip'}
+                        </div>
+                      </div>
+                    </div>
+                    <span style={{
+                      padding: '4px 8px',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      backgroundColor: '#fff3cd',
+                      color: '#856404'
+                    }}>
+                      merged
+                    </span>
+                    <span style={{ color: '#3e1c56', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      Product Rows: {itemIds.length}
+                    </span>
+                    <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#3e1c56', textAlign: 'center' }}>
+                      Total Pieces: {totalQuantity}
+                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', overflow: 'hidden', maxWidth: '100%' }}>
+                      <button
+                        className="secondary"
+                        onClick={() => toggleSection('tracking', groupId, true)}
+                        style={{ 
+                          fontSize: '10px', 
+                          padding: '2px 4px',
+                          whiteSpace: 'nowrap',
+                          minWidth: '0',
+                          width: '100%',
+                          maxWidth: '100%',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}
+                      >
+                        Tracking
+                      </button>
+                      <button
+                        className="secondary"
+                        onClick={() => toggleSection('label', groupId, true)}
+                        style={{ 
+                          fontSize: '10px', 
+                          padding: '2px 4px',
+                          whiteSpace: 'nowrap',
+                          minWidth: '0',
+                          width: '100%',
+                          maxWidth: '100%',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}
+                      >
+                        Label
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Individual Items in Group */}
+                  {groupItems.map(({ item, order }, index) => (
+                    <div key={item.item_id} className="merged-item-row" style={{
+                      display: 'grid',
+                      gridTemplateColumns: '50px minmax(60px, 80px) minmax(60px, 80px) minmax(80px, 100px) minmax(150px, 1fr) minmax(60px, 70px) minmax(120px, 140px) 50px minmax(100px, 120px)',
+                      gap: '10px',
+                      padding: '10px 15px',
+                      alignItems: 'center',
+                      width: '100%',
+                      maxWidth: '100%',
+                      borderLeft: '2px solid #3e1c56',
+                      borderRight: '2px solid #3e1c56',
+                      borderBottom: '1px solid #dee2e6',
+                      backgroundColor: '#fff',
+                      overflow: 'hidden'
+                    }}>
+                      <span style={{ fontSize: '12px', color: '#6c757d' }}>↳</span>
+                      <div style={{ fontSize: '14px', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        #{item.item_id}
+                      </div>
+                      <div style={{ fontSize: '14px', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        #{order.order_id}
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#6c757d', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {new Date(order.created_at).toLocaleDateString()}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#6c757d' }}>
+                        (same as above)
+                      </div>
+                      <span style={{
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        backgroundColor: item.item_status === 'shipped' ? '#d4edda' : 
+                                       item.item_status === 'delivered' ? '#d1ecf1' : '#f8f9fa',
+                        color: item.item_status === 'shipped' ? '#155724' : 
+                               item.item_status === 'delivered' ? '#0c5460' : '#6c757d'
+                      }}>
+                        {item.item_status || 'pending'}
+                      </span>
+                      <div style={{ fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.product_name}
+                      </div>
+                      <div style={{ 
+                        fontSize: '14px',
+                        fontWeight: 'bold', 
+                        color: '#3e1c56',
+                        textAlign: 'center',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        {item.quantity}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#6c757d', textAlign: 'center' }}>
+                        (group)
+                      </div>
             </div>
           ))}
-        </div>
+
+                                    {/* Group Footer with Unmerge Button */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '50px minmax(60px, 80px) minmax(60px, 80px) minmax(80px, 100px) minmax(150px, 1fr) minmax(60px, 70px) minmax(120px, 140px) 50px minmax(100px, 120px)',
+                    gap: '10px',
+                    padding: '10px 15px',
+                    borderLeft: '2px solid #3e1c56',
+                    borderRight: '2px solid #3e1c56',
+                    borderBottom: '2px solid #3e1c56',
+                    borderTop: '1px solid #dee2e6',
+                    borderRadius: '0 0 4px 4px',
+                    backgroundColor: '#f8f9fa',
+                    width: '100%',
+                    maxWidth: '100%',
+                    overflow: 'hidden'
+                  }}>
+                    {/* Empty columns to align with table structure */}
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    {/* Unmerge button in the last column */}
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                      <button 
+                        className="secondary" 
+                        onClick={() => unmergeGroup(groupId)}
+                        style={{ 
+                          fontSize: '12px', 
+                          padding: '6px 12px',
+                          backgroundColor: '#fff3cd',
+                          borderColor: '#ffeaa7',
+                          color: '#856404'
+                        }}
+                      >
+                        Unmerge
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Expandable Form Section for Group */}
+                  {activeSection && activeSection.id === groupId && activeSection.isGroup && (
+                    <div className="expanded-form" style={{
+                      borderLeft: '2px solid #3e1c56',
+                      borderRight: '2px solid #3e1c56',
+                      borderBottom: '2px solid #3e1c56',
+                      borderTop: '1px solid #dee2e6',
+                      padding: '15px',
+                      backgroundColor: '#f8f9fa',
+                      marginTop: '-2px'
+                    }}>
+                      {activeSection.type === 'tracking' ? (
+                        <div className="tracking-form">
+                          <h4 style={{ marginBottom: '15px', color: '#495057' }}>Add Tracking Information (Group)</h4>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '15px', alignItems: 'center' }}>
+                            <label style={{ fontWeight: '500' }}>Carrier:</label>
+                            <select 
+                              className="form-control"
+                              value={getFormData(groupId, true).carrier} 
+                              onChange={e => updateFormData(groupId, true, { carrier: e.target.value })}
+                              style={{ padding: '8px', border: '1px solid #ced4da', borderRadius: '4px' }}
+                            >
+                              <option value="">Select Carrier</option>
+                              <option value="UPS">UPS</option>
+                              <option value="FedEx">FedEx</option>
+                              <option value="USPS">USPS</option>
+                            </select>
+                            
+                            <label style={{ fontWeight: '500' }}>Tracking Number:</label>
+                            <input 
+                              type="text" 
+                              className="form-control"
+                              value={getFormData(groupId, true).trackingNumber} 
+                              onChange={e => updateFormData(groupId, true, { trackingNumber: e.target.value })}
+                              style={{ padding: '8px', border: '1px solid #ced4da', borderRadius: '4px' }}
+                              placeholder="Enter tracking number"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="label-form">
+                          <h4 style={{ marginBottom: '15px', color: '#495057' }}>Create Shipping Label (Group)</h4>
+                          
+                          {/* Package Dimensions - reuse existing form structure */}
+                          <div className="packages-section">
+                            {(getFormData(groupId, true).packages || []).map((pkg, index) => (
+                              <div key={index} className="package-row" style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(6, 1fr) auto',
+                                gap: '10px',
+                                alignItems: 'center',
+                                marginBottom: '10px',
+                                padding: '10px',
+                                backgroundColor: '#fff',
+                                border: '1px solid #dee2e6',
+                                borderRadius: '4px'
+                              }}>
+                                <input 
+                                  type="number" 
+                                  placeholder="Length" 
+                                  value={pkg.length} 
+                                  onChange={e => updatePackage(groupId, true, index, 'length', e.target.value)}
+                                  style={{ padding: '6px', border: '1px solid #ced4da', borderRadius: '4px' }}
+                                />
+                                <input 
+                                  type="number" 
+                                  placeholder="Width" 
+                                  value={pkg.width} 
+                                  onChange={e => updatePackage(groupId, true, index, 'width', e.target.value)}
+                                  style={{ padding: '6px', border: '1px solid #ced4da', borderRadius: '4px' }}
+                                />
+                                <input 
+                                  type="number" 
+                                  placeholder="Height" 
+                                  value={pkg.height} 
+                                  onChange={e => updatePackage(groupId, true, index, 'height', e.target.value)}
+                                  style={{ padding: '6px', border: '1px solid #ced4da', borderRadius: '4px' }}
+                                />
+                                <select 
+                                  value={pkg.dimUnit} 
+                                  onChange={e => updatePackage(groupId, true, index, 'dimUnit', e.target.value)}
+                                  style={{ padding: '6px', border: '1px solid #ced4da', borderRadius: '4px' }}
+                                >
+                                  <option value="in">in</option>
+                                  <option value="cm">cm</option>
+                                </select>
+                                <input 
+                                  type="number" 
+                                  placeholder="Weight" 
+                                  value={pkg.weight} 
+                                  onChange={e => updatePackage(groupId, true, index, 'weight', e.target.value)}
+                                  style={{ padding: '6px', border: '1px solid #ced4da', borderRadius: '4px' }}
+                                />
+                                <select 
+                                  value={pkg.weightUnit} 
+                                  onChange={e => updatePackage(groupId, true, index, 'weightUnit', e.target.value)}
+                                  style={{ padding: '6px', border: '1px solid #ced4da', borderRadius: '4px' }}
+                                >
+                                  <option value="lb">lb</option>
+                                  <option value="oz">oz</option>
+                                  <option value="kg">kg</option>
+                                </select>
+                                {index > 0 && (
+                                  <button 
+                                    onClick={() => removePackage(groupId, true, index)}
+                                    className="secondary"
+                                    style={{ fontSize: '12px', padding: '4px 8px' }}
+                                  >
+                                    Remove
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            
+                            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                              <button 
+                                className="secondary" 
+                                onClick={() => addPackage(groupId, true)}
+                              >
+                                Add Another Package
+                              </button>
+                              <button 
+                                className="secondary" 
+                                onClick={() => fetchRates(groupId, true)}
+                              >
+                                Get Shipping Rates
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Rate Selection */}
+                          {(getFormData(groupId, true).rates || []).length > 0 && (
+                            <div className="rates-section" style={{ marginTop: '20px' }}>
+                              <h5 style={{ marginBottom: '10px' }}>Choose Shipping Rate:</h5>
+                              <div className="rates-list">
+                                {(showAllRates ? (getFormData(groupId, true).rates || []) : (getFormData(groupId, true).rates || []).slice(0,1)).map(rate => (
+                                  <div key={rate.service} style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    padding: '10px',
+                                    border: '1px solid #dee2e6',
+                                    borderRadius: '4px',
+                                    marginBottom: '8px',
+                                    backgroundColor: getFormData(groupId, true).selectedRate?.service === rate.service ? '#e3f2fd' : '#fff'
+                                  }}>
+                                    <input
+                                      type="radio" 
+                                      checked={getFormData(groupId, true).selectedRate?.service === rate.service}
+                                      onChange={() => updateFormData(groupId, true, { selectedRate: rate })}
+                                      style={{ marginRight: '10px' }}
+                                    />
+                                    <span style={{ fontWeight: '500' }}>{rate.service}</span>
+                                    <span style={{ marginLeft: 'auto', fontWeight: 'bold' }}>${rate.cost.toFixed(2)}</span>
+                                  </div>
+                                ))}
+                                {!showAllRates && (getFormData(groupId, true).rates || []).length > 1 && (
+                                  <button 
+                                    onClick={() => setShowAllRates(true)}
+                                    style={{ color: '#007bff', background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer' }}
+                                  >
+                                    See more shipping options
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>
