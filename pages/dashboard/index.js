@@ -31,7 +31,14 @@ import MyOrders from '../../components/dashboard/my-account/components/MyOrders'
 import EmailPreferences from '../../components/dashboard/my-account/components/EmailPreferences';
 import PaymentSettings from '../../components/dashboard/my-account/components/PaymentSettings';
 import ShippingSettings from '../../components/dashboard/my-account/components/ShippingSettings';
-import { VendorToolsMenu, VendorToolsSlideIn, vendorToolsSlideInTypes } from '../../components/dashboard/vendor/VendorTools';
+import ManageMyStoreMenu from '../../components/dashboard/manage-my-store/ManageMyStoreMenu';
+import MyProducts from '../../components/dashboard/manage-my-store/components/MyProducts';
+import AddProduct from '../../components/dashboard/manage-my-store/components/AddProduct';
+import MyPolicies from '../../components/dashboard/manage-my-store/components/MyPolicies';
+import ManageInventory from '../../components/dashboard/manage-my-store/components/ManageInventory';
+import InventoryLog from '../../components/dashboard/manage-my-store/components/InventoryLog';
+import ManageOrders from '../../components/dashboard/manage-my-store/components/ManageOrders';
+
 import { FinanceMenu, FinanceSlideIn, financeSlideInTypes } from '../../components/dashboard/menu/Finance';
 // import { ServiceManagementMenu, ServiceManagementSlideIn, serviceManagementSlideInTypes } from '../../components/dashboard/menu/ServiceManagement';
 
@@ -312,16 +319,7 @@ export default function Dashboard() {
 
 
 
-    // Check if VendorTools handles this slide-in type
-    if (vendorToolsSlideInTypes.includes(slideInContent.type)) {
-      return (
-        <VendorToolsSlideIn
-          slideInContent={slideInContent}
-          userData={userData}
-          closeSlideIn={closeSlideIn}
-        />
-      );
-    }
+
 
     // Check if Finance handles this slide-in type
     if (financeSlideInTypes.includes(slideInContent.type)) {
@@ -393,6 +391,55 @@ export default function Dashboard() {
         />
       );
     }
+    
+    // Handle Manage My Store slide-ins
+    if (slideInContent.type === 'my-products') {
+      return (
+        <MyProducts
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'add-product') {
+      return (
+        <AddProduct
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'my-policies') {
+      return (
+        <MyPolicies
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'manage-inventory') {
+      return (
+        <ManageInventory
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'inventory-log') {
+      return (
+        <InventoryLog
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'manage-orders') {
+      return (
+        <ManageOrders
+          userData={userData}
+        />
+      );
+    }
 
     // Handle other slide-in types here (for future menu sections)
     return null;
@@ -433,15 +480,17 @@ export default function Dashboard() {
 
 
 
-          {/* Manage My Store Section - Right below My Account */}
+          {/* NEW Manage My Store Section - Skeleton for migration */}
           {userData && (
-            <VendorToolsMenu
+            <ManageMyStoreMenu
               userData={userData}
               collapsedSections={collapsedSections}
               toggleSection={toggleSection}
               openSlideIn={openSlideIn}
             />
           )}
+
+
 
           {/* Finance Section - New folded menu */}
           {userData && (

@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Header from '../../../components/Header';
-import InventoryLog from '../../../components/InventoryLog';
+import InventoryLog from '../../../components/dashboard/manage-my-store/components/InventoryLog';
 import { authenticatedApiRequest } from '../../../lib/csrf';
 import styles from '../../../pages/products/styles/ProductForm.module.css';
 

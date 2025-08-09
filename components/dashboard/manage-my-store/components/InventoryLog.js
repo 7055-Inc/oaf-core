@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { authenticatedApiRequest } from '../lib/csrf';
-import styles from './InventoryLog.module.css';
+import { authenticatedApiRequest } from '../../../../lib/csrf';
+import styles from '../../../../styles/InventoryLog.module.css';
 
 export default function InventoryLog({ productId }) {
   const [inventoryHistory, setInventoryHistory] = useState([]);

@@ -1,9 +1,8 @@
-// Import necessary hooks and styles
-import { useState, useEffect } from 'react';
-import slideInStyles from '../SlideIn.module.css'; // Correct relative path from vendor/ to dashboard/
-import { authenticatedApiRequest, handleCsrfError } from '../../../lib/csrf';
+import React, { useState, useEffect } from 'react';
+import { authenticatedApiRequest, handleCsrfError } from '../../../../lib/csrf';
+import slideInStyles from '../../SlideIn.module.css';
 
-export function ShipOrdersContent({ userData, onBack }) {
+export default function ManageOrders({ userData }) {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('unshipped');
   const [orders, setOrders] = useState([]);
@@ -382,31 +381,12 @@ export function ShipOrdersContent({ userData, onBack }) {
     }
   };
 
-    if (loading) {
-      return (
-      <div className={slideInStyles.container}>
-        <div className={slideInStyles.header}>
-          <button onClick={onBack} className={slideInStyles.backButton}>
-            <i className="fas fa-arrow-left"></i> Back to Dashboard
-              </button>
-          <h1 className={slideInStyles.title}>Ship Orders</h1>
-        </div>
-        <div className={slideInStyles.content}>
-          <div className="loading-state">Loading orders...</div>
-          </div>
-        </div>
-      );
-    }
+  if (loading) {
+    return <div className="loading-state">Loading orders...</div>;
+  }
 
-    return (
-    <div className={slideInStyles.container}>
-      <div className={slideInStyles.header}>
-        <button onClick={onBack} className={slideInStyles.backButton}>
-          <i className="fas fa-arrow-left"></i> Back to Dashboard
-              </button>
-        <h1 className={slideInStyles.title}>Ship Orders</h1>
-            </div>
-      <div className={slideInStyles.content}>
+  return (
+    <div>
                 {/* Tabs */}
         <div className="tab-container" style={{ 
           display: 'flex', 
@@ -1174,8 +1154,8 @@ export function ShipOrdersContent({ userData, onBack }) {
                   >
                     Load More ({totalShippedItems - shippedOrdersLimit} remaining)
                   </button>
-                </div>
-              );
+    </div>
+  );
             })()}
           </div>
         )}
@@ -1716,13 +1696,7 @@ export function ShipOrdersContent({ userData, onBack }) {
             })}
           </div>
         )}
-      </div>
     </div>
   );
 }
 
-// Helper to check if this menu handles a slide-in type
-export const vendorSlideInTypes = ['ship-orders'];
-
-// Default export for the component
-export default ShipOrdersContent; 
