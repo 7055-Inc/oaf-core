@@ -218,7 +218,7 @@ export default function AddProduct({ userData }) {
       }
 
       // Success! All drafts are now active products
-      onBack(); // Close slide-in and let user navigate to product if desired
+      // Product creation complete - user can navigate as needed
       
     } catch (err) {
       setError(err.message);
@@ -505,7 +505,7 @@ export default function AddProduct({ userData }) {
         setWorkflowStep('variation-setup');
       } else {
         // For simple products, close slide-in
-        onBack(); // Close slide-in and let user navigate to product if desired
+        // Product creation successful - user can navigate as needed
       }
     } catch (err) {
       setError(err.message);

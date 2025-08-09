@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
-import { authenticatedApiRequest } from '../../../lib/csrf';
-import styles from '../../../pages/dashboard/Dashboard.module.css';
+import React, { useState, useEffect } from 'react';
+import { authenticatedApiRequest } from '../../../../lib/csrf';
+import styles from '../../../../pages/dashboard/Dashboard.module.css';
 
-export function TransactionHistory({ userData, onBack }) {
+export default function TransactionHistory({ userData }) {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -196,32 +196,12 @@ export function TransactionHistory({ userData, onBack }) {
     });
   };
 
-  if (loading && transactions.length === 0) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.header}>
-          <button onClick={onBack} className="secondary">
-            <i className="fas fa-arrow-left"></i> Back to Dashboard
-          </button>
-          <h2>Transaction History</h2>
-        </div>
-        <div className={styles.content}>
-          <div className="loading-state">Loading transactions...</div>
-        </div>
-      </div>
-    );
+    if (loading && transactions.length === 0) {
+    return <div className="loading-state">Loading transactions...</div>;
   }
 
   return (
-    <>
-      <div className={styles.header}>
-        <button onClick={onBack} className="secondary">
-          <i className="fas fa-arrow-left"></i> Back to Dashboard
-        </button>
-        <h2>{showAllTransactions ? 'All Transactions' : 'Transaction History'}</h2>
-      </div>
-      
-      <div>
+    <div>
         {/* Admin Toggle */}
         {isAdmin && (
           <div className="section-box">
@@ -390,8 +370,7 @@ export function TransactionHistory({ userData, onBack }) {
           <div className="loading-state">
             Loading more transactions...
           </div>
-        )}
-      </div>
-    </>
+                 )}
+    </div>
   );
-} 
+}

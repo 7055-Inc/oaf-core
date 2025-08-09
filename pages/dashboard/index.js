@@ -38,9 +38,12 @@ import MyPolicies from '../../components/dashboard/manage-my-store/components/My
 import ManageInventory from '../../components/dashboard/manage-my-store/components/ManageInventory';
 import InventoryLog from '../../components/dashboard/manage-my-store/components/InventoryLog';
 import ManageOrders from '../../components/dashboard/manage-my-store/components/ManageOrders';
+import MyFinancesMenu from '../../components/dashboard/my-finances/MyFinancesMenu';
+import TransactionHistory from '../../components/dashboard/my-finances/components/TransactionHistory';
+import PayoutsEarnings from '../../components/dashboard/my-finances/components/PayoutsEarnings';
 
-import { FinanceMenu, FinanceSlideIn, financeSlideInTypes } from '../../components/dashboard/menu/Finance';
-// import { ServiceManagementMenu, ServiceManagementSlideIn, serviceManagementSlideInTypes } from '../../components/dashboard/menu/ServiceManagement';
+
+
 
 export default function Dashboard() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -51,7 +54,8 @@ export default function Dashboard() {
   const [collapsedSections, setCollapsedSections] = useState({ 
     account: true, 
     'my-account': true,
-    'vendor-tools': true,
+    'manage-my-store': true,
+    'my-finances': true,
     finance: true 
   }); // Default sections to closed
   const [slideInContent, setSlideInContent] = useState(null); // Track slide-in overlay content
@@ -321,27 +325,9 @@ export default function Dashboard() {
 
 
 
-    // Check if Finance handles this slide-in type
-    if (financeSlideInTypes.includes(slideInContent.type)) {
-      return (
-        <FinanceSlideIn
-          slideInContent={slideInContent}
-          userData={userData}
-          closeSlideIn={closeSlideIn}
-        />
-      );
-    }
 
-    // Check if ServiceManagement handles this slide-in type
-    /* if (serviceManagementSlideInTypes.includes(slideInContent.type)) {
-      return (
-        <ServiceManagementSlideIn
-          slideInContent={slideInContent}
-          userData={userData}
-          closeSlideIn={closeSlideIn}
-        />
-      );
-    } */
+
+
 
     // Handle My Account slide-ins
     if (slideInContent.type === 'edit-profile') {
@@ -440,6 +426,22 @@ export default function Dashboard() {
         />
       );
     }
+    
+    if (slideInContent.type === 'transaction-history') {
+      return (
+        <TransactionHistory
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'payouts-earnings') {
+      return (
+        <PayoutsEarnings
+          userData={userData}
+        />
+      );
+    }
 
     // Handle other slide-in types here (for future menu sections)
     return null;
@@ -490,17 +492,17 @@ export default function Dashboard() {
             />
           )}
 
-
-
-          {/* Finance Section - New folded menu */}
+          {/* NEW My Finances Section - Clean architecture */}
           {userData && (
-            <FinanceMenu
+            <MyFinancesMenu
               userData={userData}
               collapsedSections={collapsedSections}
               toggleSection={toggleSection}
               openSlideIn={openSlideIn}
             />
           )}
+
+
 
           {/* Service Management Section - Admin only */}
           {/* {userData && (
