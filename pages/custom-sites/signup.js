@@ -13,6 +13,9 @@ const SignupCallbackPage = () => {
   const [status, setStatus] = useState('processing'); // 'processing', 'success', 'error'
   const [message, setMessage] = useState('Processing...');
   const [error, setError] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
   const auth = getAuth(firebaseApp);
 
   useEffect(() => {
@@ -85,12 +88,41 @@ const SignupCallbackPage = () => {
       // Verify the password reset code is valid
       await verifyPasswordResetCode(auth, oobCode);
       
-      // Prompt for new password
-      const newPassword = window.prompt('Please enter your new password (minimum 6 characters):');
+      // Show the password form instead of using prompt
+      setStatus('password-form');
+      setMessage('Please enter your new password below.');
       
-      if (!newPassword || newPassword.length < 6) {
-        throw new Error('Password must be at least 6 characters long');
+    } catch (err) {
+      console.error('Password reset verification error:', err);
+      setStatus('error');
+      
+      if (err.code === 'auth/invalid-action-code') {
+        setError('This password reset link is invalid or has already been used.');
+      } else if (err.code === 'auth/expired-action-code') {
+        setError('This password reset link has expired. Please request a new one.');
+      } else {
+        setError(err.message || 'Failed to verify reset code');
       }
+    }
+  };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Validate passwords
+    if (!newPassword || newPassword.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    
+    try {
+      setMessage('Updating your password...');
+      setError('');
       
       // Confirm the password reset
       await confirmPasswordReset(auth, oobCode, newPassword);
@@ -105,15 +137,7 @@ const SignupCallbackPage = () => {
       
     } catch (err) {
       console.error('Password reset error:', err);
-      setStatus('error');
-      
-      if (err.code === 'auth/invalid-action-code') {
-        setError('This password reset link is invalid or has already been used.');
-      } else if (err.code === 'auth/expired-action-code') {
-        setError('This password reset link has expired. Please request a new one.');
-      } else {
-        setError(err.message || 'Failed to reset password');
-      }
+      setError(err.message || 'Failed to reset password');
     }
   };
 
@@ -278,6 +302,102 @@ const SignupCallbackPage = () => {
                 </h2>
                 <p className={styles.text}>{message}</p>
                 <div className={styles.spinner}></div>
+              </>
+            )}
+            
+            {status === 'password-form' && (
+              <>
+                <h2 className={styles.heading}>Reset Your Password</h2>
+                <p className={styles.text}>{message}</p>
+                
+                {error && (
+                  <div style={{
+                    backgroundColor: '#fee2e2',
+                    border: '1px solid #fecaca',
+                    color: '#dc2626',
+                    padding: '1rem',
+                    borderRadius: '4px',
+                    marginBottom: '1rem',
+                    textAlign: 'center'
+                  }}>
+                    {error}
+                  </div>
+                )}
+                
+                <form onSubmit={handlePasswordSubmit} style={{ maxWidth: '400px', margin: '0 auto' }}>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ 
+                      display: 'block', 
+                      marginBottom: '0.5rem', 
+                      color: '#333', 
+                      fontWeight: '500' 
+                    }}>
+                      New Password:
+                    </label>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      required
+                      minLength="6"
+                      placeholder="Enter new password (minimum 6 characters)"
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        border: '1px solid #e9ecef',
+                        borderRadius: '4px',
+                        fontSize: '1rem',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+                  
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <label style={{ 
+                      display: 'block', 
+                      marginBottom: '0.5rem', 
+                      color: '#333', 
+                      fontWeight: '500' 
+                    }}>
+                      Confirm Password:
+                    </label>
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      minLength="6"
+                      placeholder="Confirm your new password"
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        border: '1px solid #e9ecef',
+                        borderRadius: '4px',
+                        fontSize: '1rem',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+                  
+                  <button 
+                    type="submit"
+                    className={styles.button}
+                    style={{
+                      width: '100%',
+                      backgroundColor: '#055474',
+                      color: 'white',
+                      border: 'none',
+                      padding: '0.75rem 1rem',
+                      borderRadius: '4px',
+                      fontSize: '1rem',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s'
+                    }}
+                  >
+                    Update Password
+                  </button>
+                </form>
               </>
             )}
             

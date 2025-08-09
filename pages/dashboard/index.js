@@ -23,12 +23,14 @@ import { getAuthToken } from '../../lib/csrf';
 import styles from './Dashboard.module.css';
 import '../../components/dashboard/SlideIn.module.css';
 import SubscriptionManager from '../../components/SubscriptionManager';
-import { MyAccountMenu, MyAccountSlideIn, myAccountSlideInTypes } from '../../components/dashboard/menu/MyAccount';
-import MyAccountMenuNew from '../../components/dashboard/my-account/MyAccountMenu';
+
+import MyAccountMenu from '../../components/dashboard/my-account/MyAccountMenu';
 import EditProfile from '../../components/dashboard/my-account/components/EditProfile';
 import ViewProfile from '../../components/dashboard/my-account/components/ViewProfile';
 import MyOrders from '../../components/dashboard/my-account/components/MyOrders';
 import EmailPreferences from '../../components/dashboard/my-account/components/EmailPreferences';
+import PaymentSettings from '../../components/dashboard/my-account/components/PaymentSettings';
+import ShippingSettings from '../../components/dashboard/my-account/components/ShippingSettings';
 import { VendorToolsMenu, VendorToolsSlideIn, vendorToolsSlideInTypes } from '../../components/dashboard/vendor/VendorTools';
 import { FinanceMenu, FinanceSlideIn, financeSlideInTypes } from '../../components/dashboard/menu/Finance';
 // import { ServiceManagementMenu, ServiceManagementSlideIn, serviceManagementSlideInTypes } from '../../components/dashboard/menu/ServiceManagement';
@@ -308,16 +310,7 @@ export default function Dashboard() {
   const renderSlideInContent = () => {
     if (!slideInContent || !userData) return null;
 
-    // Check if MyAccount handles this slide-in type
-    if (myAccountSlideInTypes.includes(slideInContent.type)) {
-      return (
-        <MyAccountSlideIn
-          slideInContent={slideInContent}
-          userData={userData}
-          closeSlideIn={closeSlideIn}
-        />
-      );
-    }
+
 
     // Check if VendorTools handles this slide-in type
     if (vendorToolsSlideInTypes.includes(slideInContent.type)) {
@@ -384,6 +377,22 @@ export default function Dashboard() {
         />
       );
     }
+    
+    if (slideInContent.type === 'payment-settings') {
+      return (
+        <PaymentSettings
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'shipping-settings') {
+      return (
+        <ShippingSettings
+          userData={userData}
+        />
+      );
+    }
 
     // Handle other slide-in types here (for future menu sections)
     return null;
@@ -412,17 +421,7 @@ export default function Dashboard() {
       <div className={styles.mainContent}>
         {/* Left Sidebar */}
         <div className={styles.sidebar}>
-          {/* NEW My Account Section - Transitional */}
-          {userData && (
-            <MyAccountMenuNew
-              userData={userData}
-              collapsedSections={collapsedSections}
-              toggleSection={toggleSection}
-              openSlideIn={openSlideIn}
-            />
-          )}
-
-          {/* OLD My Account Section - Will be removed gradually */}
+          {/* My Account Section */}
           {userData && (
             <MyAccountMenu
               userData={userData}
@@ -431,6 +430,8 @@ export default function Dashboard() {
               openSlideIn={openSlideIn}
             />
           )}
+
+
 
           {/* Manage My Store Section - Right below My Account */}
           {userData && (

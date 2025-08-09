@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Linking } from 'react-native';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import firebaseApp from '../lib/firebase';
@@ -141,6 +141,35 @@ export default function LoginScreen({ onLogin, onSwitchToSignup }) {
           editable={!isLoading}
         />
 
+        {/* Forgot Password Link */}
+        <TouchableOpacity 
+          onPress={async () => {
+            try {
+              const url = 'https://main.onlineartfestival.com/forgot-password';
+              const supported = await Linking.canOpenURL(url);
+              if (supported) {
+                await Linking.openURL(url);
+              } else {
+                Alert.alert(
+                  'Cannot Open Link', 
+                  'Unable to open the password reset page. Please visit main.onlineartfestival.com/forgot-password in your browser.',
+                  [{ text: 'OK' }]
+                );
+              }
+            } catch (error) {
+              Alert.alert(
+                'Error', 
+                'Unable to open the password reset page. Please visit main.onlineartfestival.com/forgot-password in your browser.',
+                [{ text: 'OK' }]
+              );
+            }
+          }}
+          disabled={isLoading}
+          style={styles.forgotPasswordContainer}
+        >
+          <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity 
           style={[styles.emailButton, isLoading && styles.buttonDisabled]}
           onPress={handleEmailLogin}
@@ -269,6 +298,16 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  forgotPasswordContainer: {
+    alignSelf: 'flex-end',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  forgotPasswordText: {
+    color: '#055474',
+    fontSize: 14,
+    textDecorationLine: 'underline',
   },
   switchContainer: {
     flexDirection: 'row',

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import LoginModal from '../components/LoginModal';
+import LoginModal from '../components/login/LoginModal';
 import EventsCarousel from '../components/EventsCarousel';
 import ArtistCarousel from '../components/ArtistCarousel';
 

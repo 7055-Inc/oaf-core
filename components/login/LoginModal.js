@@ -2,8 +2,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword } from 'firebase/auth';
-import firebaseApp from '../lib/firebase';
-import { clearAuthTokens } from '../lib/csrf';
+import firebaseApp from '../../lib/firebase';
+import { clearAuthTokens } from '../../lib/csrf';
 
 
 export default function LoginModal() {
@@ -187,6 +187,22 @@ export default function LoginModal() {
             }}
           />
         </div>
+        
+        {/* Forgot Password Link */}
+        <div style={{ textAlign: 'right', marginTop: '0.5rem' }}>
+          <a
+            href="/forgot-password"
+            style={{
+              color: '#055474',
+              fontSize: '14px',
+              textDecoration: 'underline',
+              cursor: 'pointer'
+            }}
+          >
+            Forgot Password?
+          </a>
+        </div>
+        
         <button 
           type="submit" 
           disabled={isLoading}

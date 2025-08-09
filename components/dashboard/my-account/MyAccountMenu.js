@@ -54,6 +54,22 @@ export default function MyAccountMenu({
               Email Settings
             </button>
           </li>
+          <li>
+            <button 
+              className={styles.sidebarLink}
+              onClick={() => openSlideIn('payment-settings', { title: 'Payment Settings' })}
+            >
+              Payment Settings
+            </button>
+          </li>
+          <li>
+            <button 
+              className={styles.sidebarLink}
+              onClick={() => openSlideIn('shipping-settings', { title: 'Shipping Settings' })}
+            >
+              Shipping Settings
+            </button>
+          </li>
         </ul>
       )}
     </div>
