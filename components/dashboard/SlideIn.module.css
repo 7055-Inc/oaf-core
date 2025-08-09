@@ -40,120 +40,6 @@
 
 
 
-/* Profile Display Styles */
-.headerImage {
-  width: 100%;
-  height: 200px;
-  object-fit: cover;
-  border-radius: 8px;
-  margin-bottom: 20px;
-}
-
-.headerPlaceholder {
-  width: 100%;
-  height: 200px;
-  background: linear-gradient(135deg, #055474 0%, #3E1C56 100%);
-  border-radius: 8px;
-  margin-bottom: 20px;
-}
-
-.profileWrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-.profileImage {
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  border: 4px solid white;
-  object-fit: cover;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  margin-top: -50px;
-  margin-bottom: 16px;
-}
-
-.socialIcons {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.websiteLink,
-.socialLink {
-  color: #055474;
-  font-size: 18px;
-  padding: 8px;
-  border-radius: 50%;
-  background: rgba(5, 84, 116, 0.1);
-  transition: all 0.2s ease;
-  text-decoration: none;
-}
-
-.websiteLink:hover,
-.socialLink:hover {
-  background: #055474;
-  color: white;
-  transform: scale(1.1);
-}
-
-.infoCard {
-  text-align: center;
-  margin-bottom: 32px;
-  padding: 24px;
-  background: #f8f9fa;
-  border-radius: 8px;
-}
-
-.realName {
-  color: #6c757d;
-  font-size: 16px;
-  margin: 0 0 12px 0;
-  font-style: italic;
-}
-
-.jobTitle {
-  color: #495057;
-  font-size: 18px;
-  margin: 0 0 16px 0;
-  font-weight: 500;
-}
-
-.locationBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #055474;
-  color: white;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 14px;
-  margin-bottom: 16px;
-}
-
-.bioQuote {
-  background: white;
-  border-left: 4px solid #055474;
-  padding: 16px;
-  border-radius: 0 8px 8px 0;
-  margin-top: 16px;
-}
-
-.bioQuote p {
-  margin: 0;
-  font-style: italic;
-  color: #495057;
-  line-height: 1.6;
-}
-
-.helpText {
-  color: #6c757d;
-  font-size: 12px;
-  margin-top: 4px;
-}
 
 /* Actions */
 .actions {
@@ -232,6 +118,45 @@
   margin: 20px 0;
 }
 
+/* Product cards */
+.productCards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.productCard {
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  padding: 16px;
+}
+
+
+
+.detailsToggle {
+  color: #055474;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+
+
+.trackingLink {
+  color: #055474;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+
+
+
+/*unknown*/
 .carrierGroup {
   border: 1px solid #dee2e6;
   border-radius: 8px;
@@ -431,4 +356,211 @@
 
 }
 
- 
+
+/* My Orders styles */
+.orderCards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.orderCard {
+  background: #ffffff;
+  border: 1px solid #055474;
+  border-radius: 3px;
+  box-shadow: 0 2px 4px rgba(5, 84, 116, 0.1);
+  padding: 16px;
+}
+
+.orderHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.orderTitle {
+  font-weight: 600;
+  color: #055474;
+}
+
+.orderMeta {
+  color: #6c757d;
+  font-size: 12px;
+}
+
+.orderTotal {
+  font-weight: 700;
+  font-size: 16px;
+  color: #333;
+}
+
+.orderActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.detailsSection {
+  margin-top: 8px;
+}
+
+.orderDetails {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.itemsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.itemCard {
+  background: rgba(62, 28, 86, 0.05);
+  border-radius: 2px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.itemRow {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.itemThumb {
+  width: 64px;
+  height: 64px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+}
+
+.itemInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.productName {
+  font-weight: 600;
+}
+
+.vendorLink {
+  color: #055474;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.itemPricing {
+  text-align: right;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.itemPricingDetails {
+  color: #6c757d;
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.trackingButton {
+  background: transparent;
+  border: 1px solid #6c757d;
+  color: #6c757d;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 4px;
+}
+
+.trackingButton:hover {
+  background: #6c757d;
+  color: white;
+}
+
+.trackingButtonDisabled {
+  background: transparent;
+  border: 1px solid #dee2e6;
+  color: #adb5bd;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: not-allowed;
+  margin-top: 4px;
+  opacity: 0.6;
+}
+
+.shipStatus {
+  font-size: 11px;
+  color: #28a745;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+/* Modal styles */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  background: white;
+  border-radius: 8px;
+  position: relative;
+  max-height: 90vh;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.modalContentLarge {
+  background: white;
+  border-radius: 8px;
+  position: relative;
+  max-height: 90vh;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 900px;
+  height: 85vh;
+}
+
+.modalTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #055474;
+  margin-bottom: 16px;
+}
+
+.modalCloseButton {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+.modalIframeContainer {
+  height: 100%;
+  margin-top: 32px;
+}
+
+.modalIframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  border-radius: 8px;
+  background: white;
+}

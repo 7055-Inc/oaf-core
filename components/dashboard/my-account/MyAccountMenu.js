@@ -31,8 +31,27 @@ export default function MyAccountMenu({
             </button>
           </li>
           <li>
-            <button className={styles.sidebarLink}>
-              More menu items will be added here gradually
+            <button 
+              className={styles.sidebarLink}
+              onClick={() => openSlideIn('view-profile', { title: 'View Profile' })}
+            >
+              View Profile
+            </button>
+          </li>
+          <li>
+            <button 
+              className={styles.sidebarLink}
+              onClick={() => openSlideIn('my-orders', { title: 'My Orders' })}
+            >
+              My Orders
+            </button>
+          </li>
+          <li>
+            <button 
+              className={styles.sidebarLink}
+              onClick={() => openSlideIn('email-settings', { title: 'Email Settings' })}
+            >
+              Email Settings
             </button>
           </li>
         </ul>

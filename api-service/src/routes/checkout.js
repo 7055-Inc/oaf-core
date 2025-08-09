@@ -360,22 +360,39 @@ router.get('/orders/my', verifyToken, async (req, res) => {
         o.platform_fee_amount,
         o.created_at,
         o.updated_at,
+        oi.id as item_id,
         oi.quantity,
         oi.price,
         oi.commission_rate,
         oi.commission_amount,
         oi.shipping_cost,
+        oi.status as item_status,
+        oi.shipped_at,
+        oi.vendor_id,
+        oi.selected_shipping_service,
+        oi.shipping_rate,
         p.name as product_name,
         p.id as product_id,
         u.username as vendor_email,
         up.display_name as vendor_name,
         up.first_name as vendor_first_name,
-        up.last_name as vendor_last_name
+        up.last_name as vendor_last_name,
+        oit.carrier,
+        oit.tracking_number,
+        oit.updated_at as tracking_updated,
+        (
+          SELECT image_url 
+          FROM product_images 
+          WHERE product_id = oi.product_id 
+          ORDER BY \`order\` ASC 
+          LIMIT 1
+        ) AS product_thumbnail
       FROM orders o
       JOIN order_items oi ON o.id = oi.order_id
       JOIN products p ON oi.product_id = p.id
       JOIN users u ON oi.vendor_id = u.id
       LEFT JOIN user_profiles up ON u.id = up.user_id
+      LEFT JOIN order_item_tracking oit ON oi.id = oit.order_item_id
       ${whereClause}
       ORDER BY o.created_at DESC
       LIMIT ${limit} OFFSET ${offset}
@@ -413,13 +430,25 @@ router.get('/orders/my', verifyToken, async (req, res) => {
       }
       
       groupedOrders[order.id].items.push({
+        item_id: order.item_id,
         product_id: order.product_id,
         product_name: order.product_name,
+        product_thumbnail: order.product_thumbnail,
         quantity: order.quantity,
         price: parseFloat(order.price),
         shipping_cost: parseFloat(order.shipping_cost),
+        item_status: order.item_status,
+        shipped_at: order.shipped_at,
+        vendor_id: order.vendor_id,
         vendor_email: order.vendor_email,
         vendor_name: order.vendor_name || `${order.vendor_first_name || ''} ${order.vendor_last_name || ''}`.trim() || order.vendor_email,
+        selected_shipping_service: order.selected_shipping_service,
+        shipping_rate: parseFloat(order.shipping_rate || 0),
+        tracking: order.tracking_number ? {
+          carrier: order.carrier,
+          tracking_number: order.tracking_number,
+          updated_at: order.tracking_updated
+        } : null,
         item_total: parseFloat(order.price) * order.quantity
       });
     });

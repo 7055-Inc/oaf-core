@@ -12,7 +12,7 @@ import UserManagement from '../../components/UserManagement';
 import EventManagement from '../../components/EventManagement';
 import PermissionsManagement from '../../components/PermissionsManagement';
 import EmailAdminDashboard from '../../components/EmailAdminDashboard';
-import EmailPreferences from '../../components/EmailPreferences';
+
 import ArticleManagement from '../articles/components/ArticleManagement';
 import SitesManagement from '../../components/SitesManagement';
 import AnnouncementsManagement from '../../components/AnnouncementsManagement';
@@ -26,6 +26,9 @@ import SubscriptionManager from '../../components/SubscriptionManager';
 import { MyAccountMenu, MyAccountSlideIn, myAccountSlideInTypes } from '../../components/dashboard/menu/MyAccount';
 import MyAccountMenuNew from '../../components/dashboard/my-account/MyAccountMenu';
 import EditProfile from '../../components/dashboard/my-account/components/EditProfile';
+import ViewProfile from '../../components/dashboard/my-account/components/ViewProfile';
+import MyOrders from '../../components/dashboard/my-account/components/MyOrders';
+import EmailPreferences from '../../components/dashboard/my-account/components/EmailPreferences';
 import { VendorToolsMenu, VendorToolsSlideIn, vendorToolsSlideInTypes } from '../../components/dashboard/vendor/VendorTools';
 import { FinanceMenu, FinanceSlideIn, financeSlideInTypes } from '../../components/dashboard/menu/Finance';
 // import { ServiceManagementMenu, ServiceManagementSlideIn, serviceManagementSlideInTypes } from '../../components/dashboard/menu/ServiceManagement';
@@ -38,6 +41,7 @@ export default function Dashboard() {
   const [activeSection, setActiveSection] = useState('dashboard-widgets');
   const [collapsedSections, setCollapsedSections] = useState({ 
     account: true, 
+    'my-account': true,
     'vendor-tools': true,
     finance: true 
   }); // Default sections to closed
@@ -353,6 +357,30 @@ export default function Dashboard() {
       return (
         <EditProfile
           userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'view-profile') {
+      return (
+        <ViewProfile
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'my-orders') {
+      return (
+        <MyOrders
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'email-settings') {
+      return (
+        <EmailPreferences
+          userId={userData.id}
         />
       );
     }

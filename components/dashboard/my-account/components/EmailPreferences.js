@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { authenticatedApiRequest } from '../lib/csrf';
+import { authenticatedApiRequest } from '../../../../lib/csrf';
 
 const EmailPreferences = ({ userId }) => {
   const [activeTab, setActiveTab] = useState('preferences');
