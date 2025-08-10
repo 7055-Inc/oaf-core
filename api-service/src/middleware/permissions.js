@@ -140,7 +140,7 @@ const getEffectivePermissions = (req) => {
   
   // Admin users get all permissions automatically
   if (req.roles && req.roles.includes('admin')) {
-    const allPermissions = ['vendor', 'events', 'stripe_connect', 'manage_sites', 'manage_content', 'manage_system'];
+    const allPermissions = ['vendor', 'events', 'stripe_connect', 'manage_sites', 'manage_content', 'manage_system', 'shipping'];
     for (const permission of allPermissions) {
       if (!permissions.includes(permission)) {
         permissions.push(permission);

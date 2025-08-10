@@ -1,0 +1,593 @@
+Flow Chart:
+
+graph TD
+    A[User Frontend] -->|API Calls| B[Missing Subscription Routes]
+    B -.->|Should Connect To| C[StripeService]
+    C -->|Creates| D[Stripe Subscriptions]
+    C -->|Manages| E[Stripe Customers]
+    
+    F[Stripe Webhooks] -->|Events| G[Webhook Handler]
+    G -->|Updates| H[(Database)]
+    
+    H --> I[user_subscriptions]
+    H --> J[subscription_items] 
+    H --> K[subscription_payments]
+    H --> L[vendor_subscriptions]
+    
+    I -->|Contains| M[User ID<br/>Stripe IDs<br/>Status<br/>Billing Periods<br/>Connect Balance Preference]
+    J -->|Contains| N[Subscription Items<br/>Price IDs<br/>Persona Links<br/>Item Types]
+    K -->|Contains| O[Payment Records<br/>Invoice IDs<br/>Payment Methods<br/>Amounts]
+    
+    D -->|Webhook Events| F
+    E -->|Webhook Events| F
+    
+    P[SubscriptionManager Component] -->|Calls| A
+    Q[Dashboard] -->|Shows| P
+    
+    style B fill:#ffcccc
+    style B stroke:#ff0000
+    classDef missing fill:#ffcccc,stroke:#ff0000
+
+    __________________________________________________
+
+# SUBSCRIPTION SYSTEM CORE DOCUMENTATION
+
+## Overview
+The subscription system is built as a modular architecture where individual subscription types are developed as separate modules, each with their own forms, permissions, business logic, and API endpoints. All modules share a common core infrastructure.
+
+## Core Infrastructure (COMPLETED)
+
+### Database Schema
+Four main tables provide the foundation for all subscription types:
+
+**`user_subscriptions`** - Main subscription records
+- `id` - Primary key
+- `user_id` - Links to users table
+- `stripe_subscription_id` - Stripe subscription ID
+- `stripe_customer_id` - Stripe customer ID
+- `subscription_type` - ENUM('verification') - expandable for new types
+- `status` - ENUM('active','canceled','past_due','unpaid','trialing','incomplete')
+- `current_period_start/end` - Billing period tracking
+- `cancel_at_period_end` - Cancellation preference
+- `prefer_connect_balance` - Use Stripe Connect balance for payments
+- Timestamps for created/updated/canceled
+
+**`subscription_items`** - Granular subscription components
+- Links subscriptions to Stripe price IDs
+- `item_type` - ENUM('verification_base','verification_persona') - expandable
+- `persona_id` - Links to artist_personas table when applicable
+- Supports quantity-based pricing
+
+**`subscription_payments`** - Payment history and tracking
+- Complete payment audit trail
+- `payment_method` - ENUM('card','connect_balance','other')
+- Links to Stripe invoices and payment intents
+- Billing period tracking per payment
+
+**`vendor_subscriptions`** - Vendor-specific subscriptions (separate system)
+- Different from user verification subscriptions
+- Handles vendor platform fees and services
+
+### Stripe Service Layer (COMPLETED)
+Located: `api-service/src/services/stripeService.js`
+
+**Core Methods:**
+- `createOrGetCustomer()` - Customer management
+- `createVerificationSubscription()` - Creates Stripe subscriptions with metadata
+- `updateVerificationSubscription()` - Updates subscription items (persona changes)
+- `processSubscriptionPaymentWithConnectBalance()` - Connect balance integration
+
+**Key Features:**
+- Comprehensive customer lifecycle management
+- Metadata tracking for user_id, type, platform
+- Payment behavior configuration
+- Connect account integration
+
+### Webhook System (COMPLETED)
+Located: `api-service/src/routes/webhooks/stripe.js`
+
+**Handled Events:**
+- `customer.subscription.created` - Updates database on subscription creation
+- `customer.subscription.updated` - Syncs subscription changes
+- `customer.subscription.deleted` - Handles cancellations
+- `invoice.created` - Attempts Connect balance payment first
+- `invoice.payment_succeeded` - Records successful payments
+- `invoice.payment_failed` - Handles payment failures
+
+**Special Features:**
+- Connect Balance Priority: Attempts to pay from Connect earnings before card
+- Comprehensive error handling and logging
+- Database synchronization with Stripe state
+
+### Frontend Components (COMPLETED)
+**SubscriptionManager Component** (`components/SubscriptionManager.js`)
+- React component for subscription management UI
+- Handles subscription creation, updates, cancellation
+- Connect balance preference management
+- Integrates with authentication and CSRF protection
+
+**Dashboard Integration**
+- Multiple subscription type placeholders in dashboard menu
+- Slide-in panels for different subscription types
+- Located: `components/dashboard/my-subscriptions/MySubscriptionsMenu.js`
+
+## Unique System Features
+
+### Connect Balance Integration
+Users can pay subscription fees directly from their Stripe Connect earnings balance, providing a seamless experience for vendors who earn money on the platform.
+
+### Persona-Based Subscriptions
+Subscriptions can be linked to specific artist personas, enabling granular pricing models (base verification + per-persona fees).
+
+### Flexible Item Types
+The subscription_items table supports different item types, allowing for complex pricing structures within a single subscription.
+
+### Multi-Payment Method Support
+System tracks and supports multiple payment methods including cards, Connect balance, and other future payment types.
+
+## Architecture Principles
+
+### Modular Design
+Each subscription type (verification, marketplace, website, ship, etc.) will be built as an independent module with:
+- Dedicated API routes (`/api/subscriptions/{type}/*`)
+- Custom forms and validation
+- Type-specific business logic
+- Individual permission systems
+- Unique pricing models
+
+### Shared Core
+All modules utilize the same:
+- Database schema (extensible enums)
+- Stripe service layer
+- Webhook handling system
+- Base frontend components
+
+### Build-as-Needed Approach
+API routes and specific functionality are created when each subscription module is developed, ensuring clean separation and avoiding over-engineering.
+
+## Current Status
+
+### ✅ COMPLETED
+- Database schema design and implementation
+- Core Stripe service layer
+- Webhook event handling
+- Base frontend components
+- Connect balance integration
+- Payment tracking system
+
+### 🔄 IN DEVELOPMENT
+- Individual subscription modules (starting with verification)
+
+### 📋 PLANNED MODULES
+Based on dashboard menu structure:
+- Verification Subscriptions
+- Marketplace Subscriptions  
+- Website Subscriptions
+- Ship Subscriptions
+- Additional modules as needed
+
+## Development Notes
+- Frontend calls to `/api/subscriptions/*` endpoints will be created per module
+- Each module will extend the base subscription_type ENUM
+- New item_types can be added to subscription_items as needed
+- Webhook handlers are already generic enough to support new subscription types
+
+---
+
+## MODULE SECTIONS
+(Individual subscription modules will be documented below as they are built)
+
+---
+
+# SHIPPING SUBSCRIPTION MODULE
+
+## Overview
+Pay-as-you-go shipping label service with stored payment method. Free subscription that enables users to purchase shipping labels on-demand with automatic payment processing.
+
+## Business Model
+- **Subscription**: $0/month - Just maintains valid payment method on file
+- **Usage**: Pay-per-label at time of purchase (variable pricing)
+- **Payment Priority**: Connect balance first (if available), then card on file
+- **Permission**: Valid payment method = Can purchase labels
+
+## Database Design
+
+### Required Changes
+
+**1. Extend subscription_type ENUM:**
+```sql
+ALTER TABLE user_subscriptions 
+MODIFY subscription_type ENUM('verification', 'shipping_labels');
+```
+
+**2. Create shipping_label_purchases table:**
+```sql
+CREATE TABLE shipping_label_purchases (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  subscription_id BIGINT NOT NULL,
+  shipping_label_id BIGINT NOT NULL,
+  stripe_payment_intent_id VARCHAR(255),
+  amount DECIMAL(10,2) NOT NULL,
+  status ENUM('pending', 'succeeded', 'failed') DEFAULT 'pending',
+  decline_reason VARCHAR(255) NULL,
+  payment_method ENUM('card', 'connect_balance') DEFAULT 'card',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
+  FOREIGN KEY (subscription_id) REFERENCES user_subscriptions(id) ON DELETE CASCADE,
+  FOREIGN KEY (shipping_label_id) REFERENCES shipping_labels(id) ON DELETE CASCADE,
+  
+  INDEX idx_subscription_id (subscription_id),
+  INDEX idx_shipping_label_id (shipping_label_id),
+  INDEX idx_payment_method (payment_method),
+  INDEX idx_status (status)
+);
+```
+
+### Existing Tables Integration
+
+**user_subscriptions:**
+- `subscription_type` = 'shipping_labels'
+- `stripe_customer_id` = Customer with saved payment method
+- `stripe_subscription_id` = NULL (no recurring billing)
+- `prefer_connect_balance` = User's payment preference
+- `status` = 'active' (valid card) or 'incomplete' (invalid card)
+
+**shipping_labels (existing):**
+- Links to purchases via `shipping_label_purchases.shipping_label_id`
+- `vendor_transaction_id` = Used for Connect balance payments
+- `cost` = Label cost for payment processing
+
+**vendor_transactions (existing):**
+- `transaction_type` = 'shipping_charge' for Connect balance payments
+- Links to shipping_labels via `vendor_transaction_id`
+
+## Payment Flow Architecture
+
+### Dual Payment System
+```
+User Purchases Label
+        ↓
+Check: prefer_connect_balance && balance >= cost?
+        ↓                    ↓
+   YES: Connect Balance    NO: Card Payment
+        ↓                    ↓
+Create vendor_transaction  Create payment_intent
+Link to shipping_labels    Create shipping_label_purchases
+Update Connect balance     Link to shipping_labels
+```
+
+### Payment Method Priority
+1. **Connect Balance** (if preferred and sufficient funds)
+   - Deduct from Connect balance
+   - Create `vendor_transactions` record
+   - Link `shipping_labels.vendor_transaction_id`
+
+2. **Card on File** (fallback or user preference)
+   - Charge via Stripe payment_intent
+   - Create `shipping_label_purchases` record
+   - Link via `shipping_label_id`
+
+## API Endpoints Required
+
+### Subscription Management
+- `POST /api/subscriptions/shipping/signup` - Create subscription + setup payment method
+- `GET /api/subscriptions/shipping/my` - Get user's shipping subscription status
+- `PUT /api/subscriptions/shipping/payment-method` - Update card on file
+- `PUT /api/subscriptions/shipping/preferences` - Toggle Connect balance preference
+- `DELETE /api/subscriptions/shipping/cancel` - Cancel subscription
+
+### Label Purchasing Integration
+- `POST /api/subscriptions/shipping/purchase-label` - Process label payment
+- `GET /api/subscriptions/shipping/purchases` - Get purchase history
+- `POST /api/subscriptions/shipping/refund` - Process refunds
+
+## Frontend Components
+
+### Core Components
+1. **Signup Form** - Payment method setup with Stripe Elements
+2. **Payment Method Manager** - Reusable card update component (store in /components/stripe/)
+3. **Shipping Subscription Dashboard** - Standalone page showing:
+   - Subscription status
+   - Card on file (last 4 digits)
+   - Connect balance preference toggle
+   - Recent label purchases
+   - Usage statistics
+
+### Dashboard Integration
+- Add to My Subscriptions menu
+- Show subscription status
+- Link to management page
+
+## Webhook Handlers
+
+### Payment Method Events
+- `customer.source.expiring` → Notify user
+- `customer.source.expired` → Disable shipping access
+- `customer.source.updated` → Re-enable access
+- `setup_intent.succeeded` → Activate subscription
+- `setup_intent.setup_failed` → Show error to user
+
+### Payment Events
+- `payment_intent.succeeded` → Update shipping_label_purchases status
+- `payment_intent.payment_failed` → Record failure reason
+- `charge.dispute.created` → Handle label purchase disputes
+
+## Permissions System
+
+### New Permission: 'shipping'
+- **Required for**: Purchasing shipping labels
+- **Granted when**: Valid payment method on file
+- **Revoked when**: Payment method expires/fails
+- **Check location**: Shipping module integration points
+
+## Financial Integration
+
+### Unified Transaction View
+Blend shipping purchases into existing financial dashboard:
+
+**Connect Balance Payments:**
+- Show as "Shipping Label (Connect)" in vendor_transactions
+
+**Card Payments:**
+- Show as two line items in unified view:
+  1. "Shipping Label (Card Credit)" → +$0.00 (neutral to Connect balance)
+  2. "Shipping Label Purchase" → -$labelCost (actual service cost)
+
+### API Enhancement
+Extend `/api/vendor-financials/transactions` to include:
+- Query `shipping_label_purchases` for card payments
+- Merge with existing `vendor_transactions`
+- Sort chronologically
+- Maintain Connect balance accuracy
+
+## Integration Points
+
+### Shipping Module Integration
+- Check subscription status before label creation
+- Call payment processing endpoint
+- Handle payment failures gracefully
+- Show decline reasons to user
+
+### Error Handling
+- **Card Declined**: Show specific decline reason (insufficient_funds, card_reported_stolen, etc.)
+- **Connect Insufficient**: Auto-fallback to card
+- **Both Failed**: Block label creation, prompt payment method update
+
+## Security Considerations
+- Payment method tokens stored in Stripe (not locally)
+- CSRF protection on all payment endpoints
+- Rate limiting on payment attempts
+- Audit logging for all financial transactions
+
+## Success Metrics
+- Subscription signup conversion rate
+- Payment method retention rate
+- Connect vs Card usage ratio
+- Label purchase success rate
+- User satisfaction with payment flow
+
+## Implementation Order
+1. ✅ Database schema changes - COMPLETED & VERIFIED
+   - All 4 core tables exist in database with correct structure
+   - user_subscriptions.subscription_type includes 'shipping_labels' 
+   - shipping_label_purchases table fully implemented
+   - oaf_schema_current.sql updated to reflect database reality
+2. ✅ Webhook handlers - COMPLETED & VERIFIED
+   - All shipping payment webhooks implemented and tested
+   - payment_intent.succeeded/failed handlers update shipping_label_purchases
+   - setup_intent handlers for payment method lifecycle
+   - Database mismatch fixed: subscription_type 'shipping' → 'shipping_labels'
+   - Webhook endpoint tested and responding correctly at /webhooks/stripe
+   - Proper signature verification working (rejects invalid requests)
+   - Ready for production Stripe webhook events
+3. ✅ Core API endpoints (signup, management) - COMPLETED & VERIFIED
+   - All 7 documented endpoints implemented in /routes/subscriptions/shipping.js
+   - Additional smart endpoints: /activate, /update-payment-method
+   - Proper route registration in server.js confirmed
+   - Database queries fixed to use correct subscription_type
+4. ✅ Frontend components (signup, dashboard) - COMPLETED & REDESIGNED
+   - ShipSubscriptions.js rewritten with progressive checklist approach
+   - Clean user flow: Card → Terms → Access (no complex branching)
+   - Handles all edge cases: expired cards, admin access, existing customers
+   - Uses global CSS variables for consistent OAF theme
+   - Fixed API endpoint URLs to use production API service (api2.onlineartfestival.com)
+   - Integrated with real terms acceptance API endpoints
+5. ✅ Payment processing logic - COMPLETED & VERIFIED
+   - Dual payment system (Connect balance → card fallback) implemented
+   - Proper table usage: shipping_label_purchases + vendor_transactions
+   - Refund handling for both payment methods
+6. ✅ Stripe Elements integration - COMPLETED & VERIFIED
+   - Reusable StripeCardSetup component implemented in /components/stripe/
+   - Proper setup intent flow with client_secret handling
+   - Secure card collection with Stripe Elements v3
+   - Clean UX with loading states and error handling
+   - Uses setup intents (not payment intents) for card-on-file storage
+7. ✅ Shipping module integration - INTEGRATION PLAN FINALIZED
+   - Unified label creation system with conditional access
+   - Single label library serving both order fulfillment and standalone shipping
+   - Payment integration with subscription-aware processing
+   - Component recycling for maximum efficiency
+8. Financial dashboard integration
+9. Testing and error handling
+
+## Database Verification Status
+✅ **FOUNDATION CONFIRMED SOLID**
+- Database tables match documentation specifications exactly
+- Schema file synchronized with database reality  
+- Foreign keys, indexes, and constraints properly implemented
+
+## API Layer Verification Status
+✅ **API IMPLEMENTATION CONFIRMED EXCELLENT**
+- Route organization clean: no scattered/rogue routes found
+- All documented endpoints implemented with proper middleware
+- Webhook integration sophisticated and complete
+- Payment logic exactly matches documentation specifications
+- Critical database mismatch resolved (subscription_type alignment)
+- System ready for integration testing
+
+## Terms Management Integration Plan
+**DISCOVERED: Existing robust terms system in place**
+- ✅ Current system: terms_versions + user_terms_acceptance tables
+- ✅ Global middleware enforces general site terms acceptance
+- ✅ Admin interface for terms management already built
+
+**PLANNED EXTENSION: Subscription-Specific Terms**
+- Extend user_terms_acceptance table with subscription_type column
+- Add subscription context: ENUM('general', 'verification', 'shipping_labels', 'marketplace', 'website')
+- Layered compliance model:
+  * General terms (existing) → Required for ALL site access
+  * Subscription terms (new) → Required only if user has that subscription type
+- Middleware enhancement:
+  * Check general terms (unchanged)
+  * IF user has shipping subscription → Check shipping terms acceptance
+  * IF user has marketplace subscription → Check marketplace terms acceptance
+- Benefits:
+  * No breaking changes to existing system
+  * Contextual enforcement (only relevant terms required)
+  * Terms updates can force re-acceptance per subscription type
+  * Scalable for all future subscription modules
+
+**Database Changes: ✅ COMPLETED**
+- Extended user_terms_acceptance table with subscription_type column
+- Extended terms_versions table with subscription_type column  
+- Set existing terms to 'general' type (preserved archives)
+- Added shipping terms v1.0 placeholder
+- Updated /api/terms/check-acceptance to filter for general terms only
+- Added efficient index for user + subscription type queries
+- Schema file updated to reflect database reality
+- Middleware now enforces general terms only, components handle subscription terms
+
+**Implementation Status:**
+- ✅ Database structure extended
+- ✅ Schema file synchronized  
+- ✅ API integration completed for subscription terms tracking
+- ✅ Frontend logic updated to use subscription-specific terms
+
+**Complete Terms Integration:**
+- ✅ Enhanced `/my` endpoint returns `termsAccepted` status
+- ✅ Added `/accept-terms` endpoint for subscription-specific terms acceptance
+- ✅ Updated `/signup` logic to properly record terms acceptance
+- ✅ Enhanced `/activate` endpoint to require terms acceptance before activation
+- ✅ Frontend component updated to use real API terms data
+- ✅ Progressive checklist now properly handles terms acceptance flow
+- ✅ Component-level "mini-bouncer" architecture implemented
+
+**Terms System Architecture Complete:**
+- **Layer 1**: Middleware enforces general site terms
+- **Layer 2**: Components enforce subscription-specific terms
+- **Result**: Surgical terms control - only relevant users see relevant terms
+
+## SHIPPING MODULE INTEGRATION PLAN
+
+### Overview: Unified Label Creation System
+Create one cohesive shipping system where both order fulfillment and standalone shipping feed into a single label library, with conditional access based on subscription permissions.
+
+### Integration Architecture
+
+**Two Entry Points, One System:**
+1. **Order Fulfillment Path** (ManageOrders.js)
+   - Conditional button: Has shipping permission → "Add Label" | No permission → "Get Access to Label Creation"
+   - "Get Access" opens ShipSubscriptions modal for subscription signup
+   - After signup, button flips to "Add Label" with full functionality
+
+2. **Standalone Shipping Path** (ShipSubscriptions.js)  
+   - Add label creation component to subscription dashboard
+   - Same form/rate/purchase flow as order system
+   - Creates unattached labels for general shipping needs
+
+**Unified Label Library:**
+- Single display component showing ALL labels (order + standalone)
+- Used in both ManageOrders "Label Library" tab AND ShipSubscriptions dashboard
+- Consistent UI/UX across both access points
+
+### Component Recycling Strategy
+
+**Reuse Existing Components:**
+- **Label Creation Form**: Extract from ManageOrders, make reusable
+- **Rate Fetching Logic**: Reuse `/api/shipping/get-label-rates` endpoint
+- **Package Input Forms**: Reuse multi-package dimension/weight inputs
+- **Label Library Display**: Reuse existing table/grid from ManageOrders
+- **Payment Processing**: Integrate existing subscription payment flow
+
+**New Components Needed:**
+- **Conditional Access Button**: Smart button that checks permissions
+- **Standalone Label Creator**: Wrapper component for ShipSubscriptions dashboard
+- **Unified Label Display**: Component that works in both contexts
+
+### Payment Integration Requirements
+
+**Dual Payment Processing:**
+- **Order Labels** (attached to sales):
+  - Use Connect balance first (if enabled)
+  - **Allow negative balance** (offset by future sale deposits)
+  - Fallback to card on file
+  - Process via modified `/api/shipping/process-batch`
+
+- **Free-Standing Labels** (no sale backing):
+  - Use Connect balance first (if enabled)
+  - **Prevent negative balance** (balance might never recover)
+  - Fallback to card on file  
+  - Process via `/api/subscriptions/shipping/purchase-label`
+
+**Payment Flow Integration:**
+- Modify existing `/api/shipping/process-batch` to check subscription status
+- Add subscription payment processing before label creation
+- Handle payment failures gracefully with specific error messages
+- Maintain existing batch processing capabilities
+
+### Technical Implementation Plan
+
+**Phase 1: Conditional Access (ManageOrders)**
+- Add permission check to "Add Label" button
+- Create "Get Access to Label Creation" alternative button
+- Integrate ShipSubscriptions modal for signup flow
+- Test permission-based button switching
+
+**Phase 2: Standalone Label Creator (ShipSubscriptions)**
+- Extract reusable components from ManageOrders label creation
+- Add standalone label creation section to ShipSubscriptions dashboard
+- Implement same rate fetching and form logic
+- Store labels in same `shipping_labels` table with `order_id = NULL`
+
+**Phase 3: Payment Integration**
+- Modify `/api/shipping/process-batch` to require subscription check
+- Add payment processing before label creation
+- Implement dual balance rules (order vs standalone)
+- Update error handling for payment failures
+
+**Phase 4: Unified Label Library**
+- Create shared label display component
+- Update ManageOrders to use shared component
+- Update ShipSubscriptions to use shared component  
+- Ensure consistent styling and functionality
+
+### Database Considerations
+
+**No Schema Changes Required:**
+- `shipping_labels` table already supports both use cases
+- `order_id = NULL` for standalone labels
+- `vendor_transaction_id` for Connect balance payments
+- `shipping_label_purchases` for card payments
+
+**Payment Tracking:**
+- Order labels: Track via existing `vendor_transactions` OR `shipping_label_purchases`
+- Standalone labels: Track via `shipping_label_purchases` table
+- Financial dashboard already configured to merge both sources
+
+### Success Criteria
+
+**Functional Requirements:**
+- Users without shipping permission see "Get Access" button
+- Users with shipping permission see "Add Label" button  
+- Subscription signup immediately flips button access
+- Both order and standalone labels appear in unified library
+- Payment processing respects balance rules (order vs standalone)
+
+**User Experience Requirements:**
+- Seamless transition from "no access" to "full access"
+- Consistent label creation experience across both entry points
+- Unified label management regardless of creation source
+- Clear payment method indication (Connect vs Card)
+
+---

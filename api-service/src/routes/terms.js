@@ -27,18 +27,18 @@ router.get('/check-acceptance', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
     
-    // Get current terms version
+    // Get current general terms version
     const [currentTerms] = await db.query(
-      'SELECT id FROM terms_versions WHERE is_current = TRUE ORDER BY created_at DESC LIMIT 1'
+      'SELECT id FROM terms_versions WHERE is_current = TRUE AND subscription_type = \'general\' ORDER BY created_at DESC LIMIT 1'
     );
     
     if (!currentTerms[0]) {
       return res.json({ hasAccepted: false, requiresAcceptance: false, message: 'No current terms found' });
     }
     
-    // Check if user has accepted current terms
+    // Check if user has accepted current general terms
     const [acceptance] = await db.query(
-      'SELECT id, accepted_at FROM user_terms_acceptance WHERE user_id = ? AND terms_version_id = ?',
+      'SELECT id, accepted_at FROM user_terms_acceptance WHERE user_id = ? AND terms_version_id = ? AND subscription_type = \'general\'',
       [userId, currentTerms[0].id]
     );
     

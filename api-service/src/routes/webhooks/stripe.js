@@ -72,6 +72,13 @@ async function handleWebhookEvent(event) {
     // Dispute events
     'charge.dispute.created': handleDisputeCreated,
     'charge.dispute.closed': handleDisputeClosed,
+    
+    // Payment method setup events (for shipping subscriptions)
+    'setup_intent.succeeded': handleSetupIntentSucceeded,
+    'setup_intent.setup_failed': handleSetupIntentFailed,
+    
+    // Payment method lifecycle events
+    'customer.source.expired': handleSourceExpired,
   };
 
   const handler = handlers[event.type];
@@ -109,7 +116,14 @@ async function handlePaymentSuccess(paymentIntent, event) {
       return;
     }
 
-    console.error('No order_id or application_id in payment intent metadata');
+    // Check if this is a shipping label purchase
+    const shippingLabelId = paymentIntent.metadata.shipping_label_id;
+    if (shippingLabelId) {
+      await handleShippingLabelPayment(paymentIntent, shippingLabelId);
+      return;
+    }
+
+    console.error('No order_id, application_id, or shipping_label_id in payment intent metadata');
     
   } catch (error) {
     console.error('Error handling payment success:', error);
@@ -316,6 +330,14 @@ async function handlePaymentFailure(paymentIntent, event) {
     if (orderId) {
       await updateOrderStatus(orderId, 'error', paymentIntent.id);
       // TODO: Send customer notification about payment failure
+      return;
+    }
+
+    // Check if this is a shipping label purchase failure
+    const shippingLabelId = paymentIntent.metadata.shipping_label_id;
+    if (shippingLabelId) {
+      await handleShippingLabelPaymentFailure(paymentIntent, shippingLabelId);
+      return;
     }
   } catch (error) {
     console.error('Error handling payment failure:', error);
@@ -848,6 +870,168 @@ async function handleSubscriptionPaymentFailed(invoice, event) {
   }
 }
 
+/**
+ * Handle shipping label payment success
+ */
+async function handleShippingLabelPayment(paymentIntent, shippingLabelId) {
+  try {
+    // Update the shipping_label_purchases record
+    await db.execute(`
+      UPDATE shipping_label_purchases 
+      SET status = 'succeeded', updated_at = CURRENT_TIMESTAMP
+      WHERE stripe_payment_intent_id = ?
+    `, [paymentIntent.id]);
 
+    console.log(`✅ Shipping label payment succeeded: ${paymentIntent.id} for label ${shippingLabelId}`);
+  } catch (error) {
+    console.error('❌ Error handling shipping label payment:', error);
+  }
+}
+
+/**
+ * Handle shipping label payment failure
+ */
+async function handleShippingLabelPaymentFailure(paymentIntent, shippingLabelId) {
+  try {
+    const declineReason = paymentIntent.last_payment_error?.decline_code || 
+                         paymentIntent.last_payment_error?.code || 
+                         'payment_failed';
+
+    // Update the shipping_label_purchases record
+    await db.execute(`
+      UPDATE shipping_label_purchases 
+      SET status = 'failed', decline_reason = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE stripe_payment_intent_id = ?
+    `, [declineReason, paymentIntent.id]);
+
+    console.log(`❌ Shipping label payment failed: ${paymentIntent.id} for label ${shippingLabelId} - ${declineReason}`);
+  } catch (error) {
+    console.error('❌ Error handling shipping label payment failure:', error);
+  }
+}
+
+// ===== SHIPPING SUBSCRIPTION EVENT HANDLERS =====
+
+/**
+ * Handle successful setup intent (payment method setup for shipping)
+ */
+async function handleSetupIntentSucceeded(setupIntent, event) {
+  try {
+    const customerId = setupIntent.customer;
+    const paymentMethodId = setupIntent.payment_method;
+    
+    // Find shipping subscription by customer ID
+    const [subscriptionRows] = await db.execute(
+      'SELECT id, user_id FROM user_subscriptions WHERE stripe_customer_id = ? AND subscription_type = "shipping_labels"',
+      [customerId]
+    );
+    
+    if (subscriptionRows.length > 0) {
+      const subscription = subscriptionRows[0];
+      
+      // Activate the subscription
+      await db.execute(
+        'UPDATE user_subscriptions SET status = "active" WHERE id = ?',
+        [subscription.id]
+      );
+      
+      // Grant shipping permission
+      await db.execute(
+        'UPDATE user_permissions SET shipping = 1 WHERE user_id = ?',
+        [subscription.user_id]
+      );
+      
+      console.log(`✅ Shipping subscription activated for user ${subscription.user_id}`);
+      // Send email notification
+      try {
+        await emailService.queueEmail(subscription.user_id, 'shipping_subscription_activated', { /* template data */ });
+      } catch (notifyError) {
+        console.error('Failed to send activation notification:', notifyError);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error handling setup intent succeeded:', error);
+  }
+}
+
+/**
+ * Handle failed setup intent (payment method setup failed)
+ */
+async function handleSetupIntentFailed(setupIntent, event) {
+  try {
+    const customerId = setupIntent.customer;
+    
+    // Find shipping subscription by customer ID
+    const [subscriptionRows] = await db.execute(
+      'SELECT id, user_id FROM user_subscriptions WHERE stripe_customer_id = ? AND subscription_type = "shipping_labels"',
+      [customerId]
+    );
+    
+    if (subscriptionRows.length > 0) {
+      const subscription = subscriptionRows[0];
+      
+      // Keep subscription as incomplete
+      await db.execute(
+        'UPDATE user_subscriptions SET status = "incomplete" WHERE id = ?',
+        [subscription.id]
+      );
+      
+      // Revoke shipping permission
+      await db.execute(
+        'UPDATE user_permissions SET shipping = 0 WHERE user_id = ?',
+        [subscription.user_id]
+      );
+      
+      console.log(`❌ Shipping subscription setup failed for user ${subscription.user_id}`);
+      // Send failure notification
+      try {
+        await emailService.queueEmail(subscription.user_id, 'shipping_setup_failed', { reason: setupIntent.last_setup_error?.message || 'Unknown error' });
+      } catch (notifyError) {
+        console.error('Failed to send failure notification:', notifyError);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error handling setup intent failed:', error);
+  }
+}
+
+/**
+ * Handle expired payment source (card expired)
+ */
+async function handleSourceExpired(source, event) {
+  try {
+    const customerId = source.customer;
+    
+    // Find all shipping subscriptions for this customer
+    const [subscriptionRows] = await db.execute(
+      'SELECT id, user_id FROM user_subscriptions WHERE stripe_customer_id = ? AND subscription_type = "shipping_labels"',
+      [customerId]
+    );
+    
+    for (const subscription of subscriptionRows) {
+      // Deactivate subscription
+      await db.execute(
+        'UPDATE user_subscriptions SET status = "incomplete" WHERE id = ?',
+        [subscription.id]
+      );
+      
+      // Revoke shipping permission
+      await db.execute(
+        'UPDATE user_permissions SET shipping = 0 WHERE user_id = ?',
+        [subscription.user_id]
+      );
+      
+      console.log(`🔒 Shipping access revoked for user ${subscription.user_id} - payment method expired`);
+      // Send expiration notification
+      try {
+        await emailService.queueEmail(subscription.user_id, 'payment_method_expired', { /* details */ });
+      } catch (notifyError) {
+        console.error('Failed to send expiration notification:', notifyError);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error handling source expired:', error);
+  }
+}
 
 module.exports = router; 

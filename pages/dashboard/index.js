@@ -41,6 +41,12 @@ import ManageOrders from '../../components/dashboard/manage-my-store/components/
 import MyFinancesMenu from '../../components/dashboard/my-finances/MyFinancesMenu';
 import TransactionHistory from '../../components/dashboard/my-finances/components/TransactionHistory';
 import PayoutsEarnings from '../../components/dashboard/my-finances/components/PayoutsEarnings';
+import MySubscriptionsMenu from '../../components/dashboard/my-subscriptions/MySubscriptionsMenu';
+import ManageSubscriptions from '../../components/dashboard/my-subscriptions/components/ManageSubscriptions';
+import MarketplaceSubscriptions from '../../components/dashboard/my-subscriptions/components/MarketplaceSubscriptions';
+import VerifiedSubscriptions from '../../components/dashboard/my-subscriptions/components/VerifiedSubscriptions';
+import WebSiteSubscriptions from '../../components/dashboard/my-subscriptions/components/WebSiteSubscriptions';
+import ShipSubscriptions from '../../components/dashboard/my-subscriptions/components/ShipSubscriptions';
 
 
 
@@ -56,6 +62,7 @@ export default function Dashboard() {
     'my-account': true,
     'manage-my-store': true,
     'my-finances': true,
+    'my-subscriptions': true,
     finance: true 
   }); // Default sections to closed
   const [slideInContent, setSlideInContent] = useState(null); // Track slide-in overlay content
@@ -442,6 +449,47 @@ export default function Dashboard() {
         />
       );
     }
+    
+    // Handle My Subscriptions slide-ins
+    if (slideInContent.type === 'manage-subscriptions') {
+      return (
+        <ManageSubscriptions
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'marketplace-subscriptions') {
+      return (
+        <MarketplaceSubscriptions
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'verified-subscriptions') {
+      return (
+        <VerifiedSubscriptions
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'website-subscriptions') {
+      return (
+        <WebSiteSubscriptions
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'ship-subscriptions') {
+      return (
+        <ShipSubscriptions
+          userData={userData}
+        />
+      );
+    }
 
     // Handle other slide-in types here (for future menu sections)
     return null;
@@ -495,6 +543,16 @@ export default function Dashboard() {
           {/* NEW My Finances Section - Clean architecture */}
           {userData && (
             <MyFinancesMenu
+              userData={userData}
+              collapsedSections={collapsedSections}
+              toggleSection={toggleSection}
+              openSlideIn={openSlideIn}
+            />
+          )}
+
+          {/* NEW My Subscriptions Section - Clean architecture */}
+          {userData && (
+            <MySubscriptionsMenu
               userData={userData}
               collapsedSections={collapsedSections}
               toggleSection={toggleSection}

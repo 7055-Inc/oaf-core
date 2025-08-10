@@ -2524,6 +2524,34 @@ CREATE TABLE `subscription_payments` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `shipping_label_purchases`
+--
+
+DROP TABLE IF EXISTS `shipping_label_purchases`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `shipping_label_purchases` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `subscription_id` bigint NOT NULL,
+  `shipping_label_id` bigint NOT NULL,
+  `stripe_payment_intent_id` varchar(255) DEFAULT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `status` enum('pending','succeeded','failed') DEFAULT 'pending',
+  `decline_reason` varchar(255) DEFAULT NULL,
+  `payment_method` enum('card','connect_balance') DEFAULT 'card',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_subscription_id` (`subscription_id`),
+  KEY `idx_shipping_label_id` (`shipping_label_id`),
+  KEY `idx_payment_method` (`payment_method`),
+  KEY `idx_status` (`status`),
+  CONSTRAINT `shipping_label_purchases_ibfk_1` FOREIGN KEY (`subscription_id`) REFERENCES `user_subscriptions` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `shipping_label_purchases_ibfk_2` FOREIGN KEY (`shipping_label_id`) REFERENCES `shipping_labels` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `terms_versions`
 --
 
@@ -2834,7 +2862,7 @@ CREATE TABLE `user_subscriptions` (
   `user_id` bigint NOT NULL,
   `stripe_subscription_id` varchar(255) DEFAULT NULL,
   `stripe_customer_id` varchar(255) DEFAULT NULL,
-  `subscription_type` enum('verification') DEFAULT 'verification',
+  `subscription_type` enum('verification','shipping_labels') DEFAULT 'verification',
   `status` enum('active','canceled','past_due','unpaid','trialing','incomplete') DEFAULT 'incomplete',
   `current_period_start` timestamp NULL DEFAULT NULL,
   `current_period_end` timestamp NULL DEFAULT NULL,
@@ -2863,6 +2891,7 @@ DROP TABLE IF EXISTS `user_terms_acceptance`;
 CREATE TABLE `user_terms_acceptance` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `user_id` bigint NOT NULL,
+  `subscription_type` enum('general','verification','shipping_labels','marketplace','website') DEFAULT 'general',
   `terms_version_id` int NOT NULL,
   `accepted_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `ip_address` varchar(45) DEFAULT NULL,
@@ -2870,6 +2899,7 @@ CREATE TABLE `user_terms_acceptance` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `unique_user_terms` (`user_id`,`terms_version_id`),
   KEY `idx_user_terms` (`user_id`,`terms_version_id`),
+  KEY `idx_user_subscription_type` (`user_id`,`subscription_type`),
   KEY `terms_version_id` (`terms_version_id`),
   CONSTRAINT `user_terms_acceptance_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `user_terms_acceptance_ibfk_2` FOREIGN KEY (`terms_version_id`) REFERENCES `terms_versions` (`id`)
