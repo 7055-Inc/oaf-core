@@ -10,6 +10,56 @@ const stripeService = require('../../services/stripeService');
 // ============================================================================
 
 /**
+ * Get vendor shipping settings for Ship From address prefill
+ * GET /api/subscriptions/shipping/vendor-address
+ */
+router.get('/vendor-address', verifyToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    
+    // Check if user has vendor permission and shipping settings
+    const [vendorSettings] = await db.execute(`
+      SELECT 
+        return_company_name as name,
+        return_address_line_1 as street,
+        return_address_line_2 as address_line_2,
+        return_city as city,
+        return_state as state,
+        return_postal_code as zip,
+        return_country as country,
+        return_phone as phone
+      FROM vendor_ship_settings 
+      WHERE vendor_id = ?
+    `, [userId]);
+
+    if (vendorSettings.length === 0) {
+      return res.json({
+        success: true,
+        has_vendor_address: false,
+        address: null
+      });
+    }
+
+    const settings = vendorSettings[0];
+    
+    // Check if address is complete (required fields filled)
+    const isComplete = settings.name && settings.street && settings.city && 
+                      settings.state && settings.zip && settings.country;
+
+    res.json({
+      success: true,
+      has_vendor_address: true,
+      address: isComplete ? settings : null,
+      incomplete_address: !isComplete ? settings : null
+    });
+
+  } catch (error) {
+    console.error('Error fetching vendor address:', error);
+    res.status(500).json({ error: 'Failed to fetch vendor address' });
+  }
+});
+
+/**
  * Get current shipping terms content
  * GET /api/subscriptions/shipping/terms
  */
@@ -873,6 +923,108 @@ router.post('/purchase-label', verifyToken, requirePermission('shipping'), async
 });
 
 /**
+ * Get unified label library (both order and standalone labels)
+ * GET /api/subscriptions/shipping/all-labels
+ */
+router.get('/all-labels', verifyToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    // Get all labels for this user (both order and standalone) - based on working /my-labels endpoint
+    const [allLabels] = await db.execute(`
+      (SELECT 
+        sl.id as db_id,
+        'order' as type,
+        sl.order_id,
+        sl.order_item_id,
+        sl.tracking_number,
+        sl.label_file_path,
+        sl.service_name,
+        sl.cost,
+        sl.status,
+        sl.created_at,
+        sa.recipient_name as customer_name,
+        oi.product_name,
+        oi.quantity
+      FROM shipping_labels sl
+      JOIN order_items oi ON sl.order_item_id = oi.id
+      JOIN orders o ON sl.order_id = o.id
+      JOIN shipping_addresses sa ON o.id = sa.order_id
+      WHERE sl.vendor_id = ?)
+      
+      UNION ALL
+      
+      (SELECT 
+        ssl.id as db_id,
+        'standalone' as type,
+        NULL as order_id,
+        NULL as order_item_id,
+        ssl.tracking_number,
+        ssl.label_file_path,
+        ssl.service_name,
+        ssl.cost,
+        ssl.status,
+        ssl.created_at,
+        'N/A' as customer_name,
+        'Standalone Label' as product_name,
+        1 as quantity
+      FROM standalone_shipping_labels ssl
+      WHERE ssl.user_id = ?)
+      
+      ORDER BY created_at DESC
+    `, [userId, userId]);
+
+    res.json({ 
+      success: true, 
+      labels: allLabels
+    });
+
+  } catch (error) {
+    console.error('Error fetching unified labels:', error);
+    res.status(500).json({ error: 'Failed to fetch labels' });
+  }
+});
+
+/**
+ * Get standalone label library
+ * GET /api/subscriptions/shipping/standalone-labels
+ */
+router.get('/standalone-labels', verifyToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    // Get standalone labels for this user
+    const [standaloneLabels] = await db.execute(`
+      SELECT 
+        sl.id as db_id,
+        'standalone' as type,
+        sl.label_id,
+        sl.tracking_number,
+        sl.label_file_path,
+        sl.service_name,
+        sl.cost,
+        sl.status,
+        sl.created_at,
+        'N/A' as customer_name,
+        'Standalone Label' as product_name,
+        1 as quantity
+      FROM standalone_shipping_labels sl
+      WHERE sl.user_id = ?
+      ORDER BY sl.created_at DESC
+    `, [userId]);
+
+    res.json({ 
+      success: true, 
+      labels: standaloneLabels
+    });
+
+  } catch (error) {
+    console.error('Error fetching standalone labels:', error);
+    res.status(500).json({ error: 'Failed to fetch standalone labels' });
+  }
+});
+
+/**
  * Get shipping label purchase history
  * GET /api/subscriptions/shipping/purchases
  */
@@ -1053,6 +1205,177 @@ router.post('/refund', verifyToken, requirePermission('shipping'), async (req, r
   } catch (error) {
     console.error('Error processing refund:', error);
     res.status(500).json({ error: 'Failed to process refund', details: error.message });
+  }
+});
+
+/**
+ * Create standalone shipping label (not attached to order)
+ * POST /api/subscriptions/shipping/create-standalone-label
+ */
+router.post('/create-standalone-label', verifyToken, requirePermission('shipping'), async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { shipper_address, recipient_address, packages, selected_rate, force_card_payment = false } = req.body;
+
+    if (!shipper_address || !recipient_address || !packages || !selected_rate) {
+      return res.status(400).json({ error: 'Shipper address, recipient address, packages, and selected rate are required' });
+    }
+
+    // Get user's subscription
+    const [subscriptions] = await db.execute(`
+      SELECT id, stripe_customer_id, prefer_connect_balance 
+      FROM user_subscriptions 
+      WHERE user_id = ? AND subscription_type = 'shipping_labels' AND status = 'active'
+    `, [userId]);
+
+    if (subscriptions.length === 0) {
+      return res.status(400).json({ error: 'Active shipping subscription required' });
+    }
+
+    const subscription = subscriptions[0];
+
+    // Use shipper address provided by frontend (no fallback)
+    // Frontend should prefill from vendor settings or require user input
+
+    // Check Connect balance for standalone labels (prevent negative balance)
+    let canUseConnectBalance = false;
+    if (!force_card_payment && subscription.prefer_connect_balance && req.permissions.includes('stripe_connect')) {
+      try {
+        const connectBalance = await stripeService.getConnectAccountBalance(userId);
+        const labelCostCents = Math.round(selected_rate.cost * 100);
+        
+        // For standalone labels, prevent negative balance
+        if (connectBalance.available >= labelCostCents) {
+          canUseConnectBalance = true;
+        }
+      } catch (error) {
+        console.error('Error checking Connect balance:', error);
+      }
+    }
+
+    let paymentResult;
+    let paymentMethod;
+
+    // Try Connect balance first if available and sufficient
+    if (canUseConnectBalance) {
+      try {
+        paymentResult = await stripeService.processSubscriptionPaymentWithConnectBalance(
+          userId,
+          null, // No Stripe subscription for standalone labels
+          Math.round(selected_rate.cost * 100) // Convert to cents
+        );
+
+        if (paymentResult.success) {
+          paymentMethod = 'connect_balance';
+        } else {
+          // Connect balance failed, fall back to card
+          canUseConnectBalance = false;
+        }
+      } catch (connectError) {
+        console.error('Connect balance payment failed:', connectError);
+        canUseConnectBalance = false;
+      }
+    }
+
+    // Fall back to card payment if Connect balance not used or failed
+    if (!canUseConnectBalance) {
+      const paymentIntent = await stripeService.stripe.paymentIntents.create({
+        amount: Math.round(selected_rate.cost * 100), // Convert to cents
+        currency: 'usd',
+        customer: subscription.stripe_customer_id,
+        payment_method_types: ['card'],
+        confirmation_method: 'automatic',
+        confirm: true,
+        off_session: true, // Use saved payment method
+        metadata: {
+          user_id: userId.toString(),
+          subscription_id: subscription.id.toString(),
+          label_type: 'standalone',
+          platform: 'oaf'
+        }
+      });
+
+      if (paymentIntent.status !== 'succeeded') {
+        return res.status(400).json({ 
+          error: 'Payment failed',
+          decline_code: paymentIntent.last_payment_error?.decline_code,
+          message: paymentIntent.last_payment_error?.message
+        });
+      }
+
+      paymentResult = { payment_intent_id: paymentIntent.id };
+      paymentMethod = 'card';
+    }
+
+    // Create shipping label via existing shipping service (but store in standalone table)
+    const shippingService = require('../../services/shippingService');
+    
+    const shipment = {
+      shipper: { name: shipper_address.name, address: shipper_address },
+      recipient: { name: recipient_address.name, address: recipient_address },
+      packages: packages,
+      user_id: userId, // Use user_id for standalone labels
+      is_standalone: true // Flag to use standalone table
+    };
+
+    const labelData = await shippingService.purchaseStandaloneLabel(selected_rate.carrier, shipment, selected_rate);
+
+    // Record payment in appropriate table
+    if (paymentMethod === 'connect_balance') {
+      // Create vendor transaction record (for standalone labels, this tracks the payment)
+      const [vtResult] = await db.execute(`
+        INSERT INTO vendor_transactions (
+          vendor_id, transaction_type, amount, status, created_at
+        ) VALUES (?, 'shipping_charge', ?, 'completed', CURRENT_TIMESTAMP)
+      `, [userId, selected_rate.cost]);
+
+      // For standalone labels, record the Connect balance payment
+      await db.execute(`
+        INSERT INTO shipping_label_purchases (
+          subscription_id, shipping_label_id, stripe_payment_intent_id, 
+          amount, status, payment_method
+        ) VALUES (?, ?, NULL, ?, 'succeeded', 'connect_balance')
+      `, [subscription.id, labelData.labelId, selected_rate.cost]);
+    } else {
+      // Create shipping label purchase record for card payments
+      await db.execute(`
+        INSERT INTO shipping_label_purchases (
+          subscription_id, shipping_label_id, stripe_payment_intent_id, 
+          amount, status, payment_method
+        ) VALUES (?, ?, ?, ?, 'succeeded', 'card')
+      `, [subscription.id, labelData.labelId, paymentResult.payment_intent_id, selected_rate.cost]);
+    }
+
+    res.json({
+      success: true,
+      label: {
+        id: labelData.labelId,
+        tracking_number: labelData.trackingNumber,
+        carrier: selected_rate.carrier,
+        service: selected_rate.service,
+        cost: selected_rate.cost,
+        label_url: labelData.labelUrl
+      },
+      payment_method: paymentMethod,
+      amount: selected_rate.cost
+    });
+
+  } catch (error) {
+    console.error('Error creating standalone label:', error);
+    
+    // Handle specific Stripe errors
+    if (error.type === 'StripeCardError') {
+      return res.status(400).json({ 
+        error: 'Card payment failed',
+        decline_code: error.decline_code,
+        message: error.message
+      });
+    }
+
+    res.status(500).json({ 
+      error: 'Failed to create label',
+      details: error.message 
+    });
   }
 });
 

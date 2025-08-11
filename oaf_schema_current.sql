@@ -2552,6 +2552,77 @@ CREATE TABLE `shipping_label_purchases` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `shipping_labels`
+--
+
+DROP TABLE IF EXISTS `shipping_labels`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `shipping_labels` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `order_id` bigint NOT NULL,
+  `order_item_id` bigint NOT NULL,
+  `vendor_id` bigint NOT NULL,
+  `package_sequence` int NOT NULL DEFAULT '1',
+  `carrier` enum('ups','fedex','usps') NOT NULL,
+  `service_code` varchar(50) NOT NULL,
+  `service_name` varchar(100) NOT NULL,
+  `tracking_number` varchar(100) NOT NULL,
+  `label_file_path` varchar(500) DEFAULT NULL,
+  `label_format` enum('paper','label') NOT NULL,
+  `cost` decimal(10,2) NOT NULL,
+  `currency` varchar(3) DEFAULT 'USD',
+  `vendor_transaction_id` bigint DEFAULT NULL,
+  `status` enum('purchased','printed','voided') DEFAULT 'purchased',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `order_item_id` (`order_item_id`),
+  KEY `vendor_transaction_id` (`vendor_transaction_id`),
+  KEY `idx_vendor_labels` (`vendor_id`,`created_at`),
+  KEY `idx_label_tracking` (`tracking_number`),
+  KEY `idx_order_labels` (`order_id`,`package_sequence`),
+  KEY `idx_file_cleanup` (`created_at`,`label_file_path`),
+  CONSTRAINT `shipping_labels_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `shipping_labels_ibfk_2` FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `shipping_labels_ibfk_3` FOREIGN KEY (`vendor_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `shipping_labels_ibfk_4` FOREIGN KEY (`vendor_transaction_id`) REFERENCES `vendor_transactions` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `standalone_shipping_labels`
+--
+
+DROP TABLE IF EXISTS `standalone_shipping_labels`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `standalone_shipping_labels` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `label_id` varchar(100) NOT NULL,
+  `user_id` bigint NOT NULL,
+  `carrier` enum('ups','fedex','usps') NOT NULL,
+  `service_code` varchar(50) NOT NULL,
+  `service_name` varchar(100) NOT NULL,
+  `tracking_number` varchar(100) NOT NULL,
+  `label_file_path` varchar(500) DEFAULT NULL,
+  `label_format` enum('paper','label') NOT NULL,
+  `cost` decimal(10,2) NOT NULL,
+  `currency` varchar(3) DEFAULT 'USD',
+  `status` enum('purchased','printed','voided') DEFAULT 'purchased',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `label_id` (`label_id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_label_id` (`label_id`),
+  KEY `idx_tracking_number` (`tracking_number`),
+  KEY `idx_created_at` (`created_at`),
+  CONSTRAINT `standalone_shipping_labels_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `terms_versions`
 --
 

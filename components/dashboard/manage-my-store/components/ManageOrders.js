@@ -1,13 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { authenticatedApiRequest, handleCsrfError } from '../../../../lib/csrf';
+import { authenticatedApiRequest, handleCsrfError, refreshAuthToken } from '../../../../lib/csrf';
 import slideInStyles from '../../SlideIn.module.css';
+import ShipSubscriptions from '../../my-subscriptions/components/ShipSubscriptions';
 
 export default function ManageOrders({ userData }) {
+  // Add defensive check for userData
+  if (!userData) {
+    return <div>Loading user data...</div>;
+  }
+  
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('unshipped');
   const [orders, setOrders] = useState([]);
   const [labels, setLabels] = useState([]);
   const [selectedLabels, setSelectedLabels] = useState([]);
+  const [standaloneLabels, setStandaloneLabels] = useState([]);
+  const [selectedStandaloneLabels, setSelectedStandaloneLabels] = useState([]);
   const [selectedForMerge, setSelectedForMerge] = useState([]); // Temp selection for merging
   const [mergedGroups, setMergedGroups] = useState({}); // { groupId: [item_ids] }
   const [carrier, setCarrier] = useState('');
@@ -27,9 +35,30 @@ export default function ManageOrders({ userData }) {
   // Pagination for shipped orders
   const [shippedOrdersLimit, setShippedOrdersLimit] = useState(50);
 
+  // Shipping subscription modal state
+  const [showShippingModal, setShowShippingModal] = useState(false);
+
+  // Check if user has shipping permission
+  const hasShippingPermission = (userData && userData.permissions && userData.permissions.includes('shipping')) || false;
+
+  // Handle shipping access request
+  const handleShippingAccess = () => {
+    setShowShippingModal(true);
+  };
+
+  // Handle shipping modal close
+  const handleShippingModalClose = async () => {
+    setShowShippingModal(false);
+    // Force token refresh to get updated permissions
+    await refreshAuthToken();
+    // Reload page to update userData with new permissions
+    window.location.reload();
+  };
+
   useEffect(() => {
     if (activeTab === 'labels') {
       fetchLabels();
+      fetchStandaloneLabels();
     } else {
       fetchOrders(activeTab);
     }
@@ -76,6 +105,48 @@ export default function ManageOrders({ userData }) {
       handleCsrfError(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStandaloneLabels = async () => {
+    try {
+      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/shipping/standalone-labels', {
+        method: 'GET'
+      });
+
+      // Check if response is ok before trying to parse JSON
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Standalone API Error Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        
+        if (response.status === 403) {
+          console.log('No permission for standalone labels');
+          setStandaloneLabels([]);
+          return;
+        } else if (response.status === 500) {
+          console.log('Server error for standalone labels');
+          setStandaloneLabels([]);
+          return;
+        }
+        
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        setStandaloneLabels(data.labels || []);
+      } else {
+        console.error('Error fetching standalone labels:', data.error);
+        setStandaloneLabels([]);
+      }
+    } catch (error) {
+      console.error('Error fetching standalone labels:', error);
+      setStandaloneLabels([]);
+      handleCsrfError(error);
     }
   };
 
@@ -228,9 +299,9 @@ export default function ManageOrders({ userData }) {
 
   const getFormData = (id, isGroup = false) => {
     if (isGroup) {
-      return groupForms[id] || { carrier: '', trackingNumber: '', packages: [], rates: [], selectedRate: null };
+      return groupForms[id] || { carrier: '', trackingNumber: '', packages: [], rates: [], selectedRate: null, forceCardPayment: false };
     } else {
-      return singleItemForms[id] || { carrier: '', trackingNumber: '', packages: [], rates: [], selectedRate: null };
+      return singleItemForms[id] || { carrier: '', trackingNumber: '', packages: [], rates: [], selectedRate: null, forceCardPayment: false };
     }
   };
 
@@ -287,6 +358,8 @@ export default function ManageOrders({ userData }) {
     updateFormData(id, isGroup, { packages: newPackages });
   };
 
+
+
   // Restore processBatch (scans all)
   const processBatch = async () => {
     const batch = [];
@@ -298,7 +371,7 @@ export default function ManageOrders({ userData }) {
         if (form.trackingNumber && form.carrier) {
           batch.push({ id: item.item_id, isGroup: false, type: 'tracking', data: { carrier: form.carrier, trackingNumber: form.trackingNumber } });
         } else if (form.selectedRate) {
-          batch.push({ id: item.item_id, isGroup: false, type: 'label', data: { selected_rate: form.selectedRate, packages: form.packages } });
+          batch.push({ id: item.item_id, isGroup: false, type: 'label', data: { selected_rate: form.selectedRate, packages: form.packages, force_card_payment: form.forceCardPayment } });
         }
       });
     });
@@ -309,7 +382,7 @@ export default function ManageOrders({ userData }) {
       if (form.trackingNumber && form.carrier) {
         batch.push({ id: groupId, isGroup: true, type: 'tracking', data: { carrier: form.carrier, trackingNumber: form.trackingNumber }, itemIds: mergedGroups[groupId] });
       } else if (form.selectedRate) {
-        batch.push({ id: groupId, isGroup: true, type: 'label', data: { selected_rate: form.selectedRate, packages: form.packages }, itemIds: mergedGroups[groupId] });
+        batch.push({ id: groupId, isGroup: true, type: 'label', data: { selected_rate: form.selectedRate, packages: form.packages, force_card_payment: form.forceCardPayment }, itemIds: mergedGroups[groupId] });
       }
     });
     
@@ -677,22 +750,44 @@ export default function ManageOrders({ userData }) {
                         >
                           Tracking
             </button>
-                  <button
-                    className="secondary"
-                          onClick={() => toggleSection('label', item.item_id, false)}
-                          style={{ 
-                            fontSize: '10px', 
-                            padding: '2px 4px',
-                            whiteSpace: 'nowrap',
-                            minWidth: '0',
-                            width: '100%',
-                            maxWidth: '100%',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
-                          }}
-                        >
-                          Label
-                  </button>
+                  {hasShippingPermission ? (
+                    <button
+                      className="secondary"
+                      onClick={() => toggleSection('label', item.item_id, false)}
+                      style={{ 
+                        fontSize: '10px', 
+                        padding: '2px 4px',
+                        whiteSpace: 'nowrap',
+                        minWidth: '0',
+                        width: '100%',
+                        maxWidth: '100%',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}
+                    >
+                      Add Label
+                    </button>
+                  ) : (
+                    <button
+                      className="secondary"
+                      onClick={handleShippingAccess}
+                      style={{ 
+                        fontSize: '10px', 
+                        padding: '2px 4px',
+                        whiteSpace: 'nowrap',
+                        minWidth: '0',
+                        width: '100%',
+                        maxWidth: '100%',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        backgroundColor: '#ffc107',
+                        borderColor: '#ffc107',
+                        color: '#000'
+                      }}
+                    >
+                      Get Access
+                    </button>
+                  )}
                       </div>
                     </div>
 
@@ -846,16 +941,39 @@ export default function ManageOrders({ userData }) {
                                       <span style={{ fontWeight: '500' }}>{rate.service}</span>
                                       <span style={{ marginLeft: 'auto', fontWeight: 'bold' }}>${rate.cost.toFixed(2)}</span>
           </div>
-        ))}
-                                  {!showAllRates && (getFormData(item.item_id, false).rates || []).length > 1 && (
-                                    <button 
-                                      onClick={() => setShowAllRates(true)}
-                                      style={{ color: '#007bff', background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer' }}
-                                    >
-                                      See more shipping options
-                                    </button>
+        )                                )}
+                                {!showAllRates && (getFormData(item.item_id, false).rates || []).length > 1 && (
+                                  <button 
+                                    onClick={() => setShowAllRates(true)}
+                                    style={{ color: '#007bff', background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer' }}
+                                  >
+                                    See more shipping options
+                                  </button>
         )}
                 </div>
+                
+                {/* Payment Method Override for Single Items */}
+                {userData?.permissions?.includes('stripe_connect') && (
+                  <div style={{ 
+                    marginTop: '10px', 
+                    padding: '8px', 
+                    backgroundColor: '#f8f9fa', 
+                    border: '1px solid #dee2e6', 
+                    borderRadius: '4px' 
+                  }}>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={getFormData(item.item_id, false).forceCardPayment || false}
+                        onChange={(e) => updateFormData(item.item_id, false, { forceCardPayment: e.target.checked })}
+                        style={{ marginRight: '6px' }}
+                      />
+                      <span style={{ fontSize: '12px' }}>
+                        Charge card directly (bypass balance)
+                      </span>
+                    </label>
+                  </div>
+                )}
               </div>
             )}
       </div>
@@ -1192,7 +1310,7 @@ export default function ManageOrders({ userData }) {
                           type="checkbox" 
                           onChange={(e) => {
                             if (e.target.checked) {
-                              setSelectedLabels(labels.map(l => l.id));
+                              setSelectedLabels(labels.map(l => l.db_id));
                             } else {
                               setSelectedLabels([]);
                             }
@@ -1210,7 +1328,7 @@ export default function ManageOrders({ userData }) {
                   </thead>
                   <tbody>
                     {labels.map(label => (
-                      <tr key={label.id} style={{ 
+                      <tr key={label.db_id} style={{ 
                         borderBottom: '1px solid #ddd',
                         textDecoration: label.status === 'voided' ? 'line-through' : 'none',
                         opacity: label.status === 'voided' ? 0.6 : 1
@@ -1218,18 +1336,20 @@ export default function ManageOrders({ userData }) {
                         <td style={{ padding: '8px', border: '1px solid #ddd' }}>
                           <input 
                             type="checkbox" 
-                            checked={selectedLabels.includes(label.id)}
+                            checked={selectedLabels.includes(label.db_id)}
                             disabled={label.status === 'voided'}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setSelectedLabels([...selectedLabels, label.id]);
+                                setSelectedLabels([...selectedLabels, label.db_id]);
                               } else {
-                                setSelectedLabels(selectedLabels.filter(id => id !== label.id));
+                                setSelectedLabels(selectedLabels.filter(id => id !== label.db_id));
                               }
                             }}
                           />
                         </td>
-                        <td style={{ padding: '8px', border: '1px solid #ddd' }}>{label.order_id}</td>
+                        <td style={{ padding: '8px', border: '1px solid #ddd' }}>
+                          {label.type === 'standalone' ? 'Standalone' : label.order_id}
+                        </td>
                         <td style={{ padding: '8px', border: '1px solid #ddd' }}>{label.customer_name}</td>
                         <td style={{ padding: '8px', border: '1px solid #ddd' }}>
                           {label.quantity}x {label.product_name}
@@ -1239,9 +1359,9 @@ export default function ManageOrders({ userData }) {
                           {new Date(label.created_at).toLocaleDateString()}
                         </td>
                         <td style={{ padding: '8px', border: '1px solid #ddd' }}>
-                          {label.status !== 'voided' && (
+                          {label.status !== 'voided' && label.type === 'order' && (
                             <button 
-                              onClick={() => voidLabel(label.id, label.tracking_number)}
+                              onClick={() => voidLabel(label.db_id, label.tracking_number)}
                               style={{ 
                                 color: '#dc3545', 
                                 background: 'none', 
@@ -1255,6 +1375,11 @@ export default function ManageOrders({ userData }) {
                             >
                               Void Label
                             </button>
+                          )}
+                          {label.status !== 'voided' && label.type === 'standalone' && (
+                            <span style={{ color: '#6c757d', fontSize: '12px', marginRight: '10px' }}>
+                              Standalone labels cannot be voided
+                            </span>
                           )}
                           {label.status === 'voided' ? (
                             <>
@@ -1304,6 +1429,155 @@ export default function ManageOrders({ userData }) {
                 )}
               </div>
             )}
+            {/* Standalone Labels Section */}
+            <div style={{ marginTop: '40px' }}>
+              <h3 style={{ marginBottom: '20px', color: '#495057', fontWeight: '600' }}>Standalone Labels</h3>
+              
+              {selectedStandaloneLabels.length > 0 && (
+                <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#f0f8ff', border: '1px solid #ccc' }}>
+                  <button 
+                    className="primary" 
+                    onClick={() => {
+                      // TODO: Implement standalone label printing
+                      alert('Standalone label printing coming soon!');
+                    }}
+                    style={{ marginRight: '10px' }}
+                  >
+                    Print Selected Standalone Labels ({selectedStandaloneLabels.length})
+                  </button>
+                  <button 
+                    className="secondary" 
+                    onClick={() => setSelectedStandaloneLabels([])}
+                  >
+                    Clear Selection
+                  </button>
+                </div>
+              )}
+              
+              {loading ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#6c757d' }}>
+                  <div>Loading standalone labels...</div>
+                </div>
+              ) : !standaloneLabels || standaloneLabels.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                  <p style={{ color: '#6c757d', marginBottom: '15px' }}>No standalone labels found.</p>
+                  <button 
+                    className="secondary" 
+                    onClick={fetchStandaloneLabels}
+                    style={{ fontSize: '14px', padding: '8px 16px' }}
+                  >
+                    Retry Loading Standalone Labels
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f5f5f5', borderBottom: '2px solid #ddd' }}>
+                        <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>
+                          <input 
+                            type="checkbox" 
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedStandaloneLabels(standaloneLabels.map(l => l.db_id));
+                              } else {
+                                setSelectedStandaloneLabels([]);
+                              }
+                            }}
+                            checked={selectedStandaloneLabels.length === standaloneLabels.length && standaloneLabels.length > 0}
+                          />
+                        </th>
+                        <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Label ID</th>
+                        <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Service</th>
+                        <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Tracking</th>
+                        <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Cost</th>
+                        <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Date</th>
+                        <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Label</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {standaloneLabels.map(label => (
+                        <tr key={label.db_id} style={{ 
+                          borderBottom: '1px solid #ddd',
+                          textDecoration: label.status === 'voided' ? 'line-through' : 'none',
+                          opacity: label.status === 'voided' ? 0.6 : 1
+                        }}>
+                          <td style={{ padding: '8px', border: '1px solid #ddd' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={selectedStandaloneLabels.includes(label.db_id)}
+                              disabled={label.status === 'voided'}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedStandaloneLabels([...selectedStandaloneLabels, label.db_id]);
+                                } else {
+                                  setSelectedStandaloneLabels(selectedStandaloneLabels.filter(id => id !== label.db_id));
+                                }
+                              }}
+                            />
+                          </td>
+                          <td style={{ padding: '8px', border: '1px solid #ddd' }}>
+                            {label.label_id}
+                          </td>
+                          <td style={{ padding: '8px', border: '1px solid #ddd' }}>{label.service_name}</td>
+                          <td style={{ padding: '8px', border: '1px solid #ddd' }}>{label.tracking_number}</td>
+                          <td style={{ padding: '8px', border: '1px solid #ddd' }}>${label.cost}</td>
+                          <td style={{ padding: '8px', border: '1px solid #ddd' }}>
+                            {new Date(label.created_at).toLocaleDateString()}
+                          </td>
+                          <td style={{ padding: '8px', border: '1px solid #ddd' }}>
+                            {label.status === 'voided' ? (
+                              <>
+                                <span style={{ color: '#6c757d', fontSize: '12px', marginRight: '10px' }}>VOIDED</span>
+                                <span 
+                                  style={{ 
+                                    color: '#aaa', 
+                                    textDecoration: 'none', 
+                                    cursor: 'not-allowed',
+                                    fontSize: '14px'
+                                  }}
+                                >
+                                  View Label
+                                </span>
+                              </>
+                            ) : (
+                              <a 
+                                href={label.label_file_path.includes('/user_') 
+                                  ? `https://api2.onlineartfestival.com/api/shipping/labels/${encodeURIComponent(label.label_file_path.split('/').pop())}`
+                                  : `https://main.onlineartfestival.com${label.label_file_path}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: '#007bff', textDecoration: 'none' }}
+                              >
+                                View Label
+                              </a>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  
+                  <div style={{ marginTop: '20px', padding: '10px', backgroundColor: '#fff3cd', border: '1px solid #ffeaa7', borderRadius: '4px' }}>
+                    <small><strong>Note:</strong> Standalone labels are purchased independently and cannot be voided through this interface.</small>
+                  </div>
+                  
+                  {selectedStandaloneLabels.length > 0 && (
+                    <div style={{ marginTop: '20px', padding: '10px', backgroundColor: '#f0f8ff', border: '1px solid #ccc' }}>
+                      <button 
+                        className="primary" 
+                        onClick={() => {
+                          // TODO: Implement standalone label printing
+                          alert('Standalone label printing coming soon!');
+                        }}
+                      >
+                        Print Selected Standalone Labels ({selectedStandaloneLabels.length})
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -1398,22 +1672,44 @@ export default function ManageOrders({ userData }) {
                       >
                         Tracking
                       </button>
-                      <button
-                        className="secondary"
-                        onClick={() => toggleSection('label', groupId, true)}
-                        style={{ 
-                          fontSize: '10px', 
-                          padding: '2px 4px',
-                          whiteSpace: 'nowrap',
-                          minWidth: '0',
-                          width: '100%',
-                          maxWidth: '100%',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis'
-                        }}
-                      >
-                        Label
-                      </button>
+                      {hasShippingPermission ? (
+                        <button
+                          className="secondary"
+                          onClick={() => toggleSection('label', groupId, true)}
+                          style={{ 
+                            fontSize: '10px', 
+                            padding: '2px 4px',
+                            whiteSpace: 'nowrap',
+                            minWidth: '0',
+                            width: '100%',
+                            maxWidth: '100%',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}
+                        >
+                          Add Label
+                        </button>
+                      ) : (
+                        <button
+                          className="secondary"
+                          onClick={handleShippingAccess}
+                          style={{ 
+                            fontSize: '10px', 
+                            padding: '2px 4px',
+                            whiteSpace: 'nowrap',
+                            minWidth: '0',
+                            width: '100%',
+                            maxWidth: '100%',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            backgroundColor: '#ffc107',
+                            borderColor: '#ffc107',
+                            color: '#000'
+                          }}
+                        >
+                          Get Access
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1685,6 +1981,29 @@ export default function ManageOrders({ userData }) {
                                   </button>
                                 )}
                               </div>
+                              
+                              {/* Payment Method Override for Groups */}
+                              {userData?.permissions?.includes('stripe_connect') && (
+                                <div style={{ 
+                                  marginTop: '10px', 
+                                  padding: '8px', 
+                                  backgroundColor: '#f8f9fa', 
+                                  border: '1px solid #dee2e6', 
+                                  borderRadius: '4px' 
+                                }}>
+                                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={getFormData(groupId, true).forceCardPayment || false}
+                                      onChange={(e) => updateFormData(groupId, true, { forceCardPayment: e.target.checked })}
+                                      style={{ marginRight: '6px' }}
+                                    />
+                                    <span style={{ fontSize: '12px' }}>
+                                      Charge card directly (bypass balance)
+                                    </span>
+                                  </label>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -1694,6 +2013,53 @@ export default function ManageOrders({ userData }) {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Shipping Subscription Modal */}
+        {showShippingModal && (
+          <div className="modal-overlay" style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}>
+            <div className="modal-content" style={{
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              padding: '20px',
+              maxWidth: '600px',
+              width: '90%',
+              maxHeight: '80vh',
+              overflow: 'auto',
+              position: 'relative'
+            }}>
+              <button
+                onClick={() => setShowShippingModal(false)}
+                style={{
+                  position: 'absolute',
+                  top: '10px',
+                  right: '15px',
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#666'
+                }}
+              >
+                ×
+              </button>
+              <ShipSubscriptions 
+                userData={userData} 
+                onComplete={handleShippingModalClose}
+              />
+            </div>
           </div>
         )}
     </div>

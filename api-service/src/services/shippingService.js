@@ -655,6 +655,26 @@ class ShippingService {
     return { trackingNumber: labelData.tracking, labelUrl };
   }
 
+  async purchaseStandaloneLabel(carrier, shipment, selectedRate) {
+    let labelData;
+    switch (carrier.toUpperCase()) {
+      case 'FEDEX':
+        labelData = await this.createFedExLabel(shipment, selectedRate);
+        break;
+      default:
+        throw new Error(`Unsupported carrier: ${carrier}. Currently supported: FedEx only (test mode)`);
+    }
+    
+    // Store the label PDF in standalone table
+    const labelUrl = await this.storeStandaloneLabel(labelData.pdfBase64, shipment.user_id, labelData, selectedRate, shipment);
+    
+    return { 
+      trackingNumber: labelData.tracking, 
+      labelUrl,
+      labelId: `STANDALONE-${shipment.user_id}-${Date.now()}`
+    };
+  }
+
   async cancelLabel(carrier, trackingNumber) {
     try {
       switch (carrier.toUpperCase()) {
@@ -949,6 +969,42 @@ class ShippingService {
         shipment.order_id || null,
         itemId,
         userId, // vendor_id
+        selectedRate.carrier.toLowerCase(),
+        selectedRate.service_code || selectedRate.service,
+        selectedRate.service_name || selectedRate.service,
+        labelData.tracking,
+        `/static_media/labels/${fileName}`,
+        'label', // assuming label format
+        selectedRate.cost || 0
+      ]
+    );
+    
+    return `/static_media/labels/${fileName}`;
+  }
+
+  async storeStandaloneLabel(pdfBase64, userId, labelData, selectedRate, shipment) {
+    const dir = path.join(__dirname, '../../../public/static_media/labels');
+    await fs.mkdir(dir, { recursive: true });
+    
+    // Create a secure filename for standalone labels
+    const fileName = `standalone_label_${userId}_${Date.now()}_${Math.random().toString(36).substring(7)}.pdf`;
+    const filePath = path.join(dir, fileName);
+    
+    await fs.writeFile(filePath, Buffer.from(pdfBase64, 'base64'));
+    
+    // Generate unique label ID
+    const labelId = `STANDALONE-${userId}-${Date.now()}`;
+    
+    // Insert to standalone_shipping_labels table
+    const db = require('../../config/db');
+    const [result] = await db.execute(
+      `INSERT INTO standalone_shipping_labels (
+        label_id, user_id, carrier, service_code, service_name, 
+        tracking_number, label_file_path, label_format, cost, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [
+        labelId,
+        userId,
         selectedRate.carrier.toLowerCase(),
         selectedRate.service_code || selectedRate.service,
         selectedRate.service_name || selectedRate.service,

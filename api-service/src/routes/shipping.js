@@ -359,6 +359,26 @@ router.post('/process-batch', verifyToken, async (req, res) => {
   try {
     await connection.beginTransaction();
     const { batch } = req.body; // array of { id, isGroup, type, data }
+    const userId = req.userId;
+
+    // Check if user has shipping subscription for label creation
+    const hasLabelCreation = batch.some(entry => entry.type === 'label');
+    if (hasLabelCreation) {
+      // Verify user has active shipping subscription
+      const [subscriptions] = await connection.execute(`
+        SELECT id, stripe_customer_id, prefer_connect_balance 
+        FROM user_subscriptions 
+        WHERE user_id = ? AND subscription_type = 'shipping_labels' AND status = 'active'
+      `, [userId]);
+
+      if (subscriptions.length === 0) {
+        await connection.rollback();
+        return res.status(400).json({ 
+          error: 'Active shipping subscription required for label creation',
+          requires_subscription: true
+        });
+      }
+    }
     
     const results = [];
     for (const entry of batch) {
@@ -377,7 +397,17 @@ router.post('/process-batch', verifyToken, async (req, res) => {
         }
         results.push({ id: entry.id, status: 'success', tracking: trackingNumber });
       } else if (entry.type === 'label') {
-        const { selected_rate, packages } = entry.data;
+        const { selected_rate, packages, force_card_payment = false } = entry.data;
+        
+        // Get user's subscription for payment processing
+        const [subscriptions] = await connection.execute(`
+          SELECT id, stripe_customer_id, prefer_connect_balance 
+          FROM user_subscriptions 
+          WHERE user_id = ? AND subscription_type = 'shipping_labels' AND status = 'active'
+        `, [userId]);
+
+        const subscription = subscriptions[0]; // Already verified exists above
+
         // Build shipment (use first item for details)
         const [itemData] = await connection.execute(`
           SELECT oi.*, ps.*, p.vendor_id
@@ -408,6 +438,65 @@ router.post('/process-batch', verifyToken, async (req, res) => {
               dimension_unit: item.dimension_unit,
               weight_unit: item.weight_unit
             }];
+
+        // PAYMENT PROCESSING FOR ORDER LABELS
+        let paymentMethod = 'card';
+        const stripeService = require('../services/stripeService');
+
+        // Try Connect balance first if preferred and not forced to card (allow negative for order labels)
+        if (!force_card_payment && subscription.prefer_connect_balance && req.permissions.includes('stripe_connect')) {
+          try {
+            const paymentResult = await stripeService.processSubscriptionPaymentWithConnectBalance(
+              userId,
+              null, // No Stripe subscription for shipping
+              Math.round(selected_rate.cost * 100) // Convert to cents
+            );
+
+            if (paymentResult.success) {
+              paymentMethod = 'connect_balance';
+              
+              // Create vendor transaction record
+              const [vtResult] = await connection.execute(`
+                INSERT INTO vendor_transactions (
+                  vendor_id, transaction_type, amount, status, created_at
+                ) VALUES (?, 'shipping_charge', ?, 'completed', CURRENT_TIMESTAMP)
+              `, [userId, selected_rate.cost]);
+
+              // Will link to shipping label after creation
+              var vendorTransactionId = vtResult.insertId;
+            }
+          } catch (connectError) {
+            console.error('Connect balance payment failed, falling back to card:', connectError);
+            // Fall back to card payment
+          }
+        }
+
+        // Fall back to card payment if Connect balance not used or failed
+        if (paymentMethod === 'card') {
+          const paymentIntent = await stripeService.stripe.paymentIntents.create({
+            amount: Math.round(selected_rate.cost * 100), // Convert to cents
+            currency: 'usd',
+            customer: subscription.stripe_customer_id,
+            payment_method_types: ['card'],
+            confirmation_method: 'automatic',
+            confirm: true,
+            off_session: true, // Use saved payment method
+            metadata: {
+              user_id: userId.toString(),
+              subscription_id: subscription.id.toString(),
+              order_id: item.order_id.toString(),
+              item_ids: itemIds.join(','),
+              label_type: 'order',
+              platform: 'oaf'
+            }
+          });
+
+          if (paymentIntent.status !== 'succeeded') {
+            throw new Error(`Payment failed: ${paymentIntent.last_payment_error?.message || 'Unknown error'}`);
+          }
+
+          var paymentIntentId = paymentIntent.id;
+        }
         
         // Build complete shipment object
         const shipment = {
@@ -419,6 +508,23 @@ router.post('/process-batch', verifyToken, async (req, res) => {
           order_id: item.order_id
         };
         const labelData = await shippingService.purchaseLabel(selected_rate.carrier, shipment, selected_rate);
+
+        // Record payment in appropriate table
+        if (paymentMethod === 'connect_balance') {
+          // Link vendor transaction to shipping label
+          await connection.execute(
+            'UPDATE shipping_labels SET vendor_transaction_id = ? WHERE id = ?',
+            [vendorTransactionId, labelData.labelId]
+          );
+        } else {
+          // Create shipping label purchase record
+          await connection.execute(`
+            INSERT INTO shipping_label_purchases (
+              subscription_id, shipping_label_id, stripe_payment_intent_id, 
+              amount, status, payment_method
+            ) VALUES (?, ?, ?, ?, 'succeeded', 'card')
+          `, [subscription.id, labelData.labelId, paymentIntentId, selected_rate.cost]);
+        }
         
         for (const itemId of itemIds) {
           await connection.execute(
@@ -426,7 +532,14 @@ router.post('/process-batch', verifyToken, async (req, res) => {
             [itemId]
           );
         }
-        results.push({ id: entry.id, status: 'success', tracking: labelData.trackingNumber, labelUrl: labelData.labelUrl });
+        results.push({ 
+          id: entry.id, 
+          status: 'success', 
+          tracking: labelData.trackingNumber, 
+          labelUrl: labelData.labelUrl,
+          payment_method: paymentMethod,
+          amount: selected_rate.cost
+        });
       }
     }
     

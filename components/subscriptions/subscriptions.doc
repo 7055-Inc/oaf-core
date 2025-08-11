@@ -528,7 +528,14 @@ Create one cohesive shipping system where both order fulfillment and standalone 
   - Use Connect balance first (if enabled)
   - **Prevent negative balance** (balance might never recover)
   - Fallback to card on file  
-  - Process via `/api/subscriptions/shipping/purchase-label`
+  - Process via `/api/subscriptions/shipping/create-standalone-label`
+
+**Per-Transaction Payment Method Override:**
+- ✅ `force_card_payment` parameter bypasses Connect balance entirely
+- ✅ Frontend checkbox: "Charge card directly (bypass balance)"
+- ✅ Available on both order labels and standalone labels
+- ✅ Only shown to users with stripe_connect permission
+- ✅ Gives users complete control over payment method per transaction
 
 **Payment Flow Integration:**
 - Modify existing `/api/shipping/process-batch` to check subscription status
@@ -550,17 +557,24 @@ Create one cohesive shipping system where both order fulfillment and standalone 
 - Implement same rate fetching and form logic
 - Store labels in same `shipping_labels` table with `order_id = NULL`
 
-**Phase 3: Payment Integration**
-- Modify `/api/shipping/process-batch` to require subscription check
-- Add payment processing before label creation
-- Implement dual balance rules (order vs standalone)
-- Update error handling for payment failures
+**Phase 3: Payment Integration** ✅ COMPLETED
+- ✅ Modified `/api/shipping/process-batch` to require subscription check
+- ✅ Added payment processing before label creation
+- ✅ Implemented dual balance rules (order vs standalone)
+- ✅ Updated error handling for payment failures
+- ✅ Created `/api/subscriptions/shipping/create-standalone-label` endpoint
+- ✅ Added per-transaction payment method override (`force_card_payment` parameter)
+- ✅ Frontend checkboxes added for "Charge card directly (bypass balance)"
 
-**Phase 4: Unified Label Library**
-- Create shared label display component
-- Update ManageOrders to use shared component
-- Update ShipSubscriptions to use shared component  
-- Ensure consistent styling and functionality
+**Phase 4: Unified Label Library** ✅ COMPLETED
+- ✅ Created `standalone_shipping_labels` table for standalone labels with `label_id` and `user_id`
+- ✅ Updated `/create-standalone-label` endpoint to use new standalone table
+- ✅ Created `purchaseStandaloneLabel` and `storeStandaloneLabel` functions in shipping service
+- ✅ Created unified API endpoint `/api/subscriptions/shipping/all-labels` that UNIONs both tables
+- ✅ Updated ManageOrders label library tab to use unified API with type indicators
+- ✅ Updated ShipSubscriptions to display unified label library with payment method badges
+- ✅ Added proper handling for standalone vs order labels (voiding restrictions, display differences)
+- ✅ Consistent styling and functionality across both frontend entry points
 
 ### Database Considerations
 
@@ -589,5 +603,32 @@ Create one cohesive shipping system where both order fulfillment and standalone 
 - Consistent label creation experience across both entry points
 - Unified label management regardless of creation source
 - Clear payment method indication (Connect vs Card)
+
+### COMPLETED: JWT Token Refresh Integration
+
+**Issue Identified:**
+- After shipping subscription signup, users needed to manually refresh the page for the "Get Access" button to change to "Add Label"
+- JWT tokens were not automatically updated with new 'shipping' permission
+- Admin users (who should have immediate access) were also affected by permission delays
+
+**Solution Implemented:**
+1. **Auth.js Updates:**
+   - Added 'shipping' permission mapping to both JWT generation endpoints (login and refresh)
+   - Ensures both initial login and token refresh include shipping permissions when present in database
+
+2. **Frontend Token Refresh Integration:**
+   - **ManageOrders**: `handleShippingModalClose()` now calls `refreshAuthToken()` before page reload
+   - **ShipSubscriptions**: `handleTermsAcceptance()` now calls `refreshAuthToken()` immediately after successful terms acceptance
+   - Both flows ensure JWT contains updated permissions before UI refresh
+
+3. **Files Modified:**
+   - `api-service/src/routes/auth.js`: Added shipping permission to both login (line 183) and refresh (line 298) token generation
+   - `components/dashboard/manage-my-store/components/ManageOrders.js`: Added token refresh to modal close handler
+   - `components/dashboard/my-subscriptions/components/ShipSubscriptions.js`: Added token refresh to terms acceptance flow
+
+**Result:**
+- Admin users immediately see "Add Label" buttons (no signup required)
+- Regular users see instant button flip from "Get Access" to "Add Label" after signup completion
+- No manual page refresh required for permission updates
 
 ---
