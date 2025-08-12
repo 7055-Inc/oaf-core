@@ -46,31 +46,46 @@ export default function ShipSubscriptions({ userData, onComplete }) {
       setLoading(true);
       setError(null);
       
-      // Check current permission status
+      // Step 1: Check permission from JWT (this is the source of truth)
       const hasPermission = userData?.permissions?.includes('shipping') || false;
       
-      // Always check subscription status to get complete picture
-        const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/shipping/my');
-      
-        if (response.ok) {
-          const data = await response.json();
+      // Step 2: If user has permission, check subscription status and terms separately
+      if (hasPermission) {
+        // Check subscription status (card, etc.)
+        const subscriptionResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/shipping/my');
+        
+        // Check terms acceptance separately
+        const termsResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/shipping/terms-check');
+        
+        if (subscriptionResponse.ok && termsResponse.ok) {
+          const subscriptionData = await subscriptionResponse.json();
+          const termsData = await termsResponse.json();
           
-        // User has active subscription - use real API data
-        setRequirements({
-          hasValidCard: data.subscription?.cardLast4 !== null,
-          hasAcceptedTerms: data.subscription?.termsAccepted || false,
-          hasPermission: data.has_permission || false
-        });
-        setSubscriptionData(data);
-        
+          // User has permission - check their subscription and terms status
+          setRequirements({
+            hasValidCard: subscriptionData.subscription?.cardLast4 !== null,
+            hasAcceptedTerms: termsData.termsAccepted || false,
+            hasPermission: true // We know this is true from JWT
+          });
+          setSubscriptionData(subscriptionData);
+          
+        } else {
+          // User has permission but no active subscription yet
+          const termsResponse2 = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/shipping/terms-check');
+          const termsData = termsResponse2.ok ? await termsResponse2.json() : { termsAccepted: false };
+          
+          setRequirements({
+            hasValidCard: false, // No subscription = no card
+            hasAcceptedTerms: termsData.termsAccepted || false,
+            hasPermission: true // We know this is true from JWT
+          });
+        }
       } else {
-        // No active subscription found
-          const data = await response.json();
-        
+        // Step 3: User doesn't have permission - they need to go through signup
         setRequirements({
-          hasValidCard: false, // No active subscription = no valid card setup yet
-          hasAcceptedTerms: false, // No subscription = no terms accepted yet  
-          hasPermission: data.has_permission || false
+          hasValidCard: false,
+          hasAcceptedTerms: false,
+          hasPermission: false
         });
       }
       

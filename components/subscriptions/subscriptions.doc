@@ -37,6 +37,86 @@ The subscription system is built as a modular architecture where individual subs
 
 ## Core Infrastructure (COMPLETED)
 
+### Terms & Permissions Gate System
+**ARCHITECTURAL PATTERN: Multi-Layer Access Control**
+
+The subscription system implements a sophisticated 3-layer access control pattern that provides surgical precision for user access management:
+
+**Layer 1: Page-Level Permissions (JWT-Based)**
+- Controls access to entire dashboard sections
+- Checked by middleware (`middleware/checklist.js`)
+- Source of truth: JWT token permissions array
+- Example: `userData.permissions.includes('vendor')` → Can access vendor section
+
+**Layer 2: Module-Level Permissions (Subscription-Based)**
+- Controls access to specific subscription modules within dashboard sections
+- Checked by individual components on mount
+- Source of truth: Same JWT permissions, but checked per module
+- Example: `userData.permissions.includes('sites')` → Can access website module
+
+**Layer 3: Terms-Level Gates (Version-Based)**
+- Additional gate for module-specific terms acceptance
+- Checked via dedicated API endpoints per subscription type
+- Source of truth: `user_terms_acceptance` table with subscription_type context
+- Example: Latest 'sites' terms accepted → Full module access
+
+**Implementation Pattern:**
+```javascript
+// Every subscription module follows this exact pattern:
+const checkModuleAccess = async () => {
+  // Step 1: Check JWT permission (immediate, no API call)
+  const hasPermission = userData?.permissions?.includes(permissionName);
+  
+  if (hasPermission) {
+    // Step 2: Check module-specific terms acceptance
+    const termsResponse = await fetch(`/api/subscriptions/${moduleType}/terms-check`);
+    const termsData = await termsResponse.json();
+    
+    if (termsData.termsAccepted) {
+      setModuleState('dashboard'); // Full access
+    } else {
+      setModuleState('terms-required'); // Show terms modal
+    }
+  } else {
+    setModuleState('signup'); // Show subscription signup workflow
+  }
+};
+
+// Render logic:
+if (moduleState === 'dashboard') return <ModuleDashboard />;
+if (moduleState === 'terms-required') return <TermsModal />;
+if (moduleState === 'signup') return <SignupWorkflow />;
+```
+
+**Benefits of This Architecture:**
+- **Surgical Control**: Only relevant users see relevant terms
+- **Graceful Degradation**: System works even if terms API fails
+- **Consistent Pattern**: All subscription modules use identical logic
+- **Security**: Users cannot bypass terms by manipulating frontend state
+- **User Experience**: Smooth flows for both new and existing users
+- **Maintainable**: Clear separation of concerns
+
+**Required API Endpoints Per Module:**
+- `GET /api/subscriptions/{type}/terms-check` - Check latest terms acceptance
+- `POST /api/subscriptions/{type}/terms-accept` - Record terms acceptance
+- Standard subscription management endpoints (signup, cancel, status)
+
+**Database Requirements:**
+- `terms_versions` table with `subscription_type` column
+- `user_terms_acceptance` table with `subscription_type` column
+- `user_permissions` table with module-specific permission columns
+
+**Frontend State Management:**
+- `moduleState`: 'loading' | 'dashboard' | 'terms-required' | 'signup'
+- `termsData`: Latest terms content when acceptance required
+- Consistent error handling and loading states
+
+**Implementation Status:**
+- ✅ **Shipping Module**: Complete implementation with terms-check endpoint
+- ✅ **Sites Module**: Complete implementation with terms-check endpoint
+- ✅ **Pattern Verified**: Both modules tested and working in production
+- ✅ **Documentation**: Pattern documented for future module development
+
 ### Database Schema
 Four main tables provide the foundation for all subscription types:
 
@@ -630,5 +710,338 @@ Create one cohesive shipping system where both order fulfillment and standalone 
 - Admin users immediately see "Add Label" buttons (no signup required)
 - Regular users see instant button flip from "Get Access" to "Add Label" after signup completion
 - No manual page refresh required for permission updates
+
+---
+
+# WEBSITE SUBSCRIPTION MODULE
+
+## Overview
+Monetize the existing custom sites/artist sites system by wrapping it in subscription tiers. Transform the current free website creation into a paid service with multiple feature levels.
+
+## Current Sites System Analysis
+- ✅ **Existing Infrastructure**: Full sites table, domain management, themes, subdomain routing
+- ✅ **Permission System**: `manage_sites` permission controls access
+- ✅ **Frontend Management**: Complete SitesManagement.js component
+- ✅ **Domain Features**: Custom domain support, DNS validation, SSL handling
+
+## Current Limitations to Address
+- **Hardcoded Limits**: "1 site per artist, unlimited for admins" 
+- **No Monetization**: Free access for anyone with permissions
+- **No Feature Tiers**: All users get identical capabilities
+
+## Planning Discussion
+
+### User Feedback & Requirements:
+
+**1. Hidden Free Plan:**
+- All existing sites automatically moved to hidden "free" tier
+- Admin sites default to free tier (for marketing campaigns, landing pages, catalog fronts)
+- Maintains current signin subdomain functionality
+- Not visible to regular users in subscription selection
+
+**2. Flexible Pricing & Promotions:**
+- Base subscription tiers with discount capability
+- Promotional codes: 50% off for 6 months, first month free, $1/month for 2 months
+- Need promo code system integration
+
+**3. Revised Tier Structure:**
+- **Free (Hidden)**: For existing sites, admin use, marketing campaigns
+- **Basic**: Subdomain only + 2 templates
+- **Pro**: Custom domain + more templates  
+- **Premium**: Domain + templates + addons package + priority support
+- **Add-ons**: Additional addons, custom templates, setup assistance, extra sites
+
+**4. Enhanced Status Management:**
+- Existing: draft, active, inactive, suspended, deleted
+- **New**: suspended_violation, suspended_finance
+
+### Missing Components Analysis:
+
+**✅ COMPLETED: Enhanced Status System**
+- Database: Updated sites table ENUM to include `suspended_violation` and `suspended_finance`
+- Schema file synchronized with database reality
+
+**Implementation Phases:**
+
+**Phase 1: Promo Codes** ✅ COMPLETED
+- ✅ Database: Universal `discounts` table with all subscription types support
+- ✅ API: Discount calculation engine with stacking/chaining logic
+- ✅ Business Logic: Priority-based conflict resolution
+- ✅ Admin Tools: Create/delete discount endpoints
+
+**Phase 1 Implementation Details:**
+
+**Database Schema:**
+```sql
+CREATE TABLE discounts (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  subscription_type ENUM('website', 'shipping_labels', 'verification'),
+  discount_code VARCHAR(100) NOT NULL,
+  discount_type ENUM('percentage', 'fixed_amount', 'free_months', 'free_addon'),
+  discount_value DECIMAL(10,2) NOT NULL,
+  priority INT DEFAULT 10,
+  can_stack TINYINT(1) DEFAULT 1,
+  can_chain TINYINT(1) DEFAULT 0,
+  valid_from/valid_until TIMESTAMP,
+  is_active TINYINT(1) DEFAULT 1
+);
+```
+
+**API Endpoints:**
+- `GET /api/sites/discounts/calculate?subscription_type=website` - Calculate active discounts
+- `POST /api/sites/discounts` - Create discount (admin only)
+- `DELETE /api/sites/discounts/:id` - Remove discount (admin only)
+
+**Discount Logic:**
+- Priority-based: Lower number = higher priority
+- Stacking: If ANY discount has can_stack=no, use highest priority only
+- Chaining: can_chain=no prevents adding same discount_type if one exists
+- Universal: Works for website, shipping_labels, verification subscriptions
+
+**Phase 2: Templates Build & Design** ✅ COMPLETED
+- ✅ Database: `website_templates` table with tier restrictions
+- ✅ Sites Integration: Added `template_id` column to sites table
+- ✅ API: Complete template selection and management endpoints
+- ✅ Admin Tools: Template creation and management system
+
+**Phase 2 Implementation Details:**
+
+**Database Schema:**
+```sql
+CREATE TABLE website_templates (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  template_name VARCHAR(100) NOT NULL,
+  template_slug VARCHAR(100) UNIQUE NOT NULL,
+  css_file_path VARCHAR(500) NOT NULL,
+  tier_required ENUM('free', 'basic', 'pro', 'premium') DEFAULT 'free',
+  preview_image_url VARCHAR(500),
+  display_order INT DEFAULT 0
+);
+
+ALTER TABLE sites ADD COLUMN template_id BIGINT DEFAULT 1;
+```
+
+**Template Selection Flow:**
+1. User visits template gallery: `GET /api/sites/templates`
+2. User selects template: `PUT /api/sites/template/5` 
+3. System updates: `sites.template_id = 5`
+4. Next page load: Looks up template CSS file and applies new styling
+5. **Same data, completely new look!**
+
+**API Endpoints:**
+- `GET /api/sites/templates` - Browse available templates
+- `GET /api/sites/templates/:id` - Get template details
+- `PUT /api/sites/template/:id` - Apply template to user's site
+- `POST /api/sites/templates` - Create new template (admin only)
+
+**Template System Architecture:**
+- **Separation of Concerns**: Templates (CSS) vs Site Data (content)
+- **Simple Relationship**: Each site points to one template via foreign key
+- **Tier-Based Access**: Templates restricted by subscription level
+- **Performance**: Just one JOIN query to get template info
+
+**Phase 3: Addons & Template Tiers** ✅ COMPLETED
+- ✅ Database: `website_addons` and `site_addons` tables with pricing and tier restrictions
+- ✅ Addon Modules: 7 blank addon modules created in `components/sites-modules/` (moved from pages to prevent Next.js build conflicts)
+- ✅ API: Complete addon marketplace and management endpoints
+- ✅ Many-to-Many Relationship: Sites can have multiple addons
+- ✅ Database Paths Updated: All addon_script_path entries updated to `/components/sites-modules/` location
+
+**Phase 3 Implementation Details:**
+
+**Database Schema:**
+```sql
+CREATE TABLE website_addons (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  addon_name VARCHAR(100) NOT NULL,
+  addon_slug VARCHAR(100) UNIQUE NOT NULL,
+  addon_script_path VARCHAR(500) NOT NULL,
+  tier_required ENUM('free', 'basic', 'pro', 'premium') DEFAULT 'basic',
+  monthly_price DECIMAL(10,2) DEFAULT 0.00,
+  display_order INT DEFAULT 0
+);
+
+CREATE TABLE site_addons (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  site_id BIGINT NOT NULL,
+  addon_id BIGINT NOT NULL,
+  is_active TINYINT(1) DEFAULT 1,
+  activated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_site_addon (site_id, addon_id)
+);
+```
+
+**Addon Modules Created:**
+- Email Collection ($5/month, Basic tier)
+- Social Posting ($10/month, Pro tier)
+- Wholesale Pricing ($15/month, Pro tier)
+- Etsy Connector ($20/month, Premium tier)
+- Amazon Connector ($25/month, Premium tier)
+- Walmart Connector ($25/month, Premium tier)
+- TikTok Connector ($20/month, Premium tier)
+
+**Site Loading Flow:**
+1. Site loads → `GET /api/sites/my-addons` returns active addon script paths
+2. Site dynamically loads addon scripts: `/components/sites-modules/email-collection.js`
+3. Each addon initializes and adds its functionality
+4. **Same site, enhanced with modular features!**
+
+**API Endpoints:**
+- `GET /api/sites/addons` - Browse addon marketplace
+- `GET /api/sites/my-addons` - Get user's active addons with script paths
+- `POST /api/sites/addons/:id` - Add addon to user's site
+- `DELETE /api/sites/addons/:id` - Remove addon from user's site
+- `POST /api/sites/addons` - Create new addon (admin only)
+
+**Addon System Architecture:**
+- **Modular Loading**: Addons load dynamically based on user's active subscriptions
+- **Many-to-Many**: Sites can have multiple addons, addons can be on multiple sites
+- **Pricing Integration**: Each addon has individual monthly pricing
+- **Tier Restrictions**: Addons restricted by subscription level
+
+**Phase 4: Customer Interface** ✅ COMPLETED
+- ✅ WebsiteSubscriptions.js component with permission-based routing
+- ✅ Terms acceptance integration with subscription-specific terms system
+- ✅ Frontend permission checks ('sites' permission for dashboard access)
+- ✅ Refined Pricing Tiers: Starter Plan ($14.99), Professional Plan ($24.95), Business Plan ($49.95), Promoter Plan ($49.95)
+- ✅ Plan Descriptions: Compelling mini-descriptions for each tier explaining value proposition
+- ✅ Visual Layout: Promoter Plan centered on separate row for distinction from artist-focused plans
+- ✅ Complete Backend API Integration: 5 functional endpoints in modular routes file
+- ✅ Subscription Signup Flow: Real payment integration placeholder with permission granting
+- ✅ Cancellation System: Dashboard cancel button with confirmation and permission revocation
+- 🔄 **Pending**: Sites dashboard enhancement with full site management integration
+
+**Phase 4 Architecture Notes:**
+
+**Dual-Layer Subscription System:**
+We discovered that instead of rigid subscription tiers, we can use a flexible addon-based approach:
+
+**User-Level Permissions** (Account-wide functionality):
+- `custom_domain` ($10/month) - Use custom domains on any site
+- `second_site` ($15/month) - Create multiple sites beyond 1-site limit  
+- `priority_support` ($5/month) - Priority customer support
+- `white_label` ($8/month) - Remove "Powered by OAF" branding
+- `api_access` ($20/month) - Developer API access
+- `advanced_analytics` ($12/month) - Detailed site analytics
+
+**Site-Level Addons** (Per-site functionality):
+- `email_collection` ($5/month) - Email signup forms for this site
+- `social_posting` ($10/month) - Auto-post to social media from this site
+- `etsy_connector` ($20/month) - Etsy sync for this site
+- `wholesale_pricing` ($15/month) - Bulk pricing for this site
+- Plus all existing addons in addon system
+
+**Phase 4 Implementation Details:**
+
+**Frontend Component Architecture:**
+```javascript
+// WebsiteSubscriptions.js - Main component with permission-based routing
+const hasSitesPermission = userData?.permissions?.includes('sites');
+
+// Flow:
+// 1. No 'sites' permission → Show pricing tiers with signup buttons
+// 2. Has 'sites' permission → Check terms acceptance
+// 3. Terms not accepted → Show terms modal (blocks dashboard)
+// 4. Terms accepted → Show website dashboard with sites management
+```
+
+**Permission & Terms Integration:**
+- ✅ **'sites' Permission**: Added to user_permissions table and JWT generation
+- ✅ **Terms System**: Extended with 'sites' subscription type and terms content
+- ✅ **Terms Check**: Component checks latest terms acceptance before dashboard access
+- ✅ **Terms Modal**: Forces acceptance of updated terms to continue
+
+**Database Extensions:**
+```sql
+-- Permission system
+ALTER TABLE user_permissions ADD COLUMN sites TINYINT(1) DEFAULT 0;
+
+-- Terms system  
+ALTER TABLE terms_versions MODIFY subscription_type ENUM(..., 'sites');
+ALTER TABLE user_terms_acceptance MODIFY subscription_type ENUM(..., 'sites');
+
+-- Added website subscription terms v1.0
+INSERT INTO terms_versions (title, content, version, subscription_type, is_current) 
+VALUES ('Website Subscription Terms', '...', '1.0', 'sites', 1);
+```
+
+**Frontend State Management:**
+- Permission-based component rendering
+- Terms acceptance state tracking
+- Modal state management for signup/terms
+- Mocked API calls ready for backend integration
+
+**Updated Pricing Tiers (December 2024):**
+
+**Starter Plan - $14.99/month**
+- Description: "Simple setup, core features, great for getting started"
+- Features: 1 Website, Subdomain included, Basic templates, Use your OAF data to build a complete site in minutes, Community support
+
+**Professional Plan - $24.95/month (Most Popular)**
+- Description: "Build a professional brand, grow your online presence, connect with your shoppers"
+- Features: Everything in Starter Plan, Use your Custom domain, Premium design templates, Access to premium addons, Priority Support, Access to custom design services
+
+**Business Plan - $49.95/month**
+- Description: "Take your art business to the next level with marketplace connectors, wholesale access and brand building tools"
+- Features: Everything in Starter and Professional Plans, Access to multiple websites with custom domains, Premium addons and marketplace connectors, Wholesale pricing, Dedicated support, Core analytics
+
+**Promoter Plan - $49.95/month (Centered on own row)**
+- Description: "Grow your event and promote your artists with tools tailored to help you drive more traffic to your event participants"
+- Features: Includes all artist pro features, plus Tools to help you sell merch, Application and jury tools, Invoicing and acceptance management, Excel at SEO and web optimization
+
+**Backend Implementation Details (December 2024):**
+
+**Modular API Architecture:**
+- **Route File**: `api-service/src/routes/subscriptions/sites.js`
+- **Server Registration**: `/api/subscriptions/sites` in `server.js`
+- **Self-Contained**: All sites subscription logic in single modular file
+- **Consistent Pattern**: Follows same structure as shipping subscription routes
+
+**Permission Integration:**
+- **Database**: `user_permissions.sites` column controls access
+- **JWT**: Sites permission included in token generation (auth.js)
+- **Frontend**: Permission-based component routing
+- **Lifecycle**: Permission granted on signup, revoked on cancellation
+
+**Terms System Integration:**
+- **Database Terms**: ID 5, "Website Subscription Terms" v1.0 active
+- **Subscription-Specific**: Uses 'sites' subscription_type
+- **Enforcement**: Terms acceptance required before dashboard access
+- **Tracking**: Full acceptance history in `user_terms_acceptance` table
+
+**API Endpoints Built (December 2024):**
+- ✅ `GET /api/subscriptions/sites/terms-check` - Check if user accepted latest 'sites' terms
+- ✅ `POST /api/subscriptions/sites/terms-accept` - Record terms acceptance for sites subscription
+- ✅ `GET /api/subscriptions/sites/my-sites` - Get user's websites for dashboard display
+- ✅ `POST /api/subscriptions/sites/signup` - Create subscription and grant 'sites' permission
+- ✅ `POST /api/subscriptions/sites/cancel` - Cancel subscription and revoke 'sites' permission
+- ✅ **BONUS**: `GET /api/subscriptions/sites/status` - Get current subscription status
+
+**Implementation Strategy:**
+✅ **Infrastructure Complete**: Permission system, addon system, discount system, terms system all ready
+✅ **Frontend Complete**: Component with permission routing, terms integration, pricing UI, subscription lifecycle management
+✅ **Backend APIs Complete**: All 5 endpoints functional with modular routes architecture
+✅ **Database Integration**: Terms system working, permission granting/revoking functional
+🔄 **Final Phase - Sites Dashboard Enhancement**: 
+1. **Dashboard Integration**: Integrate existing SitesManagement.js component into subscription dashboard
+2. **Template System**: Connect template selection system (`/api/sites/templates`) to dashboard
+3. **Addon Management**: Connect addon management system (`/api/sites/addons`) to dashboard  
+4. **Tier Restrictions**: Implement subscription tier feature restrictions (Basic vs Pro vs Business vs Promoter)
+5. **Site Management**: Add site creation/editing functionality within subscription context
+6. **Feature Gating**: Enforce plan limits (1 site for Starter, custom domains for Pro+, etc.)
+
+**Billing Model:**
+```
+Total Monthly Bill = Base ($9.99) + User Permissions + Site Addons + Discounts
+Example: $9.99 + $10 (custom_domain) + $5 (email on site A) + $10 (social on site B) - $2 (loyalty discount) = $32.99
+```
+
+**Benefits:**
+- Pay-for-what-you-use pricing
+- Flexible user customization  
+- Easy upselling opportunities
+- Bundle discounts via existing discount system
+- No rigid tier limitations
 
 ---

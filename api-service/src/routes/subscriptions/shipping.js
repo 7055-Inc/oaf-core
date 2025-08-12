@@ -60,6 +60,56 @@ router.get('/vendor-address', verifyToken, async (req, res) => {
 });
 
 /**
+ * Check if user has accepted latest shipping terms
+ * GET /api/subscriptions/shipping/terms-check
+ */
+router.get('/terms-check', verifyToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    
+    // Get latest shipping terms version
+    const [latestTerms] = await db.execute(`
+      SELECT id, title, content, version, created_at
+      FROM terms_versions 
+      WHERE subscription_type = 'shipping_labels' AND is_current = 1
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `);
+
+    if (latestTerms.length === 0) {
+      return res.status(404).json({ error: 'No shipping terms found' });
+    }
+
+    const terms = latestTerms[0];
+
+    // Check if user has accepted these terms
+    const [acceptance] = await db.execute(`
+      SELECT id, accepted_at
+      FROM user_terms_acceptance 
+      WHERE user_id = ? AND subscription_type = 'shipping_labels' AND terms_version_id = ?
+    `, [userId, terms.id]);
+
+    const termsAccepted = acceptance.length > 0;
+
+    res.json({
+      success: true,
+      termsAccepted,
+      latestTerms: {
+        id: terms.id,
+        title: terms.title,
+        content: terms.content,
+        version: terms.version,
+        created_at: terms.created_at
+      }
+    });
+
+  } catch (error) {
+    console.error('Error checking shipping terms acceptance:', error);
+    res.status(500).json({ error: 'Failed to check terms acceptance' });
+  }
+});
+
+/**
  * Get current shipping terms content
  * GET /api/subscriptions/shipping/terms
  */

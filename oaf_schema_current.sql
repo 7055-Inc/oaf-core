@@ -2356,7 +2356,8 @@ CREATE TABLE `sites` (
   `subdomain` varchar(100) NOT NULL,
   `custom_domain` varchar(255) DEFAULT NULL,
   `theme_name` varchar(100) NOT NULL DEFAULT 'default',
-  `status` enum('draft','active','inactive','suspended','deleted') DEFAULT 'draft',
+  `template_id` bigint DEFAULT '1',
+  `status` enum('draft','active','inactive','suspended','suspended_violation','suspended_finance','deleted') DEFAULT 'draft',
   `site_title` varchar(255) DEFAULT NULL,
   `site_description` text,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
@@ -2374,10 +2375,73 @@ CREATE TABLE `sites` (
   KEY `idx_subdomain` (`subdomain`),
   KEY `idx_custom_domain` (`custom_domain`),
   KEY `idx_status` (`status`),
+  KEY `idx_template_id` (`template_id`),
   KEY `idx_sites_custom_domain_active` (`custom_domain_active`),
   KEY `idx_sites_domain_validation_status` (`domain_validation_status`),
   CONSTRAINT `sites_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `website_templates`
+--
+
+DROP TABLE IF EXISTS `website_templates`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `website_templates` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `template_name` varchar(100) NOT NULL,
+  `template_slug` varchar(100) NOT NULL,
+  `description` text,
+  `css_file_path` varchar(500) NOT NULL,
+  `preview_image_url` varchar(500) DEFAULT NULL,
+  `tier_required` enum('free','basic','pro','premium') DEFAULT 'free',
+  `is_active` tinyint(1) DEFAULT '1',
+  `display_order` int DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `template_slug` (`template_slug`),
+  KEY `idx_tier_required` (`tier_required`),
+  KEY `idx_is_active` (`is_active`),
+  KEY `idx_display_order` (`display_order`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `discounts`
+--
+
+DROP TABLE IF EXISTS `discounts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `discounts` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `subscription_type` enum('website','shipping_labels','verification') NOT NULL,
+  `discount_code` varchar(100) NOT NULL,
+  `discount_type` enum('percentage','fixed_amount','free_months','free_addon') NOT NULL,
+  `discount_value` decimal(10,2) NOT NULL,
+  `priority` int NOT NULL DEFAULT '10',
+  `can_stack` tinyint(1) DEFAULT '1',
+  `can_chain` tinyint(1) DEFAULT '0',
+  `valid_from` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `valid_until` timestamp NULL DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_by` bigint DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_user_subscription` (`user_id`,`subscription_type`),
+  KEY `idx_discount_code` (`discount_code`),
+  KEY `idx_priority` (`priority`),
+  KEY `idx_active_dates` (`is_active`,`valid_from`,`valid_until`),
+  KEY `idx_stacking` (`can_stack`,`can_chain`),
+  KEY `created_by` (`created_by`),
+  CONSTRAINT `discounts_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `discounts_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --

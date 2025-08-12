@@ -194,6 +194,9 @@ try {
   // Shipping subscription services
   app.use('/api/subscriptions/shipping', require('./routes/subscriptions/shipping'));
   
+  // Sites subscription services
+  app.use('/api/subscriptions/sites', require('./routes/subscriptions/sites'));
+  
   // Event management
   app.use('/api/events', require('./routes/events'));
   // Event types route consolidated into events.js

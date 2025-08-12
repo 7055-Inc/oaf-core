@@ -10,6 +10,440 @@ const { requireRestrictedPermission } = require('../middleware/permissions');
 const verifySiteAccess = requireRestrictedPermission('manage_sites');
 
 // ============================================================================
+// DISCOUNT MANAGEMENT ROUTES
+// ============================================================================
+
+// GET /sites/discounts/calculate - Calculate discounts for a user/subscription type
+router.get('/discounts/calculate', verifyToken, async (req, res) => {
+  try {
+    const { subscription_type } = req.query;
+    const userId = req.userId;
+    
+    if (!subscription_type) {
+      return res.status(400).json({ error: 'subscription_type is required' });
+    }
+
+    // Get all active discounts for user/subscription
+    const [discounts] = await db.execute(`
+      SELECT * FROM discounts 
+      WHERE user_id = ? 
+      AND subscription_type = ?
+      AND is_active = 1 
+      AND valid_from <= NOW() 
+      AND (valid_until IS NULL OR valid_until >= NOW())
+      ORDER BY priority ASC
+    `, [userId, subscription_type]);
+
+    // Apply stacking logic
+    let applicableDiscounts = [];
+    let hasNoStackDiscount = false;
+
+    for (const discount of discounts) {
+      if (!discount.can_stack) {
+        hasNoStackDiscount = true;
+        applicableDiscounts = [discount]; // Only use highest priority no-stack discount
+        break;
+      }
+      applicableDiscounts.push(discount);
+    }
+
+    res.json({
+      success: true,
+      discounts: applicableDiscounts,
+      stacking_applied: hasNoStackDiscount ? 'single_discount' : 'stacked_discounts'
+    });
+
+  } catch (error) {
+    secureLogger.error('Error calculating discounts:', error);
+    res.status(500).json({ error: 'Failed to calculate discounts' });
+  }
+});
+
+// POST /sites/discounts - Add a discount for a user (admin only)
+router.post('/discounts', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+  try {
+    const {
+      user_id,
+      subscription_type,
+      discount_code,
+      discount_type,
+      discount_value,
+      priority = 10,
+      can_stack = 1,
+      can_chain = 0,
+      valid_from,
+      valid_until
+    } = req.body;
+
+    // Validate required fields
+    if (!user_id || !subscription_type || !discount_code || !discount_type || discount_value === undefined) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Check for chaining conflicts if can_chain is false
+    if (!can_chain) {
+      const [existing] = await db.execute(`
+        SELECT id FROM discounts 
+        WHERE user_id = ? 
+        AND subscription_type = ?
+        AND discount_type = ?
+        AND is_active = 1
+        AND (valid_until IS NULL OR valid_until >= NOW())
+      `, [user_id, subscription_type, discount_type]);
+
+      if (existing.length > 0) {
+        return res.status(400).json({ error: 'Cannot chain: discount of this type already exists for user' });
+      }
+    }
+
+    const [result] = await db.execute(`
+      INSERT INTO discounts (
+        user_id, subscription_type, discount_code, discount_type, discount_value,
+        priority, can_stack, can_chain, valid_from, valid_until, created_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      user_id, subscription_type, discount_code, discount_type, discount_value,
+      priority, can_stack, can_chain, valid_from, valid_until, req.userId
+    ]);
+
+    res.json({
+      success: true,
+      discount_id: result.insertId,
+      message: 'Discount created successfully'
+    });
+
+  } catch (error) {
+    secureLogger.error('Error creating discount:', error);
+    res.status(500).json({ error: 'Failed to create discount' });
+  }
+});
+
+// DELETE /sites/discounts/:id - Remove a discount (admin only)
+router.delete('/discounts/:id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+  try {
+    const discountId = req.params.id;
+
+    const [result] = await db.execute('DELETE FROM discounts WHERE id = ?', [discountId]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Discount not found' });
+    }
+
+    res.json({ success: true, message: 'Discount deleted successfully' });
+
+  } catch (error) {
+    secureLogger.error('Error deleting discount:', error);
+    res.status(500).json({ error: 'Failed to delete discount' });
+  }
+});
+
+// ============================================================================
+// TEMPLATE MANAGEMENT ROUTES
+// ============================================================================
+
+// GET /sites/templates - Get available templates (filtered by user's subscription tier)
+router.get('/templates', verifyToken, async (req, res) => {
+  try {
+    // For now, return all active templates - subscription filtering will be added in Phase 3
+    const [templates] = await db.execute(`
+      SELECT id, template_name, template_slug, description, preview_image_url, tier_required
+      FROM website_templates 
+      WHERE is_active = 1 
+      ORDER BY display_order ASC, template_name ASC
+    `);
+
+    res.json({ success: true, templates });
+
+  } catch (error) {
+    secureLogger.error('Error fetching templates:', error);
+    res.status(500).json({ error: 'Failed to fetch templates' });
+  }
+});
+
+// GET /sites/templates/:id - Get specific template details
+router.get('/templates/:id', verifyToken, async (req, res) => {
+  try {
+    const templateId = req.params.id;
+
+    const [template] = await db.execute(`
+      SELECT * FROM website_templates WHERE id = ? AND is_active = 1
+    `, [templateId]);
+
+    if (template.length === 0) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+
+    res.json({ success: true, template: template[0] });
+
+  } catch (error) {
+    secureLogger.error('Error fetching template:', error);
+    res.status(500).json({ error: 'Failed to fetch template' });
+  }
+});
+
+// PUT /sites/template/:id - Apply template to user's site
+router.put('/template/:id', verifyToken, requireRestrictedPermission('manage_sites'), async (req, res) => {
+  try {
+    const templateId = req.params.id;
+    const userId = req.userId;
+
+    // Verify template exists and is active
+    const [template] = await db.execute(`
+      SELECT id, tier_required FROM website_templates WHERE id = ? AND is_active = 1
+    `, [templateId]);
+
+    if (template.length === 0) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+
+    // Get user's site
+    const [userSite] = await db.execute(`
+      SELECT id FROM sites WHERE user_id = ?
+    `, [userId]);
+
+    if (userSite.length === 0) {
+      return res.status(404).json({ error: 'User site not found' });
+    }
+
+    // Update site template (subscription tier checking will be added in Phase 3)
+    await db.execute(`
+      UPDATE sites SET template_id = ? WHERE user_id = ?
+    `, [templateId, userId]);
+
+    res.json({ 
+      success: true, 
+      message: 'Template applied successfully',
+      template_id: templateId 
+    });
+
+  } catch (error) {
+    secureLogger.error('Error applying template:', error);
+    res.status(500).json({ error: 'Failed to apply template' });
+  }
+});
+
+// POST /sites/templates - Create new template (admin only)
+router.post('/templates', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+  try {
+    const {
+      template_name,
+      template_slug,
+      description,
+      css_file_path,
+      preview_image_url,
+      tier_required = 'free',
+      display_order = 0
+    } = req.body;
+
+    if (!template_name || !template_slug || !css_file_path) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const [result] = await db.execute(`
+      INSERT INTO website_templates (template_name, template_slug, description, css_file_path, preview_image_url, tier_required, display_order)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [template_name, template_slug, description, css_file_path, preview_image_url, tier_required, display_order]);
+
+    res.json({
+      success: true,
+      template_id: result.insertId,
+      message: 'Template created successfully'
+    });
+
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: 'Template slug already exists' });
+    }
+    secureLogger.error('Error creating template:', error);
+    res.status(500).json({ error: 'Failed to create template' });
+  }
+});
+
+// ============================================================================
+// ADDON MANAGEMENT ROUTES
+// ============================================================================
+
+// GET /sites/addons - Get available addons (filtered by user's subscription tier)
+router.get('/addons', verifyToken, async (req, res) => {
+  try {
+    // For now, return all active addons - subscription filtering will be added in Phase 3
+    const [addons] = await db.execute(`
+      SELECT id, addon_name, addon_slug, description, tier_required, monthly_price
+      FROM website_addons 
+      WHERE is_active = 1 
+      ORDER BY display_order ASC, addon_name ASC
+    `);
+
+    res.json({ success: true, addons });
+
+  } catch (error) {
+    secureLogger.error('Error fetching addons:', error);
+    res.status(500).json({ error: 'Failed to fetch addons' });
+  }
+});
+
+// GET /sites/my-addons - Get user's active addons
+router.get('/my-addons', verifyToken, requireRestrictedPermission('manage_sites'), async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    // Get user's site first
+    const [userSite] = await db.execute(`
+      SELECT id FROM sites WHERE user_id = ?
+    `, [userId]);
+
+    if (userSite.length === 0) {
+      return res.status(404).json({ error: 'User site not found' });
+    }
+
+    const siteId = userSite[0].id;
+
+    // Get active addons for user's site
+    const [addons] = await db.execute(`
+      SELECT wa.id, wa.addon_name, wa.addon_slug, wa.addon_script_path, 
+             wa.monthly_price, sa.activated_at
+      FROM site_addons sa
+      JOIN website_addons wa ON sa.addon_id = wa.id
+      WHERE sa.site_id = ? AND sa.is_active = 1 AND wa.is_active = 1
+      ORDER BY wa.display_order ASC
+    `, [siteId]);
+
+    res.json({ success: true, addons });
+
+  } catch (error) {
+    secureLogger.error('Error fetching user addons:', error);
+    res.status(500).json({ error: 'Failed to fetch user addons' });
+  }
+});
+
+// POST /sites/addons/:id - Add addon to user's site
+router.post('/addons/:id', verifyToken, requireRestrictedPermission('manage_sites'), async (req, res) => {
+  try {
+    const addonId = req.params.id;
+    const userId = req.userId;
+
+    // Verify addon exists and is active
+    const [addon] = await db.execute(`
+      SELECT id, addon_name, tier_required FROM website_addons WHERE id = ? AND is_active = 1
+    `, [addonId]);
+
+    if (addon.length === 0) {
+      return res.status(404).json({ error: 'Addon not found' });
+    }
+
+    // Get user's site
+    const [userSite] = await db.execute(`
+      SELECT id FROM sites WHERE user_id = ?
+    `, [userId]);
+
+    if (userSite.length === 0) {
+      return res.status(404).json({ error: 'User site not found' });
+    }
+
+    const siteId = userSite[0].id;
+
+    // Check if addon is already active for this site
+    const [existing] = await db.execute(`
+      SELECT id FROM site_addons WHERE site_id = ? AND addon_id = ? AND is_active = 1
+    `, [siteId, addonId]);
+
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'Addon already active for this site' });
+    }
+
+    // Add addon to site (subscription tier checking will be added in Phase 3)
+    await db.execute(`
+      INSERT INTO site_addons (site_id, addon_id, is_active) 
+      VALUES (?, ?, 1)
+      ON DUPLICATE KEY UPDATE is_active = 1, activated_at = CURRENT_TIMESTAMP
+    `, [siteId, addonId]);
+
+    res.json({ 
+      success: true, 
+      message: `${addon[0].addon_name} addon activated successfully`,
+      addon_id: addonId 
+    });
+
+  } catch (error) {
+    secureLogger.error('Error adding addon:', error);
+    res.status(500).json({ error: 'Failed to add addon' });
+  }
+});
+
+// DELETE /sites/addons/:id - Remove addon from user's site
+router.delete('/addons/:id', verifyToken, requireRestrictedPermission('manage_sites'), async (req, res) => {
+  try {
+    const addonId = req.params.id;
+    const userId = req.userId;
+
+    // Get user's site
+    const [userSite] = await db.execute(`
+      SELECT id FROM sites WHERE user_id = ?
+    `, [userId]);
+
+    if (userSite.length === 0) {
+      return res.status(404).json({ error: 'User site not found' });
+    }
+
+    const siteId = userSite[0].id;
+
+    // Deactivate addon for this site
+    const [result] = await db.execute(`
+      UPDATE site_addons 
+      SET is_active = 0, deactivated_at = CURRENT_TIMESTAMP 
+      WHERE site_id = ? AND addon_id = ?
+    `, [siteId, addonId]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Addon not found for this site' });
+    }
+
+    res.json({ success: true, message: 'Addon deactivated successfully' });
+
+  } catch (error) {
+    secureLogger.error('Error removing addon:', error);
+    res.status(500).json({ error: 'Failed to remove addon' });
+  }
+});
+
+// POST /sites/addons - Create new addon (admin only)
+router.post('/addons', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+  try {
+    const {
+      addon_name,
+      addon_slug,
+      description,
+      addon_script_path,
+      tier_required = 'basic',
+      monthly_price = 0.00,
+      display_order = 0
+    } = req.body;
+
+    if (!addon_name || !addon_slug || !addon_script_path) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const [result] = await db.execute(`
+      INSERT INTO website_addons (addon_name, addon_slug, description, addon_script_path, tier_required, monthly_price, display_order)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [addon_name, addon_slug, description, addon_script_path, tier_required, monthly_price, display_order]);
+
+    res.json({
+      success: true,
+      addon_id: result.insertId,
+      message: 'Addon created successfully'
+    });
+
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: 'Addon slug already exists' });
+    }
+    secureLogger.error('Error creating addon:', error);
+    res.status(500).json({ error: 'Failed to create addon' });
+  }
+});
+
+// ============================================================================
 // SITE MANAGEMENT ROUTES
 // ============================================================================
 
