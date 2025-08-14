@@ -28,7 +28,7 @@ const ArtistStorefront = () => {
       // Fetch all data in parallel
       const [siteResponse, productsResponse, articlesResponse, categoriesResponse] = await Promise.all([
         fetch(`https://api2.onlineartfestival.com/api/sites/resolve/${subdomain}`),
-        fetch(`https://api2.onlineartfestival.com/api/sites/resolve/${subdomain}/products?limit=12`),
+        fetch(`https://api2.onlineartfestival.com/products/?vendor_id=${userId}&limit=12`),
         fetch(`https://api2.onlineartfestival.com/api/sites/resolve/${subdomain}/articles?type=menu`),
         fetch(`https://api2.onlineartfestival.com/api/sites/resolve/${subdomain}/categories`)
       ]);

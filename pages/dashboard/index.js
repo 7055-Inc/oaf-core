@@ -14,7 +14,7 @@ import PermissionsManagement from '../../components/PermissionsManagement';
 import EmailAdminDashboard from '../../components/EmailAdminDashboard';
 
 import ArticleManagement from '../articles/components/ArticleManagement';
-import SitesManagement from '../../components/SitesManagement';
+// import SitesManagement from '../../components/SitesManagement'; // REMOVED - functionality moved to subscription dashboard
 import AnnouncementsManagement from '../../components/AnnouncementsManagement';
 import TermsManagement from '../../components/TermsManagement';
 import CommissionManagement from '../../components/CommissionManagement';
@@ -253,7 +253,11 @@ export default function Dashboard() {
       case 'sites-management':
         return (
           <div className={styles.contentSection}>
-            <SitesManagement />
+            <div style={{ padding: '20px', textAlign: 'center', color: '#6c757d' }}>
+              <h3>Site Management</h3>
+              <p>This functionality has been moved to the <strong>My Subscriptions → Website Services</strong> section.</p>
+              <p>Please use the subscription dashboard for all site management tasks.</p>
+            </div>
           </div>
         );
       case 'admin-sites-management':

@@ -130,7 +130,7 @@ class DomainManager {
     try {
       this.log(`Generating SSL certificate for ${customDomain}`);
 
-      const certbotCommand = `certbot certonly --nginx -d ${customDomain} --non-interactive --agree-tos --email ${CERTBOT_EMAIL}`;
+      const certbotCommand = `sudo certbot certonly --nginx -d ${customDomain} --non-interactive --agree-tos --email ${CERTBOT_EMAIL}`;
       
       const result = execSync(certbotCommand, { 
         encoding: 'utf8',
@@ -188,16 +188,17 @@ class DomainManager {
         add_header Cache-Control "public, max-age=31536000, immutable";
     }
     
-    # Default location - route to Next.js frontend
+    # Default location - route to user's subdomain
     location / {
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
+        proxy_set_header Host ${subdomain}.onlineartfestival.com;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Custom-Domain $host;
         proxy_cache_bypass $http_upgrade;
         proxy_buffering off;
         proxy_read_timeout 300;
@@ -245,10 +246,10 @@ server {
   async reloadNginx() {
     try {
       // Test configuration
-      execSync('nginx -t', { stdio: 'pipe' });
+      execSync('sudo nginx -t', { stdio: 'pipe' });
       
       // Reload nginx
-      execSync('systemctl reload nginx', { stdio: 'pipe' });
+      execSync('sudo systemctl reload nginx', { stdio: 'pipe' });
       
       this.log('Nginx configuration reloaded successfully');
       return { success: true };

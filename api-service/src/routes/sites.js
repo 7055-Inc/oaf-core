@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
-const { secureLogger } = require('../middleware/secureLogger');
+
 const { requireRestrictedPermission } = require('../middleware/permissions');
 
 // Middleware to verify site management permissions (replaces verifyArtist)
@@ -54,7 +54,7 @@ router.get('/discounts/calculate', verifyToken, async (req, res) => {
     });
 
   } catch (error) {
-    secureLogger.error('Error calculating discounts:', error);
+    // Error('Error calculating discounts:', error);
     res.status(500).json({ error: 'Failed to calculate discounts' });
   }
 });
@@ -113,7 +113,7 @@ router.post('/discounts', verifyToken, requireRestrictedPermission('manage_syste
     });
 
   } catch (error) {
-    secureLogger.error('Error creating discount:', error);
+    // Error('Error creating discount:', error);
     res.status(500).json({ error: 'Failed to create discount' });
   }
 });
@@ -132,7 +132,7 @@ router.delete('/discounts/:id', verifyToken, requireRestrictedPermission('manage
     res.json({ success: true, message: 'Discount deleted successfully' });
 
   } catch (error) {
-    secureLogger.error('Error deleting discount:', error);
+    // Error('Error deleting discount:', error);
     res.status(500).json({ error: 'Failed to delete discount' });
   }
 });
@@ -155,7 +155,7 @@ router.get('/templates', verifyToken, async (req, res) => {
     res.json({ success: true, templates });
 
   } catch (error) {
-    secureLogger.error('Error fetching templates:', error);
+    // Error('Error fetching templates:', error);
     res.status(500).json({ error: 'Failed to fetch templates' });
   }
 });
@@ -176,7 +176,7 @@ router.get('/templates/:id', verifyToken, async (req, res) => {
     res.json({ success: true, template: template[0] });
 
   } catch (error) {
-    secureLogger.error('Error fetching template:', error);
+    // Error('Error fetching template:', error);
     res.status(500).json({ error: 'Failed to fetch template' });
   }
 });
@@ -217,7 +217,7 @@ router.put('/template/:id', verifyToken, requireRestrictedPermission('manage_sit
     });
 
   } catch (error) {
-    secureLogger.error('Error applying template:', error);
+    // Error('Error applying template:', error);
     res.status(500).json({ error: 'Failed to apply template' });
   }
 });
@@ -254,7 +254,7 @@ router.post('/templates', verifyToken, requireRestrictedPermission('manage_syste
     if (error.code === 'ER_DUP_ENTRY') {
       return res.status(400).json({ error: 'Template slug already exists' });
     }
-    secureLogger.error('Error creating template:', error);
+    // Error('Error creating template:', error);
     res.status(500).json({ error: 'Failed to create template' });
   }
 });
@@ -277,7 +277,7 @@ router.get('/addons', verifyToken, async (req, res) => {
     res.json({ success: true, addons });
 
   } catch (error) {
-    secureLogger.error('Error fetching addons:', error);
+    // Error('Error fetching addons:', error);
     res.status(500).json({ error: 'Failed to fetch addons' });
   }
 });
@@ -311,7 +311,7 @@ router.get('/my-addons', verifyToken, requireRestrictedPermission('manage_sites'
     res.json({ success: true, addons });
 
   } catch (error) {
-    secureLogger.error('Error fetching user addons:', error);
+    // Error('Error fetching user addons:', error);
     res.status(500).json({ error: 'Failed to fetch user addons' });
   }
 });
@@ -365,7 +365,7 @@ router.post('/addons/:id', verifyToken, requireRestrictedPermission('manage_site
     });
 
   } catch (error) {
-    secureLogger.error('Error adding addon:', error);
+    // Error('Error adding addon:', error);
     res.status(500).json({ error: 'Failed to add addon' });
   }
 });
@@ -401,7 +401,7 @@ router.delete('/addons/:id', verifyToken, requireRestrictedPermission('manage_si
     res.json({ success: true, message: 'Addon deactivated successfully' });
 
   } catch (error) {
-    secureLogger.error('Error removing addon:', error);
+    // Error('Error removing addon:', error);
     res.status(500).json({ error: 'Failed to remove addon' });
   }
 });
@@ -438,7 +438,7 @@ router.post('/addons', verifyToken, requireRestrictedPermission('manage_system')
     if (error.code === 'ER_DUP_ENTRY') {
       return res.status(400).json({ error: 'Addon slug already exists' });
     }
-    secureLogger.error('Error creating addon:', error);
+    // Error('Error creating addon:', error);
     res.status(500).json({ error: 'Failed to create addon' });
   }
 });
@@ -456,7 +456,7 @@ router.get('/me', verifyToken, requireRestrictedPermission('manage_sites'), asyn
     );
     res.json(sites);
   } catch (err) {
-    secureLogger.error('Error fetching user sites:', err);
+    // Error('Error fetching user sites:', err);
     res.status(500).json({ error: 'Failed to fetch sites' });
   }
 });
@@ -488,7 +488,7 @@ router.get('/all', verifyToken, async (req, res) => {
     
     res.json(sites);
   } catch (err) {
-    secureLogger.error('Error fetching all sites:', err);
+    // Error('Error fetching all sites:', err);
     res.status(500).json({ error: 'Failed to fetch sites' });
   }
 });
@@ -548,10 +548,10 @@ router.post('/', verifyToken, async (req, res) => {
       [result.insertId]
     );
 
-    secureLogger.info('New site created:', { userId: req.userId, siteId: result.insertId, subdomain });
+    // Info('New site created:', { userId: req.userId, siteId: result.insertId, subdomain });
     res.status(201).json(newSite[0]);
   } catch (err) {
-    secureLogger.error('Error creating site:', err);
+    // Error('Error creating site:', err);
     res.status(500).json({ error: 'Failed to create site' });
   }
 });
@@ -601,7 +601,7 @@ router.put('/:id', verifyToken, async (req, res) => {
 
     res.json(updatedSite[0]);
   } catch (err) {
-    secureLogger.error('Error updating site:', err);
+    // Error('Error updating site:', err);
     res.status(500).json({ error: 'Failed to update site' });
   }
 });
@@ -637,7 +637,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
 
     res.json({ message: 'Site deleted successfully' });
   } catch (err) {
-    secureLogger.error('Error deleting site:', err);
+    // Error('Error deleting site:', err);
     res.status(500).json({ error: 'Failed to delete site' });
   }
 });
@@ -655,7 +655,7 @@ router.get('/categories', verifyToken, async (req, res) => {
     );
     res.json(categories);
   } catch (err) {
-    secureLogger.error('Error fetching user categories:', err);
+    // Error('Error fetching user categories:', err);
     res.status(500).json({ error: 'Failed to fetch categories' });
   }
 });
@@ -701,7 +701,7 @@ router.post('/categories', verifyToken, async (req, res) => {
 
     res.status(201).json(newCategory[0]);
   } catch (err) {
-    secureLogger.error('Error creating user category:', err);
+    // Error('Error creating user category:', err);
     res.status(500).json({ error: 'Failed to create category' });
   }
 });
@@ -738,7 +738,7 @@ router.put('/categories/:id', verifyToken, async (req, res) => {
 
     res.json(updatedCategory[0]);
   } catch (err) {
-    secureLogger.error('Error updating user category:', err);
+    // Error('Error updating user category:', err);
     res.status(500).json({ error: 'Failed to update category' });
   }
 });
@@ -769,7 +769,7 @@ router.delete('/categories/:id', verifyToken, async (req, res) => {
     await db.query('DELETE FROM user_categories WHERE id = ?', [id]);
     res.json({ message: 'Category deleted successfully' });
   } catch (err) {
-    secureLogger.error('Error deleting user category:', err);
+    // Error('Error deleting user category:', err);
     res.status(500).json({ error: 'Failed to delete category' });
   }
 });
@@ -798,7 +798,7 @@ router.get('/resolve/:subdomain', async (req, res) => {
 
     res.json(site[0]);
   } catch (err) {
-    secureLogger.error('Error resolving subdomain:', err);
+    // Error('Error resolving subdomain:', err);
     res.status(500).json({ error: 'Failed to resolve subdomain' });
   }
 });
@@ -843,7 +843,7 @@ router.get('/resolve/:subdomain/products', async (req, res) => {
     const [products] = await db.query(query, params);
     res.json(products);
   } catch (err) {
-    secureLogger.error('Error fetching site products:', err);
+    // Error('Error fetching site products:', err);
     res.status(500).json({ error: 'Failed to fetch products' });
   }
 });
@@ -891,7 +891,7 @@ router.get('/resolve/:subdomain/articles', async (req, res) => {
     const [articles] = await db.query(query, params);
     res.json(articles);
   } catch (err) {
-    secureLogger.error('Error fetching site articles:', err);
+    // Error('Error fetching site articles:', err);
     res.status(500).json({ error: 'Failed to fetch articles' });
   }
 });
@@ -920,7 +920,7 @@ router.get('/resolve/:subdomain/categories', async (req, res) => {
 
     res.json(categories);
   } catch (err) {
-    secureLogger.error('Error fetching site categories:', err);
+    // Error('Error fetching site categories:', err);
     res.status(500).json({ error: 'Failed to fetch categories' });
   }
 });
@@ -956,8 +956,40 @@ router.get('/check-subdomain/:subdomain', async (req, res) => {
       reason: existing.length > 0 ? 'Already taken' : null
     });
   } catch (err) {
-    secureLogger.error('Error checking subdomain:', err);
+    // Error('Error checking subdomain:', err);
     res.status(500).json({ error: 'Failed to check subdomain' });
+  }
+});
+
+// GET /sites/resolve-custom-domain/:domain - Resolve custom domain to subdomain
+router.get('/resolve-custom-domain/:domain', async (req, res) => {
+  try {
+    const { domain } = req.params;
+    
+    // Find the site with this custom domain
+    const [sites] = await db.execute(
+      `SELECT s.subdomain, s.user_id, s.site_name, s.theme_name 
+       FROM sites s 
+       WHERE s.custom_domain = ? 
+       AND s.domain_validation_status = 'verified' 
+       AND s.custom_domain_active = 1`,
+      [domain]
+    );
+
+    if (sites.length === 0) {
+      return res.status(404).json({ error: 'Custom domain not found or not active' });
+    }
+
+    const site = sites[0];
+    res.json({
+      subdomain: site.subdomain,
+      user_id: site.user_id,
+      site_name: site.site_name,
+      theme_name: site.theme_name
+    });
+  } catch (err) {
+    console.error('Error resolving custom domain:', err);
+    res.status(500).json({ error: 'Failed to resolve custom domain' });
   }
 });
 

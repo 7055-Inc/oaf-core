@@ -2,15 +2,41 @@ import { NextResponse } from 'next/server';
 
 export async function subdomainRouter(req) {
   const hostname = req.headers.get('host') || '';
-  const subdomain = hostname.split('.')[0];
+  let subdomain = hostname.split('.')[0];
+  let isCustomDomain = false;
   
   // Skip if this is the main domain
   if (hostname === 'main.onlineartfestival.com' || hostname === 'onlineartfestival.com') {
     return NextResponse.next();
   }
   
-  // Skip if this is not a subdomain pattern
-  if (!hostname.includes('.onlineartfestival.com') || subdomain === 'www' || subdomain === 'api' || subdomain === 'api2') {
+  // Handle custom domains - check if this is a verified custom domain
+  if (!hostname.includes('.onlineartfestival.com')) {
+    isCustomDomain = true;
+    try {
+      // Check if this is a verified custom domain
+      const response = await fetch(`https://api2.onlineartfestival.com/api/sites/resolve-custom-domain/${hostname}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const siteData = await response.json();
+        subdomain = siteData.subdomain; // Use the mapped subdomain
+      } else {
+        // Not a verified custom domain, let it pass through normally
+        return NextResponse.next();
+      }
+    } catch (error) {
+      console.error('Error resolving custom domain:', error);
+      return NextResponse.next();
+    }
+  }
+  
+  // Skip if this is not a subdomain pattern and not a custom domain
+  if (!isCustomDomain && (!hostname.includes('.onlineartfestival.com') || subdomain === 'www' || subdomain === 'api' || subdomain === 'api2')) {
     return NextResponse.next();
   }
   
@@ -36,8 +62,8 @@ export async function subdomainRouter(req) {
     });
     
     if (!response.ok) {
-      // Redirect to main site if subdomain doesn't exist
-      return NextResponse.redirect(new URL('https://main.onlineartfestival.com'));
+      // Route to custom 404 page for non-existent subdomains
+      return NextResponse.rewrite(new URL(`/custom-sites/subdomain-not-found?subdomain=${subdomain}`, req.url));
     }
     
     const siteData = await response.json();
@@ -67,8 +93,8 @@ export async function subdomainRouter(req) {
     }
     
   } catch (error) {
-    // Redirect to main site on error
-    return NextResponse.redirect(new URL('https://main.onlineartfestival.com'));
+    // Route to custom error page on error
+    return NextResponse.rewrite(new URL(`/custom-sites/subdomain-error?subdomain=${subdomain}&error=${encodeURIComponent(error.message)}`, req.url));
   }
 }
 

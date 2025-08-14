@@ -539,6 +539,7 @@ function ShippingDashboard({ subscriptionData, userData, onUpdate, onComplete })
   const [showUpdatePayment, setShowUpdatePayment] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
+  const [showPaymentInfo, setShowPaymentInfo] = useState(false);
 
   const handleCancelSubscription = async () => {
     if (!confirm('Are you sure you want to cancel your shipping subscription? You can reactivate it anytime.')) {
@@ -611,64 +612,145 @@ function ShippingDashboard({ subscriptionData, userData, onUpdate, onComplete })
                   </div>
       )}
 
-      {/* Subscription Info */}
-      <div className="section-box" style={{ marginTop: '10px' }}>
-        <h3>Subscription Details</h3>
-        <div className="info-grid">
-          <div className="info-item">
-            <label>Payment Method:</label>
-            <span>•••• •••• •••• {subscriptionData?.subscription?.cardLast4 || 'None'}</span>
-                  </div>
-          <div className="info-item">
-            <label>Status:</label>
-            <span className="status-active">{subscriptionData?.subscription?.status || 'Unknown'}</span>
-                </div>
-          {subscriptionData?.subscription?.hasStripeConnect && (
-            <div className="info-item">
-              <label>Deduct from Payout Balance if available:</label>
-              <span>{subscriptionData?.subscription?.preferConnectBalance ? 'Enabled' : 'Disabled'}</span>
-                </div>
-          )}
+      {/* Payment Information - Collapsible */}
+      <div style={{ 
+        background: '#f8f9fa', 
+        borderRadius: '2px', 
+        marginBottom: '20px',
+        border: '1px solid #dee2e6'
+      }}>
+        <div style={{ 
+          padding: '15px 20px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          borderBottom: showPaymentInfo ? '1px solid #dee2e6' : 'none'
+        }}>
+          <h3 style={{ margin: '0', color: '#495057', fontSize: '16px' }}>Payment Information</h3>
+          <button
+            onClick={() => setShowPaymentInfo(!showPaymentInfo)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#055474',
+              cursor: 'pointer',
+              fontSize: '14px',
+              textDecoration: 'underline',
+              padding: '0'
+            }}
+          >
+            {showPaymentInfo ? 'Hide Payment Info' : 'Show Payment Info'}
+          </button>
+        </div>
+        
+        {showPaymentInfo && (
+          <div style={{ 
+            padding: '0 20px 20px 20px'
+          }}>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'auto 1fr', 
+              gap: '10px 20px',
+              marginBottom: '15px',
+              fontSize: '14px'
+            }}>
+              <div style={{ color: '#6c757d' }}>Payment Method:</div>
+              <div style={{ color: '#2c3e50' }}>
+                •••• •••• •••• {subscriptionData?.subscription?.cardLast4 || 'None on file'}
               </div>
-          </div>
+              
+              <div style={{ color: '#6c757d' }}>Status:</div>
+              <div style={{ color: subscriptionData?.subscription?.status === 'active' ? '#28a745' : '#6c757d' }}>
+                {subscriptionData?.subscription?.status || 'Unknown'}
+              </div>
+              
+              {subscriptionData?.subscription?.hasStripeConnect && (
+                <>
+                  <div style={{ color: '#6c757d' }}>Connect Balance:</div>
+                  <div style={{ color: '#2c3e50' }}>
+                    {subscriptionData?.subscription?.preferConnectBalance ? 'Enabled' : 'Disabled'}
+                  </div>
+                </>
+              )}
+            </div>
 
-      <div className="action-buttons">
-          {onComplete && (
-            <button 
-              onClick={onComplete}
-              className="primary"
-              style={{ marginBottom: '10px' }}
-            >
-              ✓ Setup Complete - Start Creating Labels
-            </button>
-          )}
-          
-          <button 
-            onClick={() => setShowUpdatePayment(true)}
-            disabled={isProcessing}
-            className="secondary"
-          >
-            Update Payment Method
-          </button>
-          
-          {subscriptionData?.subscription?.hasStripeConnect && (
-            <button 
-              onClick={toggleConnectBalance}
-              disabled={isProcessing}
-              className="secondary"
-            >
-              {subscriptionData?.subscription?.preferConnectBalance ? 'Disable' : 'Enable'} Balance-First Payments
-            </button>
-          )}
-          
-                    <button 
-            onClick={handleCancelSubscription}
-            disabled={isProcessing}
-            className="secondary"
-          >
-            Cancel Subscription
-          </button>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => setShowUpdatePayment(true)}
+                disabled={isProcessing}
+                style={{
+                  padding: '8px 16px',
+                  background: '#055474',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '2px',
+                  cursor: isProcessing ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  opacity: isProcessing ? 0.6 : 1
+                }}
+              >
+                Update Payment Method
+              </button>
+              
+              {subscriptionData?.subscription?.hasStripeConnect && (
+                <button
+                  onClick={toggleConnectBalance}
+                  disabled={isProcessing}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '2px',
+                    cursor: isProcessing ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    opacity: isProcessing ? 0.6 : 1
+                  }}
+                >
+                  {subscriptionData?.subscription?.preferConnectBalance ? 'Disable' : 'Enable'} Balance Payments
+                </button>
+              )}
+              
+              <button
+                onClick={handleCancelSubscription}
+                disabled={isProcessing}
+                style={{
+                  padding: '8px 16px',
+                  background: '#dc3545',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '2px',
+                  cursor: isProcessing ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  opacity: isProcessing ? 0.6 : 1
+                }}
+              >
+                Cancel Subscription
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {onComplete && (
+        <div style={{ marginBottom: '20px' }}>
+          <button 
+            onClick={onComplete}
+            style={{
+              padding: '12px 24px',
+              background: '#28a745',
+              color: 'white',
+              border: 'none',
+              borderRadius: '2px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '16px'
+            }}
+          >
+            ✓ Setup Complete - Start Creating Labels
+          </button>
+        </div>
+      )}
 
       {/* Standalone Label Creator */}
       <div className="section-box" style={{ marginTop: '20px' }}>

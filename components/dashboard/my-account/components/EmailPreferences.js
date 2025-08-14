@@ -72,7 +72,11 @@ const EmailPreferences = ({ userId }) => {
     setError(null);
     
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/emails/log');
+      // TEMPORARILY DISABLED FOR DEBUGGING DOMAIN 500 ERROR
+      console.log('Email history loading temporarily disabled');
+      setHistoryLoading(false);
+      return;
+      // const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/emails/log');
       
       if (!response.ok) {
         throw new Error('Failed to load email history');

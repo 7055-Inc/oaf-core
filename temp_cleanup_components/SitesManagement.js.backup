@@ -1,3 +1,5 @@
+// TEMPORARILY COMMENTED OUT FOR DEBUGGING - TESTING IF THIS CAUSES EMAIL LOG ERRORS
+/*
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../lib/csrf';
 import CustomDomainManagement from './CustomDomainManagement';
@@ -662,4 +664,12 @@ const SitesManagement = () => {
   );
 };
 
+export default SitesManagement;
+*/
+
+// TEMPORARY PLACEHOLDER COMPONENT FOR DEBUGGING
+import React from 'react';
+const SitesManagement = () => {
+  return <div>SitesManagement temporarily disabled for debugging</div>;
+};
 export default SitesManagement; 

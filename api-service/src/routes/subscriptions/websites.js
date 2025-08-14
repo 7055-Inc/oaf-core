@@ -3,7 +3,6 @@ const router = express.Router();
 const db = require('../../../config/db');
 const verifyToken = require('../../middleware/jwt');
 
-
 // ============================================================================
 // SITES SUBSCRIPTION ROUTES
 // ============================================================================

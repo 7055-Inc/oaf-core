@@ -12,12 +12,15 @@ export default async function middleware(req) {
     return;
   }
   
-  // Route to subdomain handler for artist sites
-  if (hostname.includes('.onlineartfestival.com') && 
-      hostname !== 'main.onlineartfestival.com' && 
-      hostname !== 'onlineartfestival.com' &&
-      !hostname.startsWith('api') &&
-      !hostname.startsWith('www')) {
+  // Route to subdomain handler for artist sites and custom domains
+  if ((hostname.includes('.onlineartfestival.com') && 
+       hostname !== 'main.onlineartfestival.com' && 
+       hostname !== 'onlineartfestival.com' &&
+       !hostname.startsWith('api') &&
+       !hostname.startsWith('www')) ||
+      (!hostname.includes('.onlineartfestival.com') && 
+       hostname !== 'localhost' &&
+       !hostname.startsWith('127.0.0.1'))) {
     return subdomainRouter(req);
   }
   

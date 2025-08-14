@@ -2,6 +2,7 @@ require('dotenv').config({ path: '/var/www/main/api-service/.env' });
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
+const db = require('../config/db');
 const path = require('path');
 const { 
   loginLimiter,
@@ -44,15 +45,32 @@ secureLogger.info('API Gateway starting', {
 });
 
 // Manual CORS middleware - moved to top
-app.use((req, res, next) => {
-  const allowedOrigins = [
+app.use(async (req, res, next) => {
+  const staticAllowedOrigins = [
     'https://main.onlineartfestival.com',
     'https://api2.onlineartfestival.com',
     'https://mobile.onlineartfestival.com',
     'http://localhost:8081'  // Mobile app development
   ];
+  
   const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
+  let isAllowed = staticAllowedOrigins.includes(origin);
+  
+  // Check if origin is a verified custom domain
+  if (!isAllowed && origin && origin.startsWith('https://')) {
+    try {
+      const domain = origin.replace('https://', '');
+      const [sites] = await db.execute(
+        'SELECT id FROM sites WHERE custom_domain = ? AND domain_validation_status = "verified" AND custom_domain_active = 1',
+        [domain]
+      );
+      isAllowed = sites.length > 0;
+    } catch (error) {
+      console.error('Error checking custom domain CORS:', error);
+    }
+  }
+  
+  if (isAllowed) {
     res.header('Access-Control-Allow-Origin', origin);
   }
   res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
@@ -136,7 +154,6 @@ app.use('/events', csrfProtection());
 app.use('/api/articles', csrfProtection());
     // Series and tags routes consolidated into articles.js
 app.use('/api/sites', csrfProtection());
-app.use('/api/domains', csrfProtection());
 app.use('/api/terms', csrfProtection());
 app.use('/api/announcements', csrfProtection());
 app.use('/inventory', csrfProtection());
@@ -195,7 +212,7 @@ try {
   app.use('/api/subscriptions/shipping', require('./routes/subscriptions/shipping'));
   
   // Sites subscription services
-  app.use('/api/subscriptions/sites', require('./routes/subscriptions/sites'));
+  app.use('/api/subscriptions/sites', require('./routes/subscriptions/websites'));
   
   // Event management
   app.use('/api/events', require('./routes/events'));
@@ -236,7 +253,7 @@ try {
   app.use('/api/sites', require('./routes/sites'));
   
   // Custom domain management
-  app.use('/api/domains', require('./routes/domains'));
+  app.use('/api/domains', csrfProtection(), require('./routes/domains'));
   
   // Terms and conditions management
   app.use('/api/terms', require('./routes/terms'));

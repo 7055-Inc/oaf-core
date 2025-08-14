@@ -9,7 +9,6 @@ export default function WebSiteSubscriptions({ userData }) {
   const [userSites, setUserSites] = useState([]);
   
   // Enhanced signup state
-  const [availableAddons, setAvailableAddons] = useState([]);
   const [selectedAddons, setSelectedAddons] = useState([]);
   const [signupTermsAccepted, setSignupTermsAccepted] = useState(false);
   const [setupIntent, setSetupIntent] = useState(null);
@@ -20,6 +19,18 @@ export default function WebSiteSubscriptions({ userData }) {
   const [moduleState, setModuleState] = useState('loading'); // 'loading', 'dashboard', 'terms-required', 'signup'
   const [termsData, setTermsData] = useState(null);
   const [showTermsModal, setShowTermsModal] = useState(false);
+
+  // Payment info state
+  const [showPaymentInfo, setShowPaymentInfo] = useState(false);
+  const [subscriptionData, setSubscriptionData] = useState(null);
+  const [showUpdatePayment, setShowUpdatePayment] = useState(false);
+
+  // Site management state
+  const [expandedSite, setExpandedSite] = useState(null);
+  const [availableTemplates, setAvailableTemplates] = useState([]);
+  const [availableAddons, setAvailableAddons] = useState([]);
+  const [siteForm, setSiteForm] = useState({});
+  const [isEditingSite, setIsEditingSite] = useState(false);
 
   useEffect(() => {
     checkModuleAccess();
@@ -43,6 +54,7 @@ export default function WebSiteSubscriptions({ userData }) {
             // All good - show dashboard
             setModuleState('dashboard');
             fetchUserSites();
+            fetchSubscriptionData();
           } else {
             // Need to accept new terms
             setModuleState('terms-required');
@@ -90,6 +102,65 @@ export default function WebSiteSubscriptions({ userData }) {
       console.error('Error fetching sites:', error);
       setUserSites([]);
       setLoading(false);
+    }
+  };
+
+  const fetchSubscriptionData = async () => {
+    try {
+      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/sites/status');
+      const data = await response.json();
+      
+      if (data.success) {
+        setSubscriptionData(data);
+      }
+    } catch (error) {
+      console.error('Error fetching subscription data:', error);
+    }
+  };
+
+  const fetchTemplatesAndAddons = async () => {
+    try {
+      // Fetch available templates
+      const templatesResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/sites/templates');
+      if (templatesResponse.ok) {
+        const templatesData = await templatesResponse.json();
+        setAvailableTemplates(templatesData.templates || []);
+      }
+
+      // Fetch available addons (only for manage_sites users)
+      if (userData?.permissions?.includes('manage_sites')) {
+        const addonsResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/sites/addons');
+        if (addonsResponse.ok) {
+          const addonsData = await addonsResponse.json();
+          setAvailableAddons(addonsData.addons || []);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching templates/addons:', error);
+    }
+  };
+
+  const handleSiteManage = (site) => {
+    if (expandedSite === site.id) {
+      // Collapse if already expanded
+      setExpandedSite(null);
+      setIsEditingSite(false);
+    } else {
+      // Expand this site
+      setExpandedSite(site.id);
+      setSiteForm({
+        site_name: site.site_name,
+        site_title: site.site_title || '',
+        site_description: site.site_description || '',
+        template_id: site.template_id || 1,
+        status: site.status
+      });
+      setIsEditingSite(false);
+      
+      // Fetch templates/addons when expanding
+      if (availableTemplates.length === 0) {
+        fetchTemplatesAndAddons();
+      }
     }
   };
 
@@ -368,8 +439,6 @@ export default function WebSiteSubscriptions({ userData }) {
   if (moduleState === 'dashboard') {
     return (
       <div style={{ padding: '20px' }}>
-        <h2 style={{ marginBottom: '30px', color: '#2c3e50' }}>Website Subscription Dashboard</h2>
-        
         <div style={{ 
           background: '#f8f9fa', 
           padding: '20px', 
@@ -382,32 +451,77 @@ export default function WebSiteSubscriptions({ userData }) {
               {userSites.map(site => (
                 <div key={site.id} style={{
                   background: 'white',
-                  padding: '15px',
-                  borderRadius: '2px',
                   border: '1px solid #dee2e6',
+                  borderRadius: '2px',
                   marginBottom: '10px'
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {/* Site Header */}
+                  <div style={{ 
+                    padding: '15px',
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    borderBottom: expandedSite === site.id ? '1px solid #dee2e6' : 'none'
+                  }}>
                     <div>
                       <h4 style={{ margin: '0 0 5px 0', color: '#2c3e50' }}>{site.site_name}</h4>
                       <p style={{ margin: '0', color: '#6c757d', fontSize: '14px' }}>
-                        {site.subdomain}.onlineartfestival.com • {site.status}
+                        {site.domain || `${site.subdomain}.onlineartfestival.com`} • {site.status}
                       </p>
                     </div>
-                    <div>
-                      <button style={{
-                        padding: '8px 16px',
-                        background: '#055474',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '2px',
-                        cursor: 'pointer',
-                        fontSize: '14px'
-                      }}>
-                        Manage
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <a 
+                        href={`https://${site.domain || `${site.subdomain}.onlineartfestival.com`}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          padding: '6px 12px',
+                          background: '#6c757d',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '2px',
+                          textDecoration: 'none',
+                          fontSize: '12px'
+                        }}
+                      >
+                        Visit Site
+                      </a>
+                      <button 
+                        onClick={() => handleSiteManage(site)}
+                        style={{
+                          padding: '8px 16px',
+                          background: expandedSite === site.id ? '#6c757d' : '#055474',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '2px',
+                          cursor: 'pointer',
+                          fontSize: '14px'
+                        }}
+                      >
+                        {expandedSite === site.id ? 'Close' : 'Manage'}
                       </button>
                     </div>
                   </div>
+
+                  {/* Expandable Site Management Content */}
+                  {expandedSite === site.id && (
+                    <div style={{ padding: '20px' }}>
+                      <SiteManagementContent 
+                        site={site}
+                        userData={userData}
+                        availableTemplates={availableTemplates}
+                        availableAddons={availableAddons}
+                        siteForm={siteForm}
+                        setSiteForm={setSiteForm}
+                        isEditingSite={isEditingSite}
+                        setIsEditingSite={setIsEditingSite}
+                        onSiteUpdate={() => {
+                          fetchUserSites();
+                          setExpandedSite(null);
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -416,40 +530,195 @@ export default function WebSiteSubscriptions({ userData }) {
           )}
         </div>
 
-        {/* Subscription Management */}
+        {/* Payment Information - Collapsible */}
         <div style={{ 
           background: '#f8f9fa', 
-          padding: '20px', 
           borderRadius: '2px', 
-          marginBottom: '30px' 
+          marginBottom: '20px',
+          border: '1px solid #dee2e6'
         }}>
-          <h3 style={{ margin: '0 0 15px 0', color: '#495057' }}>Subscription Management</h3>
-          <button
-            onClick={handleSubscriptionCancel}
-            style={{
-              padding: '12px 24px',
-              background: '#dc3545',
-              color: 'white',
-              border: 'none',
-              borderRadius: '2px',
-              cursor: 'pointer',
-              fontWeight: 'bold'
-            }}
-            onMouseOver={(e) => {
-              e.target.style.background = '#c82333';
-            }}
-            onMouseOut={(e) => {
-              e.target.style.background = '#dc3545';
-            }}
-          >
-            Cancel Subscription
-          </button>
+          <div style={{ 
+            padding: '15px 20px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            borderBottom: showPaymentInfo ? '1px solid #dee2e6' : 'none'
+          }}>
+            <h3 style={{ margin: '0', color: '#495057', fontSize: '16px' }}>Payment Information</h3>
+            <button
+              onClick={() => setShowPaymentInfo(!showPaymentInfo)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#055474',
+                cursor: 'pointer',
+                fontSize: '14px',
+                textDecoration: 'underline',
+                padding: '0'
+              }}
+            >
+              {showPaymentInfo ? 'Hide Payment Info' : 'Show Payment Info'}
+            </button>
+          </div>
+          
+          {showPaymentInfo && (
+            <div style={{ 
+              padding: '0 20px 20px 20px'
+            }}>
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'auto 1fr', 
+                gap: '10px 20px',
+                marginBottom: '15px',
+                fontSize: '14px'
+              }}>
+                <div style={{ color: '#6c757d' }}>Payment Method:</div>
+                <div style={{ color: '#2c3e50' }}>
+                  •••• •••• •••• {subscriptionData?.cardLast4 || 'None on file'}
+                </div>
+                
+                <div style={{ color: '#6c757d' }}>Status:</div>
+                <div style={{ color: subscriptionData?.status === 'active' ? '#28a745' : '#6c757d' }}>
+                  {subscriptionData?.status || 'Unknown'}
+                </div>
+                
+                <div style={{ color: '#6c757d' }}>Plan:</div>
+                <div style={{ color: '#2c3e50' }}>
+                  {subscriptionData?.planName || 'Not specified'}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => setShowUpdatePayment(true)}
+                  disabled={processing}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#055474',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '2px',
+                    cursor: processing ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    opacity: processing ? 0.6 : 1
+                  }}
+                >
+                  Update Payment Method
+                </button>
+                
+                {userData?.permissions?.includes('stripe_connect') && (
+                  <button
+                    onClick={() => {
+                      // TODO: Toggle Connect balance preference
+                      alert('Connect balance toggle coming soon...');
+                    }}
+                    disabled={processing}
+                    style={{
+                      padding: '8px 16px',
+                      background: '#6c757d',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '2px',
+                      cursor: processing ? 'not-allowed' : 'pointer',
+                      fontSize: '14px',
+                      opacity: processing ? 0.6 : 1
+                    }}
+                  >
+                    Enable Balance Payments
+                  </button>
+                )}
+                
+                <button
+                  onClick={handleSubscriptionCancel}
+                  disabled={processing}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#dc3545',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '2px',
+                    cursor: processing ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    opacity: processing ? 0.6 : 1
+                  }}
+                >
+                  Cancel Subscription
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* TODO: Add upgrade prompts and addon management here */}
         <div style={{ color: '#6c757d', fontStyle: 'italic' }}>
-          Upgrade prompts and addon management coming soon...
+          Site creation, template selection, and addon management coming soon...
         </div>
+
+        {/* Payment Method Update Modal */}
+        {showUpdatePayment && (
+          <div className="modal-overlay">
+            <div className="modal-content" style={{ maxWidth: '500px', padding: '30px' }}>
+              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                <h3 style={{ color: '#2c3e50', marginBottom: '10px' }}>
+                  Update Payment Method
+                </h3>
+                <p style={{ color: '#6c757d' }}>
+                  Update your payment method for website subscription billing.
+                </p>
+              </div>
+
+              {/* TODO: Add Stripe payment method update component */}
+              <div style={{ 
+                padding: '20px', 
+                background: '#f8f9fa', 
+                borderRadius: '2px',
+                textAlign: 'center',
+                marginBottom: '20px'
+              }}>
+                <p style={{ color: '#6c757d', margin: '0' }}>
+                  Payment method update integration coming soon...
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '15px' }}>
+                <button
+                  onClick={() => setShowUpdatePayment(false)}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    background: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '2px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    // TODO: Implement payment method update
+                    alert('Payment method update coming soon...');
+                    setShowUpdatePayment(false);
+                  }}
+                  disabled={processing}
+                  style={{
+                    flex: 2,
+                    padding: '12px',
+                    background: processing ? '#ccc' : '#055474',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '2px',
+                    cursor: processing ? 'not-allowed' : 'pointer',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  {processing ? 'Updating...' : 'Update Payment Method'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -981,6 +1250,1362 @@ export default function WebSiteSubscriptions({ userData }) {
   return (
     <div style={{ padding: '40px', textAlign: 'center' }}>
       <div>Loading...</div>
+    </div>
+  );
+}
+
+// Site Management Content Component
+function SiteManagementContent({ 
+  site, 
+  userData, 
+  availableTemplates, 
+  availableAddons, 
+  siteForm, 
+  setSiteForm, 
+  isEditingSite, 
+  setIsEditingSite,
+  onSiteUpdate 
+}) {
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState(null);
+  const [selectedTemplate, setSelectedTemplate] = useState(site.template_id || 1);
+  const [siteAddons, setSiteAddons] = useState([]);
+
+  const hasManageSites = userData?.permissions?.includes('manage_sites');
+
+  useEffect(() => {
+    if (hasManageSites) {
+      fetchSiteAddons();
+    }
+  }, [site.id, hasManageSites]);
+
+  const fetchSiteAddons = async () => {
+    try {
+      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/sites/my-addons?site_id=${site.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSiteAddons(data.addons || []);
+      }
+    } catch (error) {
+      console.error('Error fetching site addons:', error);
+    }
+  };
+
+  const handleTemplateChange = async (templateId) => {
+    try {
+      setProcessing(true);
+      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/sites/template/${templateId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.ok) {
+        setSelectedTemplate(templateId);
+        onSiteUpdate();
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to update template');
+      }
+    } catch (error) {
+      setError('Error updating template');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleSiteUpdate = async () => {
+    try {
+      setProcessing(true);
+      setError(null);
+
+      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/sites/${site.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          site_name: siteForm.site_name,
+          site_title: siteForm.site_title,
+          site_description: siteForm.site_description,
+          status: siteForm.status
+        })
+      });
+
+      if (response.ok) {
+        setIsEditingSite(false);
+        onSiteUpdate();
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to update site');
+      }
+    } catch (error) {
+      setError('Error updating site');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Filter templates based on permissions
+  const getAvailableTemplates = () => {
+    if (!availableTemplates) return [];
+    
+    if (hasManageSites) {
+      // Premium users see all templates
+      return availableTemplates;
+    } else {
+      // Basic users see only free and basic tier templates
+      return availableTemplates.filter(template => 
+        template.tier_required === 'free' || template.tier_required === 'basic'
+      );
+    }
+  };
+
+  return (
+    <div>
+      {error && (
+        <div style={{ 
+          padding: '10px', 
+          background: '#f8d7da', 
+          border: '1px solid #dc3545', 
+          borderRadius: '2px', 
+          marginBottom: '15px',
+          color: '#721c24',
+          fontSize: '14px'
+        }}>
+          {error}
+        </div>
+      )}
+
+      {/* Site Information */}
+      <div style={{ marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+          <h4 style={{ margin: '0', color: '#2c3e50' }}>Site Information</h4>
+          <button
+            onClick={() => setIsEditingSite(!isEditingSite)}
+            style={{
+              padding: '6px 12px',
+              background: isEditingSite ? '#6c757d' : '#055474',
+              color: 'white',
+              border: 'none',
+              borderRadius: '2px',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            {isEditingSite ? 'Cancel Edit' : 'Edit Info'}
+          </button>
+        </div>
+
+        {isEditingSite ? (
+          <div style={{ display: 'grid', gap: '15px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', color: '#495057', fontSize: '14px' }}>
+                Website Name
+              </label>
+              <input
+                type="text"
+                value={siteForm.site_name}
+                onChange={(e) => setSiteForm({...siteForm, site_name: e.target.value})}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #ced4da',
+                  borderRadius: '2px',
+                  fontSize: '14px'
+                }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', color: '#495057', fontSize: '14px' }}>
+                Site Title
+              </label>
+              <input
+                type="text"
+                value={siteForm.site_title}
+                onChange={(e) => setSiteForm({...siteForm, site_title: e.target.value})}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #ced4da',
+                  borderRadius: '2px',
+                  fontSize: '14px'
+                }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', color: '#495057', fontSize: '14px' }}>
+                Site Description
+              </label>
+              <textarea
+                value={siteForm.site_description}
+                onChange={(e) => setSiteForm({...siteForm, site_description: e.target.value})}
+                rows="3"
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #ced4da',
+                  borderRadius: '2px',
+                  fontSize: '14px',
+                  resize: 'vertical'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={handleSiteUpdate}
+                disabled={processing}
+                style={{
+                  padding: '8px 16px',
+                  background: processing ? '#ccc' : '#28a745',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '2px',
+                  cursor: processing ? 'not-allowed' : 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                {processing ? 'Saving...' : 'Save Changes'}
+              </button>
+              <button
+                onClick={() => setIsEditingSite(false)}
+                style={{
+                  padding: '8px 16px',
+                  background: '#6c757d',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '2px',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'auto 1fr', 
+            gap: '8px 15px',
+            fontSize: '14px'
+          }}>
+            <div style={{ color: '#6c757d' }}>Site Title:</div>
+            <div style={{ color: '#2c3e50' }}>{site.site_title || 'Not set'}</div>
+            
+            <div style={{ color: '#6c757d' }}>Description:</div>
+            <div style={{ color: '#2c3e50' }}>{site.site_description || 'Not set'}</div>
+            
+            <div style={{ color: '#6c757d' }}>Template:</div>
+            <div style={{ color: '#2c3e50' }}>{site.template_name || 'Default'}</div>
+          </div>
+        )}
+      </div>
+
+      {/* Custom Domain Management - Only for manage_sites users */}
+      {hasManageSites && (
+        <div style={{ marginBottom: '20px' }}>
+          <h4 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>Custom Domain</h4>
+          <CustomDomainSection site={site} />
+        </div>
+      )}
+
+      {/* Template Selection */}
+      <div style={{ marginBottom: '20px' }}>
+        <h4 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>
+          Choose Template 
+          {!hasManageSites && (
+            <span style={{ fontSize: '12px', color: '#6c757d', fontWeight: 'normal' }}>
+              (Basic templates - upgrade for premium templates)
+            </span>
+          )}
+        </h4>
+        
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', 
+          gap: '15px' 
+        }}>
+          {getAvailableTemplates().map(template => (
+            <div key={template.id} style={{
+              border: selectedTemplate === template.id ? '2px solid #055474' : '1px solid #dee2e6',
+              borderRadius: '2px',
+              padding: '10px',
+              cursor: 'pointer',
+              background: selectedTemplate === template.id ? '#f0f8ff' : 'white',
+              transition: 'all 0.2s'
+            }}
+            onClick={() => !processing && handleTemplateChange(template.id)}
+            >
+              {template.preview_image_url ? (
+                <img 
+                  src={template.preview_image_url} 
+                  alt={template.template_name}
+                  style={{ 
+                    width: '100%', 
+                    height: '80px', 
+                    objectFit: 'cover', 
+                    borderRadius: '2px',
+                    marginBottom: '8px'
+                  }}
+                />
+              ) : (
+                <div style={{ 
+                  width: '100%', 
+                  height: '80px', 
+                  background: '#f8f9fa', 
+                  borderRadius: '2px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: '8px',
+                  color: '#6c757d',
+                  fontSize: '12px'
+                }}>
+                  No Preview
+                </div>
+              )}
+              
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ 
+                  fontSize: '12px', 
+                  fontWeight: selectedTemplate === template.id ? 'bold' : 'normal',
+                  color: selectedTemplate === template.id ? '#055474' : '#2c3e50'
+                }}>
+                  {template.template_name}
+                </div>
+                {template.tier_required !== 'free' && (
+                  <div style={{ 
+                    fontSize: '10px', 
+                    color: '#6c757d',
+                    textTransform: 'uppercase'
+                  }}>
+                    {template.tier_required}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Addon Management - Only for manage_sites users */}
+      {hasManageSites && (
+        <div style={{ marginBottom: '20px' }}>
+          <h4 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>Add-ons</h4>
+          
+          {/* Current Addons */}
+          {siteAddons.length > 0 && (
+            <div style={{ marginBottom: '15px' }}>
+              <h5 style={{ margin: '0 0 10px 0', color: '#495057', fontSize: '14px' }}>Active Add-ons</h5>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {siteAddons.map(addon => (
+                  <div key={addon.id} style={{
+                    padding: '4px 8px',
+                    background: '#28a745',
+                    color: 'white',
+                    borderRadius: '2px',
+                    fontSize: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px'
+                  }}>
+                    {addon.addon_name}
+                    <button
+                      onClick={() => {
+                        // TODO: Remove addon
+                        alert('Remove addon functionality coming soon...');
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'white',
+                        cursor: 'pointer',
+                        fontSize: '10px',
+                        padding: '0'
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Available Addons */}
+          <div>
+            <h5 style={{ margin: '0 0 10px 0', color: '#495057', fontSize: '14px' }}>Available Add-ons</h5>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
+              gap: '10px' 
+            }}>
+              {availableAddons.map(addon => {
+                const isActive = siteAddons.some(sa => sa.addon_id === addon.id);
+                return (
+                  <div key={addon.id} style={{
+                    border: '1px solid #dee2e6',
+                    borderRadius: '2px',
+                    padding: '10px',
+                    background: isActive ? '#f0f8ff' : 'white',
+                    opacity: isActive ? 0.7 : 1
+                  }}>
+                    <div style={{ 
+                      fontSize: '14px', 
+                      fontWeight: 'bold', 
+                      color: '#2c3e50',
+                      marginBottom: '5px'
+                    }}>
+                      {addon.addon_name}
+                    </div>
+                    <div style={{ 
+                      fontSize: '12px', 
+                      color: '#6c757d',
+                      marginBottom: '8px'
+                    }}>
+                      ${addon.monthly_price}/month
+                    </div>
+                    <button
+                      onClick={() => {
+                        // TODO: Add/remove addon
+                        alert(`${isActive ? 'Remove' : 'Add'} addon functionality coming soon...`);
+                      }}
+                      disabled={processing}
+                      style={{
+                        width: '100%',
+                        padding: '6px',
+                        background: isActive ? '#dc3545' : '#055474',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '2px',
+                        cursor: processing ? 'not-allowed' : 'pointer',
+                        fontSize: '12px'
+                      }}
+                    >
+                      {isActive ? 'Remove' : 'Add'} Add-on
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Site Actions */}
+      <div style={{ 
+        borderTop: '1px solid #dee2e6', 
+        paddingTop: '15px',
+        display: 'flex',
+        gap: '10px',
+        flexWrap: 'wrap'
+      }}>
+        <button
+          onClick={() => {
+            // TODO: Open site editor
+            alert('Site editor integration coming soon...');
+          }}
+          style={{
+            padding: '8px 16px',
+            background: '#055474',
+            color: 'white',
+            border: 'none',
+            borderRadius: '2px',
+            cursor: 'pointer',
+            fontSize: '14px'
+          }}
+        >
+          Edit Content
+        </button>
+        
+        <button
+          onClick={() => {
+            // TODO: Duplicate site functionality
+            alert('Duplicate site functionality coming soon...');
+          }}
+          disabled={!hasManageSites}
+          style={{
+            padding: '8px 16px',
+            background: hasManageSites ? '#6c757d' : '#ccc',
+            color: 'white',
+            border: 'none',
+            borderRadius: '2px',
+            cursor: hasManageSites ? 'pointer' : 'not-allowed',
+            fontSize: '14px'
+          }}
+        >
+          Duplicate Site {!hasManageSites && '(Premium)'}
+        </button>
+
+        <button
+          onClick={() => {
+            if (confirm(`Are you sure you want to delete "${site.site_name}"? This cannot be undone.`)) {
+              // TODO: Delete site functionality
+              alert('Delete site functionality coming soon...');
+            }
+          }}
+          style={{
+            padding: '8px 16px',
+            background: '#dc3545',
+            color: 'white',
+            border: 'none',
+            borderRadius: '2px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            marginLeft: 'auto'
+          }}
+        >
+          Delete Site
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Custom Domain Section Component
+function CustomDomainSection({ site }) {
+  const [domainStatus, setDomainStatus] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [showAddDomain, setShowAddDomain] = useState(false);
+  const [newDomain, setNewDomain] = useState('');
+  const [domainCheck, setDomainCheck] = useState({
+    checking: false,
+    available: null,
+    error: null
+  });
+
+  useEffect(() => {
+    // Always fetch domain status when component mounts to check for any validation in progress
+    fetchDomainStatus();
+  }, [site.id]);
+
+  const fetchDomainStatus = async () => {
+    try {
+      setLoading(true);
+      const response = await authenticatedApiRequest(
+        `https://api2.onlineartfestival.com/api/domains/status/${site.id}`
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        setDomainStatus(data);
+
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to fetch domain status');
+        console.error('Domain status error:', errorData);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const checkDomainAvailability = async (domain) => {
+    // Only check domains that have a valid format (must contain a dot and TLD)
+    if (!domain || domain.length < 4 || !domain.includes('.') || !domain.match(/\.[a-z]{2,}$/i)) {
+      setDomainCheck({ checking: false, available: null, error: null });
+      return;
+    }
+
+    setDomainCheck({ checking: true, available: null, error: null });
+
+    try {
+      const response = await authenticatedApiRequest(
+        `https://api2.onlineartfestival.com/api/domains/check-availability?domain=${encodeURIComponent(domain)}`
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        setDomainCheck({
+          checking: false,
+          available: data.available,
+          error: data.available ? null : (data.error || data.reason)
+        });
+      } else {
+        const errorData = await response.json();
+        setDomainCheck({
+          checking: false,
+          available: false,
+          error: errorData.error || 'Failed to check domain'
+        });
+      }
+    } catch (err) {
+      setDomainCheck({
+        checking: false,
+        available: false,
+        error: err.message
+      });
+    }
+  };
+
+  const startDomainValidation = async () => {
+    if (!newDomain) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await authenticatedApiRequest(
+        'https://api2.onlineartfestival.com/api/domains/start-validation',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            siteId: site.id,
+            customDomain: newDomain
+          })
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setSuccess('Domain validation started successfully! Please set up your DNS records.');
+        setShowAddDomain(false);
+        setNewDomain('');
+        setDomainCheck({ checking: false, available: null, error: null });
+        
+        // Refresh domain status to show DNS instructions
+        setTimeout(() => {
+          fetchDomainStatus();
+        }, 1000);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to start domain validation');
+
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const retryValidation = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await authenticatedApiRequest(
+        `https://api2.onlineartfestival.com/api/domains/retry-validation/${site.id}`,
+        {
+          method: 'POST'
+        }
+      );
+
+      if (response.ok) {
+        setSuccess('Domain validation retry started!');
+        
+        // Refresh domain status
+        setTimeout(() => {
+          fetchDomainStatus();
+        }, 2000);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to retry validation');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cancelValidation = async () => {
+    if (!confirm('Are you sure you want to cancel the domain validation? You can restart it later if needed.')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await authenticatedApiRequest(
+        `https://api2.onlineartfestival.com/api/domains/cancel-validation/${site.id}`,
+        {
+          method: 'POST'
+        }
+      );
+
+      if (response.ok) {
+        setSuccess('Domain validation cancelled successfully!');
+        setDomainStatus(null);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to cancel validation');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const removeDomain = async () => {
+    if (!confirm('Are you sure you want to remove your custom domain? This will disconnect it from your site.')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await authenticatedApiRequest(
+        `https://api2.onlineartfestival.com/api/domains/remove/${site.id}`,
+        {
+          method: 'DELETE'
+        }
+      );
+
+      if (response.ok) {
+        setSuccess('Custom domain removed successfully!');
+        setDomainStatus(null);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to remove domain');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setSuccess('Copied to clipboard!');
+      setTimeout(() => setSuccess(null), 2000);
+    });
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleString();
+  };
+
+  return (
+    <div>
+      {error && (
+        <div style={{ 
+          padding: '10px', 
+          background: '#f8d7da', 
+          border: '1px solid #dc3545', 
+          borderRadius: '2px', 
+          marginBottom: '15px',
+          color: '#721c24',
+          fontSize: '14px'
+        }}>
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div style={{ 
+          padding: '10px', 
+          background: '#d4edda', 
+          border: '1px solid #28a745', 
+          borderRadius: '2px', 
+          marginBottom: '15px',
+          color: '#155724',
+          fontSize: '14px'
+        }}>
+          {success}
+        </div>
+      )}
+
+      {(site.custom_domain || domainStatus?.customDomain) ? (
+        /* Existing Domain Management */
+        <div>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'auto 1fr', 
+            gap: '8px 15px',
+            fontSize: '14px',
+            marginBottom: '15px'
+          }}>
+            <div style={{ color: '#6c757d' }}>Custom Domain:</div>
+            <div style={{ color: '#2c3e50', fontWeight: 'bold' }}>{site.custom_domain || domainStatus?.customDomain}</div>
+            
+            <div style={{ color: '#6c757d' }}>Status:</div>
+            <div style={{ 
+              color: domainStatus?.validationStatus === 'verified' && domainStatus?.isActive ? '#28a745' : 
+                    domainStatus?.validationStatus === 'failed' ? '#dc3545' : '#ffc107'
+            }}>
+              {domainStatus?.validationStatus === 'verified' && domainStatus?.isActive ? '✅ Active' :
+               domainStatus?.validationStatus === 'failed' ? '❌ Failed' :
+               domainStatus?.validationStatus === 'pending' ? '⏳ Pending Verification' : '🔄 Loading...'}
+            </div>
+          </div>
+
+          {/* Domain Status Details */}
+          {domainStatus && (
+            <div>
+              {domainStatus.validationStatus === 'pending' && (
+                <div style={{ 
+                  background: '#fff3cd', 
+                  border: '1px solid #ffc107', 
+                  borderRadius: '2px', 
+                  padding: '15px',
+                  marginBottom: '15px'
+                }}>
+                  <h5 style={{ margin: '0 0 10px 0', color: '#856404' }}>📋 DNS Setup Required</h5>
+                  <p style={{ margin: '0 0 15px 0', color: '#856404' }}>Add these DNS records to your domain's DNS settings:</p>
+                  
+                  <div style={{ 
+                    background: '#f8f9fa', 
+                    border: '1px solid #dee2e6', 
+                    borderRadius: '2px', 
+                    padding: '10px',
+                    marginBottom: '15px'
+                  }}>
+                    <div style={{ marginBottom: '8px' }}>
+                      <strong>Record Type:</strong> 
+                      <code style={{ 
+                        background: '#e9ecef', 
+                        padding: '2px 6px', 
+                        borderRadius: '2px', 
+                        marginLeft: '8px',
+                        fontSize: '12px'
+                      }}>TXT</code>
+                      <button 
+                        onClick={() => copyToClipboard('TXT')}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#055474',
+                          cursor: 'pointer',
+                          marginLeft: '5px',
+                          fontSize: '12px'
+                        }}
+                      >
+                        📋 Copy
+                      </button>
+                    </div>
+                    
+                    <div style={{ marginBottom: '8px' }}>
+                      <strong>Name/Host:</strong> 
+                      <code style={{ 
+                        background: '#e9ecef', 
+                        padding: '2px 6px', 
+                        borderRadius: '2px', 
+                        marginLeft: '8px',
+                        fontSize: '12px'
+                      }}>_oaf-site-verification</code>
+                      <button 
+                        onClick={() => copyToClipboard('_oaf-site-verification')}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#055474',
+                          cursor: 'pointer',
+                          marginLeft: '5px',
+                          fontSize: '12px'
+                        }}
+                      >
+                        📋 Copy
+                      </button>
+                    </div>
+                    
+                    <div>
+                      <strong>Value:</strong> 
+                      <code style={{ 
+                        background: '#e9ecef', 
+                        padding: '2px 6px', 
+                        borderRadius: '2px', 
+                        marginLeft: '8px',
+                        fontSize: '12px',
+                        wordBreak: 'break-all'
+                      }}>{domainStatus.validationKey}</code>
+                      <button 
+                        onClick={() => copyToClipboard(domainStatus.validationKey)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#055474',
+                          cursor: 'pointer',
+                          marginLeft: '5px',
+                          fontSize: '12px'
+                        }}
+                      >
+                        📋 Copy
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* A-Record Instructions */}
+                  <div style={{ 
+                    background: '#f8f9fa', 
+                    border: '1px solid #dee2e6', 
+                    borderRadius: '2px', 
+                    padding: '10px',
+                    marginBottom: '15px'
+                  }}>
+                    <div style={{ marginBottom: '8px' }}>
+                      <strong>Record Type:</strong> 
+                      <code style={{ 
+                        background: '#e9ecef', 
+                        padding: '2px 6px', 
+                        borderRadius: '2px', 
+                        marginLeft: '8px',
+                        fontSize: '12px'
+                      }}>A</code>
+                      <button 
+                        onClick={() => copyToClipboard('A')}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#055474',
+                          cursor: 'pointer',
+                          marginLeft: '5px',
+                          fontSize: '12px'
+                        }}
+                      >
+                        📋 Copy
+                      </button>
+                    </div>
+                    
+                    <div style={{ marginBottom: '8px' }}>
+                      <strong>Name/Host:</strong> 
+                      <code style={{ 
+                        background: '#e9ecef', 
+                        padding: '2px 6px', 
+                        borderRadius: '2px', 
+                        marginLeft: '8px',
+                        fontSize: '12px'
+                      }}>@</code>
+                      <button 
+                        onClick={() => copyToClipboard('@')}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#055474',
+                          cursor: 'pointer',
+                          marginLeft: '5px',
+                          fontSize: '12px'
+                        }}
+                      >
+                        📋 Copy
+                      </button>
+                      <span style={{ marginLeft: '10px', fontSize: '12px', color: '#6c757d' }}>
+                        (or leave blank for root domain)
+                      </span>
+                    </div>
+                    
+                    <div style={{ marginBottom: '8px' }}>
+                      <strong>Value/Points to:</strong> 
+                      <code style={{ 
+                        background: '#e9ecef', 
+                        padding: '2px 6px', 
+                        borderRadius: '2px', 
+                        marginLeft: '8px',
+                        fontSize: '12px'
+                      }}>34.59.133.38</code>
+                      <button 
+                        onClick={() => copyToClipboard('34.59.133.38')}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#055474',
+                          cursor: 'pointer',
+                          marginLeft: '5px',
+                          fontSize: '12px'
+                        }}
+                      >
+                        📋 Copy
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Optional WWW CNAME Record */}
+                  <div style={{ 
+                    background: '#f0f8ff', 
+                    border: '1px solid #b3d9ff', 
+                    borderRadius: '2px', 
+                    padding: '10px',
+                    marginBottom: '15px'
+                  }}>
+                    <div style={{ marginBottom: '8px', fontSize: '13px', fontWeight: 'bold', color: '#0066cc' }}>
+                      📌 Optional: Support www subdomain
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#0066cc', marginBottom: '8px' }}>
+                      Add this CNAME record to make www.{site.custom_domain || domainStatus?.customDomain} work too:
+                    </div>
+                    <div style={{ marginBottom: '4px' }}>
+                      <strong>Record Type:</strong> 
+                      <code style={{ 
+                        background: '#e6f3ff', 
+                        padding: '2px 6px', 
+                        borderRadius: '2px', 
+                        marginLeft: '8px',
+                        fontSize: '12px'
+                      }}>CNAME</code>
+                    </div>
+                    <div style={{ marginBottom: '4px' }}>
+                      <strong>Name/Host:</strong> 
+                      <code style={{ 
+                        background: '#e6f3ff', 
+                        padding: '2px 6px', 
+                        borderRadius: '2px', 
+                        marginLeft: '8px',
+                        fontSize: '12px'
+                      }}>www</code>
+                    </div>
+                    <div>
+                      <strong>Value/Points to:</strong> 
+                      <code style={{ 
+                        background: '#e6f3ff', 
+                        padding: '2px 6px', 
+                        borderRadius: '2px', 
+                        marginLeft: '8px',
+                        fontSize: '12px'
+                      }}>{site.custom_domain || domainStatus?.customDomain}</code>
+                      <button 
+                        onClick={() => copyToClipboard(site.custom_domain || domainStatus?.customDomain)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#0066cc',
+                          cursor: 'pointer',
+                          marginLeft: '5px',
+                          fontSize: '12px'
+                        }}
+                      >
+                        📋 Copy
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ fontSize: '14px', color: '#856404' }}>
+                    <p style={{ margin: '0 0 10px 0' }}><strong>💡 How to add these records:</strong></p>
+                    <ol style={{ margin: '0', paddingLeft: '20px' }}>
+                      <li>Log into your domain registrar (GoDaddy, Namecheap, Cloudflare, etc.)</li>
+                      <li>Find the DNS settings for {site.custom_domain || domainStatus?.customDomain}</li>
+                      <li><strong>Required:</strong> Add the TXT record above (for verification)</li>
+                      <li><strong>Required:</strong> Add the A record above (to point your domain to our server)</li>
+                      <li><strong>Optional:</strong> Add the CNAME record above (to support www subdomain)</li>
+                      <li>Wait for DNS propagation (usually 5-30 minutes)</li>
+                      <li>We'll automatically verify and activate your domain!</li>
+                    </ol>
+                  </div>
+
+                  {domainStatus.expiresAt && (
+                    <div style={{ 
+                      marginTop: '10px', 
+                      fontSize: '12px', 
+                      color: '#856404' 
+                    }}>
+                      ⏰ Validation expires: {formatDate(domainStatus.expiresAt)}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {domainStatus.validationStatus === 'failed' && (
+                <div style={{ 
+                  background: '#f8d7da', 
+                  border: '1px solid #dc3545', 
+                  borderRadius: '2px', 
+                  padding: '15px',
+                  marginBottom: '15px'
+                }}>
+                  <h5 style={{ margin: '0 0 10px 0', color: '#721c24' }}>❌ Validation Failed</h5>
+                  <p style={{ margin: '0 0 10px 0', color: '#721c24' }}>We couldn't verify your domain ownership.</p>
+                  {domainStatus.error && (
+                    <div style={{ 
+                      background: '#f5c6cb', 
+                      padding: '8px', 
+                      borderRadius: '2px', 
+                      marginBottom: '10px'
+                    }}>
+                      <strong>Error:</strong> {domainStatus.error}
+                    </div>
+                  )}
+                  <p style={{ margin: '0', color: '#721c24' }}>Please check your DNS settings and try again.</p>
+                </div>
+              )}
+
+              {domainStatus.validationStatus === 'verified' && domainStatus.isActive && (
+                <div style={{ 
+                  background: '#d4edda', 
+                  border: '1px solid #28a745', 
+                  borderRadius: '2px', 
+                  padding: '15px',
+                  marginBottom: '15px'
+                }}>
+                  <h5 style={{ margin: '0 0 10px 0', color: '#155724' }}>✅ Domain Verified & Active</h5>
+                  <p style={{ margin: '0 0 10px 0', color: '#155724' }}>Your custom domain is working perfectly! Visitors can now access your site at:</p>
+                  <div style={{ textAlign: 'center' }}>
+                    <a 
+                      href={`https://${site.custom_domain || domainStatus?.customDomain}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-block',
+                        padding: '8px 16px',
+                        background: '#28a745',
+                        color: 'white',
+                        textDecoration: 'none',
+                        borderRadius: '2px',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      https://{site.custom_domain || domainStatus?.customDomain}
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {domainStatus.lastAttempt && (
+                <div style={{ 
+                  fontSize: '12px', 
+                  color: '#6c757d',
+                  marginBottom: '15px'
+                }}>
+                  Last checked: {formatDate(domainStatus.lastAttempt)}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <button 
+              onClick={fetchDomainStatus}
+              disabled={loading}
+              style={{
+                padding: '6px 12px',
+                background: '#6c757d',
+                color: 'white',
+                border: 'none',
+                borderRadius: '2px',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                fontSize: '12px',
+                opacity: loading ? 0.6 : 1
+              }}
+            >
+              🔄 Refresh Status
+            </button>
+            
+            {domainStatus?.validationStatus === 'pending' && (
+              <>
+                <button 
+                  onClick={retryValidation}
+                  disabled={loading}
+                  style={{
+                    padding: '6px 12px',
+                    background: '#055474',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '2px',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                    opacity: loading ? 0.6 : 1
+                  }}
+                >
+                  🔁 Verify Now
+                </button>
+                <button 
+                  onClick={cancelValidation}
+                  disabled={loading}
+                  style={{
+                    padding: '6px 12px',
+                    background: '#ffc107',
+                    color: '#212529',
+                    border: 'none',
+                    borderRadius: '2px',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                    opacity: loading ? 0.6 : 1
+                  }}
+                >
+                  ❌ Cancel Validation
+                </button>
+              </>
+            )}
+
+            {domainStatus?.validationStatus === 'failed' && (
+              <button 
+                onClick={retryValidation}
+                disabled={loading}
+                style={{
+                  padding: '6px 12px',
+                  background: '#ffc107',
+                  color: '#212529',
+                  border: 'none',
+                  borderRadius: '2px',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  fontSize: '12px',
+                  opacity: loading ? 0.6 : 1
+                }}
+              >
+                🔁 Retry Validation
+              </button>
+            )}
+            
+            <button 
+              onClick={removeDomain}
+              disabled={loading}
+              style={{
+                padding: '6px 12px',
+                background: '#dc3545',
+                color: 'white',
+                border: 'none',
+                borderRadius: '2px',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                fontSize: '12px',
+                opacity: loading ? 0.6 : 1,
+                marginLeft: 'auto'
+              }}
+            >
+              🗑️ Delete Domain
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* Add Domain Section */
+        <div>
+          {!showAddDomain ? (
+            <div>
+              <div style={{ 
+                background: '#f8f9fa', 
+                border: '1px solid #dee2e6', 
+                borderRadius: '2px', 
+                padding: '15px',
+                marginBottom: '15px'
+              }}>
+                <h5 style={{ margin: '0 0 10px 0', color: '#2c3e50' }}>🎯 Benefits of a Custom Domain:</h5>
+                <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '14px', color: '#495057' }}>
+                  <li>✨ <strong>Professional Branding:</strong> yourname.art instead of yourname.onlineartfestival.com</li>
+                  <li>🔍 <strong>Better SEO:</strong> Your own domain ranks better in search results</li>
+                  <li>💼 <strong>Business Credibility:</strong> Looks more professional to clients</li>
+                  <li>🎨 <strong>Full Control:</strong> Your brand, your domain, your way</li>
+                </ul>
+              </div>
+              
+              <button
+                onClick={() => setShowAddDomain(true)}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  background: '#055474',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '2px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 'bold'
+                }}
+              >
+                + Add Custom Domain
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', color: '#495057', fontSize: '14px' }}>
+                  Enter your custom domain:
+                </label>
+                <input
+                  type="text"
+                  value={newDomain}
+                  onChange={(e) => {
+                    const value = e.target.value.toLowerCase().replace(/[^a-z0-9.-]/g, '');
+                    setNewDomain(value);
+                    
+                    // Clear previous timeout
+                    if (window.domainCheckTimeout) {
+                      clearTimeout(window.domainCheckTimeout);
+                    }
+                    
+                    // Debounce domain checking
+                    if (value) {
+                      window.domainCheckTimeout = setTimeout(() => {
+                        checkDomainAvailability(value);
+                      }, 500);
+                    } else {
+                      setDomainCheck({ checking: false, available: null, error: null });
+                    }
+                  }}
+                  placeholder="e.g., yourname.art, mysite.com"
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #ced4da',
+                    borderRadius: '2px',
+                    fontSize: '14px'
+                  }}
+                />
+                
+                {domainCheck.checking && (
+                  <div style={{ fontSize: '12px', color: '#6c757d', marginTop: '5px' }}>
+                    Checking availability...
+                  </div>
+                )}
+                {domainCheck.available === true && (
+                  <div style={{ fontSize: '12px', color: '#28a745', marginTop: '5px' }}>
+                    ✓ Domain is available for use!
+                  </div>
+                )}
+                {domainCheck.available === false && (
+                  <div style={{ fontSize: '12px', color: '#dc3545', marginTop: '5px' }}>
+                    ✗ {domainCheck.error}
+                  </div>
+                )}
+                {newDomain && !domainCheck.checking && domainCheck.available === null && 
+                 (!newDomain.includes('.') || !newDomain.match(/\.[a-z]{2,}$/i)) && (
+                  <div style={{ fontSize: '12px', color: '#6c757d', marginTop: '5px' }}>
+                    💡 Enter a complete domain (e.g., yourname.art, mysite.com)
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={() => {
+                    setShowAddDomain(false);
+                    setNewDomain('');
+                    setDomainCheck({ checking: false, available: null, error: null });
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '8px 16px',
+                    background: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '2px',
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={startDomainValidation}
+                  disabled={!newDomain || domainCheck.available !== true || loading}
+                  style={{
+                    flex: 2,
+                    padding: '8px 16px',
+                    background: (!newDomain || domainCheck.available !== true || loading) ? '#ccc' : '#055474',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '2px',
+                    cursor: (!newDomain || domainCheck.available !== true || loading) ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  {loading ? 'Adding...' : 'Add Domain'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

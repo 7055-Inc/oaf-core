@@ -7,7 +7,7 @@ const execAsync = util.promisify(exec);
 // Import existing middleware
 const db = require('../../config/db');
 const jwt = require('jsonwebtoken');
-const { secureLogger } = require('../middleware/secureLogger');
+
 const { requirePermission, requireAllAccess, canAccessAll } = require('../middleware/permissions');
 
 // Middleware to verify JWT token
@@ -38,6 +38,7 @@ const DOMAIN_MANAGER_PATH = '/opt/oaf-ssl-automation/domain-manager.js';
  * Start the domain validation process for a custom domain
  */
 router.post('/start-validation', verifyToken, async (req, res) => {
+  console.log('🔍 START-VALIDATION: Request received', { siteId: req.body?.siteId, customDomain: req.body?.customDomain, userId: req.userId });
   try {
     const { siteId, customDomain } = req.body;
     
@@ -51,7 +52,7 @@ router.post('/start-validation', verifyToken, async (req, res) => {
     }
 
     // Check if user owns the site
-    const [sites] = await db.query(
+    const [sites] = await db.execute(
       'SELECT id, user_id FROM sites WHERE id = ?',
       [siteId]
     );
@@ -61,7 +62,7 @@ router.post('/start-validation', verifyToken, async (req, res) => {
     }
 
     // Check if user is the owner or admin
-    const [user] = await db.query(
+    const [user] = await db.execute(
       'SELECT user_type FROM users WHERE id = ?',
       [req.userId]
     );
@@ -71,7 +72,7 @@ router.post('/start-validation', verifyToken, async (req, res) => {
     }
 
     // Check if domain is already in use
-    const [existingDomain] = await db.query(
+    const [existingDomain] = await db.execute(
       'SELECT id FROM sites WHERE custom_domain = ? AND id != ?',
       [customDomain, siteId]
     );
@@ -81,18 +82,34 @@ router.post('/start-validation', verifyToken, async (req, res) => {
     }
 
     // Update the site with the custom domain
-    await db.query(
+    await db.execute(
       'UPDATE sites SET custom_domain = ? WHERE id = ?',
       [customDomain, siteId]
     );
 
     // Start domain validation using the domain manager
     try {
-      const { stdout } = await execAsync(`node ${DOMAIN_MANAGER_PATH} start-validation ${siteId} ${customDomain}`);
-      const result = JSON.parse(stdout);
+      const { stdout } = await execAsync(`sudo node ${DOMAIN_MANAGER_PATH} start-validation ${siteId} ${customDomain}`);
+      
+      // Extract JSON from stdout (domain manager outputs logs + JSON)
+
+      // Extract JSON from stdout (domain manager outputs logs + JSON)
+      const lines = stdout.split('\n');
+      const jsonStartIndex = lines.findIndex(line => line.trim().startsWith('{'));
+      const jsonEndIndex = lines.findIndex((line, index) => index > jsonStartIndex && line.trim() === '}');
+      
+      if (jsonStartIndex === -1 || jsonEndIndex === -1) {
+        throw new Error('No complete JSON response from domain manager');
+      }
+      
+      const jsonLines = lines.slice(jsonStartIndex, jsonEndIndex + 1);
+      const jsonString = jsonLines.join('\n');
+      console.log('🔍 Complete JSON string:', jsonString);
+      
+      const result = JSON.parse(jsonString);
       
       if (result.success) {
-        secureLogger.info(`Domain validation started for ${customDomain} (Site ID: ${siteId})`);
+        // Domain validation started
         res.json({
           success: true,
           message: 'Domain validation started',
@@ -101,16 +118,18 @@ router.post('/start-validation', verifyToken, async (req, res) => {
           instructions: result.instructions
         });
       } else {
-        secureLogger.error(`Failed to start domain validation for ${customDomain}: ${result.error}`);
+        // Failed to start domain validation
         res.status(500).json({ error: result.error });
       }
     } catch (error) {
-      secureLogger.error(`Error calling domain manager: ${error.message}`);
+      // Error calling domain manager
+      console.error('🚨 START-VALIDATION: Domain manager error:', error);
       res.status(500).json({ error: 'Failed to start domain validation' });
     }
 
   } catch (err) {
-    secureLogger.error('Error starting domain validation:', err);
+    // Error starting domain validation
+    console.error('🚨 START-VALIDATION: General error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -124,7 +143,7 @@ router.get('/status/:siteId', verifyToken, async (req, res) => {
     const { siteId } = req.params;
 
     // Check if user owns the site
-    const [sites] = await db.query(
+    const [sites] = await db.execute(
       `SELECT s.id, s.custom_domain, s.domain_validation_key, s.domain_validation_status, 
               s.domain_validation_expires, s.custom_domain_active, s.domain_validation_error,
               s.domain_validation_attempted_at, s.user_id
@@ -137,7 +156,7 @@ router.get('/status/:siteId', verifyToken, async (req, res) => {
     }
 
     // Check if user is the owner or admin
-    const [user] = await db.query(
+    const [user] = await db.execute(
       'SELECT user_type FROM users WHERE id = ?',
       [req.userId]
     );
@@ -162,7 +181,7 @@ router.get('/status/:siteId', verifyToken, async (req, res) => {
     });
 
   } catch (err) {
-    secureLogger.error('Error getting domain status:', err);
+    // Error getting domain status
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -176,7 +195,7 @@ router.post('/retry-validation/:siteId', verifyToken, async (req, res) => {
     const { siteId } = req.params;
 
     // Check if user owns the site
-    const [sites] = await db.query(
+    const [sites] = await db.execute(
       'SELECT id, user_id, custom_domain FROM sites WHERE id = ?',
       [siteId]
     );
@@ -186,7 +205,7 @@ router.post('/retry-validation/:siteId', verifyToken, async (req, res) => {
     }
 
     // Check if user is the owner or admin
-    const [user] = await db.query(
+    const [user] = await db.execute(
       'SELECT user_type FROM users WHERE id = ?',
       [req.userId]
     );
@@ -201,26 +220,96 @@ router.post('/retry-validation/:siteId', verifyToken, async (req, res) => {
 
     // Process the domain validation
     try {
-      const { stdout } = await execAsync(`node ${DOMAIN_MANAGER_PATH} process-domain ${siteId}`);
-      const result = JSON.parse(stdout);
+      const { stdout } = await execAsync(`sudo node ${DOMAIN_MANAGER_PATH} process-domain ${siteId}`);
+      console.log('🔍 RETRY-VALIDATION: Raw stdout:', stdout);
+      
+      // Extract JSON from stdout (domain manager outputs logs + JSON)
+      const lines = stdout.split('\n');
+      const jsonStartIndex = lines.findIndex(line => line.trim().startsWith('{'));
+      const jsonEndIndex = lines.findIndex((line, index) => index > jsonStartIndex && line.trim() === '}');
+      
+      if (jsonStartIndex === -1 || jsonEndIndex === -1) {
+        throw new Error('No complete JSON response from domain manager');
+      }
+      
+      const jsonLines = lines.slice(jsonStartIndex, jsonEndIndex + 1);
+      const jsonString = jsonLines.join('\n');
+      console.log('🔍 RETRY-VALIDATION: Complete JSON string:', jsonString);
+      
+      const result = JSON.parse(jsonString);
       
       if (result.success) {
-        secureLogger.info(`Domain validation retried for site ${siteId}`);
+        // Domain validation retried
         res.json({
           success: true,
           message: 'Domain validation processing started'
         });
       } else {
-        secureLogger.error(`Failed to retry domain validation for site ${siteId}: ${result.error}`);
+        // Failed to retry domain validation
         res.status(500).json({ error: result.error });
       }
     } catch (error) {
-      secureLogger.error(`Error calling domain manager for retry: ${error.message}`);
+      console.error('🚨 RETRY-VALIDATION: Domain manager error:', error);
+      // Error calling domain manager for retry
       res.status(500).json({ error: 'Failed to retry domain validation' });
     }
 
   } catch (err) {
-    secureLogger.error('Error retrying domain validation:', err);
+    // Error retrying domain validation
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * POST /domains/cancel-validation/:siteId
+ * Cancel domain validation for a site
+ */
+router.post('/cancel-validation/:siteId', verifyToken, async (req, res) => {
+  try {
+    const { siteId } = req.params;
+
+    // Check if user owns the site
+    const [sites] = await db.execute(
+      'SELECT id, user_id, custom_domain FROM sites WHERE id = ?',
+      [siteId]
+    );
+
+    if (!sites[0]) {
+      return res.status(404).json({ error: 'Site not found' });
+    }
+
+    // Check if user is the owner or admin
+    const [user] = await db.execute(
+      'SELECT user_type FROM users WHERE id = ?',
+      [req.userId]
+    );
+
+    if (sites[0].user_id !== req.userId && user[0]?.user_type !== 'admin') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    if (!sites[0].custom_domain) {
+      return res.status(400).json({ error: 'No custom domain set for this site' });
+    }
+
+    // Cancel domain validation by clearing validation fields but keeping the domain
+    await db.execute(`
+      UPDATE sites SET 
+       domain_validation_status = NULL,
+       domain_validation_key = NULL,
+       domain_validation_expires = NULL,
+       domain_validation_error = NULL,
+       domain_validation_attempted_at = NULL
+      WHERE id = ?
+    `, [siteId]);
+
+    res.json({
+      success: true,
+      message: 'Domain validation cancelled successfully'
+    });
+
+  } catch (err) {
+    console.error('Error cancelling domain validation:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -234,7 +323,7 @@ router.delete('/remove/:siteId', verifyToken, async (req, res) => {
     const { siteId } = req.params;
 
     // Check if user owns the site
-    const [sites] = await db.query(
+    const [sites] = await db.execute(
       'SELECT id, user_id, custom_domain FROM sites WHERE id = ?',
       [siteId]
     );
@@ -244,7 +333,7 @@ router.delete('/remove/:siteId', verifyToken, async (req, res) => {
     }
 
     // Check if user is the owner or admin
-    const [user] = await db.query(
+    const [user] = await db.execute(
       'SELECT user_type FROM users WHERE id = ?',
       [req.userId]
     );
@@ -254,7 +343,7 @@ router.delete('/remove/:siteId', verifyToken, async (req, res) => {
     }
 
     // Remove custom domain and reset validation fields
-    await db.query(
+    await db.execute(
       `UPDATE sites SET 
        custom_domain = NULL,
        domain_validation_key = NULL,
@@ -270,11 +359,11 @@ router.delete('/remove/:siteId', verifyToken, async (req, res) => {
     // TODO: Remove nginx configuration and SSL certificate
     // This would require additional cleanup in the domain manager
 
-    secureLogger.info(`Custom domain removed for site ${siteId}`);
+    // Custom domain removed
     res.json({ success: true, message: 'Custom domain removed' });
 
   } catch (err) {
-    secureLogger.error('Error removing custom domain:', err);
+    // Error removing custom domain
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -300,7 +389,7 @@ router.get('/check-availability', verifyToken, async (req, res) => {
     }
 
     // Check if domain is already in use
-    const [existingDomain] = await db.query(
+    const [existingDomain] = await db.execute(
       'SELECT id, subdomain FROM sites WHERE custom_domain = ?',
       [domain]
     );
@@ -316,7 +405,7 @@ router.get('/check-availability', verifyToken, async (req, res) => {
     res.json({ available: true });
 
   } catch (err) {
-    secureLogger.error('Error checking domain availability:', err);
+    // Error checking domain availability
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -332,7 +421,7 @@ router.get('/list', verifyToken, async (req, res) => {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
-    const [domains] = await db.query(
+    const [domains] = await db.execute(
       `SELECT s.id, s.subdomain, s.custom_domain, s.domain_validation_status,
               s.custom_domain_active, s.domain_validation_expires, s.domain_validation_error,
               u.username
@@ -345,7 +434,7 @@ router.get('/list', verifyToken, async (req, res) => {
     res.json(domains);
 
   } catch (err) {
-    secureLogger.error('Error listing domains:', err);
+    // Error listing domains
     res.status(500).json({ error: 'Internal server error' });
   }
 });
