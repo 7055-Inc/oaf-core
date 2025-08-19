@@ -68,7 +68,7 @@ router.get('/pending', prefixAuth, async (req, res) => {
  * GET /api/media/pending/all - Get ALL pending images for processing (no pagination)
  * Authentication: API Key (media workers)
  * No CSRF needed - server-to-server communication
- * Purpose: Prevents infinite loops when oldest items are already downloaded
+ * Purpose: Backend VM uses this for efficient batch processing
  */
 router.get('/pending/all', prefixAuth, async (req, res) => {
   try {
@@ -180,7 +180,14 @@ router.get('/download/:id', prefixAuth, async (req, res) => {
 router.post('/complete/:id', prefixAuth, async (req, res) => {
   try {
     const imageId = req.params.id;
-    const { media_id } = req.body;
+    const { 
+      media_id,
+      permanent_url,
+      processing_complete,
+      ai_enhanced,
+      formats_available,
+      ai_analysis
+    } = req.body;
 
     if (!media_id) {
       return res.status(400).json({ error: 'media_id is required' });
@@ -205,9 +212,12 @@ router.post('/complete/:id', prefixAuth, async (req, res) => {
       return res.status(404).json({ error: 'Image not found or not in pending status' });
     }
 
-    secureLogger.info('Image processing completed with smart serving', {
+    secureLogger.info('Image processing completed with AI enhancement', {
       imageId,
       mediaId: media_id,
+      aiEnhanced: ai_enhanced || false,
+      processingComplete: processing_complete || false,
+      formatsAvailable: formats_available || [],
       smartUrl: `https://api2.onlineartfestival.com/api/images/${media_id}`,
       requestedBy: req.userId
     });
@@ -218,7 +228,9 @@ router.post('/complete/:id', prefixAuth, async (req, res) => {
       media_id,
       status: 'processed',
       smart_url_preview: `https://api2.onlineartfestival.com/api/images/${media_id}`,
-      message: 'Image processed successfully with smart serving - ready for URL replacement'
+      ai_enhanced: ai_enhanced || false,
+      processing_complete: processing_complete || false,
+      message: 'Image processed successfully with AI enhancement - ready for URL replacement'
     });
 
   } catch (error) {
@@ -253,14 +265,12 @@ router.delete('/cleanup/:id', prefixAuth, async (req, res) => {
     const image = images[0];
     const fullPath = path.join(__dirname, '../../', image.image_path.replace(/^\//, ''));
 
-    // Delete the temporary file if it exists
-    if (fs.existsSync(fullPath)) {
-      fs.unlinkSync(fullPath);
-      secureLogger.info('Temporary file deleted', {
-        imageId,
-        imagePath: image.image_path
-      });
-    }
+    // DO NOT DELETE TEMP FILES - they serve as fallbacks for failed processing
+    // The temp file should remain available for users until processing succeeds
+    secureLogger.info('Image marked as failed, temp file preserved as fallback', {
+      imageId,
+      imagePath: image.image_path
+    });
 
     // Mark as failed
     await db.query(`
@@ -541,6 +551,69 @@ router.get('/user/:id', prefixAuth, async (req, res) => {
       userId: req.params.id 
     });
     res.status(500).json({ error: 'Failed to fetch user profile' });
+  }
+});
+
+/**
+ * GET /api/media/analysis/:mediaId - Get AI analysis data for a media item
+ * Authentication: API Key or user token
+ * Proxies request to processing VM to get AI analysis
+ */
+router.get('/analysis/:mediaId', prefixAuth, async (req, res) => {
+  try {
+    const { mediaId } = req.params;
+    
+    if (!mediaId || !/^\d+$/.test(mediaId)) {
+      return res.status(400).json({ error: 'Valid media ID is required' });
+    }
+
+    // Proxy request to processing VM
+    const axios = require('axios');
+    const MEDIA_BACKEND_URL = process.env.MEDIA_BACKEND_URL || 'http://10.128.0.29:3001';
+    const MEDIA_API_KEY = 'media_20074c47e0d2af1a90b1d9ba1d001648:eb7d555c29ce59c6202f3975b37a45cdc2e7a21eb09c6d684e982ebee5cc9e6a';
+
+    const vmResponse = await axios.get(`${MEDIA_BACKEND_URL}/analysis/${mediaId}`, {
+      headers: {
+        'Authorization': MEDIA_API_KEY
+      },
+      timeout: 10000,
+      validateStatus: (status) => status < 500
+    });
+
+    if (vmResponse.status === 404) {
+      return res.status(404).json({ error: 'AI analysis not found for this media' });
+    }
+
+    if (vmResponse.status >= 400) {
+      return res.status(vmResponse.status).json({ 
+        error: 'Failed to fetch AI analysis from processing VM' 
+      });
+    }
+
+    secureLogger.info('AI analysis fetched', {
+      mediaId,
+      requestedBy: req.userId
+    });
+
+    res.json({
+      success: true,
+      analysis: vmResponse.data
+    });
+
+  } catch (error) {
+    secureLogger.error('Error fetching AI analysis', error);
+    
+    if (error.code === 'ECONNREFUSED') {
+      return res.status(503).json({ 
+        error: 'Processing VM unavailable',
+        message: 'AI analysis service is currently unavailable'
+      });
+    }
+    
+    res.status(500).json({ 
+      error: 'Failed to fetch AI analysis',
+      details: error.message 
+    });
   }
 });
 

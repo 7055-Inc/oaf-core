@@ -1013,7 +1013,7 @@ VALUES ('Website Subscription Terms', '...', '1.0', 'sites', 1);
 **API Endpoints Built (December 2024):**
 - ✅ `GET /api/subscriptions/sites/terms-check` - Check if user accepted latest 'sites' terms
 - ✅ `POST /api/subscriptions/sites/terms-accept` - Record terms acceptance for sites subscription
-- ✅ `GET /api/subscriptions/sites/my-sites` - Get user's websites for dashboard display
+
 - ✅ `POST /api/subscriptions/sites/signup` - Create subscription and grant 'sites' permission
 - ✅ `POST /api/subscriptions/sites/cancel` - Cancel subscription and revoke 'sites' permission
 - ✅ **BONUS**: `GET /api/subscriptions/sites/status` - Get current subscription status

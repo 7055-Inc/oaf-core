@@ -1,4 +1,4 @@
-const db = require('../config/db');
+const db = require('../../config/db');
 
 /**
  * Base URL for smart media serving endpoint
@@ -254,7 +254,7 @@ async function enhanceUserProfileWithMedia(userProfile) {
   if (!userProfile) return userProfile;
   
   try {
-    const mediaFields = ['profile_image_url', 'header_image_url', 'logo_image_url'];
+    const mediaFields = ['profile_image_path', 'header_image_path', 'logo_path'];
     const tempPaths = [];
     
     // Collect temp paths from profile

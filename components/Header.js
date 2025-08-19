@@ -55,6 +55,19 @@ export default function Header() {
       setCartItemCount(0);
       setIsLoading(false);
     }
+    
+    // Listen for auth logout events
+    const handleAuthLogout = () => {
+      setIsLoggedIn(false);
+      setUserId(null);
+      setCartItemCount(0);
+    };
+    
+    window.addEventListener('auth-logout', handleAuthLogout);
+    
+    return () => {
+      window.removeEventListener('auth-logout', handleAuthLogout);
+    };
   }, []);
 
   // Cleanup timeout on unmount

@@ -160,6 +160,7 @@ router.get('/templates', verifyToken, async (req, res) => {
   }
 });
 
+
 // GET /sites/templates/:id - Get specific template details
 router.get('/templates/:id', verifyToken, async (req, res) => {
   try {
@@ -313,6 +314,39 @@ router.get('/my-addons', verifyToken, requireRestrictedPermission('manage_sites'
   } catch (error) {
     // Error('Error fetching user addons:', error);
     res.status(500).json({ error: 'Failed to fetch user addons' });
+  }
+});
+
+// GET /sites/:id/addons - Get active addons for a specific site
+router.get('/:id/addons', verifyToken, requireRestrictedPermission('manage_sites'), async (req, res) => {
+  try {
+    const siteId = req.params.id;
+    const userId = req.userId;
+
+    // Verify user owns this site
+    const [site] = await db.execute(`
+      SELECT id FROM sites WHERE id = ? AND user_id = ?
+    `, [siteId, userId]);
+
+    if (site.length === 0) {
+      return res.status(404).json({ error: 'Site not found or access denied' });
+    }
+
+    // Get active addons for this specific site
+    const [addons] = await db.execute(`
+      SELECT wa.id, wa.addon_name, wa.addon_slug, wa.addon_script_path, 
+             wa.monthly_price, sa.activated_at, sa.addon_id
+      FROM site_addons sa
+      JOIN website_addons wa ON sa.addon_id = wa.id
+      WHERE sa.site_id = ? AND sa.is_active = 1 AND wa.is_active = 1
+      ORDER BY wa.display_order ASC
+    `, [siteId]);
+
+    res.json({ addons });
+
+  } catch (error) {
+    console.error('Error fetching site addons:', error);
+    res.status(500).json({ error: 'Failed to fetch site addons' });
   }
 });
 
@@ -922,6 +956,225 @@ router.get('/resolve/:subdomain/categories', async (req, res) => {
   } catch (err) {
     // Error('Error fetching site categories:', err);
     res.status(500).json({ error: 'Failed to fetch categories' });
+  }
+});
+
+// ============================================================================
+// SITE CUSTOMIZATION ROUTES
+// ============================================================================
+
+// GET /sites/:id/customizations - Get site customization settings
+router.get('/:id/customizations', verifyToken, requireRestrictedPermission('sites'), async (req, res) => {
+  try {
+    const siteId = req.params.id;
+    const userId = req.userId;
+
+    // Verify site ownership (admins can access any site)
+    const [site] = await db.query(
+      'SELECT user_id FROM sites WHERE id = ?',
+      [siteId]
+    );
+
+    if (!site[0]) {
+      return res.status(404).json({ error: 'Site not found' });
+    }
+
+    // Check ownership unless admin
+    const [user] = await db.query('SELECT user_type FROM users WHERE id = ?', [userId]);
+    if (site[0].user_id !== userId && user[0]?.user_type !== 'admin') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Get customizations for this site
+    const [customizations] = await db.execute(
+      'SELECT * FROM site_customizations WHERE site_id = ?',
+      [siteId]
+    );
+
+    // Return customizations or defaults
+    const settings = customizations[0] || {
+      text_color: '#374151',
+      main_color: '#667eea', 
+      secondary_color: '#764ba2',
+      accent_color: null,
+      background_color: null,
+      body_font: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif',
+      header_font: 'Georgia, "Times New Roman", Times, serif'
+    };
+
+    res.json({
+      success: true,
+      customizations: settings
+    });
+
+  } catch (error) {
+    console.error('Error fetching site customizations:', error);
+    res.status(500).json({ error: 'Failed to fetch customizations' });
+  }
+});
+
+// PUT /sites/:id/customizations - Update site customization settings
+router.put('/:id/customizations', verifyToken, requireRestrictedPermission('sites'), async (req, res) => {
+  try {
+    const siteId = req.params.id;
+    const userId = req.userId;
+    const {
+      text_color,
+      main_color,
+      secondary_color,
+      accent_color,
+      background_color,
+      body_font,
+      header_font,
+      h1_font,
+      h2_font,
+      h3_font,
+      h4_font,
+      custom_css
+    } = req.body;
+
+    // Verify site ownership (admins can modify any site)
+    const [site] = await db.query(
+      'SELECT user_id FROM sites WHERE id = ?',
+      [siteId]
+    );
+
+    if (!site[0]) {
+      return res.status(404).json({ error: 'Site not found' });
+    }
+
+    // Check ownership unless admin
+    const [user] = await db.query('SELECT user_type FROM users WHERE id = ?', [userId]);
+    if (site[0].user_id !== userId && user[0]?.user_type !== 'admin') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Get user permissions to determine what they can customize
+    const [permissions] = await db.execute(
+      'SELECT sites, manage_sites, professional_sites FROM user_permissions WHERE user_id = ?',
+      [userId]
+    );
+
+    const userPerms = permissions[0] || {};
+    // Admin users get all permissions automatically
+    const isAdmin = user[0]?.user_type === 'admin';
+    const canCustomizeBasic = isAdmin || userPerms.sites; // 3 basic colors
+    const canCustomizeAdvanced = isAdmin || userPerms.manage_sites; // 5 colors + fonts
+    const canCustomizeProfessional = isAdmin || userPerms.professional_sites; // Everything + custom CSS
+
+    // Validate permissions for requested changes
+    if (!canCustomizeBasic) {
+      return res.status(403).json({ error: 'Sites permission required for customization' });
+    }
+
+    // Build update fields based on permissions
+    const updateFields = [];
+    const updateValues = [];
+
+    // Basic colors (all tiers)
+    if (text_color !== undefined) {
+      updateFields.push('text_color = ?');
+      updateValues.push(text_color);
+    }
+    if (main_color !== undefined) {
+      updateFields.push('main_color = ?');
+      updateValues.push(main_color);
+    }
+    if (secondary_color !== undefined) {
+      updateFields.push('secondary_color = ?');
+      updateValues.push(secondary_color);
+    }
+
+    // Advanced colors (manage_sites and above)
+    if (canCustomizeAdvanced) {
+      if (accent_color !== undefined) {
+        updateFields.push('accent_color = ?');
+        updateValues.push(accent_color);
+      }
+      if (background_color !== undefined) {
+        updateFields.push('background_color = ?');
+        updateValues.push(background_color);
+      }
+      if (body_font !== undefined) {
+        updateFields.push('body_font = ?');
+        updateValues.push(body_font);
+      }
+      if (header_font !== undefined) {
+        updateFields.push('header_font = ?');
+        updateValues.push(header_font);
+      }
+    }
+
+    // Professional features (professional_sites)
+    if (canCustomizeProfessional) {
+      if (h1_font !== undefined) {
+        updateFields.push('h1_font = ?');
+        updateValues.push(h1_font);
+      }
+      if (h2_font !== undefined) {
+        updateFields.push('h2_font = ?');
+        updateValues.push(h2_font);
+      }
+      if (h3_font !== undefined) {
+        updateFields.push('h3_font = ?');
+        updateValues.push(h3_font);
+      }
+      if (h4_font !== undefined) {
+        updateFields.push('h4_font = ?');
+        updateValues.push(h4_font);
+      }
+      if (custom_css !== undefined) {
+        updateFields.push('custom_css = ?');
+        updateValues.push(custom_css);
+      }
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+
+    // Update or insert customizations using a simpler approach
+    // First, check if customizations exist
+    const [existing] = await db.execute(
+      'SELECT id FROM site_customizations WHERE site_id = ?',
+      [siteId]
+    );
+
+    if (existing.length > 0) {
+      // Update existing record
+      await db.execute(
+        `UPDATE site_customizations SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE site_id = ?`,
+        [...updateValues, siteId]
+      );
+    } else {
+      // Insert new record with default values, then update with provided values
+      await db.execute(
+        'INSERT INTO site_customizations (site_id) VALUES (?)',
+        [siteId]
+      );
+      if (updateFields.length > 0) {
+        await db.execute(
+          `UPDATE site_customizations SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE site_id = ?`,
+          [...updateValues, siteId]
+        );
+      }
+    }
+
+    // Get updated customizations
+    const [updated] = await db.execute(
+      'SELECT * FROM site_customizations WHERE site_id = ?',
+      [siteId]
+    );
+
+    res.json({
+      success: true,
+      message: 'Customizations updated successfully',
+      customizations: updated[0]
+    });
+
+  } catch (error) {
+    console.error('Error updating site customizations:', error);
+    res.status(500).json({ error: 'Failed to update customizations' });
   }
 });
 

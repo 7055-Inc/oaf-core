@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
 const upload = require('../config/multer');
+const { enhanceUserProfileWithMedia } = require('../utils/mediaUtils');
 const path = require('path');
 const fs = require('fs');
 
@@ -39,8 +40,40 @@ router.get('/me', verifyToken, async (req, res) => {
         [req.userId]
       );
       Object.assign(userData, promoterProfile[0]);
+    } else if (userData.user_type === 'admin') {
+      // Admins get access to all profile types
+      try {
+        const [artistProfile] = await db.query(
+          'SELECT * FROM artist_profiles WHERE user_id = ?',
+          [req.userId]
+        );
+        if (artistProfile && artistProfile[0]) {
+          Object.assign(userData, artistProfile[0]);
+        }
+        
+        const [communityProfile] = await db.query(
+          'SELECT * FROM community_profiles WHERE user_id = ?',
+          [req.userId]
+        );
+        if (communityProfile && communityProfile[0]) {
+          Object.assign(userData, communityProfile[0]);
+        }
+        
+        const [promoterProfile] = await db.query(
+          'SELECT * FROM promoter_profiles WHERE user_id = ?',
+          [req.userId]
+        );
+        if (promoterProfile && promoterProfile[0]) {
+          Object.assign(userData, promoterProfile[0]);
+        }
+      } catch (profileError) {
+        // Silently handle profile fetch errors
+      }
     }
-    res.json(userData);
+    
+    // Enhance with processed media URLs
+    const enhancedUserData = await enhanceUserProfileWithMedia(userData);
+    res.json(enhancedUserData);
   } catch (err) {
     console.error('Error fetching user profile:', err.message, err.stack);
     res.setHeader('Content-Type', 'application/json');
@@ -211,6 +244,14 @@ router.patch('/me',
           [req.userId, logoImagePath, file.originalname, file.mimetype, 'pending']
         );
       }
+      if (req.files['site_image']) {
+        const file = req.files['site_image'][0];
+        const siteImagePath = `/temp_images/sites/${file.filename}`;
+        await db.query(
+          'INSERT INTO pending_images (user_id, image_path, original_name, mime_type, status) VALUES (?, ?, ?, ?, ?)',
+          [req.userId, siteImagePath, file.originalname, file.mimetype, 'pending']
+        );
+      }
 
       // Process JSON fields properly
       const processedLanguagesKnown = languages_known ? 
@@ -262,6 +303,17 @@ router.patch('/me',
         await db.query(
           'UPDATE user_profiles SET header_image_path = ? WHERE user_id = ?',
           [headerImagePath, req.userId]
+        );
+      }
+      if (logoImagePath) {
+        // Update logo in both artist and promoter profiles
+        await db.query(
+          'UPDATE artist_profiles SET logo_path = ? WHERE user_id = ?',
+          [logoImagePath, req.userId]
+        );
+        await db.query(
+          'UPDATE promoter_profiles SET logo_path = ? WHERE user_id = ?',
+          [logoImagePath, req.userId]
         );
       }
 
@@ -407,13 +459,17 @@ router.get('/profile/by-id/:id', async (req, res) => {
       return res.status(404).json({ error: 'User not found or profile not active' });
     }
     const userData = user[0];
-    if (userData.user_type === 'artist') {
+    if (userData.user_type === 'artist' || userData.user_type === 'admin') {
       const [artistProfile] = await db.query(
         'SELECT * FROM artist_profiles WHERE user_id = ?',
         [userData.id]
       );
-      Object.assign(userData, artistProfile[0]);
-    } else if (userData.user_type === 'community') {
+      if (artistProfile[0]) {
+        Object.assign(userData, artistProfile[0]);
+      }
+    }
+    
+    if (userData.user_type === 'community') {
       const [communityProfile] = await db.query(
         'SELECT * FROM community_profiles WHERE user_id = ?',
         [userData.id]
@@ -426,7 +482,10 @@ router.get('/profile/by-id/:id', async (req, res) => {
       );
       Object.assign(userData, promoterProfile[0]);
     }
-    res.json(userData);
+    
+    // Enhance with processed media URLs
+    const enhancedUserData = await enhanceUserProfileWithMedia(userData);
+    res.json(enhancedUserData);
   } catch (err) {
     console.error('Error fetching user profile:', err.message, err.stack);
     res.setHeader('Content-Type', 'application/json');

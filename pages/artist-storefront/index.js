@@ -11,30 +11,63 @@ const ArtistStorefront = () => {
   const [siteData, setSiteData] = useState(null);
   const [products, setProducts] = useState([]);
   const [articles, setArticles] = useState([]);
+  const [pages, setPages] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [extractedSubdomain, setExtractedSubdomain] = useState(null);
 
   useEffect(() => {
-    if (subdomain) {
-      fetchStorefrontData();
+    // Extract subdomain from the current URL if query params aren't available
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      if (hostname.includes('.onlineartfestival.com') && hostname !== 'main.onlineartfestival.com') {
+        const subdomainFromUrl = hostname.split('.')[0];
+        setExtractedSubdomain(subdomainFromUrl);
+      }
     }
-  }, [subdomain]);
+  }, []);
 
-  const fetchStorefrontData = async () => {
+  useEffect(() => {
+    const subdomainToUse = subdomain || extractedSubdomain;
+    if (subdomainToUse) {
+      fetchStorefrontData(subdomainToUse);
+    }
+  }, [subdomain, extractedSubdomain]);
+
+  const fetchStorefrontData = async (subdomainToUse) => {
     try {
       setLoading(true);
       
-      // Fetch all data in parallel
-      const [siteResponse, productsResponse, articlesResponse, categoriesResponse] = await Promise.all([
-        fetch(`https://api2.onlineartfestival.com/api/sites/resolve/${subdomain}`),
-        fetch(`https://api2.onlineartfestival.com/products/?vendor_id=${userId}&limit=12`),
-        fetch(`https://api2.onlineartfestival.com/api/sites/resolve/${subdomain}/articles?type=menu`),
-        fetch(`https://api2.onlineartfestival.com/api/sites/resolve/${subdomain}/categories`)
+      // First fetch site data to get user_id
+      const siteResponse = await fetch(`https://api2.onlineartfestival.com/api/sites/resolve/${subdomainToUse}`);
+      let siteData = null;
+      
+      if (siteResponse.ok) {
+        siteData = await siteResponse.json();
+      }
+      
+      if (!siteData || !siteData.user_id) {
+        throw new Error('Site not found or missing user data');
+      }
+      
+      // Fetch all data in parallel including full profile
+      const [profileResponse, productsResponse, articlesResponse, pagesResponse, categoriesResponse] = await Promise.all([
+        fetch(`https://api2.onlineartfestival.com/users/profile/by-id/${siteData.user_id}`),
+        fetch(`https://api2.onlineartfestival.com/products/?vendor_id=${siteData.user_id}&limit=12`),
+        fetch(`https://api2.onlineartfestival.com/api/sites/resolve/${subdomainToUse}/articles?type=menu`),
+        fetch(`https://api2.onlineartfestival.com/api/sites/resolve/${subdomainToUse}/articles?type=pages`),
+        fetch(`https://api2.onlineartfestival.com/api/sites/resolve/${subdomainToUse}/categories`)
       ]);
 
-      if (siteResponse.ok) {
-        const siteData = await siteResponse.json();
+      // Merge site data with full profile data
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json();
+        // Combine site settings with complete profile data
+        const combinedData = { ...siteData, ...profileData };
+        setSiteData(combinedData);
+      } else {
+        // Fallback to just site data if profile fetch fails
         setSiteData(siteData);
       }
 
@@ -48,9 +81,19 @@ const ArtistStorefront = () => {
         setArticles(articlesData);
       }
 
+      if (pagesResponse.ok) {
+        const pagesData = await pagesResponse.json();
+        setPages(pagesData);
+      }
+
       if (categoriesResponse.ok) {
         const categoriesData = await categoriesResponse.json();
         setCategories(categoriesData);
+      }
+
+      // Load addons after all data is fetched
+      if (siteData) {
+        loadSiteAddons(siteData.id);
       }
 
     } catch (err) {
@@ -58,6 +101,48 @@ const ArtistStorefront = () => {
       console.error('Error fetching storefront data:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Simple addon trigger - loads and initializes active addons
+  const loadSiteAddons = async (siteId) => {
+    try {
+      const response = await fetch(`https://api2.onlineartfestival.com/api/addons/sites/${siteId}/addons`);
+      if (response.ok) {
+        const addons = await response.json();
+        
+        // Load each active addon
+        for (const addon of addons) {
+          if (addon.is_active) {
+            loadAddon(addon, siteId);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading addons:', error);
+    }
+  };
+
+  // Load individual addon script and initialize
+  const loadAddon = async (addon, siteId) => {
+    try {
+      // Dynamically import the addon module
+      const addonModule = await import(`../../components/sites-modules/${addon.addon_slug}.js`);
+      const AddonClass = addonModule.default;
+      
+      // Initialize the addon with site configuration
+      const addonInstance = new AddonClass({
+        siteId,
+        siteData,
+        addonConfig: addon
+      });
+      
+      // Initialize the addon
+      addonInstance.init();
+      
+      console.log(`Addon loaded: ${addon.addon_name}`);
+    } catch (error) {
+      console.error(`Error loading addon ${addon.addon_name}:`, error);
     }
   };
 
@@ -184,7 +269,7 @@ const ArtistStorefront = () => {
         <meta property="og:type" content="website" />
         <meta property="og:url" content={`https://${subdomain}.onlineartfestival.com`} />
         {siteData.profile_image_path && (
-          <meta property="og:image" content={`https://api2.onlineartfestival.com${siteData.profile_image_path}`} />
+          <meta property="og:image" content={siteData.profile_image_path} />
         )}
       </Head>
 
@@ -193,33 +278,50 @@ const ArtistStorefront = () => {
         <header className={styles.header}>
           <div className={styles.headerContent}>
             <div className={styles.artistInfo}>
-              {siteData.profile_image_path && (
+              {siteData.logo_path && (
                 <img 
-                  src={`https://api2.onlineartfestival.com${siteData.profile_image_path}`}
-                  alt={`${siteData.first_name} ${siteData.last_name}`}
+                  src={siteData.logo_path}
+                  alt={`${siteData.business_name || siteData.display_name || `${siteData.first_name} ${siteData.last_name}`} Logo`}
                   className={styles.artistAvatar}
                 />
               )}
               <div className={styles.artistDetails}>
                 <h1 className={styles.artistName}>
-                  {siteData.first_name} {siteData.last_name}
+                  {siteData.display_name || `${siteData.first_name} ${siteData.last_name}`}
                 </h1>
-                <p className={styles.artistTitle}>Artist</p>
+                <div className={styles.artistMeta}>
+                  <p className={styles.artistTitle}>
+                    {siteData.job_title || (siteData.business_name ? `${siteData.business_name} - Artist` : 'Artist')}
+                  </p>
+                  {(siteData.city || siteData.state || siteData.country) && (
+                    <p className={styles.artistLocation}>
+                      {[siteData.city, siteData.state, siteData.country].filter(Boolean).join(', ')}
+                    </p>
+                  )}
+                </div>
+              </div>
+              {/* Business name for header display */}
+              <div className={styles.businessName}>
+                {siteData.business_name && (
+                  <h2 className={styles.businessNameText}>{siteData.business_name}</h2>
+                )}
               </div>
             </div>
 
             <nav className={styles.navigation}>
-              <Link href={`https://${subdomain}.onlineartfestival.com`}>
-                <a className={styles.navLink}>Gallery</a>
+              <Link href={siteData.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.onlineartfestival.com`}>
+                <a className={styles.navLink}>Home</a>
               </Link>
               {articles.map(article => (
-                <Link key={article.id} href={`https://${subdomain}.onlineartfestival.com/${article.slug}`}>
+                <Link key={article.id} href={`${siteData.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.onlineartfestival.com`}/${article.slug}`}>
                   <a className={styles.navLink}>{article.title}</a>
                 </Link>
               ))}
-              <Link href="https://main.onlineartfestival.com">
-                <a className={styles.navLink}>Main Site</a>
-              </Link>
+              {pages.find(page => page.page_type === 'contact') && (
+                <Link href={`${siteData.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.onlineartfestival.com`}/${pages.find(page => page.page_type === 'contact').slug}`}>
+                  <a className={styles.navLink}>{pages.find(page => page.page_type === 'contact').title}</a>
+                </Link>
+              )}
             </nav>
           </div>
         </header>
@@ -228,7 +330,7 @@ const ArtistStorefront = () => {
         {siteData.header_image_path && (
           <section className={styles.hero}>
             <img 
-              src={`https://api2.onlineartfestival.com${siteData.header_image_path}`}
+              src={siteData.header_image_path}
               alt="Artist Header"
               className={styles.heroImage}
             />
@@ -242,11 +344,99 @@ const ArtistStorefront = () => {
         )}
 
         {/* About Section */}
-        {siteData.bio && (
+        {(siteData.bio || siteData.artist_biography) && (
           <section className={styles.about}>
             <div className={styles.container}>
               <h2>About the Artist</h2>
-              <p className={styles.bio}>{siteData.bio}</p>
+              
+              {/* Artist profile layout with image and bio */}
+              <div className={styles.artistProfile}>
+                {/* Profile image on the left */}
+                <div className={styles.profileImageContainer}>
+                  <img 
+                    src={siteData.profile_image_path || '/images/default-avatar.png'} 
+                    alt={`${siteData.first_name} ${siteData.last_name}`}
+                    className={styles.profileImage}
+                  />
+                  {/* Studio Location below image */}
+                  {(siteData.studio_city || siteData.studio_state) && (
+                    <div className={styles.studioLocation}>
+                      {siteData.studio_city && siteData.studio_state 
+                        ? `${siteData.studio_city}, ${siteData.studio_state}`
+                        : siteData.studio_city || siteData.studio_state
+                      }
+                    </div>
+                  )}
+                </div>
+                
+                {/* Bio and details on the right */}
+                <div className={styles.profileContent}>
+                  {/* Primary bio/artist biography */}
+                  <div className={styles.bioContent}>
+                    <p className={styles.bio}>{siteData.artist_biography || siteData.bio}</p>
+                  </div>
+                  
+                  {/* Artist details grid */}
+                  <div className={styles.artistDetails}>
+                    {/* Art Categories */}
+                    {siteData.art_categories && siteData.art_categories.length > 0 && (
+                      <div className={styles.detailItem}>
+                        <h4>Art Categories</h4>
+                        <div className={styles.tagList}>
+                          {siteData.art_categories.map((category, index) => (
+                            <span key={index} className={styles.tag}>{category}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Art Mediums */}
+                    {siteData.art_mediums && siteData.art_mediums.length > 0 && (
+                      <div className={styles.detailItem}>
+                        <h4>Mediums</h4>
+                        <div className={styles.tagList}>
+                          {siteData.art_mediums.map((medium, index) => (
+                            <span key={index} className={styles.tag}>{medium}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+
+                    {/* Founding Date */}
+                    {siteData.founding_date && (
+                      <div className={styles.detailItem}>
+                        <h4>Artistic Journey Started</h4>
+                        <p>{new Date(siteData.founding_date).getFullYear()}</p>
+                      </div>
+                    )}
+                    
+                    {/* Custom Work */}
+                    {siteData.does_custom === 'yes' && (
+                      <div className={styles.detailItem}>
+                        <h4>Custom Commissions</h4>
+                        <p>{siteData.custom_details || 'Available for custom work'}</p>
+                      </div>
+                    )}
+                    
+                    {/* Awards */}
+                    {siteData.awards && (
+                      <div className={styles.detailItem}>
+                        <h4>Awards & Recognition</h4>
+                        <p>{siteData.awards}</p>
+                      </div>
+                    )}
+                    
+                    {/* Memberships */}
+                    {siteData.memberships && (
+                      <div className={styles.detailItem}>
+                        <h4>Professional Memberships</h4>
+                        <p>{siteData.memberships}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
         )}
@@ -285,7 +475,7 @@ const ArtistStorefront = () => {
                     <div className={styles.productImage}>
                       {product.image_path ? (
                         <img 
-                          src={`https://api2.onlineartfestival.com${product.image_path}`}
+                          src={product.image_path}
                           alt={product.alt_text || product.name}
                         />
                       ) : (
@@ -338,19 +528,7 @@ const ArtistStorefront = () => {
           <div className={styles.container}>
             <div className={styles.footerContent}>
               <div className={styles.footerSection}>
-                <h4>{siteData.first_name} {siteData.last_name}</h4>
-                <p>Artist Gallery</p>
-                {siteData.website && (
-                  <p>
-                    <a href={siteData.website} target="_blank" rel="noopener noreferrer">
-                      Visit Artist Website
-                    </a>
-                  </p>
-                )}
-              </div>
-              
-              <div className={styles.footerSection}>
-                <h4>Social Media</h4>
+                <h4>Connect</h4>
                 <div className={styles.socialLinks}>
                   {siteData.social_instagram && (
                     <a href={siteData.social_instagram} target="_blank" rel="noopener noreferrer">
@@ -367,23 +545,58 @@ const ArtistStorefront = () => {
                       Twitter
                     </a>
                   )}
+                  {siteData.social_pinterest && (
+                    <a href={siteData.social_pinterest} target="_blank" rel="noopener noreferrer">
+                      Pinterest
+                    </a>
+                  )}
+                  {siteData.social_tiktok && (
+                    <a href={siteData.social_tiktok} target="_blank" rel="noopener noreferrer">
+                      TikTok
+                    </a>
+                  )}
                 </div>
-              </div>
-              
-              <div className={styles.footerSection}>
-                <h4>Platform</h4>
-                <p>
-                  <Link href="https://main.onlineartfestival.com">
-                    <a>Online Art Festival</a>
-                  </Link>
-                </p>
-                <p className={styles.poweredBy}>Powered by OAF</p>
+                
+                {/* Contact info */}
+                {(siteData.phone || siteData.business_website) && (
+                  <div className={styles.contactInfo}>
+                    {siteData.phone && (
+                      <p className={styles.phone}>{siteData.phone}</p>
+                    )}
+                    {siteData.business_website && (
+                      <p>
+                        <a href={siteData.business_website} target="_blank" rel="noopener noreferrer">
+                          Business Website
+                        </a>
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
             
             <div className={styles.footerBottom}>
-              <p>&copy; 2025 {siteData.first_name} {siteData.last_name}. All rights reserved.</p>
-              <p>Gallery hosted by Online Art Festival</p>
+              <p>&copy; 2025 {siteData.display_name || `${siteData.first_name} ${siteData.last_name}`}. All rights reserved.</p>
+            </div>
+            
+            {/* Branded Footer - Hidden on higher tier plans */}
+            <div className={styles.brandedFooter}>
+              <div className={styles.brandedContent}>
+                <span className={styles.poweredByText}>Powered by</span>
+                <img 
+                  src="/static_media/logo.png" 
+                  alt="Online Art Festival" 
+                  className={styles.brandLogo}
+                />
+                <a 
+                  href="https://onlineartfestival.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className={styles.brandLink}
+                >
+                  OnlineArtFestival.com
+                </a>
+              </div>
             </div>
           </div>
         </footer>

@@ -117,6 +117,19 @@ export default function Dashboard() {
         setError('Invalid authentication token');
       }
     }
+    
+    // Listen for auth logout events
+    const handleAuthLogout = () => {
+      setIsLoggedIn(false);
+      setUserData(null);
+      router.push('/');
+    };
+    
+    window.addEventListener('auth-logout', handleAuthLogout);
+    
+    return () => {
+      window.removeEventListener('auth-logout', handleAuthLogout);
+    };
   }, []);
 
   if (!isLoggedIn) {

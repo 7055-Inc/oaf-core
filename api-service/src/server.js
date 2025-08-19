@@ -56,6 +56,11 @@ app.use(async (req, res, next) => {
   const origin = req.headers.origin;
   let isAllowed = staticAllowedOrigins.includes(origin);
   
+  // Check if origin is a subdomain of onlineartfestival.com
+  if (!isAllowed && origin && origin.match(/^https:\/\/[a-zA-Z0-9-]+\.onlineartfestival\.com$/)) {
+    isAllowed = true;
+  }
+  
   // Check if origin is a verified custom domain
   if (!isAllowed && origin && origin.startsWith('https://')) {
     try {
@@ -266,6 +271,9 @@ try {
   
   // Email system routes
   app.use('/emails', require('./routes/emails'));
+  
+  // Website addons (contact forms, email collection, etc.)
+  app.use('/api/addons', require('./routes/addons'));
   
   // Inventory management
   app.use('/inventory', csrfProtection(), require('./routes/inventory'));

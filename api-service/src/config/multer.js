@@ -7,7 +7,8 @@ const uploadDir = path.join(__dirname, '../../temp_images');
 const productsDir = path.join(uploadDir, 'products');
 const profilesDir = path.join(uploadDir, 'profiles');
 const eventsDir = path.join(uploadDir, 'events');
-[productsDir, profilesDir, eventsDir].forEach(dir => {
+const sitesDir = path.join(uploadDir, 'sites');
+[productsDir, profilesDir, eventsDir, sitesDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -18,6 +19,8 @@ const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     if (file.fieldname === 'profile_image' || file.fieldname === 'header_image' || file.fieldname === 'logo_image') {
       cb(null, profilesDir);
+    } else if (file.fieldname === 'site_image') {
+      cb(null, sitesDir);
     } else if (file.fieldname === 'images' && req.originalUrl && req.originalUrl.includes('/api/events/upload')) {
       cb(null, eventsDir);
     } else {
@@ -33,6 +36,9 @@ const storage = multer.diskStorage({
       const type = file.fieldname === 'profile_image' ? 'profile' : 
                    file.fieldname === 'header_image' ? 'header' : 'logo';
       filename = `${req.userId}-${type}-${uniqueSuffix}${path.extname(file.originalname).toLowerCase()}`;
+    } else if (file.fieldname === 'site_image') {
+      // For site images
+      filename = `${req.userId}-site-${uniqueSuffix}${path.extname(file.originalname).toLowerCase()}`;
     } else if (file.fieldname === 'images' && req.originalUrl && req.originalUrl.includes('/api/events/upload')) {
       // For event images
       const eventId = req.query.event_id || 'new';

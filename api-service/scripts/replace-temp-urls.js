@@ -55,8 +55,8 @@ async function replaceTempUrls() {
         console.log(`   Media ID: ${permanent_url}`);
 
         // Generate smart serving URLs
-        const imagePermanentUrl = `https://api2.onlineartfestival.com/api/images/${permanent_url}?size=detail`;
-        const thumbnailPermanentUrl = `https://api2.onlineartfestival.com/api/images/${permanent_url}?size=thumbnail`;
+        const imagePermanentUrl = `https://api2.onlineartfestival.com/api/media/images/${permanent_url}`;
+        const thumbnailPermanentUrl = `https://api2.onlineartfestival.com/api/media/images/${permanent_url}?size=thumbnail`;
         
         console.log(`   📱 Smart serving URL: ${imagePermanentUrl}`);
 
@@ -89,7 +89,7 @@ async function replaceTempUrls() {
           // Profile image
           if (filename.includes('-profile-')) {
             const [profileResult] = await connection.execute(
-              'UPDATE user_profiles SET profile_image_url = ? WHERE profile_image_url = ?',
+              'UPDATE user_profiles SET profile_image_path = ? WHERE profile_image_path = ?',
               [imagePermanentUrl, image_path]
             );
             if (profileResult.affectedRows > 0) {
@@ -101,7 +101,7 @@ async function replaceTempUrls() {
           // Header image
           else if (filename.includes('-header-')) {
             const [headerResult] = await connection.execute(
-              'UPDATE user_profiles SET header_image_url = ? WHERE header_image_url = ?',
+              'UPDATE user_profiles SET header_image_path = ? WHERE header_image_path = ?',
               [imagePermanentUrl, image_path]
             );
             if (headerResult.affectedRows > 0) {
@@ -110,20 +110,43 @@ async function replaceTempUrls() {
             }
           }
           
-          // Logo image
+          // Logo image (stored in artist_profiles and promoter_profiles)
           else if (filename.includes('-logo-')) {
-            const [logoResult] = await connection.execute(
-              'UPDATE user_profiles SET logo_image_url = ? WHERE logo_image_url = ?',
+            // Update artist_profiles logo_path
+            const [artistLogoResult] = await connection.execute(
+              'UPDATE artist_profiles SET logo_path = ? WHERE logo_path = ?',
               [imagePermanentUrl, image_path]
             );
-            if (logoResult.affectedRows > 0) {
-              console.log(`   ✅ Updated ${logoResult.affectedRows} user logo images`);
-              imageReplacements += logoResult.affectedRows;
+            if (artistLogoResult.affectedRows > 0) {
+              console.log(`   ✅ Updated ${artistLogoResult.affectedRows} artist logo images`);
+              imageReplacements += artistLogoResult.affectedRows;
+            }
+            
+            // Update promoter_profiles logo_path
+            const [promoterLogoResult] = await connection.execute(
+              'UPDATE promoter_profiles SET logo_path = ? WHERE logo_path = ?',
+              [imagePermanentUrl, image_path]
+            );
+            if (promoterLogoResult.affectedRows > 0) {
+              console.log(`   ✅ Updated ${promoterLogoResult.affectedRows} promoter logo images`);
+              imageReplacements += promoterLogoResult.affectedRows;
             }
           }
         }
 
-        // 4. Safety net: search for URLs in text content fields
+        // 4. Update site_media table for site images
+        if (image_path.includes('/temp_images/sites/')) {
+          const [siteMediaResult] = await connection.execute(
+            'UPDATE site_media SET media_path = ? WHERE media_path = ?',
+            [imagePermanentUrl, image_path]
+          );
+          if (siteMediaResult.affectedRows > 0) {
+            console.log(`   ✅ Updated ${siteMediaResult.affectedRows} site_media records`);
+            imageReplacements += siteMediaResult.affectedRows;
+          }
+        }
+
+        // 5. Safety net: search for URLs in text content fields
         const [miscResults] = await connection.execute(`
           SELECT 'articles' as table_name, 'content' as column_name, id, content as field_value
           FROM articles WHERE content LIKE ?

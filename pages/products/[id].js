@@ -34,10 +34,11 @@ export default function ProductView() {
         }
         
         // Use the new flexible API with vendor data and categories included
-        const res = await authenticatedApiRequest(
+        const res = await fetch(
           `https://api2.onlineartfestival.com/products/${params.id}?include=images,shipping,vendor,inventory,categories`,
           {
-            method: 'GET'
+            method: 'GET',
+            credentials: 'include'
           }
         );
         

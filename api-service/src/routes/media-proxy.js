@@ -4,7 +4,7 @@ const axios = require('axios');
 const { secureLogger } = require('../middleware/secureLogger');
 
 // Configuration - Update these with your actual media backend details
-const MEDIA_BACKEND_URL = process.env.MEDIA_BACKEND_URL || 'http://34.60.105.144:3001';
+const MEDIA_BACKEND_URL = process.env.MEDIA_BACKEND_URL || 'http://10.128.0.29:3001';
 const MEDIA_API_KEY = 'media_20074c47e0d2af1a90b1d9ba1d001648:eb7d555c29ce59c6202f3975b37a45cdc2e7a21eb09c6d684e982ebee5cc9e6a';
 
 /**

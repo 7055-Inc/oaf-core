@@ -296,6 +296,7 @@ export default function EditProfile({ userData }) {
     // Image fields
     profile_image_path: '',
     header_image_path: '',
+    logo_path: '',
     
     // Artist profile fields
     artist_biography: '',
@@ -402,6 +403,7 @@ export default function EditProfile({ userData }) {
         // Image fields
         profile_image_path: userData.profile_image_path || '',
         header_image_path: userData.header_image_path || '',
+        logo_path: userData.logo_path || '',
         
         // Artist profile fields
         artist_biography: userData.artist_biography || '',
@@ -1333,14 +1335,43 @@ export default function EditProfile({ userData }) {
             </div>
             
             <div>
-              <label>Logo Upload</label>
-              <input
-                type="file"
-                name="logo_image"
-                accept="image/*"
-                onChange={handleFileChange}
-              />
-              {logoImage && <p style={{ fontSize: '12px', color: '#6c757d', marginTop: '4px' }}>Selected: {logoImage.name}</p>}
+              <div className="section-box" style={{ textAlign: 'center' }}>
+                <div style={{ 
+                  width: '120px', 
+                  height: '120px', 
+                  margin: '0 auto 12px', 
+                  border: '2px dashed #ccc', 
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#f8f9fa',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}>
+                  {formData.logo_path ? (
+                    <img 
+                      src={formData.logo_path} 
+                      alt="Logo" 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <div style={{ color: '#6c757d', fontSize: '14px' }}>
+                      <i className="material-icons" style={{ fontSize: '32px', marginBottom: '8px', display: 'block' }}>business</i>
+                      Logo Image
+                    </div>
+                  )}
+                </div>
+                <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>Logo Upload</div>
+                <input
+                  type="file"
+                  name="logo_image"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  style={{ fontSize: '12px' }}
+                />
+                {logoImage && <div style={{ fontSize: '11px', color: '#6c757d', marginTop: '4px' }}>Selected: {logoImage.name}</div>}
+              </div>
             </div>
           </div>
             
@@ -1662,14 +1693,43 @@ export default function EditProfile({ userData }) {
             </div>
             
             <div>
-              <label>Logo Image</label>
-              <input
-                type="file"
-                name="logo_image"
-                accept="image/*"
-                onChange={handleFileChange}
-              />
-              {logoImage && <p>Selected: {logoImage.name}</p>}
+              <div className="section-box" style={{ textAlign: 'center' }}>
+                <div style={{ 
+                  width: '120px', 
+                  height: '120px', 
+                  margin: '0 auto 12px', 
+                  border: '2px dashed #ccc', 
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#f8f9fa',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}>
+                  {formData.logo_path ? (
+                    <img 
+                      src={formData.logo_path} 
+                      alt="Logo" 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <div style={{ color: '#6c757d', fontSize: '14px' }}>
+                      <i className="material-icons" style={{ fontSize: '32px', marginBottom: '8px', display: 'block' }}>business</i>
+                      Logo Image
+                    </div>
+                  )}
+                </div>
+                <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>Logo Image</div>
+                <input
+                  type="file"
+                  name="logo_image"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  style={{ fontSize: '12px' }}
+                />
+                {logoImage && <div style={{ fontSize: '11px', color: '#6c757d', marginTop: '4px' }}>Selected: {logoImage.name}</div>}
+              </div>
             </div>
             
             <h3>Office Address</h3>

@@ -1,8 +1,18 @@
 /* Artist Storefront Styles */
+
 .storefront {
+  /* CSS Variables for Starter Plan Color Customization */
+  --text-color: #374151;      /* Main text color (dark gray) */
+  --main-color: #667eea;      /* Primary brand color (blue) */
+  --secondary-color: #764ba2;  /* Secondary brand color (purple) */
+  
+  /* Font families */
+  --body-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --header-font: Georgia, 'Times New Roman', Times, serif;
+  
   min-height: 100vh;
   background: #fafafa;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--body-font);
 }
 
 /* Loading States */
@@ -19,7 +29,7 @@
   width: 40px;
   height: 40px;
   border: 4px solid #f3f3f3;
-  border-top: 4px solid #667eea;
+  border-top: 4px solid var(--main-color);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 20px;
@@ -31,7 +41,7 @@
 }
 
 .loading p {
-  color: #666;
+  color: var(--text-color);
   font-size: 1.1rem;
 }
 
@@ -48,44 +58,52 @@
 }
 
 .error h1 {
-  color: #333;
+  color: var(--text-color);
   margin-bottom: 15px;
 }
 
 .error p {
-  color: #666;
+  color: var(--text-color);
   margin-bottom: 25px;
 }
 
 .homeLink {
-  color: #667eea;
+  color: var(--main-color);
   text-decoration: none;
   font-weight: 500;
   padding: 12px 24px;
-  border: 2px solid #667eea;
+  border: 2px solid var(--main-color);
   border-radius: 8px;
   transition: all 0.3s ease;
 }
 
 .homeLink:hover {
-  background: #667eea;
+  background: var(--main-color);
   color: white;
 }
 
 /* Header */
 .header {
   background: white;
-  border-bottom: 1px solid #e5e7eb;
   position: sticky;
   top: 0;
   z-index: 100;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
+/* Header Separator */
+.header::after {
+  content: '';
+  display: block;
+  height: 3px;
+  background: var(--main-color);
+  box-shadow: 0 2px 4px var(--secondary-color);
+}
+
 .headerContent {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 30px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -98,27 +116,55 @@
 }
 
 .artistAvatar {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
+  width: 120px;
+  height: 120px;
+  border-radius: 0;
   object-fit: cover;
-  border: 3px solid #667eea;
+  border: 3px solid var(--main-color);
+  display: block;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
+/* Hide artist details in default template - show only logo */
 .artistDetails {
-  display: flex;
-  flex-direction: column;
+  display: none;
+}
+
+/* Business name display in header */
+.businessName {
+  flex: 1;
+  margin-left: 20px;
+}
+
+.businessNameText {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text-color);
+  margin: 0;
+  font-family: var(--header-font);
 }
 
 .artistName {
   font-size: 1.8rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--text-color);
   margin: 0;
+  font-family: var(--header-font);
+}
+
+.artistMeta {
+  margin-top: 5px;
+}
+
+.artistLocation {
+  font-size: 0.9rem;
+  color: var(--text-color);
+  margin: 2px 0 0 0;
+  font-style: italic;
 }
 
 .artistTitle {
-  color: #6b7280;
+  color: var(--text-color);
   margin: 0;
   font-style: italic;
 }
@@ -130,7 +176,7 @@
 }
 
 .navLink {
-  color: #374151;
+  color: var(--text-color);
   text-decoration: none;
   font-weight: 500;
   padding: 8px 16px;
@@ -140,7 +186,7 @@
 }
 
 .navLink:hover {
-  color: #667eea;
+  color: var(--main-color);
   background: rgba(102, 126, 234, 0.1);
 }
 
@@ -178,6 +224,7 @@
   font-weight: 700;
   margin-bottom: 15px;
   text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+  font-family: var(--header-font);
 }
 
 .heroDescription {
@@ -203,18 +250,94 @@
 .about h2 {
   font-size: 2.5rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--text-color);
   text-align: center;
   margin-bottom: 30px;
+  font-family: var(--header-font);
 }
 
 .bio {
   font-size: 1.1rem;
   line-height: 1.8;
-  color: #4b5563;
+  color: var(--text-color);
   text-align: center;
   max-width: 800px;
-  margin: 0 auto;
+  margin: 0 auto 30px auto;
+}
+
+.bioContent {
+  margin-bottom: 40px;
+}
+
+/* Artist profile layout with image and content */
+.artistProfile {
+  display: flex;
+  gap: 40px;
+  align-items: flex-start;
+  margin-top: 40px;
+}
+
+.profileImageContainer {
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.profileImage {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid var(--main-color);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+  margin-bottom: 15px;
+}
+
+.studioLocation {
+  color: var(--text-color);
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-top: 10px;
+}
+
+.profileContent {
+  flex: 1;
+}
+
+.artistDetails {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 25px;
+  margin-top: 30px;
+}
+
+.detailItem h4 {
+  color: var(--main-color);
+  font-size: 1rem;
+  margin: 0 0 10px 0;
+  font-weight: 600;
+  font-family: var(--header-font);
+}
+
+.detailItem p {
+  color: var(--text-color);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag {
+  background: linear-gradient(135deg, var(--main-color) 0%, var(--secondary-color) 100%);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 15px;
+  font-size: 0.85rem;
+  font-weight: 500;
 }
 
 /* Categories */
@@ -226,9 +349,10 @@
 .categories h3 {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--text-color);
   text-align: center;
   margin-bottom: 25px;
+  font-family: var(--header-font);
 }
 
 .categoryTags {
@@ -241,7 +365,7 @@
 .categoryTag {
   background: white;
   border: 2px solid #e5e7eb;
-  color: #374151;
+  color: var(--text-color);
   padding: 10px 20px;
   border-radius: 25px;
   font-weight: 500;
@@ -251,8 +375,8 @@
 
 .categoryTag:hover,
 .categoryTag.active {
-  border-color: #667eea;
-  color: #667eea;
+  border-color: var(--main-color);
+  color: var(--main-color);
   background: rgba(102, 126, 234, 0.05);
 }
 
@@ -265,9 +389,10 @@
 .gallery h2 {
   font-size: 2.5rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--text-color);
   text-align: center;
   margin-bottom: 50px;
+  font-family: var(--header-font);
 }
 
 .emptyGallery {
@@ -338,19 +463,19 @@
 .productName {
   font-size: 1.3rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--text-color);
   margin-bottom: 8px;
 }
 
 .productPrice {
   font-size: 1.4rem;
   font-weight: 700;
-  color: #667eea;
+  color: var(--main-color);
   margin-bottom: 12px;
 }
 
 .productDescription {
-  color: #6b7280;
+  color: var(--text-color);
   line-height: 1.6;
   margin-bottom: 20px;
 }
@@ -362,7 +487,7 @@
 
 .addToCartBtn {
   flex: 1;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--main-color) 0%, var(--secondary-color) 100%);
   color: white;
   border: none;
   padding: 12px 20px;
@@ -380,8 +505,8 @@
 .viewProductBtn {
   flex: 1;
   background: transparent;
-  color: #667eea;
-  border: 2px solid #667eea;
+  color: var(--main-color);
+  border: 2px solid var(--main-color);
   padding: 12px 20px;
   border-radius: 8px;
   font-weight: 600;
@@ -391,7 +516,7 @@
 }
 
 .viewProductBtn:hover {
-  background: #667eea;
+  background: var(--main-color);
   color: white;
 }
 
@@ -402,8 +527,8 @@
 .viewMoreBtn {
   display: inline-block;
   background: transparent;
-  color: #667eea;
-  border: 2px solid #667eea;
+  color: var(--main-color);
+  border: 2px solid var(--main-color);
   padding: 15px 30px;
   border-radius: 8px;
   font-weight: 600;
@@ -412,13 +537,13 @@
 }
 
 .viewMoreBtn:hover {
-  background: #667eea;
+  background: var(--main-color);
   color: white;
 }
 
 /* Footer */
 .footer {
-  background: #1f2937;
+  background: var(--main-color);
   color: white;
   padding: 60px 0 30px;
 }
@@ -434,6 +559,7 @@
   font-size: 1.2rem;
   font-weight: 600;
   margin-bottom: 15px;
+  font-family: var(--header-font);
 }
 
 .footerSection p {
@@ -442,13 +568,13 @@
 }
 
 .footerSection a {
-  color: #93c5fd;
+  color: white;
   text-decoration: none;
   transition: color 0.3s ease;
 }
 
 .footerSection a:hover {
-  color: #dbeafe;
+  color: var(--secondary-color);
 }
 
 .socialLinks {
@@ -458,17 +584,17 @@
 }
 
 .socialLinks a {
-  color: #93c5fd;
+  color: white;
   text-decoration: none;
   padding: 8px 12px;
-  border: 1px solid #374151;
+  border: 1px solid white;
   border-radius: 6px;
   transition: all 0.3s ease;
 }
 
 .socialLinks a:hover {
-  background: #374151;
-  color: #dbeafe;
+  background: var(--secondary-color);
+  color: white;
 }
 
 .poweredBy {
@@ -478,10 +604,10 @@
 }
 
 .footerBottom {
-  border-top: 1px solid #374151;
+  border-top: 1px solid white;
   padding-top: 30px;
   text-align: center;
-  color: #9ca3af;
+  color: white;
 }
 
 .footerBottom p {
@@ -570,7 +696,7 @@
 .profilePlaceholder {
   width: 100%;
   height: 300px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--main-color) 0%, var(--secondary-color) 100%);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -587,7 +713,7 @@
 .aboutTitle {
   font-size: 2.5rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--text-color);
   margin-bottom: 20px;
 }
 
@@ -605,14 +731,14 @@
 .artistBiography h3 {
   font-size: 1.3rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--text-color);
   margin-bottom: 15px;
 }
 
 .contactInfo h3 {
   font-size: 1.3rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--text-color);
   margin-bottom: 15px;
 }
 
@@ -625,7 +751,7 @@
 .contactLink {
   display: inline-block;
   background: #f3f4f6;
-  color: #374151;
+  color: var(--text-color);
   padding: 10px 16px;
   border-radius: 8px;
   text-decoration: none;
@@ -634,7 +760,7 @@
 }
 
 .contactLink:hover {
-  background: #667eea;
+  background: var(--main-color);
   color: white;
   transform: translateY(-2px);
 }
@@ -650,7 +776,7 @@
 .articleContent h2 {
   font-size: 2rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--text-color);
   margin-bottom: 25px;
 }
 
@@ -681,7 +807,7 @@
 .detailCard h3 {
   font-size: 1.2rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--text-color);
   margin-bottom: 12px;
 }
 
@@ -709,7 +835,7 @@
 }
 
 .ctaCard {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--main-color) 0%, var(--secondary-color) 100%);
   color: white;
   border-radius: 12px;
   padding: 50px;
@@ -747,7 +873,7 @@
 
 .ctaPrimary {
   background: white;
-  color: #667eea;
+  color: var(--main-color);
 }
 
 .ctaPrimary:hover {
@@ -768,7 +894,7 @@
 }
 
 .navLink.active {
-  color: #667eea;
+  color: var(--main-color);
   background: rgba(102, 126, 234, 0.1);
 }
 
@@ -787,7 +913,7 @@
 .pageHeader h1 {
   font-size: 2.5rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--text-color);
   margin-bottom: 10px;
 }
 
@@ -815,7 +941,7 @@
 .categoryFilters h3 {
   font-size: 1.2rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--text-color);
   margin-bottom: 15px;
 }
 
@@ -828,7 +954,7 @@
 .filterButton {
   background: #f3f4f6;
   border: 2px solid #e5e7eb;
-  color: #374151;
+  color: var(--text-color);
   padding: 8px 16px;
   border-radius: 20px;
   font-weight: 500;
@@ -838,14 +964,14 @@
 }
 
 .filterButton:hover {
-  border-color: #667eea;
-  color: #667eea;
+  border-color: var(--main-color);
+  color: var(--main-color);
   background: rgba(102, 126, 234, 0.05);
 }
 
 .filterButton.active {
-  background: #667eea;
-  border-color: #667eea;
+  background: var(--main-color);
+  border-color: var(--main-color);
   color: white;
 }
 
@@ -857,7 +983,7 @@
 
 .sortControls label {
   font-weight: 500;
-  color: #374151;
+  color: var(--text-color);
 }
 
 .sortSelect {
@@ -865,7 +991,7 @@
   border: 2px solid #e5e7eb;
   border-radius: 6px;
   background: white;
-  color: #374151;
+  color: var(--text-color);
   font-weight: 500;
   cursor: pointer;
   transition: border-color 0.3s ease;
@@ -873,7 +999,7 @@
 
 .sortSelect:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--main-color);
 }
 
 .productsSection {
@@ -902,7 +1028,7 @@
 
 .emptyProducts h3 {
   font-size: 1.5rem;
-  color: #374151;
+  color: var(--text-color);
   margin-bottom: 15px;
 }
 
@@ -912,7 +1038,7 @@
 }
 
 .clearFilterBtn {
-  background: #667eea;
+  background: var(--main-color);
   color: white;
   border: none;
   padding: 12px 24px;
@@ -939,7 +1065,7 @@
 }
 
 .resultsInfo span {
-  color: #667eea;
+  color: var(--main-color);
   font-weight: 500;
 }
 
@@ -956,7 +1082,7 @@
 .pageButton {
   background: white;
   border: 2px solid #e5e7eb;
-  color: #374151;
+  color: var(--text-color);
   padding: 10px 16px;
   border-radius: 8px;
   font-weight: 500;
@@ -965,8 +1091,8 @@
 }
 
 .pageButton:hover:not(:disabled) {
-  border-color: #667eea;
-  color: #667eea;
+  border-color: var(--main-color);
+  color: var(--main-color);
 }
 
 .pageButton:disabled {
@@ -984,7 +1110,7 @@
   height: 40px;
   border: 2px solid #e5e7eb;
   background: white;
-  color: #374151;
+  color: var(--text-color);
   border-radius: 8px;
   font-weight: 500;
   cursor: pointer;
@@ -995,13 +1121,13 @@
 }
 
 .pageNumber:hover {
-  border-color: #667eea;
-  color: #667eea;
+  border-color: var(--main-color);
+  color: var(--main-color);
 }
 
 .pageNumber.active {
-  background: #667eea;
-  border-color: #667eea;
+  background: var(--main-color);
+  border-color: var(--main-color);
   color: white;
 }
 
@@ -1112,5 +1238,93 @@
   
   .artistProfile {
     padding: 20px;
+  }
+}
+
+/* Contact and Social Media Styles */
+.contactInfo {
+  margin-top: 15px;
+}
+
+.contactInfo p {
+  margin: 5px 0;
+  font-size: 0.9rem;
+}
+
+.phone {
+  color: var(--main-color);
+  font-weight: 500;
+}
+
+/* Branded Footer */
+.brandedFooter {
+  background: #2c3e50;
+  border-top: 1px solid #34495e;
+  padding: 8px 0;
+  margin-top: 20px;
+}
+
+.brandedContent {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.poweredByText {
+  color: #bdc3c7;
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.brandLogo {
+  height: 30px;
+  width: auto;
+  opacity: 0.9;
+  transition: opacity 0.3s ease;
+}
+
+.brandLink {
+  color: #ecf0f1;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+.brandLink:hover {
+  color: var(--main-color);
+}
+
+.brandedFooter:hover .brandLogo {
+  opacity: 1;
+}
+
+/* Hide branded footer on higher tier plans - will be controlled by permissions */
+.storefront[data-tier="professional"] .brandedFooter,
+.storefront[data-tier="business"] .brandedFooter {
+  display: none;
+}
+
+/* Mobile styles for branded footer */
+@media (max-width: 480px) {
+  .brandedContent {
+    padding: 0 15px;
+    gap: 6px;
+  }
+  
+  .poweredByText {
+    font-size: 0.75rem;
+  }
+  
+  .brandLink {
+    font-size: 0.8rem;
+  }
+  
+  .brandLogo {
+    height: 25px;
   }
 } 

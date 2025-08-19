@@ -73,23 +73,45 @@ export async function subdomainRouter(req) {
     
     if (path === '/') {
       // Homepage
-      return NextResponse.rewrite(new URL(`/artist-storefront?subdomain=${subdomain}&userId=${siteData.user_id}&siteName=${encodeURIComponent(siteData.site_name)}&themeName=${siteData.theme_name}`, req.url));
+      const rewriteUrl = new URL('/artist-storefront', req.url);
+      rewriteUrl.searchParams.set('subdomain', subdomain);
+      rewriteUrl.searchParams.set('userId', siteData.user_id);
+      rewriteUrl.searchParams.set('siteName', siteData.site_name);
+      rewriteUrl.searchParams.set('themeName', siteData.theme_name);
+      return NextResponse.rewrite(rewriteUrl);
     } else if (path === '/about') {
       // About page
-      return NextResponse.rewrite(new URL(`/artist-storefront/about?subdomain=${subdomain}&userId=${siteData.user_id}&siteName=${encodeURIComponent(siteData.site_name)}`, req.url));
+      const rewriteUrl = new URL('/artist-storefront/about', req.url);
+      rewriteUrl.searchParams.set('subdomain', subdomain);
+      rewriteUrl.searchParams.set('userId', siteData.user_id);
+      rewriteUrl.searchParams.set('siteName', siteData.site_name);
+      return NextResponse.rewrite(rewriteUrl);
     } else if (path === '/products' || path === '/gallery') {
       // Products/Gallery page
-      return NextResponse.rewrite(new URL(`/artist-storefront/products?subdomain=${subdomain}&userId=${siteData.user_id}&siteName=${encodeURIComponent(siteData.site_name)}`, req.url));
+      const rewriteUrl = new URL('/artist-storefront/products', req.url);
+      rewriteUrl.searchParams.set('subdomain', subdomain);
+      rewriteUrl.searchParams.set('userId', siteData.user_id);
+      rewriteUrl.searchParams.set('siteName', siteData.site_name);
+      return NextResponse.rewrite(rewriteUrl);
     } else if (path.startsWith('/product/')) {
       // Individual product page (if we have one)
       const productId = path.split('/product/')[1];
-      return NextResponse.rewrite(new URL(`/artist-storefront/product?subdomain=${subdomain}&productId=${productId}&userId=${siteData.user_id}`, req.url));
+      const rewriteUrl = new URL('/artist-storefront/product', req.url);
+      rewriteUrl.searchParams.set('subdomain', subdomain);
+      rewriteUrl.searchParams.set('productId', productId);
+      rewriteUrl.searchParams.set('userId', siteData.user_id);
+      return NextResponse.rewrite(rewriteUrl);
     } else if (path.startsWith('/api/')) {
       // API calls should pass through
       return NextResponse.next();
     } else {
       // Default to homepage for unknown paths
-      return NextResponse.rewrite(new URL(`/artist-storefront?subdomain=${subdomain}&userId=${siteData.user_id}&siteName=${encodeURIComponent(siteData.site_name)}&themeName=${siteData.theme_name}`, req.url));
+      const rewriteUrl = new URL('/artist-storefront', req.url);
+      rewriteUrl.searchParams.set('subdomain', subdomain);
+      rewriteUrl.searchParams.set('userId', siteData.user_id);
+      rewriteUrl.searchParams.set('siteName', siteData.site_name);
+      rewriteUrl.searchParams.set('themeName', siteData.theme_name);
+      return NextResponse.rewrite(rewriteUrl);
     }
     
   } catch (error) {

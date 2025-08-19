@@ -93,41 +93,7 @@ router.post('/terms-accept', verifyToken, async (req, res) => {
   }
 });
 
-// GET /subscriptions/sites/my-sites - Get user's websites for dashboard
-router.get('/my-sites', verifyToken, async (req, res) => {
-  try {
-    const userId = req.userId;
 
-    // Get user's sites with template information
-    const [sites] = await db.execute(`
-      SELECT s.id, s.site_name, s.custom_domain, s.subdomain, s.status, s.created_at,
-             wt.template_name, wt.template_slug
-      FROM sites s
-      LEFT JOIN website_templates wt ON s.template_id = wt.id
-      WHERE s.user_id = ? AND s.status != 'deleted'
-      ORDER BY s.created_at DESC
-    `, [userId]);
-
-    // Format sites data for frontend
-    const formattedSites = sites.map(site => ({
-      id: site.id,
-      site_name: site.site_name,
-      domain: site.custom_domain || `${site.subdomain}.onlineartfestival.com`,
-      status: site.status,
-      template_name: site.template_name || 'Default',
-      created_at: site.created_at
-    }));
-
-    res.json({
-      success: true,
-      sites: formattedSites
-    });
-
-  } catch (error) {
-    console.error('Error fetching user sites:', error);
-    res.status(500).json({ error: 'Failed to fetch user sites' });
-  }
-});
 
 // POST /subscriptions/sites/signup - Create subscription and grant sites permission
 router.post('/signup', verifyToken, async (req, res) => {
