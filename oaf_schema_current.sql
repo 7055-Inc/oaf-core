@@ -1168,6 +1168,24 @@ CREATE TABLE `email_queue` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `email_layouts`
+--
+
+DROP TABLE IF EXISTS `email_layouts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `email_layouts` (
+  `layout_key` varchar(100) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `layout_template` text NOT NULL,
+  `is_active` tinyint(1) DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`layout_key`),
+  KEY `idx_layout_active` (`is_active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Email layout templates for different contexts (default, artist sites, etc.)';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `email_templates`
 --
 
@@ -1183,13 +1201,15 @@ CREATE TABLE `email_templates` (
   `is_transactional` tinyint(1) NOT NULL DEFAULT '0' COMMENT 'Bypass user frequency settings',
   `subject_template` text NOT NULL COMMENT 'Subject line template with variables',
   `body_template` text NOT NULL COMMENT 'Email body template with variables',
+  `layout_key` varchar(100) DEFAULT 'default' COMMENT 'Which email layout to use',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `template_key` (`template_key`),
   KEY `idx_template_key` (`template_key`),
   KEY `idx_transactional` (`is_transactional`),
-  KEY `idx_priority` (`priority_level`)
-) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Hardcoded system email templates with priority and compilation rules';
+  KEY `idx_priority` (`priority_level`),
+  KEY `idx_layout_key` (`layout_key`)
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='System email templates with priority and layout references';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --

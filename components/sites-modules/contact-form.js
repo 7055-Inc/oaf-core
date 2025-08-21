@@ -16,8 +16,6 @@ class ContactFormAddon {
   init() {
     if (this.initialized) return;
     
-    console.log('Contact Form Addon: Initializing...');
-    
     // Add contact form styles
     this.injectStyles();
     
@@ -28,7 +26,6 @@ class ContactFormAddon {
     this.setupContactPageRouting();
     
     this.initialized = true;
-    console.log('Contact Form Addon: Ready');
   }
 
   /**
@@ -157,12 +154,16 @@ class ContactFormAddon {
    * Add contact navigation to the site menu
    */
   addContactNavigation() {
-    // Find the navigation element and add Contact link
-    const navigation = document.querySelector('.navigation');
+    // Find the navigation element (it uses CSS modules, so look for nav tag)
+    const navigation = document.querySelector('nav');
     if (navigation) {
       const contactLink = document.createElement('a');
       contactLink.href = '#contact';
-      contactLink.className = 'navLink';
+      // Copy the same CSS class as other nav links
+      const existingNavLink = navigation.querySelector('a');
+      if (existingNavLink) {
+        contactLink.className = existingNavLink.className;
+      }
       contactLink.textContent = 'Contact';
       contactLink.onclick = (e) => {
         e.preventDefault();
@@ -195,13 +196,27 @@ class ContactFormAddon {
    * Show the contact page
    */
   showContactPage() {
-    // Find the main content area and replace with contact form
-    const mainContent = document.querySelector('.storefront');
+    // Find the main content area - try multiple selectors due to CSS modules
+    let mainContent = document.querySelector('.storefront') || 
+                     document.querySelector('[class*="storefront"]') ||
+                     document.querySelector('main') ||
+                     document.querySelector('#__next > div > div');
+    
     if (mainContent) {
-      // Create contact page container
+      // Get the existing header element to reuse
+      const existingHeader = document.querySelector('header');
+      let headerHtml = '';
+      
+      if (existingHeader) {
+        // Clone the existing header HTML to reuse
+        headerHtml = existingHeader.outerHTML;
+      }
+      
+      // Create contact page with the same header
       const contactPageHtml = `
-        <div class="contact-page-container" style="padding: 40px 20px; min-height: 80vh;">
-          <div class="container">
+        ${headerHtml}
+        <div class="contact-page-container" style="padding: 40px 20px; min-height: 60vh;">
+          <div class="container" style="max-width: 800px; margin: 0 auto;">
             <div id="contact-form-container"></div>
           </div>
         </div>
@@ -221,7 +236,6 @@ class ContactFormAddon {
   createContactForm(containerId = 'contact-form-container') {
     const container = document.getElementById(containerId);
     if (!container) {
-      console.error('Contact Form Addon: Container not found:', containerId);
       return;
     }
 
@@ -331,7 +345,7 @@ class ContactFormAddon {
         }
         
         // Submit to backend
-        const response = await fetch('/api/addons/contact/submit', {
+        const response = await fetch('https://api2.onlineartfestival.com/api/addons/contact/submit', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -356,7 +370,6 @@ class ContactFormAddon {
         form.reset();
         
       } catch (error) {
-        console.error('Contact form error:', error);
         messagesDiv.innerHTML = `<div class="error-message">${error.message}</div>`;
       } finally {
         // Re-enable submit button

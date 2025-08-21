@@ -192,8 +192,18 @@ try {
   // Cart operations
   app.use('/cart', require('./routes/carts'));
   
-  // Checkout and payments (with payment rate limiting)
-  app.use('/checkout', paymentLimiter, require('./routes/checkout'));
+  // Checkout and payments (with selective payment rate limiting)
+  const checkoutRouter = require('./routes/checkout');
+  
+  // Apply payment limiter to most checkout routes, but skip order history
+  app.use('/checkout', (req, res, next) => {
+    // Skip payment rate limiting for order history endpoints
+    if (req.path === '/orders/my') {
+      return next();
+    }
+    // Apply payment rate limiting to all other checkout endpoints
+    return paymentLimiter(req, res, next);
+  }, checkoutRouter);
   
   // Vendor management
   app.use('/vendor', require('./routes/vendor'));

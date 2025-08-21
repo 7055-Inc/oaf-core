@@ -304,23 +304,23 @@ export default function EditProfile({ userData }) {
     art_mediums: [],
     does_custom: 'no',
     custom_details: '',
-    business_name: '',
-    legal_name: '',
-    tax_id: '',
+    artist_business_name: '',
+    artist_legal_name: '',
+    artist_tax_id: '',
     customer_service_email: '',
     studio_address_line1: '',
     studio_address_line2: '',
     studio_city: '',
     studio_state: '',
     studio_zip: '',
-    business_phone: '',
-    business_website: '',
-    business_social_facebook: '',
-    business_social_instagram: '',
-    business_social_tiktok: '',
-    business_social_twitter: '',
-    business_social_pinterest: '',
-    founding_date: '',
+    artist_business_phone: '',
+    artist_business_website: '',
+    artist_business_social_facebook: '',
+    artist_business_social_instagram: '',
+    artist_business_social_tiktok: '',
+    artist_business_social_twitter: '',
+    artist_business_social_pinterest: '',
+    artist_founding_date: '',
     
     // Promoter profile fields
     is_non_profit: 'no',
@@ -332,6 +332,17 @@ export default function EditProfile({ userData }) {
     office_city: '',
     office_state: '',
     office_zip: '',
+    promoter_business_name: '',
+    promoter_legal_name: '',
+    promoter_tax_id: '',
+    promoter_business_phone: '',
+    promoter_business_website: '',
+    promoter_business_social_facebook: '',
+    promoter_business_social_instagram: '',
+    promoter_business_social_tiktok: '',
+    promoter_business_social_twitter: '',
+    promoter_business_social_pinterest: '',
+    promoter_founding_date: '',
     
     // Community profile fields
     art_style_preferences: [],
@@ -411,23 +422,23 @@ export default function EditProfile({ userData }) {
         art_mediums: userData.art_mediums || [],
         does_custom: userData.does_custom || 'no',
         custom_details: userData.custom_details || '',
-        business_name: userData.business_name || '',
-        legal_name: userData.legal_name || '',
-        tax_id: userData.tax_id || '',
+        artist_business_name: userData.business_name || '',
+        artist_legal_name: userData.legal_name || '',
+        artist_tax_id: userData.tax_id || '',
         customer_service_email: userData.customer_service_email || '',
         studio_address_line1: userData.studio_address_line1 || '',
         studio_address_line2: userData.studio_address_line2 || '',
         studio_city: userData.studio_city || '',
         studio_state: userData.studio_state || '',
         studio_zip: userData.studio_zip || '',
-        business_phone: userData.business_phone || '',
-        business_website: userData.business_website || '',
-        business_social_facebook: userData.business_social_facebook || '',
-        business_social_instagram: userData.business_social_instagram || '',
-        business_social_tiktok: userData.business_social_tiktok || '',
-        business_social_twitter: userData.business_social_twitter || '',
-        business_social_pinterest: userData.business_social_pinterest || '',
-        founding_date: userData.founding_date ? userData.founding_date.split('T')[0] : '',
+        artist_business_phone: userData.business_phone || '',
+        artist_business_website: userData.business_website || '',
+        artist_business_social_facebook: userData.business_social_facebook || '',
+        artist_business_social_instagram: userData.business_social_instagram || '',
+        artist_business_social_tiktok: userData.business_social_tiktok || '',
+        artist_business_social_twitter: userData.business_social_twitter || '',
+        artist_business_social_pinterest: userData.business_social_pinterest || '',
+        artist_founding_date: userData.founding_date ? userData.founding_date.split('T')[0] : '',
         
         // Promoter profile fields
         is_non_profit: userData.is_non_profit || 'no',
@@ -439,6 +450,17 @@ export default function EditProfile({ userData }) {
         office_city: userData.office_city || '',
         office_state: userData.office_state || '',
         office_zip: userData.office_zip || '',
+        promoter_business_name: userData.business_name || '',
+        promoter_legal_name: userData.legal_name || '',
+        promoter_tax_id: userData.tax_id || '',
+        promoter_business_phone: userData.business_phone || '',
+        promoter_business_website: userData.business_website || '',
+        promoter_business_social_facebook: userData.business_social_facebook || '',
+        promoter_business_social_instagram: userData.business_social_instagram || '',
+        promoter_business_social_tiktok: userData.business_social_tiktok || '',
+        promoter_business_social_twitter: userData.business_social_twitter || '',
+        promoter_business_social_pinterest: userData.business_social_pinterest || '',
+        promoter_founding_date: userData.founding_date ? userData.founding_date.split('T')[0] : '',
         
         // Community profile fields
         art_style_preferences: userData.art_style_preferences || [],
@@ -521,7 +543,11 @@ export default function EditProfile({ userData }) {
         formDataToSend.append('logo_image', logoImage);
       }
 
-      const res = await authenticatedApiRequest('https://api2.onlineartfestival.com/users/me', {
+      const endpoint = userData?.user_type === 'admin' 
+        ? 'https://api2.onlineartfestival.com/users/admin/me'
+        : 'https://api2.onlineartfestival.com/users/me';
+      
+      const res = await authenticatedApiRequest(endpoint, {
         method: 'PATCH',
         body: formDataToSend
       });
@@ -1236,8 +1262,8 @@ export default function EditProfile({ userData }) {
               <label>Business Name (DBA)</label>
               <input
                 type="text"
-                name="business_name"
-                value={formData.business_name}
+                name="artist_business_name"
+                value={formData.artist_business_name}
                 onChange={handleChange}
               />
             </div>
@@ -1246,8 +1272,8 @@ export default function EditProfile({ userData }) {
               <label>Legal Business Name</label>
               <input
                 type="text"
-                name="legal_name"
-                value={formData.legal_name}
+                name="artist_legal_name"
+                value={formData.artist_legal_name}
                 onChange={handleChange}
               />
             </div>
@@ -1264,8 +1290,8 @@ export default function EditProfile({ userData }) {
               </div>
               <input
                 type="text"
-                name="tax_id"
-                value={formData.tax_id}
+                name="artist_tax_id"
+                value={formData.artist_tax_id}
                 onChange={handleChange}
               />
             </div>
@@ -1276,8 +1302,8 @@ export default function EditProfile({ userData }) {
               <label>Business Phone</label>
               <input
                 type="tel"
-                name="business_phone"
-                value={formData.business_phone}
+                name="artist_business_phone"
+                value={formData.artist_business_phone}
                 onChange={handleChange}
               />
             </div>
@@ -1286,8 +1312,8 @@ export default function EditProfile({ userData }) {
               <label>Business Website</label>
               <input
                 type="url"
-                name="business_website"
-                value={formData.business_website}
+                name="artist_business_website"
+                value={formData.artist_business_website}
                 onChange={handleChange}
               />
             </div>
@@ -1308,8 +1334,8 @@ export default function EditProfile({ userData }) {
               <label>Founding Date</label>
               <input
                 type="date"
-                name="founding_date"
-                value={formData.founding_date}
+                name="artist_founding_date"
+                value={formData.artist_founding_date}
                 onChange={handleChange}
               />
             </div>
@@ -1459,11 +1485,11 @@ export default function EditProfile({ userData }) {
                   <span>facebook.com/</span>
                   <input
                     type="text"
-                    name="business_social_facebook"
-                    value={formData.business_social_facebook?.replace('https://facebook.com/', '') || ''}
+                    name="artist_business_social_facebook"
+                    value={formData.artist_business_social_facebook?.replace('https://facebook.com/', '') || ''}
                     onChange={(e) => setFormData(prev => ({ 
                       ...prev, 
-                      business_social_facebook: e.target.value ? `https://facebook.com/${e.target.value}` : '' 
+                      artist_business_social_facebook: e.target.value ? `https://facebook.com/${e.target.value}` : '' 
                     }))}
                     placeholder="username"
                     style={{ width: '80px', textAlign: 'center', border: 'none', borderBottom: '1px solid #ccc', fontSize: '12px', marginLeft: '2px' }}
@@ -1481,11 +1507,11 @@ export default function EditProfile({ userData }) {
                   <span>instagram.com/</span>
                   <input
                     type="text"
-                    name="business_social_instagram"
-                    value={formData.business_social_instagram?.replace('https://instagram.com/', '') || ''}
+                    name="artist_business_social_instagram"
+                    value={formData.artist_business_social_instagram?.replace('https://instagram.com/', '') || ''}
                     onChange={(e) => setFormData(prev => ({ 
                       ...prev, 
-                      business_social_instagram: e.target.value ? `https://instagram.com/${e.target.value}` : '' 
+                      artist_business_social_instagram: e.target.value ? `https://instagram.com/${e.target.value}` : '' 
                     }))}
                     placeholder="username"
                     style={{ width: '80px', textAlign: 'center', border: 'none', borderBottom: '1px solid #ccc', fontSize: '12px', marginLeft: '2px' }}
@@ -1503,11 +1529,11 @@ export default function EditProfile({ userData }) {
                   <span>tiktok.com/@</span>
                   <input
                     type="text"
-                    name="business_social_tiktok"
-                    value={formData.business_social_tiktok?.replace('https://tiktok.com/@', '') || ''}
+                    name="artist_business_social_tiktok"
+                    value={formData.artist_business_social_tiktok?.replace('https://tiktok.com/@', '') || ''}
                     onChange={(e) => setFormData(prev => ({ 
                       ...prev, 
-                      business_social_tiktok: e.target.value ? `https://tiktok.com/@${e.target.value}` : '' 
+                      artist_business_social_tiktok: e.target.value ? `https://tiktok.com/@${e.target.value}` : '' 
                     }))}
                     placeholder="username"
                     style={{ width: '80px', textAlign: 'center', border: 'none', borderBottom: '1px solid #ccc', fontSize: '12px', marginLeft: '2px' }}
@@ -1525,11 +1551,11 @@ export default function EditProfile({ userData }) {
                   <span>x.com/</span>
                   <input
                     type="text"
-                    name="business_social_twitter"
-                    value={formData.business_social_twitter?.replace('https://x.com/', '') || ''}
+                    name="artist_business_social_twitter"
+                    value={formData.artist_business_social_twitter?.replace('https://x.com/', '') || ''}
                     onChange={(e) => setFormData(prev => ({ 
                       ...prev, 
-                      business_social_twitter: e.target.value ? `https://x.com/${e.target.value}` : '' 
+                      artist_business_social_twitter: e.target.value ? `https://x.com/${e.target.value}` : '' 
                     }))}
                     placeholder="username"
                     style={{ width: '80px', textAlign: 'center', border: 'none', borderBottom: '1px solid #ccc', fontSize: '12px', marginLeft: '2px' }}
@@ -1547,11 +1573,11 @@ export default function EditProfile({ userData }) {
                   <span>pinterest.com/</span>
                   <input
                     type="text"
-                    name="business_social_pinterest"
-                    value={formData.business_social_pinterest?.replace('https://pinterest.com/', '') || ''}
+                    name="artist_business_social_pinterest"
+                    value={formData.artist_business_social_pinterest?.replace('https://pinterest.com/', '') || ''}
                     onChange={(e) => setFormData(prev => ({ 
                       ...prev, 
-                      business_social_pinterest: e.target.value ? `https://pinterest.com/${e.target.value}` : '' 
+                      artist_business_social_pinterest: e.target.value ? `https://pinterest.com/${e.target.value}` : '' 
                     }))}
                     placeholder="username"
                     style={{ width: '80px', textAlign: 'center', border: 'none', borderBottom: '1px solid #ccc', fontSize: '12px', marginLeft: '2px' }}
@@ -1578,8 +1604,8 @@ export default function EditProfile({ userData }) {
               <label>Business Name (DBA)</label>
               <input
                 type="text"
-                name="business_name"
-                value={formData.business_name}
+                name="promoter_business_name"
+                value={formData.promoter_business_name}
                 onChange={handleChange}
               />
             </div>
@@ -1588,8 +1614,8 @@ export default function EditProfile({ userData }) {
               <label>Legal Business Name</label>
               <input
                 type="text"
-                name="legal_name"
-                value={formData.legal_name}
+                name="promoter_legal_name"
+                value={formData.promoter_legal_name}
                 onChange={handleChange}
               />
             </div>
@@ -1606,8 +1632,8 @@ export default function EditProfile({ userData }) {
               </div>
               <input
                 type="text"
-                name="tax_id"
-                value={formData.tax_id}
+                name="promoter_tax_id"
+                value={formData.promoter_tax_id}
                 onChange={handleChange}
               />
             </div>
@@ -1618,8 +1644,8 @@ export default function EditProfile({ userData }) {
               <label>Business Phone</label>
               <input
                 type="tel"
-                name="business_phone"
-                value={formData.business_phone}
+                name="promoter_business_phone"
+                value={formData.promoter_business_phone}
                 onChange={handleChange}
               />
             </div>
@@ -1628,8 +1654,8 @@ export default function EditProfile({ userData }) {
               <label>Business Website</label>
               <input
                 type="url"
-                name="business_website"
-                value={formData.business_website}
+                name="promoter_business_website"
+                value={formData.promoter_business_website}
                 onChange={handleChange}
               />
             </div>
@@ -1640,8 +1666,8 @@ export default function EditProfile({ userData }) {
               <label>Founding Date</label>
               <input
                 type="date"
-                name="founding_date"
-                value={formData.founding_date}
+                name="promoter_founding_date"
+                value={formData.promoter_founding_date}
                 onChange={handleChange}
               />
             </div>
@@ -1801,11 +1827,11 @@ export default function EditProfile({ userData }) {
                   <span>facebook.com/</span>
                   <input
                     type="text"
-                    name="business_social_facebook"
-                    value={formData.business_social_facebook?.replace('https://facebook.com/', '') || ''}
+                    name="promoter_business_social_facebook"
+                    value={formData.promoter_business_social_facebook?.replace('https://facebook.com/', '') || ''}
                     onChange={(e) => setFormData(prev => ({ 
                       ...prev, 
-                      business_social_facebook: e.target.value ? `https://facebook.com/${e.target.value}` : '' 
+                      promoter_business_social_facebook: e.target.value ? `https://facebook.com/${e.target.value}` : '' 
                     }))}
                     placeholder="username"
                     style={{ width: '80px', textAlign: 'center', border: 'none', borderBottom: '1px solid #ccc', fontSize: '12px', marginLeft: '2px' }}
@@ -1823,11 +1849,11 @@ export default function EditProfile({ userData }) {
                   <span>instagram.com/</span>
                   <input
                     type="text"
-                    name="business_social_instagram"
-                    value={formData.business_social_instagram?.replace('https://instagram.com/', '') || ''}
+                    name="promoter_business_social_instagram"
+                    value={formData.promoter_business_social_instagram?.replace('https://instagram.com/', '') || ''}
                     onChange={(e) => setFormData(prev => ({ 
                       ...prev, 
-                      business_social_instagram: e.target.value ? `https://instagram.com/${e.target.value}` : '' 
+                      promoter_business_social_instagram: e.target.value ? `https://instagram.com/${e.target.value}` : '' 
                     }))}
                     placeholder="username"
                     style={{ width: '80px', textAlign: 'center', border: 'none', borderBottom: '1px solid #ccc', fontSize: '12px', marginLeft: '2px' }}
@@ -1845,11 +1871,11 @@ export default function EditProfile({ userData }) {
                   <span>tiktok.com/@</span>
                   <input
                     type="text"
-                    name="business_social_tiktok"
-                    value={formData.business_social_tiktok?.replace('https://tiktok.com/@', '') || ''}
+                    name="promoter_business_social_tiktok"
+                    value={formData.promoter_business_social_tiktok?.replace('https://tiktok.com/@', '') || ''}
                     onChange={(e) => setFormData(prev => ({ 
                       ...prev, 
-                      business_social_tiktok: e.target.value ? `https://tiktok.com/@${e.target.value}` : '' 
+                      promoter_business_social_tiktok: e.target.value ? `https://tiktok.com/@${e.target.value}` : '' 
                     }))}
                     placeholder="username"
                     style={{ width: '80px', textAlign: 'center', border: 'none', borderBottom: '1px solid #ccc', fontSize: '12px', marginLeft: '2px' }}
@@ -1867,11 +1893,11 @@ export default function EditProfile({ userData }) {
                   <span>x.com/</span>
                   <input
                     type="text"
-                    name="business_social_twitter"
-                    value={formData.business_social_twitter?.replace('https://x.com/', '') || ''}
+                    name="promoter_business_social_twitter"
+                    value={formData.promoter_business_social_twitter?.replace('https://x.com/', '') || ''}
                     onChange={(e) => setFormData(prev => ({ 
                       ...prev, 
-                      business_social_twitter: e.target.value ? `https://x.com/${e.target.value}` : '' 
+                      promoter_business_social_twitter: e.target.value ? `https://x.com/${e.target.value}` : '' 
                     }))}
                     placeholder="username"
                     style={{ width: '80px', textAlign: 'center', border: 'none', borderBottom: '1px solid #ccc', fontSize: '12px', marginLeft: '2px' }}
@@ -1889,11 +1915,11 @@ export default function EditProfile({ userData }) {
                   <span>pinterest.com/</span>
                   <input
                     type="text"
-                    name="business_social_pinterest"
-                    value={formData.business_social_pinterest?.replace('https://pinterest.com/', '') || ''}
+                    name="promoter_business_social_pinterest"
+                    value={formData.promoter_business_social_pinterest?.replace('https://pinterest.com/', '') || ''}
                     onChange={(e) => setFormData(prev => ({ 
                       ...prev, 
-                      business_social_pinterest: e.target.value ? `https://pinterest.com/${e.target.value}` : '' 
+                      promoter_business_social_pinterest: e.target.value ? `https://pinterest.com/${e.target.value}` : '' 
                     }))}
                     placeholder="username"
                     style={{ width: '80px', textAlign: 'center', border: 'none', borderBottom: '1px solid #ccc', fontSize: '12px', marginLeft: '2px' }}

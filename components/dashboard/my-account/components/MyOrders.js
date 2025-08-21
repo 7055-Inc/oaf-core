@@ -19,14 +19,25 @@ export default function MyOrders({ userData }) {
   const [errorByStatus, setErrorByStatus] = useState({});
   const [expandedOrderIds, setExpandedOrderIds] = useState(new Set());
   const [vendorModalUserId, setVendorModalUserId] = useState(null);
+  const [debounceTimer, setDebounceTimer] = useState(null);
 
   useEffect(() => {
+    // Clear existing timer
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
+
     const controller = new AbortController();
     let isMounted = true;
 
     const fetchOrders = async () => {
       const status = activeTab;
       const page = 1;
+
+      // Skip if we already have data for this status and it's not currently loading
+      if (ordersByStatus[status] && !loadingByStatus[status]) {
+        return;
+      }
 
       setLoadingByStatus(prev => ({ ...prev, [status]: true }));
       setErrorByStatus(prev => ({ ...prev, [status]: null }));
@@ -70,13 +81,19 @@ export default function MyOrders({ userData }) {
       }
     };
 
-    fetchOrders();
+    // Debounce API calls to prevent rate limiting
+    const timer = setTimeout(() => {
+      fetchOrders();
+    }, 800);
+
+    setDebounceTimer(timer);
 
     return () => {
       isMounted = false;
       controller.abort();
+      clearTimeout(timer);
     };
-  }, [activeTab, setLoadingByStatus, setOrdersByStatus, setErrorByStatus]);
+  }, [activeTab]);
 
   const formatDate = (dateString) => {
     try {
@@ -156,7 +173,7 @@ export default function MyOrders({ userData }) {
         <div className="error-alert">{error}</div>
       )}
 
-      {!isLoading && !error && current && Array.isArray(current.orders) && (
+      {!isLoading && !error && current && Array.isArray(current.orders) && current.orders.length > 0 && (
         <div className={slideInStyles.orderCards}>
           {current.orders.map((order) => (
             <div key={order.id} className={slideInStyles.orderCard}>
@@ -245,6 +262,26 @@ export default function MyOrders({ userData }) {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {!isLoading && !error && current && Array.isArray(current.orders) && current.orders.length === 0 && (
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '48px 24px',
+          color: '#6c757d',
+          fontSize: '16px'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>📦</div>
+          <div style={{ fontWeight: '500', marginBottom: '8px' }}>
+            It looks like you don't have any {activeTab === 'all' ? '' : activeTab + ' '}orders yet.
+          </div>
+          <div style={{ fontSize: '14px' }}>
+            {activeTab === 'all' 
+              ? 'When you place an order, it will appear here.' 
+              : `When you have ${activeTab} orders, they will appear here.`
+            }
+          </div>
         </div>
       )}
 

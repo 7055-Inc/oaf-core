@@ -317,25 +317,24 @@ router.get('/my-addons', verifyToken, requireRestrictedPermission('manage_sites'
   }
 });
 
-// GET /sites/:id/addons - Get active addons for a specific site
-router.get('/:id/addons', verifyToken, requireRestrictedPermission('manage_sites'), async (req, res) => {
+// GET /sites/:id/addons - Get active addons for a specific site (PUBLIC - for artist storefronts)
+router.get('/:id/addons', async (req, res) => {
   try {
     const siteId = req.params.id;
-    const userId = req.userId;
 
-    // Verify user owns this site
+    // Verify site exists and is active (no user ownership check needed for public access)
     const [site] = await db.execute(`
-      SELECT id FROM sites WHERE id = ? AND user_id = ?
-    `, [siteId, userId]);
+      SELECT id FROM sites WHERE id = ? AND status = 'active'
+    `, [siteId]);
 
     if (site.length === 0) {
-      return res.status(404).json({ error: 'Site not found or access denied' });
+      return res.status(404).json({ error: 'Site not found or not active' });
     }
 
     // Get active addons for this specific site
     const [addons] = await db.execute(`
       SELECT wa.id, wa.addon_name, wa.addon_slug, wa.addon_script_path, 
-             wa.monthly_price, sa.activated_at, sa.addon_id
+             wa.monthly_price, sa.activated_at, sa.addon_id, sa.is_active
       FROM site_addons sa
       JOIN website_addons wa ON sa.addon_id = wa.id
       WHERE sa.site_id = ? AND sa.is_active = 1 AND wa.is_active = 1
@@ -818,10 +817,12 @@ router.get('/resolve/:subdomain', async (req, res) => {
     const { subdomain } = req.params;
 
     const [site] = await db.query(
-      `SELECT s.*, u.username, up.first_name, up.last_name, up.bio, up.profile_image_path, up.header_image_path
+      `SELECT s.*, u.username, up.first_name, up.last_name, up.bio, up.profile_image_path, up.header_image_path,
+              sc.main_color as primary_color, sc.secondary_color, sc.text_color, sc.accent_color, sc.background_color
        FROM sites s 
        JOIN users u ON s.user_id = u.id 
        LEFT JOIN user_profiles up ON u.id = up.user_id 
+       LEFT JOIN site_customizations sc ON s.id = sc.site_id
        WHERE s.subdomain = ? AND s.status = 'active'`,
       [subdomain]
     );

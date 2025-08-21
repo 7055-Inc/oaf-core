@@ -202,6 +202,23 @@ const uploadLimiter = rateLimit({
   }
 });
 
+/**
+ * Rate limiter for order history and read-only order operations
+ * More permissive than payment operations since these are just data reads
+ */
+const orderHistoryLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // 30 requests per minute per IP (much higher than payment limit)
+  message: {
+    error: 'Too many order history requests',
+    message: 'Please wait a moment before refreshing order history'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false,
+  skipFailedRequests: false,
+});
+
 module.exports = {
   loginLimiter,
   tokenValidationLimiter,
@@ -211,5 +228,6 @@ module.exports = {
   apiKeyLimiter,
   apiLimiter,
   adminLimiter,
-  uploadLimiter
+  uploadLimiter,
+  orderHistoryLimiter
 }; 

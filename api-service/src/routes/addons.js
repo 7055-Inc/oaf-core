@@ -98,9 +98,9 @@ router.post('/contact/submit', addonRateLimit, async (req, res) => {
     const sanitizedPhone = phone ? phone.trim() : null;
     const sanitizedMessage = message.trim();
     
-    // Verify the site exists and get owner information
+    // Verify the site exists
     const [siteResult] = await db.execute(
-      'SELECT s.*, u.email as owner_email, u.first_name, u.last_name FROM sites s JOIN users u ON s.user_id = u.id WHERE s.id = ? AND s.is_active = 1',
+      'SELECT id, user_id, site_name, subdomain, custom_domain FROM sites WHERE id = ? AND status = "active"',
       [siteId]
     );
 
@@ -159,22 +159,22 @@ router.post('/contact/submit', addonRateLimit, async (req, res) => {
           site_name: site.site_name || `${site.first_name} ${site.last_name}'s Site`,
           site_url: site.custom_domain 
             ? `https://${site.custom_domain}` 
-            : `https://${site.subdomain}.onlineartfestival.com`
+            : `https://${site.subdomain}.onlineartfestival.com`,
+          siteId: parseInt(siteId) // Pass siteId for artist layout data
         };
 
-        // Queue email using the proper template system
-        await emailService.queueEmail(
+        // Send email immediately (contact forms are transactional)
+        await emailService.sendEmail(
           site.user_id, 
           'contact_form_notification', 
           templateData,
           {
-            priority: 2, // High priority for contact forms
             replyTo: sanitizedEmail // Allow direct reply to the sender
           }
         );
       }
     } catch (emailError) {
-      console.error('Failed to queue contact form notification:', emailError);
+      console.error('Failed to send contact form notification:', emailError);
       // Don't fail the request if email fails - the submission is still recorded
     }
 

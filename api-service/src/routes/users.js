@@ -317,8 +317,8 @@ router.patch('/me',
         );
       }
 
-      // Update type-specific profile fields based on user type
-      if (userType === 'artist') {
+      // Update type-specific profile fields based on user type or admin permissions
+      if (userType === 'artist' || (userType === 'admin' && (artist_biography !== undefined || art_categories !== undefined || art_mediums !== undefined || business_name !== undefined))) {
         // Process JSON fields for artist profiles
         const processedArtCategories = art_categories ? 
           (typeof art_categories === 'string' ? art_categories : JSON.stringify(art_categories)) : null;
@@ -369,7 +369,7 @@ router.patch('/me',
             founding_date || null, logoImagePath
           ]
         );
-      } else if (userType === 'community') {
+      } else if (userType === 'community' || (userType === 'admin' && (art_style_preferences !== undefined || favorite_colors !== undefined || art_interests !== undefined || wishlist !== undefined))) {
         // Process JSON fields for community profiles
         const processedFavoriteColors = favorite_colors ? 
           (typeof favorite_colors === 'string' ? favorite_colors : JSON.stringify(favorite_colors)) : null;
@@ -390,7 +390,7 @@ router.patch('/me',
           [req.userId, art_style_preferences || null, processedFavoriteColors, 
            processedArtInterests, processedWishlist]
         );
-      } else if (userType === 'promoter') {
+      } else if (userType === 'promoter' || (userType === 'admin' && (is_non_profit !== undefined || organization_size !== undefined || sponsorship_options !== undefined || upcoming_events !== undefined))) {
         // Sponsorship options and upcoming events are now simple text fields
         const processedSponsorshipOptions = sponsorship_options || null;
         const processedUpcomingEvents = upcoming_events || null;
@@ -442,6 +442,212 @@ router.patch('/me',
       console.error('Error updating user profile:', err.message);
       res.setHeader('Content-Type', 'application/json');
       res.status(500).json({ error: 'Failed to update user profile' });
+    }
+  }
+);
+
+// PATCH /users/admin/me - Update admin user's profile with access to all profile types
+router.patch('/admin/me', 
+  verifyToken,
+  upload.fields([
+    { name: 'profile_image', maxCount: 1 },
+    { name: 'header_image', maxCount: 1 },
+    { name: 'logo_image', maxCount: 1 }
+  ]),
+  async (req, res) => {
+    try {
+      // Only allow admin users to use this endpoint
+      const [user] = await db.query('SELECT user_type FROM users WHERE id = ?', [req.userId]);
+      if (!user[0] || user[0].user_type !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+
+      const {
+        // Base profile fields
+        first_name, last_name, display_name, phone, address_line1, address_line2,
+        city, state, postal_code, country, bio, website, birth_date, gender, 
+        nationality, languages_known, job_title, education, awards, memberships, 
+        timezone, social_facebook, social_instagram, social_tiktok, social_twitter, 
+        social_pinterest, social_whatsapp,
+        
+        // Artist profile fields
+        artist_biography, art_categories, art_mediums, does_custom, custom_details,
+        artist_business_name, artist_legal_name, artist_tax_id, customer_service_email,
+        studio_address_line1, studio_address_line2, studio_city, studio_state, studio_zip,
+        artist_business_phone, artist_business_website, artist_business_social_facebook, artist_business_social_instagram,
+        artist_business_social_tiktok, artist_business_social_twitter, artist_business_social_pinterest, artist_founding_date,
+        
+        // Promoter profile fields  
+        is_non_profit, organization_size, sponsorship_options, upcoming_events,
+        office_address_line1, office_address_line2, office_city, office_state, office_zip,
+        promoter_business_name, promoter_legal_name, promoter_tax_id, promoter_business_phone,
+        promoter_business_website, promoter_business_social_facebook, promoter_business_social_instagram,
+        promoter_business_social_tiktok, promoter_business_social_twitter, promoter_business_social_pinterest, promoter_founding_date,
+        
+        // Community profile fields
+        art_style_preferences, favorite_colors, art_interests, wishlist
+      } = req.body;
+
+      // Handle image uploads
+      const profileImagePath = req.files?.profile_image?.[0]?.filename || null;
+      const headerImagePath = req.files?.header_image?.[0]?.filename || null;
+      const logoImagePath = req.files?.logo_image?.[0]?.filename || null;
+
+      // Update base user_profiles table
+      await db.query(
+        `UPDATE user_profiles SET 
+          first_name = ?, last_name = ?, display_name = ?, phone = ?, 
+          address_line1 = ?, address_line2 = ?, city = ?, state = ?, postal_code = ?, 
+          country = ?, bio = ?, website = ?, birth_date = ?, gender = ?, nationality = ?,
+          languages_known = ?, job_title = ?, education = ?, awards = ?, memberships = ?,
+          timezone = ?, social_facebook = ?, social_instagram = ?, social_tiktok = ?,
+          social_twitter = ?, social_pinterest = ?, social_whatsapp = ?,
+          profile_image_path = COALESCE(?, profile_image_path),
+          header_image_path = COALESCE(?, header_image_path)
+        WHERE user_id = ?`,
+        [
+          first_name, last_name, display_name, phone, address_line1, address_line2,
+          city, state, postal_code, country, bio, website, birth_date, gender, 
+          nationality, JSON.stringify(languages_known || []), job_title, 
+          JSON.stringify(education || []), awards, memberships, timezone,
+          social_facebook, social_instagram, social_tiktok, social_twitter,
+          social_pinterest, social_whatsapp, profileImagePath, headerImagePath, req.userId
+        ]
+      );
+
+      // Update artist_profiles if artist fields are provided
+      if (artist_biography !== undefined || art_categories !== undefined || art_mediums !== undefined || 
+          artist_business_name !== undefined || does_custom !== undefined) {
+        
+        const processedArtCategories = art_categories ? 
+          (typeof art_categories === 'string' ? art_categories : JSON.stringify(art_categories)) : null;
+        const processedArtMediums = art_mediums ? 
+          (typeof art_mediums === 'string' ? art_mediums : JSON.stringify(art_mediums)) : null;
+
+        await db.query(
+          `INSERT INTO artist_profiles (user_id, artist_biography, art_categories, art_mediums, 
+            does_custom, custom_details, business_name, legal_name, tax_id, customer_service_email,
+            studio_address_line1, studio_address_line2, studio_city, studio_state, studio_zip, 
+            business_website, business_phone, business_social_facebook, 
+            business_social_instagram, business_social_tiktok, business_social_twitter, 
+            business_social_pinterest, founding_date, logo_path) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE 
+            artist_biography = VALUES(artist_biography),
+            art_categories = VALUES(art_categories),
+            art_mediums = VALUES(art_mediums),
+            does_custom = VALUES(does_custom),
+            custom_details = VALUES(custom_details),
+            business_name = VALUES(business_name),
+            legal_name = VALUES(legal_name),
+            tax_id = VALUES(tax_id),
+            customer_service_email = VALUES(customer_service_email),
+            studio_address_line1 = VALUES(studio_address_line1),
+            studio_address_line2 = VALUES(studio_address_line2),
+            studio_city = VALUES(studio_city),
+            studio_state = VALUES(studio_state),
+            studio_zip = VALUES(studio_zip),
+            business_website = VALUES(business_website),
+            business_phone = VALUES(business_phone),
+            business_social_facebook = VALUES(business_social_facebook),
+            business_social_instagram = VALUES(business_social_instagram),
+            business_social_tiktok = VALUES(business_social_tiktok),
+            business_social_twitter = VALUES(business_social_twitter),
+            business_social_pinterest = VALUES(business_social_pinterest),
+            founding_date = VALUES(founding_date),
+            logo_path = COALESCE(VALUES(logo_path), logo_path)`,
+          [
+            req.userId, artist_biography || null, processedArtCategories, processedArtMediums, 
+            does_custom || 'no', custom_details || null, artist_business_name || null, 
+            artist_legal_name || null, artist_tax_id || null, customer_service_email || null,
+            studio_address_line1 || null, studio_address_line2 || null, studio_city || null, 
+            studio_state || null, studio_zip || null, artist_business_website || null, 
+            artist_business_phone || null, artist_business_social_facebook || null, 
+            artist_business_social_instagram || null, artist_business_social_tiktok || null, 
+            artist_business_social_twitter || null, artist_business_social_pinterest || null, 
+            artist_founding_date || null, logoImagePath
+          ]
+        );
+      }
+
+      // Update promoter_profiles if promoter fields are provided
+      if (is_non_profit !== undefined || organization_size !== undefined || 
+          sponsorship_options !== undefined || upcoming_events !== undefined ||
+          office_address_line1 !== undefined || promoter_business_name !== undefined) {
+        
+        await db.query(
+          `INSERT INTO promoter_profiles (user_id, business_name, legal_name, tax_id, business_phone, 
+            business_website, business_social_facebook, business_social_instagram, 
+            business_social_tiktok, business_social_twitter, business_social_pinterest, 
+            office_address_line1, office_address_line2, office_city, office_state, office_zip,
+            is_non_profit, organization_size, sponsorship_options, upcoming_events, 
+            founding_date, logo_path) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE 
+            business_name = VALUES(business_name),
+            legal_name = VALUES(legal_name),
+            tax_id = VALUES(tax_id),
+            business_phone = VALUES(business_phone),
+            business_website = VALUES(business_website),
+            business_social_facebook = VALUES(business_social_facebook),
+            business_social_instagram = VALUES(business_social_instagram),
+            business_social_tiktok = VALUES(business_social_tiktok),
+            business_social_twitter = VALUES(business_social_twitter),
+            business_social_pinterest = VALUES(business_social_pinterest),
+            office_address_line1 = VALUES(office_address_line1),
+            office_address_line2 = VALUES(office_address_line2),
+            office_city = VALUES(office_city),
+            office_state = VALUES(office_state),
+            office_zip = VALUES(office_zip),
+            is_non_profit = VALUES(is_non_profit),
+            organization_size = VALUES(organization_size),
+            sponsorship_options = VALUES(sponsorship_options),
+            upcoming_events = VALUES(upcoming_events),
+            founding_date = VALUES(founding_date),
+            logo_path = COALESCE(VALUES(logo_path), logo_path)`,
+          [
+            req.userId, promoter_business_name || null, promoter_legal_name || null, promoter_tax_id || null, 
+            promoter_business_phone || null, promoter_business_website || null, promoter_business_social_facebook || null,
+            promoter_business_social_instagram || null, promoter_business_social_tiktok || null, 
+            promoter_business_social_twitter || null, promoter_business_social_pinterest || null,
+            office_address_line1 || null, office_address_line2 || null, office_city || null,
+            office_state || null, office_zip || null, is_non_profit || 'no', 
+            organization_size || null, sponsorship_options || null, upcoming_events || null,
+            promoter_founding_date || null, logoImagePath
+          ]
+        );
+      }
+
+      // Update community_profiles if community fields are provided
+      if (art_style_preferences !== undefined || favorite_colors !== undefined || 
+          art_interests !== undefined || wishlist !== undefined) {
+        
+        const processedFavoriteColors = favorite_colors ? 
+          (typeof favorite_colors === 'string' ? favorite_colors : JSON.stringify(favorite_colors)) : null;
+        const processedArtInterests = art_interests ? 
+          (typeof art_interests === 'string' ? art_interests : JSON.stringify(art_interests)) : null;
+        const processedWishlist = wishlist ? 
+          (typeof wishlist === 'string' ? wishlist : JSON.stringify(wishlist)) : null;
+
+        await db.query(
+          `INSERT INTO community_profiles (user_id, art_style_preferences, favorite_colors, 
+            art_interests, wishlist) 
+          VALUES (?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE 
+            art_style_preferences = VALUES(art_style_preferences),
+            favorite_colors = VALUES(favorite_colors),
+            art_interests = VALUES(art_interests),
+            wishlist = VALUES(wishlist)`,
+          [req.userId, art_style_preferences || null, processedFavoriteColors, 
+           processedArtInterests, processedWishlist]
+        );
+      }
+
+      res.json({ message: 'Admin profile updated successfully' });
+    } catch (err) {
+      console.error('Error updating admin profile:', err.message);
+      res.setHeader('Content-Type', 'application/json');
+      res.status(500).json({ error: 'Failed to update admin profile' });
     }
   }
 );

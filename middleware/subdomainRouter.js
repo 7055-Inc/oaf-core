@@ -105,12 +105,11 @@ export async function subdomainRouter(req) {
       // API calls should pass through
       return NextResponse.next();
     } else {
-      // Default to homepage for unknown paths
-      const rewriteUrl = new URL('/artist-storefront', req.url);
+      // Route to custom 404 page for unknown paths
+      const rewriteUrl = new URL('/custom-sites/subdomain-404', req.url);
       rewriteUrl.searchParams.set('subdomain', subdomain);
-      rewriteUrl.searchParams.set('userId', siteData.user_id);
-      rewriteUrl.searchParams.set('siteName', siteData.site_name);
-      rewriteUrl.searchParams.set('themeName', siteData.theme_name);
+      rewriteUrl.searchParams.set('hostname', hostname);
+      rewriteUrl.searchParams.set('isCustomDomain', isCustomDomain.toString());
       return NextResponse.rewrite(rewriteUrl);
     }
     

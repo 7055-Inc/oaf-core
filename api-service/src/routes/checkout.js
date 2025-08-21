@@ -3,6 +3,7 @@ const stripeService = require('../services/stripeService');
 const shippingService = require('../services/shippingService');
 const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
+const { orderHistoryLimiter } = require('../middleware/rateLimiter');
 const router = express.Router();
 
 /**
@@ -331,7 +332,7 @@ router.get('/order/:order_id', verifyToken, async (req, res) => {
  * Get customer's order history
  * GET /orders/my
  */
-router.get('/orders/my', verifyToken, async (req, res) => {
+router.get('/orders/my', orderHistoryLimiter, verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
     const page = parseInt(req.query.page) || 1;

@@ -63,7 +63,7 @@ class EmailService {
       // Render template
       const renderedSubject = this.renderTemplate(template.subject_template, templateData);
       const renderedBodyContent = this.renderTemplate(template.body_template, templateData);
-      const renderedBody = await this.renderEmailWithLayout(renderedBodyContent, templateData);
+      const renderedBody = await this.renderEmailWithLayout(renderedBodyContent, templateData, template);
 
       // Send email
       const result = await this.sendSMTPEmail({
@@ -167,106 +167,22 @@ class EmailService {
   }
 
   /**
-   * Wrap content in master email template
+   * Wrap content in email layout template from database
    */
-  async renderEmailWithLayout(bodyContent, templateData) {
-    // Get company data from database
+  async renderEmailWithLayout(bodyContent, templateData, template) {
+    // Get the layout template from database
+    const layoutTemplate = await this.getLayoutTemplate(template.layout_key || 'default');
+    
+    // Get company data for default layouts
     const companyData = await this.getCompanyData();
     
-    // Master template HTML
-    const masterTemplate = `<table width="600" cellpadding="0" cellspacing="0" border="0" align="center">
-      <tr>
-        <td>
-          <!-- ROW 1: HEADER TABLE -->
-          <table width="100%" cellpadding="0" cellspacing="0" border="0">
-            <tr>
-              <td bgcolor="#ffffff" align="center" valign="middle" height="120">
-                <img src="https://main.onlineartfestival.com/static_media/logo.png" 
-                     alt="Online Art Festival" 
-                     width="auto" 
-                     height="100" 
-                     style="display: block; max-height: 100px; height: 100px;">
-              </td>
-            </tr>
-            <tr>
-              <td bgcolor="#ffffff" align="center">
-                <!-- FAUX MENU TABLE -->
-                <table cellpadding="8" cellspacing="0" border="0">
-                  <tr>
-                    <td width="20">&nbsp;</td>
-                    <td bgcolor="#055474" align="center">
-                      <font face="Helvetica Neue, Segoe UI, Tahoma, Arial, sans-serif" color="#ffffff" size="2">
-                        <b>MY ACCOUNT</b>
-                      </font>
-                    </td>
-                    <td width="10">&nbsp;</td>
-                    <td bgcolor="#055474" align="center">
-                      <font face="Helvetica Neue, Segoe UI, Tahoma, Arial, sans-serif" color="#ffffff" size="2">
-                        <b>SHOP</b>
-                      </font>
-                    </td>
-                    <td width="10">&nbsp;</td>
-                    <td bgcolor="#055474" align="center">
-                      <font face="Helvetica Neue, Segoe UI, Tahoma, Arial, sans-serif" color="#ffffff" size="2">
-                        <b>EVENTS</b>
-                      </font>
-                    </td>
-                    <td width="10">&nbsp;</td>
-                    <td bgcolor="#055474" align="center">
-                      <font face="Helvetica Neue, Segoe UI, Tahoma, Arial, sans-serif" color="#ffffff" size="2">
-                        <b>HELP & INFO</b>
-                      </font>
-                    </td>
-                    <td width="20">&nbsp;</td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <!-- ROW 2: BODY CONTENT -->
-          <table width="100%" cellpadding="20" cellspacing="0" border="0">
-            <tr>
-              <td bgcolor="#ffffff">
-                #{email_content}
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <!-- ROW 3: FOOTER TABLE -->
-          <table width="100%" cellpadding="20" cellspacing="0" border="0">
-            <tr>
-              <td bgcolor="#f8f8f8" align="center">
-                <font face="Helvetica Neue, Segoe UI, Tahoma, Arial, sans-serif" color="#666666" size="2">
-                  You received this email as a result of actions taken on OnlineArtFestival.com<br>
-                  If you'd like to change your preferences or frequency, you may click here: 
-                  <a href="#{preferences_link}" style="color: #055474;">Manage Email Preferences</a>
-                  <br><br>
-                  
-                  This email was sent by #{company_name}<br>
-                  #{company_address_city}, #{company_address_state} #{company_address_postal_code}<br>
-                  Contact us: <a href="mailto:#{company_contact_email}" style="color: #055474;">#{company_contact_email}</a>
-                  <br><br>
-                  
-                  <font color="#999999" size="1">
-                    All images and content © 2020-2025 #{company_name} LLC.<br>
-                    Images, content and likenesses may not be used or reproduced without permission.
-                  </font>
-                </font>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>`;
+    // Get artist data for artist_site layouts
+    let artistData = {};
+    if (template.layout_key === 'artist_site' && templateData.siteId) {
+      artistData = await this.getArtistSiteData(templateData.siteId);
+    }
 
-    // Combine template data with company data
+    // Combine template data with company and artist data
     const allData = {
       ...templateData,
       email_content: bodyContent,
@@ -275,10 +191,12 @@ class EmailService {
       company_contact_email: companyData.contact_email,
       company_address_city: companyData.address_city,
       company_address_state: companyData.address_state,
-      company_address_postal_code: companyData.address_postal_code
+      company_address_postal_code: companyData.address_postal_code,
+      // Artist site data
+      ...artistData
     };
 
-    return this.renderTemplate(masterTemplate, allData);
+    return this.renderTemplate(layoutTemplate, allData);
   }
 
   /**
@@ -498,6 +416,11 @@ class EmailService {
         text: options.text
       };
 
+      // Add Reply-To header if provided
+      if (options.replyTo) {
+        mailOptions.replyTo = options.replyTo;
+      }
+
       const info = await this.transporter.sendMail(mailOptions);
       return { messageId: info.messageId, logId: null };
     } catch (error) {
@@ -609,6 +532,99 @@ class EmailService {
     } catch (error) {
       console.error('Template fetch by ID error:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Get layout template by key
+   */
+  async getLayoutTemplate(layoutKey) {
+    try {
+      const [rows] = await db.execute(
+        'SELECT layout_template FROM email_layouts WHERE layout_key = ? AND is_active = 1',
+        [layoutKey]
+      );
+      
+      if (rows.length === 0) {
+        console.warn(`Layout template '${layoutKey}' not found, falling back to default`);
+        // Fallback to default layout
+        const [defaultRows] = await db.execute(
+          'SELECT layout_template FROM email_layouts WHERE layout_key = "default" AND is_active = 1'
+        );
+        return defaultRows[0]?.layout_template || '';
+      }
+      
+      return rows[0].layout_template;
+    } catch (error) {
+      console.error('Layout template fetch error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get artist site data for email templates
+   */
+  async getArtistSiteData(siteId) {
+    try {
+      const [rows] = await db.execute(`
+        SELECT 
+          s.site_name,
+          s.subdomain,
+          s.custom_domain,
+          u.username as artist_email,
+          up.first_name,
+          up.last_name,
+          ap.business_name,
+          ap.logo_path,
+          ap.studio_address_line1,
+          ap.studio_address_line2,
+          ap.studio_city,
+          ap.studio_state,
+          ap.studio_zip,
+          ap.business_phone,
+          ap.customer_service_email,
+          ap.business_website
+        FROM sites s
+        JOIN users u ON s.user_id = u.id
+        LEFT JOIN user_profiles up ON u.id = up.user_id
+        LEFT JOIN artist_profiles ap ON u.id = ap.user_id
+        WHERE s.id = ? AND s.status = 'active'
+      `, [siteId]);
+
+      if (rows.length === 0) {
+        return {};
+      }
+
+      const site = rows[0];
+      
+      // Generate site URL
+      const siteUrl = site.custom_domain 
+        ? `https://${site.custom_domain}` 
+        : `https://${site.subdomain}.onlineartfestival.com`;
+
+      // Generate logo URL with fallback
+      const logoUrl = site.logo_path 
+        ? `https://api2.onlineartfestival.com/api/media/images/${site.logo_path.replace(/^\/temp_images\//, '').replace(/^\//, '')}`
+        : 'https://main.onlineartfestival.com/static_media/logo.png'; // Fallback to OAF logo
+
+      return {
+        artist_business_name: site.business_name || `${site.first_name} ${site.last_name}` || 'Artist',
+        artist_logo_url: logoUrl,
+        artist_email: site.customer_service_email || site.artist_email,
+        artist_phone: site.business_phone || 'Not provided',
+        artist_address_line1: site.studio_address_line1 || '',
+        artist_address_line2: site.studio_address_line2 || '',
+        artist_city: site.studio_city || '',
+        artist_state: site.studio_state || '',
+        artist_zip: site.studio_zip || '',
+        artist_website: site.business_website || siteUrl,
+        site_url: siteUrl,
+        site_name: site.business_name || site.site_name || `${site.first_name} ${site.last_name}'s Site`
+      };
+    } catch (error) {
+      console.error('Artist site data fetch error:', error);
+      // Return empty object on error to prevent email failures
+      return {};
     }
   }
 }

@@ -103,6 +103,22 @@ export default function ShippingSettings({ userData }) {
   return (
     <div>
       <h2>Shipping Settings</h2>
+      
+      {/* Explanatory section */}
+      <div style={{ 
+        backgroundColor: '#f8f9fa', 
+        border: '1px solid #dee2e6', 
+        borderRadius: '8px', 
+        padding: '16px', 
+        marginBottom: '24px',
+        fontSize: '14px',
+        lineHeight: '1.5'
+      }}>
+        <strong>Why we ask for these settings:</strong>
+        <p style={{ margin: '8px 0 0 0', color: '#6c757d' }}>
+          These settings are used to provide accurate information when creating shipping labels, and to help you get the best label for your preferred print method. Please be sure these settings are current and accurate when creating labels to avoid adjustment charges on your labels. These settings will not change or impact your profile address settings.
+        </p>
+      </div>
         
         {message && (
           <div style={{ padding: '10px', marginBottom: '20px', backgroundColor: message.includes('Error') ? '#f8d7da' : '#d4edda', border: '1px solid ' + (message.includes('Error') ? '#f5c6cb' : '#c3e6cb'), borderRadius: '4px' }}>

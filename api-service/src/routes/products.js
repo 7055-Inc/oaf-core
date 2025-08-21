@@ -66,22 +66,27 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /products/all - Get all products system-wide (admin only)
-router.get('/all', verifyToken, async (req, res) => {
+// GET /products/all - Get all products system-wide (PUBLIC for reading)
+router.get('/all', async (req, res) => {
   try {
-    const { include } = req.query;
-    
-    // Check if user is admin
-    const isAdmin = req.roles && req.roles.includes('admin');
-    if (!isAdmin) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
+    const { include, vendor_id } = req.query;
     
     // Parse include parameter
     const includes = include ? include.split(',').map(i => i.trim()) : [];
     
-    // Get all products (including deleted for admin)
-    const [products] = await db.query('SELECT * FROM products ORDER BY created_at DESC');
+    // Build query with optional vendor filter
+    let query = 'SELECT * FROM products WHERE status = ?';
+    let params = ['active'];
+    
+    if (vendor_id) {
+      query += ' AND vendor_id = ?';
+      params.push(vendor_id);
+    }
+    
+    query += ' ORDER BY created_at DESC';
+    
+    // Get products with optional vendor filter
+    const [products] = await db.query(query, params);
     
     if (products.length === 0) {
       return res.json({ products: [] });

@@ -1,0 +1,337 @@
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8faff 0%, #e8f4f8 100%);
+}
+
+.heroSection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 45vh;
+  padding: 2rem;
+  background: linear-gradient(135deg, var(--site-primary-color, #055474) 0%, var(--site-secondary-color, #3E1C56) 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.heroSection::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+  background-size: 50px 50px;
+  animation: float 20s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(1deg); }
+}
+
+.errorContent {
+  text-align: center;
+  color: white;
+  z-index: 2;
+  position: relative;
+  max-width: 600px;
+}
+
+.errorIcon {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.errorNumber {
+  font-size: 5rem;
+  font-weight: 900;
+  line-height: 1;
+  background: linear-gradient(45deg, #fff, #e8f4f8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+}
+
+.artBrush {
+  position: absolute;
+  top: -1rem;
+  right: -2rem;
+  font-size: 3rem;
+  animation: bounce 2s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0px) rotate(-10deg); }
+  50% { transform: translateY(-10px) rotate(10deg); }
+}
+
+.title {
+  font-family: 'Permanent Marker', cursive;
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  line-height: 1.2;
+  color: white;
+}
+
+.subtitle {
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+  opacity: 0.9;
+  line-height: 1.6;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.productCarouselSection {
+  margin: 0;
+  width: 100vw;
+  max-width: none;
+  overflow: hidden;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.actionButtons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  border-radius: 2px;
+  font-weight: 600;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1rem;
+  min-width: 120px;
+  justify-content: center;
+}
+
+.primaryButton {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.primaryButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+.secondaryButton {
+  background: white;
+  color: var(--site-primary-color, #055474);
+  border: 2px solid white;
+}
+
+.secondaryButton:hover {
+  background: #f8faff;
+  transform: translateY(-2px);
+}
+
+.tertiaryButton {
+  background: transparent;
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+.tertiaryButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: white;
+  transform: translateY(-2px);
+}
+
+.siteInfoSection {
+  padding: 4rem 2rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.siteInfo {
+  background: white;
+  border-radius: 2px;
+  padding: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e9ecef;
+  text-align: center;
+}
+
+.siteTitle {
+  font-family: 'Permanent Marker', cursive;
+  font-size: 2rem;
+  color: var(--site-primary-color, #055474);
+  margin-bottom: 1rem;
+}
+
+.siteDescription {
+  font-size: 1.1rem;
+  color: #6c757d;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.siteLinks {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.siteLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--site-primary-color, #055474);
+  color: white;
+  text-decoration: none;
+  border-radius: 2px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.siteLink:hover {
+  background: var(--site-secondary-color, #3E1C56);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.siteLink svg {
+  flex-shrink: 0;
+}
+
+.loadingContainer {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f8faff 0%, #e8f4f8 100%);
+  color: #6c757d;
+}
+
+.errorContainer {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f8faff 0%, #e8f4f8 100%);
+  text-align: center;
+  padding: 2rem;
+}
+
+.errorContainer h1 {
+  font-family: 'Permanent Marker', cursive;
+  font-size: 3rem;
+  color: #dc3545;
+  margin-bottom: 1rem;
+}
+
+.errorContainer p {
+  font-size: 1.2rem;
+  color: #6c757d;
+  margin-bottom: 2rem;
+}
+
+.homeLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 2rem;
+  background: #055474;
+  color: white;
+  text-decoration: none;
+  border-radius: 2px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.homeLink:hover {
+  background: #3E1C56;
+  transform: translateY(-2px);
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #055474;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .heroSection {
+    padding: 1rem;
+    min-height: 40vh;
+  }
+  
+  .errorNumber {
+    font-size: 3.5rem;
+  }
+  
+  .title {
+    font-size: 2rem;
+  }
+  
+  .subtitle {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .actionButtons {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .button {
+    width: 100%;
+    max-width: 280px;
+  }
+  
+  .siteInfoSection {
+    padding: 2rem 1rem;
+  }
+  
+  .siteInfo {
+    padding: 1.5rem;
+  }
+  
+  .siteTitle {
+    font-size: 1.5rem;
+  }
+  
+  .siteLinks {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .siteLink {
+    width: 100%;
+    max-width: 250px;
+    justify-content: center;
+  }
+}
