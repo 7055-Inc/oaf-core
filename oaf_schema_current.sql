@@ -1897,26 +1897,7 @@ CREATE TABLE `pending_images` (
 ) ENGINE=InnoDB AUTO_INCREMENT=140 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `permission_restrictions`
---
-
-DROP TABLE IF EXISTS `permission_restrictions`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `permission_restrictions` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `permission_name` varchar(50) NOT NULL,
-  `allowed_user_types` json NOT NULL COMMENT 'Array of user types allowed to have this permission',
-  `description` text COMMENT 'Human readable description of the permission',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `unique_permission` (`permission_name`),
-  KEY `idx_permission_name` (`permission_name`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
+ab
 --
 -- Table structure for table `product_categories`
 --
@@ -2940,24 +2921,7 @@ CREATE TABLE `user_permissions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `user_permissions_backup_granular`
---
 
-DROP TABLE IF EXISTS `user_permissions_backup_granular`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `user_permissions_backup_granular` (
-  `user_id` bigint NOT NULL,
-  `vendor` tinyint(1) DEFAULT '0',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `create_articles` tinyint(1) DEFAULT '0',
-  `publish_articles` tinyint(1) DEFAULT '0',
-  `manage_articles_seo` tinyint(1) DEFAULT '0',
-  `manage_articles_topics` tinyint(1) DEFAULT '0'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `user_profiles`

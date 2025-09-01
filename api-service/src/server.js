@@ -186,6 +186,9 @@ try {
   // Product management (rate limiting applied within the route after auth)
   app.use('/products', require('./routes/products'));
   
+  // Curated marketplace routes
+  app.use('/curated', require('./routes/curated'));
+  
   // Categories (safe for now, mostly read operations)
   app.use('/categories', require('./routes/categories'));
   
@@ -211,6 +214,12 @@ try {
   // Admin financial operations
   app.use('/admin', adminLimiter, require('./routes/admin-financial'));
   
+  // Admin marketplace operations
+  app.use('/api/admin/marketplace', adminLimiter, require('./routes/admin-marketplace'));
+  
+  // Public marketplace operations
+  app.use('/api/marketplace', require('./routes/marketplace-products'));
+  
   // Vendor financial operations
   app.use('/api/vendor-financials', require('./routes/vendor-financials'));
   
@@ -228,6 +237,15 @@ try {
   
   // Sites subscription services
   app.use('/api/subscriptions/sites', require('./routes/subscriptions/websites'));
+  
+  // Marketplace subscription services
+  app.use('/api/subscriptions/marketplace', require('./routes/subscriptions/marketplace'));
+  
+  // Wholesale subscription services
+  app.use('/api/subscriptions/wholesale', require('./routes/subscriptions/wholesale'));
+  
+  // TikTok marketplace connector
+  app.use('/api/tiktok', require('./routes/tiktok'));
   
   // Event management
   app.use('/api/events', require('./routes/events'));
@@ -287,6 +305,9 @@ try {
   
   // Inventory management
   app.use('/inventory', csrfProtection(), require('./routes/inventory'));
+
+  // Returns management
+  app.use('/api/returns', csrfProtection(), require('./routes/returns'));
 
   secureLogger.info('All routes loaded successfully with CSRF protection');
 } catch (err) {

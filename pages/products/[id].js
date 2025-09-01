@@ -5,7 +5,9 @@ import Header from '../../components/Header';
 import AboutTheArtist from '../../components/AboutTheArtist';
 import VariationSelector from '../../components/VariationSelector';
 import ArtistProductCarousel from '../../components/ArtistProductCarousel';
-import { authenticatedApiRequest } from '../../lib/csrf';
+import WholesalePricing from '../../components/WholesalePricing';
+import { authenticatedApiRequest, getAuthToken } from '../../lib/csrf';
+import { isWholesaleCustomer } from '../../lib/userUtils';
 import styles from './styles/ProductView.module.css';
 
 export default function ProductView() {
@@ -22,8 +24,22 @@ export default function ProductView() {
   const [policyModalContent, setPolicyModalContent] = useState({ type: '', content: '', loading: false });
   const [policies, setPolicies] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [userData, setUserData] = useState(null);
   const router = useRouter();
   const params = useParams();
+
+  // Get user data for wholesale pricing
+  useEffect(() => {
+    const token = getAuthToken();
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setUserData(payload);
+      } catch (error) {
+        console.error('Error parsing user token:', error);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -33,9 +49,9 @@ export default function ProductView() {
           return;
         }
         
-        // Use the new flexible API with vendor data and categories included
+        // Use the new curated art marketplace API - includes all data in single call
         const res = await fetch(
-          `https://api2.onlineartfestival.com/products/${params.id}?include=images,shipping,vendor,inventory,categories`,
+          `https://api2.onlineartfestival.com/curated/art/products/${params.id}?include=images,shipping,vendor,inventory,categories`,
           {
             method: 'GET',
             credentials: 'include'
@@ -46,30 +62,42 @@ export default function ProductView() {
         
         const data = await res.json();
 
-        // Ensure image URLs are absolute for main product
-        const images = data.images?.map(img => {
-          if (img.startsWith('http')) return img;
-          return `https://api2.onlineartfestival.com${img}`;
-        }) || [];
-
-        // Process children if they exist
-        const processedChildren = data.children ? data.children.map(child => ({
-          ...child,
-          images: child.images?.map(img => {
-            if (img.startsWith('http')) return img;
-            return `https://api2.onlineartfestival.com${img}`;
-          }) || []
-        })) : [];
-
-        setProduct({
-          ...data,
-          images: images,
-          children: processedChildren
-        });
+        // No need to process image URLs - curated API returns proper proxy URLs
+        setProduct(data);
         
-        // If this is a variable product with children, fetch proper variation data
+        // If this is a variable product with children, set up variation data from the response
         if (data.product_type === 'variable' && data.children && data.children.length > 0) {
-          await fetchVariationData(data.id);
+          // Create variation data structure from children for the VariationSelector
+          const variationTypes = [];
+          const variationOptions = {};
+          
+          // Extract variation info from children (if available)
+          data.children.forEach(child => {
+            if (child.variations) {
+              Object.keys(child.variations).forEach(typeName => {
+                if (!variationTypes.find(t => t.variation_name === typeName)) {
+                  variationTypes.push({ variation_name: typeName });
+                }
+                if (!variationOptions[typeName]) {
+                  variationOptions[typeName] = [];
+                }
+                child.variations[typeName].forEach(value => {
+                  if (!variationOptions[typeName].find(v => v.value_name === value.value_name)) {
+                    variationOptions[typeName].push(value);
+                  }
+                });
+              });
+            }
+          });
+          
+          setVariationData({
+            variation_types: variationTypes,
+            variation_options: variationOptions,
+            child_products: data.children.map(child => ({
+              ...child,
+              inventory: child.inventory || { qty_available: 0 }
+            }))
+          });
         }
       } catch (err) {
         console.error('Error fetching product:', err);
@@ -79,44 +107,7 @@ export default function ProductView() {
       }
     };
 
-    const fetchVariationData = async (productId) => {
-      try {
-        if (!productId) {
-          return;
-        }
-        
-        const res = await authenticatedApiRequest(
-          `https://api2.onlineartfestival.com/products/${productId}/variations`,
-          {
-            method: 'GET'
-          }
-        );
-        
-        if (!res.ok) {
-          if (res.status === 404) {
-            return;
-          }
-          throw new Error('Failed to fetch variation data');
-        }
-        
-        const data = await res.json();
-        
-        // Add inventory data to child products if available
-        const childProductsWithInventory = data.child_products.map(child => ({
-          ...child,
-          inventory: child.inventory || { qty_available: 0 }
-        }));
-        
-        setVariationData({
-          variation_types: data.variation_types,
-          variation_options: data.variation_options,
-          child_products: childProductsWithInventory
-        });
-      } catch (err) {
-        console.error('Error fetching variation data:', err);
-        setError('Error loading product variations: ' + err.message);
-      }
-    };
+
 
     if (params?.id) {
       fetchProduct();
@@ -231,17 +222,6 @@ export default function ProductView() {
     
     // Update images to show the selected variation's images if available
     if (selectedProduct.images && selectedProduct.images.length > 0) {
-      // Ensure variation image URLs are absolute
-      const processedImages = selectedProduct.images.map(img => {
-        if (img.startsWith('http')) return img;
-        return `https://api2.onlineartfestival.com${img}`;
-      });
-      
-      setSelectedVariationProduct({
-        ...selectedProduct,
-        images: processedImages
-      });
-      
       setSelectedImage(0); // Reset to first image of selected variation
     }
   };
@@ -421,7 +401,13 @@ export default function ProductView() {
                 {/* Show price for simple products only */}
                 {product.product_type !== 'variable' && (
                   <div className={styles.price}>
-                    ${parseFloat(product.price || 0).toFixed(2)}
+                    <WholesalePricing
+                      price={product.price}
+                      wholesalePrice={product.wholesale_price}
+                      isWholesaleCustomer={isWholesaleCustomer(userData)}
+                      size="large"
+                      layout="stacked"
+                    />
                   </div>
                 )}
 
@@ -553,6 +539,16 @@ export default function ProductView() {
                       <div className={styles.dimension}>
                         <span>Weight:</span>
                         <span>{(selectedVariationProduct || product).weight} {(selectedVariationProduct || product).weight_unit}</span>
+                      </div>
+                      <div className={styles.dimension}>
+                        <span>Returns:</span>
+                        <span>
+                          {(selectedVariationProduct || product).allow_returns !== false ? (
+                            <span style={{ color: '#28a745' }}>✓ Returns Accepted</span>
+                          ) : (
+                            <span style={{ color: '#dc3545' }}>✗ No Returns</span>
+                          )}
+                        </span>
                       </div>
                     </div>
                   </div>

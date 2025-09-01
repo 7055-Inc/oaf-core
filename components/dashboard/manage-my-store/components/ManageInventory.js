@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
+import { hasAddon } from '../../../../lib/userUtils';
 import slideInStyles from '../../SlideIn.module.css';
 import CSVUploadModal from '../../../csv/CSVUploadModal';
 
@@ -19,6 +20,12 @@ export default function ManageInventory({ userData }) {
   });
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [adjustingInventory, setAdjustingInventory] = useState(false);
+
+  // Check user addons for dynamic columns
+  const hasTikTokAddon = hasAddon(userData, 'tiktok-connector');
+  const hasAmazonAddon = hasAddon(userData, 'amazon-connector');
+  const hasEtsyAddon = hasAddon(userData, 'etsy-connector');
+  const hasAnyMarketplaceAddon = hasTikTokAddon || hasAmazonAddon || hasEtsyAddon;
   
   // CSV Upload states
   const [showCSVModal, setShowCSVModal] = useState(false);
@@ -69,7 +76,7 @@ export default function ManageInventory({ userData }) {
       const productsWithInventory = await Promise.all(
         productsData.map(async (product) => {
           try {
-            // Try to get existing inventory record
+            // Try to get existing inventory record with allocations
             const inventoryResponse = await authenticatedApiRequest(
               `https://api2.onlineartfestival.com/inventory/${product.id}`
             );
@@ -313,6 +320,18 @@ export default function ManageInventory({ userData }) {
                 <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', borderBottom: '2px solid #dee2e6', fontSize: '0.8rem' }}>On Hand</th>
                 <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', borderBottom: '2px solid #dee2e6', fontSize: '0.8rem' }}>On Order</th>
                 <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', borderBottom: '2px solid #dee2e6', fontSize: '0.8rem' }}>Available</th>
+                {hasAnyMarketplaceAddon && (
+                  <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', borderBottom: '2px solid #dee2e6', fontSize: '0.8rem' }}>Total Allocated</th>
+                )}
+                {hasTikTokAddon && (
+                  <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', borderBottom: '2px solid #dee2e6', fontSize: '0.8rem' }}>TT Allocated</th>
+                )}
+                {hasAmazonAddon && (
+                  <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', borderBottom: '2px solid #dee2e6', fontSize: '0.8rem' }}>AMZ Allocated</th>
+                )}
+                {hasEtsyAddon && (
+                  <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', borderBottom: '2px solid #dee2e6', fontSize: '0.8rem' }}>Etsy Allocated</th>
+                )}
                 <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', borderBottom: '2px solid #dee2e6', fontSize: '0.8rem' }}>Reorder Level</th>
                 <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', borderBottom: '2px solid #dee2e6', fontSize: '0.8rem' }}>Status</th>
                 <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', borderBottom: '2px solid #dee2e6', fontSize: '0.8rem' }}>Actions</th>
@@ -327,6 +346,10 @@ export default function ManageInventory({ userData }) {
                   onSelect={handleProductSelect}
                   onInventoryUpdate={handleSingleInventoryUpdate}
                   showVendor={false}
+                  hasAnyMarketplaceAddon={hasAnyMarketplaceAddon}
+                  hasTikTokAddon={hasTikTokAddon}
+                  hasAmazonAddon={hasAmazonAddon}
+                  hasEtsyAddon={hasEtsyAddon}
                 />
               ))}
             </tbody>
@@ -456,7 +479,7 @@ export default function ManageInventory({ userData }) {
 }
 
 // Individual product row component for inventory (moved inline)
-function InventoryRow({ product, isSelected, onSelect, onInventoryUpdate, showVendor }) {
+function InventoryRow({ product, isSelected, onSelect, onInventoryUpdate, showVendor, hasAnyMarketplaceAddon, hasTikTokAddon, hasAmazonAddon, hasEtsyAddon }) {
   const [editing, setEditing] = useState(false);
   const [newQuantity, setNewQuantity] = useState(product.inventory?.qty_on_hand || 0);
   const [adjustmentReason, setAdjustmentReason] = useState('');
@@ -474,7 +497,10 @@ function InventoryRow({ product, isSelected, onSelect, onInventoryUpdate, showVe
   };
 
   const getStatusBadge = () => {
-    const available = product.inventory?.qty_available || 0;
+    // Use truly available (after allocations) for status, fallback to regular available
+    const available = product.inventory?.qty_truly_available !== undefined 
+      ? product.inventory.qty_truly_available 
+      : product.inventory?.qty_available || 0;
     const reorderLevel = product.inventory?.reorder_qty || 0;
     
     if (available <= 0) {
@@ -521,6 +547,18 @@ function InventoryRow({ product, isSelected, onSelect, onInventoryUpdate, showVe
       </td>
       <td style={{ padding: '0.75rem', verticalAlign: 'middle', fontSize: '0.85rem' }}>{product.inventory?.qty_on_order || 0}</td>
       <td style={{ padding: '0.75rem', verticalAlign: 'middle', fontSize: '0.85rem' }}>{product.inventory?.qty_available || 0}</td>
+      {hasAnyMarketplaceAddon && (
+        <td style={{ padding: '0.75rem', verticalAlign: 'middle', fontSize: '0.85rem' }}>{product.inventory?.total_allocated || 0}</td>
+      )}
+      {hasTikTokAddon && (
+        <td style={{ padding: '0.75rem', verticalAlign: 'middle', fontSize: '0.85rem' }}>{product.inventory?.tiktok_allocated || 0}</td>
+      )}
+      {hasAmazonAddon && (
+        <td style={{ padding: '0.75rem', verticalAlign: 'middle', fontSize: '0.85rem' }}>{product.inventory?.amazon_allocated || 0}</td>
+      )}
+      {hasEtsyAddon && (
+        <td style={{ padding: '0.75rem', verticalAlign: 'middle', fontSize: '0.85rem' }}>{product.inventory?.etsy_allocated || 0}</td>
+      )}
       <td style={{ padding: '0.75rem', verticalAlign: 'middle', fontSize: '0.85rem' }}>{product.inventory?.reorder_qty || 0}</td>
       <td style={{ padding: '0.75rem', verticalAlign: 'middle', fontSize: '0.85rem' }}>{getStatusBadge()}</td>
       <td style={{ padding: '0.75rem', verticalAlign: 'middle', fontSize: '0.85rem' }}>

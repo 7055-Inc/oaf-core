@@ -1,6 +1,9 @@
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
+import WholesalePricing from '../../components/WholesalePricing';
+import { isWholesaleCustomer } from '../../lib/userUtils';
+import { getAuthToken } from '../../lib/csrf';
 
 export default function CategoryLandingPage() {
   const router = useRouter();
@@ -11,6 +14,20 @@ export default function CategoryLandingPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [userData, setUserData] = useState(null);
+
+  // Get user data for wholesale pricing
+  useEffect(() => {
+    const token = getAuthToken();
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setUserData(payload);
+      } catch (error) {
+        console.error('Error parsing user token:', error);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -19,7 +36,8 @@ export default function CategoryLandingPage() {
       fetch(`https://api2.onlineartfestival.com/categories/${id}`).then(res => res.json()),
       fetch(`https://api2.onlineartfestival.com/categories/content/${id}`).then(res => res.json()),
       fetch(`https://api2.onlineartfestival.com/categories/seo/${id}`).then(res => res.json()),
-      fetch(`https://api2.onlineartfestival.com/products?category=${id}`).then(res => res.json())
+      // Use curated art marketplace API with category filter and images
+      fetch(`https://api2.onlineartfestival.com/curated/art/products/all?category_id=${id}&include=images`).then(res => res.json())
     ])
       .then(([catData, contentData, seoData, prodData]) => {
         setCategory(catData.category || null);
@@ -200,33 +218,64 @@ export default function CategoryLandingPage() {
               <div key={product.id} style={{ 
                 border: '1px solid #eee', 
                 borderRadius: 8, 
-                padding: '1rem', 
+                overflow: 'hidden',
                 background: '#fff',
                 transition: 'transform 0.2s, box-shadow 0.2s',
                 cursor: 'pointer'
               }}
               onMouseEnter={(e) => {
-                e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
               }}
               onMouseLeave={(e) => {
-                e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = 'none';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
               }}
               onClick={() => router.push(`/products/${product.id}`)}
               >
-                <h3 style={{ fontSize: '1.1rem', margin: '0 0 0.5rem', color: '#333' }}>{product.name}</h3>
-                <p style={{ color: '#666', fontSize: '0.95rem', marginBottom: '0.5rem' }}>
-                  {product.description?.slice(0, 100)}...
-                </p>
-                {product.price && (
-                  <p style={{ fontWeight: 'bold', color: '#055474', marginBottom: '0.5rem' }}>
-                    ${parseFloat(product.price).toFixed(2)}
-                  </p>
+                {/* Product Image */}
+                {product.images && product.images.length > 0 ? (
+                  <div style={{ 
+                    height: '200px', 
+                    backgroundImage: `url(${product.images[0]})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center'
+                  }} />
+                ) : (
+                  <div style={{ 
+                    height: '200px', 
+                    backgroundColor: '#f8f9fa',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#666',
+                    fontSize: '0.9rem'
+                  }}>
+                    No image available
+                  </div>
                 )}
-                <span style={{ color: '#055474', textDecoration: 'underline', fontWeight: 500, fontSize: '0.9rem' }}>
-                  View Product →
-                </span>
+                
+                {/* Product Info */}
+                <div style={{ padding: '1rem' }}>
+                  <h3 style={{ fontSize: '1.1rem', margin: '0 0 0.5rem', color: '#333' }}>{product.name}</h3>
+                  <p style={{ color: '#666', fontSize: '0.95rem', marginBottom: '0.5rem' }}>
+                    {product.description?.slice(0, 100)}...
+                  </p>
+                  {product.price && (
+                    <div style={{ marginBottom: '0.5rem' }}>
+                      <WholesalePricing
+                        price={product.price}
+                        wholesalePrice={product.wholesale_price}
+                        isWholesaleCustomer={isWholesaleCustomer(userData)}
+                        size="medium"
+                        layout="inline"
+                      />
+                    </div>
+                  )}
+                  <span style={{ color: '#055474', textDecoration: 'underline', fontWeight: 500, fontSize: '0.9rem' }}>
+                    View Product →
+                  </span>
+                </div>
               </div>
             ))
           )}

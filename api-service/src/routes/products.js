@@ -686,7 +686,9 @@ router.post('/', verifyToken, requirePermission('vendor'), uploadLimiter, async 
       name, description, short_description, price, category_id, sku, status,
       width, height, depth, weight, dimension_unit, weight_unit, parent_id, product_type,
       package_number, length, shipping_type, shipping_services, ship_method, ship_rate,
-      packages, beginning_inventory, reorder_qty, images
+      packages, beginning_inventory, reorder_qty, images,
+      wholesale_price, wholesale_description, // New wholesale fields
+      allow_returns // Returns system field
     } = req.body;
 
     // Validate required fields
@@ -756,10 +758,43 @@ router.post('/', verifyToken, requirePermission('vendor'), uploadLimiter, async 
       name: name
     });
 
-    // Insert product (removed available_qty since it's now handled by inventory system)
+    // Get user's marketplace permissions and auto-sort preference for new marketplace fields
+    let marketplaceEnabled = false;
+    let marketplaceCategory = 'unsorted';
+    
+    try {
+      // Check if user has approved marketplace permissions
+      const [marketplacePermission] = await db.query(
+        'SELECT status FROM marketplace_permissions WHERE user_id = ? AND status = ?',
+        [req.userId, 'approved']
+      );
+      
+      if (marketplacePermission.length > 0) {
+        marketplaceEnabled = true;
+        
+        // Get user's auto-sort preference
+        const [userPreference] = await db.query(
+          'SELECT marketplace_auto_sort FROM users WHERE id = ?',
+          [req.userId]
+        );
+        
+        if (userPreference.length > 0 && userPreference[0].marketplace_auto_sort !== 'manual') {
+          marketplaceCategory = userPreference[0].marketplace_auto_sort;
+        }
+      }
+    } catch (marketplaceError) {
+      console.log('Error checking marketplace permissions:', marketplaceError);
+      // Continue with defaults (marketplace disabled)
+    }
+
+    // Insert product with marketplace and wholesale fields
     const insertParams = [req.userId, name, description, short_description, price, category_id, sku, status || 'draft',
        1, // track_inventory - default to true
-       width || null, height || null, depth || null, weight || null, dimension_unit, weight_unit, validatedParentId, product_type, req.userId, req.userId];
+       width || null, height || null, depth || null, weight || null, dimension_unit, weight_unit, validatedParentId, product_type, 
+       marketplaceEnabled, marketplaceCategory, // New marketplace fields
+       wholesale_price || null, wholesale_description || null, // New wholesale fields
+       allow_returns !== undefined ? allow_returns : true, // Returns field - default to true
+       req.userId, req.userId];
     
     secureLogger.info('INSERT parameters debug', {
       validatedParentId,
@@ -767,11 +802,14 @@ router.post('/', verifyToken, requirePermission('vendor'), uploadLimiter, async 
       parentIdPosition: insertParams[15], // Updated position after adding track_inventory
       parentIdPositionValue: insertParams[15],
       productType: product_type,
+      marketplaceEnabled,
+      marketplaceCategory,
+      wholesalePrice: wholesale_price,
       allParams: insertParams
     });
     
     const [result] = await db.query(
-      'INSERT INTO products (vendor_id, name, description, short_description, price, category_id, sku, status, track_inventory, width, height, depth, weight, dimension_unit, weight_unit, parent_id, product_type, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO products (vendor_id, name, description, short_description, price, category_id, sku, status, track_inventory, width, height, depth, weight, dimension_unit, weight_unit, parent_id, product_type, marketplace_enabled, marketplace_category, wholesale_price, wholesale_description, allow_returns, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       insertParams
     );
 
@@ -1027,7 +1065,7 @@ router.patch('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, as
       name, description, short_description, price, category_id, sku, status,
       width, height, depth, weight, dimension_unit, weight_unit, parent_id, product_type,
       package_number, length, shipping_type, shipping_services, ship_method, ship_rate,
-      images, packages, vendor_id, beginning_inventory, reorder_qty
+      images, packages, vendor_id, beginning_inventory, reorder_qty, allow_returns
     } = req.body;
 
     // Check if product exists and user has permission to edit it
@@ -1097,6 +1135,10 @@ router.patch('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, as
     if (weight_unit !== undefined) {
       updateFields.push('weight_unit = ?');
       updateValues.push(weight_unit);
+    }
+    if (allow_returns !== undefined) {
+      updateFields.push('allow_returns = ?');
+      updateValues.push(allow_returns);
     }
     // Note: beginning_inventory and reorder_qty are handled in the inventory section below, not in products table
 

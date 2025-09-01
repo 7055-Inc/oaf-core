@@ -2,14 +2,14 @@ const express = require('express');
 const stripeService = require('../services/stripeService');
 const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
-const { requireRestrictedPermission } = require('../middleware/permissions');
+const { requirePermission } = require('../middleware/permissions');
 const router = express.Router();
 
 /**
  * Get platform financial overview
  * GET /api/admin/financial-overview
  */
-router.get('/financial-overview', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/financial-overview', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const overview = await stripeService.getPlatformFinancialOverview();
     res.json({ success: true, overview });
@@ -23,7 +23,7 @@ router.get('/financial-overview', verifyToken, requireRestrictedPermission('mana
  * Get detailed payout calculations for all vendors
  * GET /api/admin/payout-calculations
  */
-router.get('/payout-calculations', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/payout-calculations', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const calculations = await stripeService.getPayoutCalculations();
     res.json({ success: true, calculations });
@@ -37,7 +37,7 @@ router.get('/payout-calculations', verifyToken, requireRestrictedPermission('man
  * POST /api/admin/manual-adjustment
  * Create a manual adjustment for a vendor
  */
-router.post('/manual-adjustment', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.post('/manual-adjustment', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { vendor_id, amount, description, type } = req.body;
     
@@ -77,7 +77,7 @@ router.post('/manual-adjustment', verifyToken, requireRestrictedPermission('mana
  * GET /api/admin/manual-adjustments
  * Get all manual adjustments with optional filters
  */
-router.get('/manual-adjustments', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/manual-adjustments', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { vendor_id, limit = 100, offset = 0 } = req.query;
     
@@ -114,7 +114,7 @@ router.get('/manual-adjustments', verifyToken, requireRestrictedPermission('mana
  * POST /api/admin/vendor-settings
  * Update vendor settings (commission rates, etc.)
  */
-router.post('/vendor-settings', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.post('/vendor-settings', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { vendor_id, commission_rate, minimum_payout, payment_schedule } = req.body;
     
@@ -186,7 +186,7 @@ router.post('/vendor-settings', verifyToken, requireRestrictedPermission('manage
  * GET /api/admin/vendor-settings
  * Get vendor settings for all vendors or specific vendor
  */
-router.get('/vendor-settings', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/vendor-settings', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { vendor_id } = req.query;
     
@@ -220,7 +220,7 @@ router.get('/vendor-settings', verifyToken, requireRestrictedPermission('manage_
  * GET /api/admin/vendor-details/:vendor_id
  * Get comprehensive vendor information for admin review
  */
-router.get('/vendor-details/:vendor_id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/vendor-details/:vendor_id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { vendor_id } = req.params;
     
@@ -519,7 +519,7 @@ async function getVendorTransactions(vendorId, options = {}) {
  * Get all vendor tax summaries for a period
  * GET /api/admin/financials/all-vendor-tax-summaries/:period
  */
-router.get('/all-vendor-tax-summaries/:period', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/all-vendor-tax-summaries/:period', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { period } = req.params;
     
@@ -559,7 +559,7 @@ router.get('/all-vendor-tax-summaries/:period', verifyToken, requireRestrictedPe
  * Get all state compliance overview
  * GET /api/admin/financials/all-state-compliance/:period
  */
-router.get('/all-state-compliance/:period', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/all-state-compliance/:period', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { period } = req.params;
     
@@ -607,7 +607,7 @@ router.get('/all-state-compliance/:period', verifyToken, requireRestrictedPermis
  * Get platform tax overview
  * GET /api/admin/financials/all-tax-overview/:period
  */
-router.get('/all-tax-overview/:period', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/all-tax-overview/:period', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { period } = req.params;
     
@@ -651,7 +651,7 @@ router.get('/all-tax-overview/:period', verifyToken, requireRestrictedPermission
  * Get all vendor tax compliance status
  * GET /api/admin/financials/all-vendor-compliance/:period
  */
-router.get('/all-vendor-compliance/:period', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/all-vendor-compliance/:period', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { period } = req.params;
     
@@ -701,7 +701,7 @@ router.get('/all-vendor-compliance/:period', verifyToken, requireRestrictedPermi
  * Get all transactions across all vendors
  * GET /api/admin/financials/all-transactions
  */
-router.get('/all-transactions', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/all-transactions', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { page = 1, limit = 20, type, status } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);

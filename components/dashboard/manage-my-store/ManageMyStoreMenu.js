@@ -68,6 +68,22 @@ export default function ManageMyStoreMenu({
               Manage Orders
             </button>
           </li>
+          <li>
+            <button 
+              className={styles.sidebarLink}
+              onClick={() => openSlideIn('tiktok-connector', { title: 'TikTok Connector' })}
+            >
+              TikTok Connector
+            </button>
+          </li>
+          <li>
+            <button 
+              className={styles.sidebarLink}
+              onClick={() => openSlideIn('my-articles', { title: 'Articles & Pages' })}
+            >
+              Articles & Pages
+            </button>
+          </li>
         </ul>
       )}
     </div>

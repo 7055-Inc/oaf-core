@@ -1,0 +1,213 @@
+/* Wholesale Pricing Component Styles */
+
+.pricing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Layout Options */
+.inline {
+  flex-direction: row;
+  align-items: center;
+}
+
+.stacked {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* Size Variations */
+.small {
+  font-size: 12px;
+  gap: 4px;
+}
+
+.medium {
+  font-size: 14px;
+  gap: 6px;
+}
+
+.large {
+  font-size: 18px;
+  gap: 8px;
+}
+
+/* Regular Price (for non-wholesale customers) */
+.regularPrice {
+  font-weight: bold;
+  color: #055474;
+}
+
+.small .regularPrice {
+  font-size: 12px;
+}
+
+.medium .regularPrice {
+  font-size: 16px;
+}
+
+.large .regularPrice {
+  font-size: 20px;
+}
+
+/* Wholesale Pricing Layout */
+.wholesale {
+  gap: 8px;
+}
+
+.wholesale.stacked {
+  gap: 4px;
+}
+
+.wholesalePriceContainer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.wholesalePrice {
+  font-weight: bold;
+  color: #28a745;
+  font-size: 1.1em;
+}
+
+.large .wholesalePrice {
+  font-size: 1.2em;
+}
+
+.wholesaleLabel {
+  background: #28a745;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.small .wholesaleLabel {
+  font-size: 8px;
+  padding: 1px 4px;
+}
+
+.large .wholesaleLabel {
+  font-size: 11px;
+  padding: 3px 8px;
+}
+
+/* MSRP Reference */
+.msrpContainer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stacked .msrpContainer {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.msrpPrice {
+  color: #6c757d;
+  text-decoration: line-through;
+  font-size: 0.9em;
+}
+
+.small .msrpPrice {
+  font-size: 0.85em;
+}
+
+.large .msrpPrice {
+  font-size: 0.95em;
+}
+
+.savings {
+  background: #ffc107;
+  color: #212529;
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-size: 9px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.small .savings {
+  font-size: 8px;
+  padding: 1px 4px;
+}
+
+.large .savings {
+  font-size: 10px;
+  padding: 3px 8px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .inline {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .wholesalePriceContainer {
+    gap: 6px;
+  }
+  
+  .msrpContainer {
+    gap: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .pricing {
+    gap: 4px;
+  }
+  
+  .wholesale {
+    gap: 6px;
+  }
+  
+  .wholesalePrice {
+    font-size: 1em;
+  }
+  
+  .large .wholesalePrice {
+    font-size: 1.1em;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .pricing * {
+    transition: none !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .regularPrice {
+    color: #000;
+  }
+  
+  .wholesalePrice {
+    color: #006400;
+  }
+  
+  .wholesaleLabel {
+    background: #006400;
+    border: 1px solid #000;
+  }
+  
+  .msrpPrice {
+    color: #666;
+  }
+  
+  .savings {
+    background: #ffcc00;
+    border: 1px solid #000;
+    color: #000;
+  }
+}

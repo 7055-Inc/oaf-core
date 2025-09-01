@@ -15,6 +15,7 @@ export default function EditProduct() {
     category_id: 1,
     sku: '',
     status: 'draft',
+    allow_returns: true,
     width: '',
     height: '',
     depth: '',
@@ -152,6 +153,7 @@ export default function EditProduct() {
           category_id: data.category_id || 1,
           sku: data.sku || '',
           status: data.status || 'draft',
+          allow_returns: data.allow_returns !== undefined ? data.allow_returns : true,
           width: data.width || '',
           height: data.height || '',
           depth: data.depth || '',
@@ -643,6 +645,27 @@ export default function EditProduct() {
                   onChange={handleChange}
                   className={styles.textarea}
                 />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Returns Policy</label>
+                <div className={styles.toggleContainer}>
+                  <label className="toggle">
+                    <input
+                      type="checkbox"
+                      name="allow_returns"
+                      checked={formData.allow_returns}
+                      onChange={handleChange}
+                    />
+                    <span className="slider"></span>
+                    <span className="toggle-label">
+                      {formData.allow_returns ? 'Returns Allowed' : 'No Returns'}
+                    </span>
+                  </label>
+                </div>
+                <small className={styles.helpText}>
+                  Allow customers to request returns for this product
+                </small>
               </div>
             </div>
 

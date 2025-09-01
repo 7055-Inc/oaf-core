@@ -11,6 +11,8 @@ export default function ManageOrders({ userData }) {
   
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('unshipped');
+  const [returns, setReturns] = useState([]);
+  const [returnStatusFilter, setReturnStatusFilter] = useState('all');
   const [orders, setOrders] = useState([]);
   const [labels, setLabels] = useState([]);
   const [selectedLabels, setSelectedLabels] = useState([]);
@@ -59,10 +61,33 @@ export default function ManageOrders({ userData }) {
     if (activeTab === 'labels') {
       fetchLabels();
       fetchStandaloneLabels();
+    } else if (activeTab === 'returns') {
+      fetchReturns();
     } else {
       fetchOrders(activeTab);
     }
-  }, [activeTab]);
+  }, [activeTab, returnStatusFilter]);
+
+  const fetchReturns = async () => {
+    setLoading(true);
+    try {
+      const statusParam = returnStatusFilter !== 'all' ? `?status=${returnStatusFilter}` : '';
+      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/returns/vendor/my${statusParam}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setReturns(data.returns || []);
+      } else {
+        console.error('Failed to fetch returns');
+        setReturns([]);
+      }
+    } catch (error) {
+      console.error('Error fetching returns:', error);
+      setReturns([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchOrders = async (tab) => {
       setLoading(true);
@@ -513,6 +538,22 @@ export default function ManageOrders({ userData }) {
             }}
           >
             Label Library
+          </button>
+          <button 
+            className={`tab ${activeTab === 'returns' ? 'active' : ''}`}
+            onClick={() => setActiveTab('returns')}
+            style={{
+              padding: '12px 20px',
+              border: 'none',
+              backgroundColor: activeTab === 'returns' ? '#fff' : 'transparent',
+              borderBottom: activeTab === 'returns' ? '2px solid #3e1c56' : '2px solid transparent',
+              color: activeTab === 'returns' ? '#3e1c56' : '#6c757d',
+              fontWeight: activeTab === 'returns' ? '600' : '400',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            Returns
           </button>
         </div>
         {activeTab === 'unshipped' && (
@@ -2013,6 +2054,159 @@ export default function ManageOrders({ userData }) {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {activeTab === 'returns' && (
+          <div>
+            <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <label>Filter by Status:</label>
+              <select 
+                value={returnStatusFilter}
+                onChange={(e) => setReturnStatusFilter(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  fontSize: '14px'
+                }}
+              >
+                <option value="all">All Returns</option>
+                <option value="pending">Pending</option>
+                <option value="assistance">Assistance</option>
+                <option value="assistance_vendor">Needs Response</option>
+                <option value="label_created">Label Created</option>
+                <option value="in_transit">In Transit</option>
+                <option value="received">Received</option>
+                <option value="processed">Processed</option>
+                <option value="refunded">Refunded</option>
+              </select>
+            </div>
+
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '40px' }}>
+                <p>Loading returns...</p>
+              </div>
+            ) : returns.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#6c757d' }}>
+                <p>No returns found for the selected filter.</p>
+              </div>
+            ) : (
+              <div>
+                {returns.map((returnItem) => (
+                  <div key={returnItem.id} style={{
+                    border: '1px solid #dee2e6',
+                    borderRadius: '8px',
+                    padding: '20px',
+                    marginBottom: '15px',
+                    backgroundColor: '#fff'
+                  }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+                      <div>
+                        <strong>Return ID:</strong> #{returnItem.id}
+                      </div>
+                      <div>
+                        <strong>Order:</strong> #{returnItem.order_id}
+                      </div>
+                      <div>
+                        <strong>Status:</strong> 
+                        <span style={{
+                          marginLeft: '8px',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          backgroundColor: returnItem.return_status === 'pending' ? '#fff3cd' : 
+                                         returnItem.return_status === 'assistance_vendor' ? '#f8d7da' :
+                                         returnItem.return_status === 'received' ? '#d1edff' : '#e2e3e5',
+                          color: returnItem.return_status === 'pending' ? '#856404' : 
+                                returnItem.return_status === 'assistance_vendor' ? '#721c24' :
+                                returnItem.return_status === 'received' ? '#0c5460' : '#495057'
+                        }}>
+                          {returnItem.return_status}
+                        </span>
+                      </div>
+                      <div>
+                        <strong>Reason:</strong> {returnItem.return_reason}
+                      </div>
+                    </div>
+
+                    <div style={{ marginBottom: '15px' }}>
+                      <strong>Product:</strong> {returnItem.product_name}
+                    </div>
+
+                    {returnItem.case_messages && (
+                      <div style={{ marginBottom: '15px' }}>
+                        <strong>Messages:</strong>
+                        <div style={{
+                          backgroundColor: '#f8f9fa',
+                          border: '1px solid #dee2e6',
+                          borderRadius: '4px',
+                          padding: '12px',
+                          marginTop: '8px',
+                          whiteSpace: 'pre-wrap',
+                          maxHeight: '150px',
+                          overflowY: 'auto'
+                        }}>
+                          {returnItem.case_messages}
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      {returnItem.return_status === 'assistance_vendor' && (
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flex: 1 }}>
+                          <input
+                            type="text"
+                            placeholder="Type your response..."
+                            style={{
+                              flex: 1,
+                              padding: '8px 12px',
+                              border: '1px solid #ccc',
+                              borderRadius: '4px'
+                            }}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter' && e.target.value.trim()) {
+                                // Handle message send
+                                console.log('Send message:', e.target.value);
+                                e.target.value = '';
+                              }
+                            }}
+                          />
+                          <button className="primary" style={{ fontSize: '14px' }}>
+                            Reply
+                          </button>
+                        </div>
+                      )}
+
+                      {returnItem.return_status === 'pending' && (
+                        <button 
+                          className="secondary"
+                          style={{ fontSize: '14px' }}
+                          onClick={() => {
+                            if (confirm('Mark this return as received? This will trigger refund processing.')) {
+                              // Handle mark as received
+                              console.log('Mark as received:', returnItem.id);
+                            }
+                          }}
+                        >
+                          Mark as Received
+                        </button>
+                      )}
+
+                      {returnItem.shipping_label_id && (
+                        <button 
+                          className="secondary"
+                          style={{ fontSize: '14px' }}
+                          onClick={() => window.open(`https://api2.onlineartfestival.com/api/returns/${returnItem.id}/label`, '_blank')}
+                        >
+                          View Label
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
+import WholesalePricing from '../../components/WholesalePricing';
+import { isWholesaleCustomer } from '../../lib/userUtils';
+import { getAuthToken } from '../../lib/csrf';
 import styles from './ArtistStorefront.module.css';
 
 const ArtistStorefront = () => {
@@ -16,6 +19,20 @@ const ArtistStorefront = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [extractedSubdomain, setExtractedSubdomain] = useState(null);
+  const [userData, setUserData] = useState(null);
+
+  // Get user data for wholesale pricing
+  useEffect(() => {
+    const token = getAuthToken();
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setUserData(payload);
+      } catch (error) {
+        console.error('Error parsing user token:', error);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     // Extract subdomain from the current URL if query params aren't available
@@ -525,7 +542,14 @@ const ArtistStorefront = () => {
                     
                     <div className={styles.productInfo}>
                       <h3 className={styles.productName}>{product.name}</h3>
-                      <p className={styles.productPrice}>${product.price}</p>
+                      <WholesalePricing
+                        price={product.price}
+                        wholesalePrice={product.wholesale_price}
+                        isWholesaleCustomer={isWholesaleCustomer(userData)}
+                        size="medium"
+                        layout="inline"
+                        className={styles.productPrice}
+                      />
                       
                       {product.description && (
                         <p className={styles.productDescription}>

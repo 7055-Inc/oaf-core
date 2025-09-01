@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import WholesalePricing from './WholesalePricing';
+import { isWholesaleCustomer } from '../lib/userUtils';
+import { getAuthToken } from '../lib/csrf';
 import styles from './RandomProductCarousel.module.css';
 
 const RandomProductCarousel = ({ title = "Discover Amazing Artwork", limit = 12, vendorId = null, products: passedProducts = null }) => {
@@ -11,6 +14,20 @@ const RandomProductCarousel = ({ title = "Discover Amazing Artwork", limit = 12,
   const animationRef = useRef(null);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [userData, setUserData] = useState(null);
+
+  // Get user data for wholesale pricing
+  useEffect(() => {
+    const token = getAuthToken();
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setUserData(payload);
+      } catch (error) {
+        console.error('Error parsing user token:', error);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     // If products are passed in, use them directly
@@ -186,12 +203,16 @@ const RandomProductCarousel = ({ title = "Discover Amazing Artwork", limit = 12,
 
                 />
                 
-                <div className={styles.productInfo}>
-                  <h3 className={styles.productName}>{product.name || product.title}</h3>
-                  <div className={styles.productPrice}>
-                    ${parseFloat(product.price || 0).toFixed(2)}
-                  </div>
-                </div>
+                                              <div className={styles.productInfo}>
+                                <h3 className={styles.productName}>{product.name || product.title}</h3>
+                                <WholesalePricing
+                                  price={product.price}
+                                  wholesalePrice={product.wholesale_price}
+                                  isWholesaleCustomer={isWholesaleCustomer(userData)}
+                                  size="small"
+                                  layout="stacked"
+                                />
+                              </div>
               </div>
             </Link>
           ))}

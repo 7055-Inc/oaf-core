@@ -3,7 +3,7 @@ const router = express.Router();
 const searchService = require('../services/searchService');
 const searchAnalytics = require('../services/searchAnalytics');
 const verifyToken = require('../middleware/jwt');
-const { requireRestrictedPermission } = require('../middleware/permissions');
+const { requirePermission } = require('../middleware/permissions');
 
 // Helper function to get client info from request
 const getClientInfo = (req) => {
@@ -215,7 +215,7 @@ router.get('/history', verifyToken, async (req, res) => {
  * Get search analytics (admin only)
  * GET /api/search/analytics?timeframe=7d
  */
-router.get('/analytics', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/analytics', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { timeframe = '7d' } = req.query;
     
@@ -262,7 +262,7 @@ router.get('/suggestions', async (req, res) => {
  * Get search performance issues (admin only)
  * GET /api/search/performance
  */
-router.get('/performance', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/performance', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const issues = await searchAnalytics.getPerformanceIssues();
     

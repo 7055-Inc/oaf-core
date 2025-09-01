@@ -160,10 +160,38 @@ router.post('/signup', verifyToken, async (req, res) => {
       `, [userId, sites, manageSites]);
     }
 
-    // Add selected addons to user's sites (when they create their first site)
+    // Process selected addons - separate user-level from site-level addons
     if (selected_addons && selected_addons.length > 0) {
-      // Store selected addons for when user creates their first site
-      // For now, we'll skip logging - in full implementation, we'd store in a pending_addons table
+      // Get addon details to determine which are user-level vs site-level
+      const addonIds = selected_addons.join(',');
+      const [addonDetails] = await db.execute(`
+        SELECT id, addon_slug, user_level, addon_name 
+        FROM website_addons 
+        WHERE id IN (${selected_addons.map(() => '?').join(',')}) AND is_active = 1
+      `, selected_addons);
+
+      // Activate user-level addons immediately
+      const userLevelAddons = addonDetails.filter(addon => addon.user_level === 1);
+      if (userLevelAddons.length > 0) {
+        for (const addon of userLevelAddons) {
+          await db.execute(`
+            INSERT INTO user_addons (user_id, addon_slug, subscription_source) 
+            VALUES (?, ?, 'website_subscription')
+            ON DUPLICATE KEY UPDATE 
+              is_active = 1, 
+              activated_at = CURRENT_TIMESTAMP,
+              deactivated_at = NULL,
+              subscription_source = 'website_subscription'
+          `, [userId, addon.addon_slug]);
+        }
+      }
+
+      // Store site-level addons for when user creates their first site
+      const siteLevelAddons = addonDetails.filter(addon => addon.user_level === 0);
+      if (siteLevelAddons.length > 0) {
+        // TODO: Store in pending_site_addons table when implemented
+        // For now, these will be applied when user creates their first site
+      }
     }
 
     // Apply discount if provided

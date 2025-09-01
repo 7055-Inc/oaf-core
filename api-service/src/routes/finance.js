@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
-const { requirePermission, requireRestrictedPermission } = require('../middleware/permissions');
+const { requirePermission, requirePermission } = require('../middleware/permissions');
 
 /**
  * Finance API Routes
@@ -21,7 +21,7 @@ const { requirePermission, requireRestrictedPermission } = require('../middlewar
  * GET /api/finance/commission-rates - Get all commission rates for admin management
  * Returns combined list of artists and promoters with their commission settings
  */
-router.get('/commission-rates', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/commission-rates', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const query = `
       SELECT 
@@ -82,7 +82,7 @@ router.get('/commission-rates', verifyToken, requireRestrictedPermission('manage
  * PUT /api/finance/commission-rates/bulk - Bulk update commission rates
  * Updates multiple commission rates at once
  */
-router.put('/commission-rates/bulk', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.put('/commission-rates/bulk', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { updates } = req.body;
     const adminId = req.userId;
@@ -174,7 +174,7 @@ router.put('/commission-rates/bulk', verifyToken, requireRestrictedPermission('m
  * PUT /api/finance/commission-rates/:id - Update a single commission rate
  * Updates commission rate, fee structure, or notes for a specific user
  */
-router.put('/commission-rates/:id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.put('/commission-rates/:id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const settingId = req.params.id;
     const { commission_rate, fee_structure, notes } = req.body;
@@ -252,7 +252,7 @@ router.put('/commission-rates/:id', verifyToken, requireRestrictedPermission('ma
  * GET /api/finance/vendor-earnings - Get earnings for current vendor
  * Returns earnings data for the authenticated vendor
  */
-router.get('/vendor-earnings', verifyToken, requireRestrictedPermission('vendor'), async (req, res) => {
+router.get('/vendor-earnings', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
     // TODO: Implement vendor earnings endpoint
     res.json({

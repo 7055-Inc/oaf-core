@@ -48,6 +48,11 @@ export async function subdomainRouter(req) {
       return NextResponse.rewrite(new URL(`/custom-sites/signup?subdomain=${subdomain}`, req.url));
     }
     
+    if (subdomain === 'crafts') {
+      // Route crafts subdomain to crafts marketplace
+      return NextResponse.rewrite(new URL(`/crafts${req.nextUrl.pathname}${req.nextUrl.search}`, req.url));
+    }
+    
     // Example: Add more custom subdomains like this:
     // if (subdomain === 'promo') {
     //   return NextResponse.rewrite(new URL(`/custom-sites/promo?subdomain=${subdomain}`, req.url));

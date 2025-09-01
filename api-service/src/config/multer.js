@@ -8,7 +8,8 @@ const productsDir = path.join(uploadDir, 'products');
 const profilesDir = path.join(uploadDir, 'profiles');
 const eventsDir = path.join(uploadDir, 'events');
 const sitesDir = path.join(uploadDir, 'sites');
-[productsDir, profilesDir, eventsDir, sitesDir].forEach(dir => {
+const juryDir = path.join(uploadDir, 'jury');
+[productsDir, profilesDir, eventsDir, sitesDir, juryDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -21,6 +22,9 @@ const storage = multer.diskStorage({
       cb(null, profilesDir);
     } else if (file.fieldname === 'site_image') {
       cb(null, sitesDir);
+    } else if (file.fieldname.startsWith('jury_')) {
+      // All jury media goes to jury directory
+      cb(null, juryDir);
     } else if (file.fieldname === 'images' && req.originalUrl && req.originalUrl.includes('/api/events/upload')) {
       cb(null, eventsDir);
     } else {
@@ -39,6 +43,10 @@ const storage = multer.diskStorage({
     } else if (file.fieldname === 'site_image') {
       // For site images
       filename = `${req.userId}-site-${uniqueSuffix}${path.extname(file.originalname).toLowerCase()}`;
+    } else if (file.fieldname.startsWith('jury_')) {
+      // For jury media files
+      const juryType = file.fieldname.replace('jury_', '');
+      filename = `${req.userId}-${juryType}-${uniqueSuffix}${path.extname(file.originalname).toLowerCase()}`;
     } else if (file.fieldname === 'images' && req.originalUrl && req.originalUrl.includes('/api/events/upload')) {
       // For event images
       const eventId = req.query.event_id || 'new';
@@ -56,11 +64,19 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: 50 * 1024 * 1024 // 50MB limit (increased for jury videos)
   },
   fileFilter: (req, file, cb) => {
-    if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp)$/)) {
-      return cb(new Error('Only image files are allowed!'), false);
+    // Allow videos for jury media
+    if (file.fieldname.startsWith('jury_') && file.fieldname.includes('video')) {
+      if (!file.originalname.match(/\.(mp4|mov|avi|wmv|webm)$/i)) {
+        return cb(new Error('Only video files are allowed for jury videos!'), false);
+      }
+    } else {
+      // Images only for all other fields
+      if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+        return cb(new Error('Only image files are allowed!'), false);
+      }
     }
     cb(null, true);
   }

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
-const { requireRestrictedPermission } = require('../middleware/permissions');
+const { requirePermission } = require('../middleware/permissions');
 const { secureLogger } = require('../middleware/secureLogger');
 
 /**
@@ -64,7 +64,7 @@ router.get('/', async (req, res) => {
  * Get category change log (admin only)
  * GET /api/categories/change-log
  */
-router.get('/change-log', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/change-log', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { limit = 50, offset = 0 } = req.query;
     
@@ -377,7 +377,7 @@ router.get('/content/:category_id', async (req, res) => {
   }
 });
 
-router.post('/content/:category_id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.post('/content/:category_id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { category_id } = req.params;
     const { hero_image, description, banner, featured_products, featured_artists } = req.body;
@@ -416,7 +416,7 @@ router.get('/seo/:category_id', async (req, res) => {
   }
 });
 
-router.post('/seo/:category_id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.post('/seo/:category_id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { category_id } = req.params;
     const { meta_title, meta_description, meta_keywords, canonical_url, json_ld } = req.body;

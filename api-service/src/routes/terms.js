@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
-const { requireRestrictedPermission } = require('../middleware/permissions');
+const { requirePermission } = require('../middleware/permissions');
 
 // GET /terms/current - Get current terms version
 router.get('/current', async (req, res) => {
@@ -101,7 +101,7 @@ router.post('/accept', verifyToken, async (req, res) => {
 
 // Admin endpoints
 // GET /terms/all - Get all terms versions (system management permission required)
-router.get('/all', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/all', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     
     const [terms] = await db.query(
@@ -129,7 +129,7 @@ router.get('/all', verifyToken, requireRestrictedPermission('manage_system'), as
 });
 
 // POST /terms/create - Create new terms version (system management permission required)
-router.post('/create', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.post('/create', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     
     const { version, title, content, setCurrent } = req.body;
@@ -171,7 +171,7 @@ router.post('/create', verifyToken, requireRestrictedPermission('manage_system')
 });
 
 // PUT /terms/:id/set-current - Set terms version as current (system management permission required)
-router.put('/:id/set-current', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.put('/:id/set-current', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     
     const termsId = req.params.id;
@@ -200,7 +200,7 @@ router.put('/:id/set-current', verifyToken, requireRestrictedPermission('manage_
 });
 
 // PUT /terms/:id - Update terms version (system management permission required)
-router.put('/:id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.put('/:id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     
     const termsId = req.params.id;
@@ -248,7 +248,7 @@ router.put('/:id', verifyToken, requireRestrictedPermission('manage_system'), as
 });
 
 // DELETE /terms/:id - Delete terms version (system management permission required)
-router.delete('/:id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.delete('/:id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     
     const termsId = req.params.id;

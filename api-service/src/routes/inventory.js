@@ -9,9 +9,9 @@ router.get('/:productId', verifyToken, async (req, res) => {
   try {
     const { productId } = req.params;
     
-    // Get product inventory
+    // Get product inventory with allocations
     const [inventory] = await db.query(
-      'SELECT * FROM product_inventory WHERE product_id = ?',
+      'SELECT * FROM product_inventory_with_allocations WHERE product_id = ?',
       [productId]
     );
     
@@ -47,9 +47,9 @@ router.get('/:productId', verifyToken, async (req, res) => {
           [productId, 'initial_stock', 0, qtyOnHand, 'Initial inventory setup', req.userId]
         );
         
-        // Get the created inventory record with calculated qty_available
+        // Get the created inventory record with calculated qty_available and allocations
         const [newInventory] = await db.query(
-          'SELECT * FROM product_inventory WHERE product_id = ?',
+          'SELECT * FROM product_inventory_with_allocations WHERE product_id = ?',
           [productId]
         );
         
@@ -134,9 +134,9 @@ router.put('/:productId', verifyToken, async (req, res) => {
         [productId, change_type, previousQty, qty_on_hand, reason, req.userId]
       );
       
-      // Get the updated inventory record to get the calculated qty_available
+      // Get the updated inventory record to get the calculated qty_available and allocations
       const [updatedInventory] = await db.query(
-        'SELECT * FROM product_inventory WHERE product_id = ?',
+        'SELECT * FROM product_inventory_with_allocations WHERE product_id = ?',
         [productId]
       );
       
@@ -157,7 +157,10 @@ router.put('/:productId', verifyToken, async (req, res) => {
         inventory: {
           qty_on_hand: qty_on_hand,
           qty_on_order: qtyOnOrder,
-          qty_available: newQtyAvailable
+          qty_available: newQtyAvailable,
+          qty_truly_available: updatedInventory[0].qty_truly_available,
+          total_allocated: updatedInventory[0].total_allocated,
+          tiktok_allocated: updatedInventory[0].tiktok_allocated
         }
       });
       

@@ -43,13 +43,15 @@ router.post('/exchange', async (req, res) => {
           if (userPermissions[0].manage_content) permissions.push('manage_content');
           if (userPermissions[0].manage_system) permissions.push('manage_system');
           if (userPermissions[0].verified) permissions.push('verified');
+          if (userPermissions[0].marketplace) permissions.push('marketplace');
+          if (userPermissions[0].shipping) permissions.push('shipping');
           if (userPermissions[0].sites) permissions.push('sites');
           if (userPermissions[0].professional_sites) permissions.push('professional_sites');
         }
         
         // Admin users get all permissions automatically
         if (roles.includes('admin')) {
-          const allPermissions = ['vendor', 'events', 'stripe_connect', 'manage_sites', 'manage_content', 'manage_system', 'verified', 'sites', 'professional_sites'];
+          const allPermissions = ['vendor', 'events', 'stripe_connect', 'manage_sites', 'manage_content', 'manage_system', 'verified', 'marketplace', 'shipping', 'sites', 'professional_sites'];
           for (const permission of allPermissions) {
             if (!permissions.includes(permission)) {
               permissions.push(permission);
@@ -182,6 +184,7 @@ router.post('/exchange', async (req, res) => {
       if (userPermissions[0].manage_content) permissions.push('manage_content');
       if (userPermissions[0].manage_system) permissions.push('manage_system');
       if (userPermissions[0].verified) permissions.push('verified');
+      if (userPermissions[0].marketplace) permissions.push('marketplace');
       if (userPermissions[0].shipping) permissions.push('shipping');
       if (userPermissions[0].sites) permissions.push('sites');
       if (userPermissions[0].professional_sites) permissions.push('professional_sites');
@@ -189,7 +192,7 @@ router.post('/exchange', async (req, res) => {
     
     // Admin users get all permissions automatically
     if (roles.includes('admin')) {
-      const allPermissions = ['vendor', 'events', 'stripe_connect', 'manage_sites', 'manage_content', 'manage_system', 'verified', 'shipping', 'sites', 'professional_sites'];
+      const allPermissions = ['vendor', 'events', 'stripe_connect', 'manage_sites', 'manage_content', 'manage_system', 'verified', 'marketplace', 'shipping', 'sites', 'professional_sites'];
       for (const permission of allPermissions) {
         if (!permissions.includes(permission)) {
           permissions.push(permission);
@@ -299,6 +302,7 @@ router.post('/refresh', async (req, res) => {
       if (userPermissions[0].manage_content) permissions.push('manage_content');
       if (userPermissions[0].manage_system) permissions.push('manage_system');
       if (userPermissions[0].verified) permissions.push('verified');
+      if (userPermissions[0].marketplace) permissions.push('marketplace');
       if (userPermissions[0].shipping) permissions.push('shipping');
       if (userPermissions[0].sites) permissions.push('sites');
       if (userPermissions[0].professional_sites) permissions.push('professional_sites');
@@ -306,7 +310,7 @@ router.post('/refresh', async (req, res) => {
     
     // Admin users get all permissions automatically
     if (roles.includes('admin')) {
-      const allPermissions = ['vendor', 'events', 'stripe_connect', 'manage_sites', 'manage_content', 'manage_system', 'verified', 'shipping', 'sites', 'professional_sites'];
+      const allPermissions = ['vendor', 'events', 'stripe_connect', 'manage_sites', 'manage_content', 'manage_system', 'verified', 'marketplace', 'shipping', 'sites', 'professional_sites'];
       for (const permission of allPermissions) {
         if (!permissions.includes(permission)) {
           permissions.push(permission);

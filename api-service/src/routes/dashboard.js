@@ -251,16 +251,30 @@ router.get('/permissions/my', verifyToken, async (req, res) => {
     const effectivePermissions = getEffectivePermissions(req);
     const userType = req.roles.find(role => ['admin', 'artist', 'promoter', 'community'].includes(role));
     
-    // Get permission descriptions
-    const [permissionInfo] = await db.query(
-      'SELECT permission_name, description, allowed_user_types FROM permission_restrictions WHERE permission_name IN (?)',
-      [effectivePermissions.length ? effectivePermissions : ['none']]
-    );
+    // Create permission descriptions (no longer using permission_restrictions table)
+    const permissionDescriptions = {
+      'vendor': 'E-commerce capabilities: products, orders, policies',
+      'events': 'Event management and ticketing',
+      'manage_sites': 'Website management capabilities',
+      'manage_content': 'Content creation: articles, topics, SEO',
+      'manage_system': 'System administration: users, announcements, domains',
+      'stripe_connect': 'Payment processing integration',
+      'verified': 'Artist verification status',
+      'marketplace': 'Marketplace participation',
+      'shipping': 'Shipping label management',
+      'sites': 'Basic site access',
+      'professional_sites': 'Professional site features'
+    };
+    
+    const permissionDetails = effectivePermissions.map(permission => ({
+      permission_name: permission,
+      description: permissionDescriptions[permission] || 'Permission access'
+    }));
     
     res.json({
       userType,
       permissions: effectivePermissions,
-      permissionDetails: permissionInfo,
+      permissionDetails: permissionDetails,
       canAccessAll: canAccessAll(req),
       isAdmin: req.roles.includes('admin')
     });

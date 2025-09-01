@@ -3,11 +3,11 @@ const router = express.Router();
 const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
 
-const { requireRestrictedPermission } = require('../middleware/permissions');
+const { requirePermission } = require('../middleware/permissions');
 
 // Middleware to verify site management permissions (replaces verifyArtist)
 // Now uses permission-based access instead of hardcoded user types
-const verifySiteAccess = requireRestrictedPermission('manage_sites');
+const verifySiteAccess = requirePermission('manage_sites');
 
 // ============================================================================
 // DISCOUNT MANAGEMENT ROUTES
@@ -60,7 +60,7 @@ router.get('/discounts/calculate', verifyToken, async (req, res) => {
 });
 
 // POST /sites/discounts - Add a discount for a user (admin only)
-router.post('/discounts', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.post('/discounts', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const {
       user_id,
@@ -119,7 +119,7 @@ router.post('/discounts', verifyToken, requireRestrictedPermission('manage_syste
 });
 
 // DELETE /sites/discounts/:id - Remove a discount (admin only)
-router.delete('/discounts/:id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.delete('/discounts/:id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const discountId = req.params.id;
 
@@ -183,7 +183,7 @@ router.get('/templates/:id', verifyToken, async (req, res) => {
 });
 
 // PUT /sites/template/:id - Apply template to user's site
-router.put('/template/:id', verifyToken, requireRestrictedPermission('manage_sites'), async (req, res) => {
+router.put('/template/:id', verifyToken, requirePermission('manage_sites'), async (req, res) => {
   try {
     const templateId = req.params.id;
     const userId = req.userId;
@@ -224,7 +224,7 @@ router.put('/template/:id', verifyToken, requireRestrictedPermission('manage_sit
 });
 
 // POST /sites/templates - Create new template (admin only)
-router.post('/templates', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.post('/templates', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const {
       template_name,
@@ -267,24 +267,51 @@ router.post('/templates', verifyToken, requireRestrictedPermission('manage_syste
 // GET /sites/addons - Get available addons (filtered by user's subscription tier)
 router.get('/addons', verifyToken, async (req, res) => {
   try {
-    // For now, return all active addons - subscription filtering will be added in Phase 3
+    // Get all active addons, marking which level they apply to
     const [addons] = await db.execute(`
-      SELECT id, addon_name, addon_slug, description, tier_required, monthly_price
+      SELECT 
+        id, 
+        addon_name, 
+        addon_slug, 
+        description, 
+        tier_required, 
+        monthly_price,
+        user_level,
+        category,
+        CASE 
+          WHEN user_level = 1 THEN 'user' 
+          ELSE 'site' 
+        END as addon_scope
       FROM website_addons 
       WHERE is_active = 1 
-      ORDER BY display_order ASC, addon_name ASC
+      ORDER BY user_level DESC, display_order ASC, addon_name ASC
     `);
 
-    res.json({ success: true, addons });
+    // Check which user-level addons the user already has
+    const [userAddons] = await db.execute(`
+      SELECT addon_slug 
+      FROM user_addons 
+      WHERE user_id = ? AND is_active = 1
+    `, [req.userId]);
+
+    const userAddonSlugs = userAddons.map(ua => ua.addon_slug);
+
+    // Mark addons with ownership status
+    const addonsWithStatus = addons.map(addon => ({
+      ...addon,
+      user_already_has: addon.user_level === 1 ? userAddonSlugs.includes(addon.addon_slug) : false
+    }));
+
+    res.json({ success: true, addons: addonsWithStatus });
 
   } catch (error) {
-    // Error('Error fetching addons:', error);
+    console.error('Error fetching addons:', error);
     res.status(500).json({ error: 'Failed to fetch addons' });
   }
 });
 
 // GET /sites/my-addons - Get user's active addons
-router.get('/my-addons', verifyToken, requireRestrictedPermission('manage_sites'), async (req, res) => {
+router.get('/my-addons', verifyToken, requirePermission('manage_sites'), async (req, res) => {
   try {
     const userId = req.userId;
 
@@ -350,7 +377,7 @@ router.get('/:id/addons', async (req, res) => {
 });
 
 // POST /sites/addons/:id - Add addon to user's site
-router.post('/addons/:id', verifyToken, requireRestrictedPermission('manage_sites'), async (req, res) => {
+router.post('/addons/:id', verifyToken, requirePermission('manage_sites'), async (req, res) => {
   try {
     const addonId = req.params.id;
     const userId = req.userId;
@@ -404,7 +431,7 @@ router.post('/addons/:id', verifyToken, requireRestrictedPermission('manage_site
 });
 
 // DELETE /sites/addons/:id - Remove addon from user's site
-router.delete('/addons/:id', verifyToken, requireRestrictedPermission('manage_sites'), async (req, res) => {
+router.delete('/addons/:id', verifyToken, requirePermission('manage_sites'), async (req, res) => {
   try {
     const addonId = req.params.id;
     const userId = req.userId;
@@ -439,8 +466,59 @@ router.delete('/addons/:id', verifyToken, requireRestrictedPermission('manage_si
   }
 });
 
+// POST /sites/user-addons/:id - Activate user-level addon
+router.post('/user-addons/:id', verifyToken, async (req, res) => {
+  try {
+    const addonId = req.params.id;
+    const userId = req.userId;
+
+    // Verify addon exists, is active, and is user-level
+    const [addon] = await db.execute(`
+      SELECT id, addon_name, addon_slug, user_level FROM website_addons 
+      WHERE id = ? AND is_active = 1 AND user_level = 1
+    `, [addonId]);
+
+    if (addon.length === 0) {
+      return res.status(404).json({ error: 'User-level addon not found' });
+    }
+
+    const addonData = addon[0];
+
+    // Check if user already has this addon active
+    const [existing] = await db.execute(`
+      SELECT id FROM user_addons 
+      WHERE user_id = ? AND addon_slug = ? AND is_active = 1
+    `, [userId, addonData.addon_slug]);
+
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'You already have this add-on activated' });
+    }
+
+    // Activate the user-level addon
+    await db.execute(`
+      INSERT INTO user_addons (user_id, addon_slug, subscription_source) 
+      VALUES (?, ?, 'marketplace_subscription')
+      ON DUPLICATE KEY UPDATE 
+        is_active = 1, 
+        activated_at = CURRENT_TIMESTAMP,
+        deactivated_at = NULL,
+        subscription_source = 'marketplace_subscription'
+    `, [userId, addonData.addon_slug]);
+
+    res.json({ 
+      success: true, 
+      message: `${addonData.addon_name} activated successfully`,
+      addon_id: addonId 
+    });
+
+  } catch (error) {
+    console.error('Error activating user addon:', error);
+    res.status(500).json({ error: 'Failed to activate add-on' });
+  }
+});
+
 // POST /sites/addons - Create new addon (admin only)
-router.post('/addons', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.post('/addons', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const {
       addon_name,
@@ -481,7 +559,7 @@ router.post('/addons', verifyToken, requireRestrictedPermission('manage_system')
 // ============================================================================
 
 // GET /sites/me - Get current user's sites
-router.get('/me', verifyToken, requireRestrictedPermission('manage_sites'), async (req, res) => {
+router.get('/me', verifyToken, requirePermission('manage_sites'), async (req, res) => {
   try {
     const [sites] = await db.query(
       'SELECT * FROM sites WHERE user_id = ? ORDER BY created_at DESC',
@@ -965,7 +1043,7 @@ router.get('/resolve/:subdomain/categories', async (req, res) => {
 // ============================================================================
 
 // GET /sites/:id/customizations - Get site customization settings
-router.get('/:id/customizations', verifyToken, requireRestrictedPermission('sites'), async (req, res) => {
+router.get('/:id/customizations', verifyToken, requirePermission('sites'), async (req, res) => {
   try {
     const siteId = req.params.id;
     const userId = req.userId;
@@ -1015,7 +1093,7 @@ router.get('/:id/customizations', verifyToken, requireRestrictedPermission('site
 });
 
 // PUT /sites/:id/customizations - Update site customization settings
-router.put('/:id/customizations', verifyToken, requireRestrictedPermission('sites'), async (req, res) => {
+router.put('/:id/customizations', verifyToken, requirePermission('sites'), async (req, res) => {
   try {
     const siteId = req.params.id;
     const userId = req.userId;

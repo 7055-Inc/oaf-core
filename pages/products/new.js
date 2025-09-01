@@ -30,6 +30,7 @@ export default function NewProduct() {
     user_category_id: '',
     sku: '',
     status: 'draft',
+    allow_returns: true,
     // Inventory fields for initial setup
     beginning_inventory: 0,
     reorder_qty: 0,
@@ -783,6 +784,27 @@ export default function NewProduct() {
                 />
                 <small className={styles.helpText}>
                   This complete description will be shown on your product page
+                </small>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Returns Policy</label>
+                <div className={styles.toggleContainer}>
+                  <label className="toggle">
+                    <input
+                      type="checkbox"
+                      name="allow_returns"
+                      checked={formData.allow_returns}
+                      onChange={handleChange}
+                    />
+                    <span className="slider"></span>
+                    <span className="toggle-label">
+                      {formData.allow_returns ? 'Returns Allowed' : 'No Returns'}
+                    </span>
+                  </label>
+                </div>
+                <small className={styles.helpText}>
+                  Allow customers to request returns for this product
                 </small>
               </div>
           </div>

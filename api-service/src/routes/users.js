@@ -71,6 +71,83 @@ router.get('/me', verifyToken, async (req, res) => {
       }
     }
     
+    // Get marketplace application data if it exists
+    const [marketplaceApp] = await db.query(
+      `SELECT 
+        work_description, additional_info, profile_data,
+        marketplace_status, marketplace_reviewed_by, marketplace_review_date, marketplace_admin_notes,
+        verification_status, verification_reviewed_by, verification_review_date, verification_admin_notes,
+        raw_materials_media_id, work_process_1_media_id, work_process_2_media_id, work_process_3_media_id,
+        artist_at_work_media_id, booth_display_media_id, artist_working_video_media_id,
+        artist_bio_video_media_id, additional_video_media_id, created_at, updated_at
+      FROM marketplace_applications 
+      WHERE user_id = ?`,
+      [req.userId]
+    );
+    
+    if (marketplaceApp[0]) {
+      // Get processed media URLs for jury materials
+      const mediaIds = [
+        marketplaceApp[0].raw_materials_media_id,
+        marketplaceApp[0].work_process_1_media_id,
+        marketplaceApp[0].work_process_2_media_id,
+        marketplaceApp[0].work_process_3_media_id,
+        marketplaceApp[0].artist_at_work_media_id,
+        marketplaceApp[0].booth_display_media_id,
+        marketplaceApp[0].artist_working_video_media_id,
+        marketplaceApp[0].artist_bio_video_media_id,
+        marketplaceApp[0].additional_video_media_id
+      ].filter(id => id !== null);
+      
+      if (mediaIds.length > 0) {
+        const [mediaUrls] = await db.query(
+          `SELECT id, permanent_url, status FROM pending_images WHERE id IN (${mediaIds.map(() => '?').join(',')})`,
+          mediaIds
+        );
+        
+        // Map media URLs back to the application
+        const mediaMapping = {};
+        mediaUrls.forEach(media => {
+          if (media.permanent_url) {
+            mediaMapping[media.id] = `https://api2.onlineartfestival.com/api/images/${media.permanent_url}`;
+          }
+        });
+        
+        // Add processed media URLs to the marketplace application
+        marketplaceApp[0].media_urls = {
+          raw_materials: marketplaceApp[0].raw_materials_media_id ? mediaMapping[marketplaceApp[0].raw_materials_media_id] : null,
+          work_process_1: marketplaceApp[0].work_process_1_media_id ? mediaMapping[marketplaceApp[0].work_process_1_media_id] : null,
+          work_process_2: marketplaceApp[0].work_process_2_media_id ? mediaMapping[marketplaceApp[0].work_process_2_media_id] : null,
+          work_process_3: marketplaceApp[0].work_process_3_media_id ? mediaMapping[marketplaceApp[0].work_process_3_media_id] : null,
+          artist_at_work: marketplaceApp[0].artist_at_work_media_id ? mediaMapping[marketplaceApp[0].artist_at_work_media_id] : null,
+          booth_display: marketplaceApp[0].booth_display_media_id ? mediaMapping[marketplaceApp[0].booth_display_media_id] : null,
+          artist_working_video: marketplaceApp[0].artist_working_video_media_id ? mediaMapping[marketplaceApp[0].artist_working_video_media_id] : null,
+          artist_bio_video: marketplaceApp[0].artist_bio_video_media_id ? mediaMapping[marketplaceApp[0].artist_bio_video_media_id] : null,
+          additional_video: marketplaceApp[0].additional_video_media_id ? mediaMapping[marketplaceApp[0].additional_video_media_id] : null
+        };
+      }
+      
+      userData.marketplace_application = marketplaceApp[0];
+    }
+    
+    // Get user's active addons
+    const [userAddons] = await db.query(
+      `SELECT ua.*, wa.addon_name, wa.description, wa.monthly_price, wa.category 
+       FROM user_addons ua 
+       JOIN website_addons wa ON ua.addon_slug = wa.addon_slug 
+       WHERE ua.user_id = ? AND ua.is_active = 1`,
+      [req.userId]
+    );
+    
+    if (userAddons && userAddons.length > 0) {
+      userData.addons = userAddons;
+      // Also provide a simplified array of addon slugs for easy checking
+      userData.addon_slugs = userAddons.map(addon => addon.addon_slug);
+    } else {
+      userData.addons = [];
+      userData.addon_slugs = [];
+    }
+    
     // Enhance with processed media URLs
     const enhancedUserData = await enhanceUserProfileWithMedia(userData);
     res.json(enhancedUserData);
@@ -175,7 +252,18 @@ router.patch('/me',
   upload.fields([
     { name: 'profile_image', maxCount: 1 },
     { name: 'header_image', maxCount: 1 },
-    { name: 'logo_image', maxCount: 1 }
+    { name: 'logo_image', maxCount: 1 },
+    { name: 'site_image', maxCount: 1 },
+    // Jury media fields
+    { name: 'jury_raw_materials', maxCount: 1 },
+    { name: 'jury_work_process_1', maxCount: 1 },
+    { name: 'jury_work_process_2', maxCount: 1 },
+    { name: 'jury_work_process_3', maxCount: 1 },
+    { name: 'jury_artist_at_work', maxCount: 1 },
+    { name: 'jury_booth_display', maxCount: 1 },
+    { name: 'jury_artist_working_video', maxCount: 1 },
+    { name: 'jury_artist_bio_video', maxCount: 1 },
+    { name: 'jury_additional_video', maxCount: 1 }
   ]),
   async (req, res) => {
     try {
@@ -251,6 +339,29 @@ router.patch('/me',
           'INSERT INTO pending_images (user_id, image_path, original_name, mime_type, status) VALUES (?, ?, ?, ?, ?)',
           [req.userId, siteImagePath, file.originalname, file.mimetype, 'pending']
         );
+      }
+
+      // Handle jury media uploads and store pending_image IDs for marketplace application
+      const juryMediaIds = {};
+      const juryFields = [
+        'jury_raw_materials', 'jury_work_process_1', 'jury_work_process_2', 'jury_work_process_3',
+        'jury_artist_at_work', 'jury_booth_display', 'jury_artist_working_video', 
+        'jury_artist_bio_video', 'jury_additional_video'
+      ];
+
+      for (const fieldName of juryFields) {
+        if (req.files[fieldName]) {
+          const file = req.files[fieldName][0];
+          const juryMediaPath = `/temp_images/jury/${file.filename}`;
+          
+          const [result] = await db.query(
+            'INSERT INTO pending_images (user_id, image_path, original_name, mime_type, status) VALUES (?, ?, ?, ?, ?)',
+            [req.userId, juryMediaPath, file.originalname, file.mimetype, 'pending']
+          );
+          
+          // Store the pending_images ID for this field
+          juryMediaIds[fieldName] = result.insertId;
+        }
       }
 
       // Process JSON fields properly
@@ -437,7 +548,68 @@ router.patch('/me',
         );
       }
 
-      res.json({ message: 'Profile updated successfully' });
+      // Handle marketplace application if jury media or application data is provided
+      const { work_description, additional_info, marketplace_application } = req.body;
+      
+      if (work_description || additional_info || Object.keys(juryMediaIds).length > 0 || marketplace_application) {
+        // Get current user profile for the application
+        const [userProfile] = await db.query(
+          'SELECT u.username, up.first_name, up.last_name, up.phone, up.address_line1, up.city, up.state, up.postal_code, ' +
+          'ap.business_name, ap.business_phone, ap.business_website, ap.customer_service_email, ' +
+          'ap.business_social_facebook, ap.business_social_instagram ' +
+          'FROM users u ' +
+          'LEFT JOIN user_profiles up ON u.id = up.user_id ' +
+          'LEFT JOIN artist_profiles ap ON u.id = ap.user_id ' +
+          'WHERE u.id = ?',
+          [req.userId]
+        );
+
+        // Create or update marketplace application
+        const profileData = userProfile[0] ? JSON.stringify(userProfile[0]) : null;
+        
+        await db.query(
+          `INSERT INTO marketplace_applications (
+            user_id, work_description, additional_info, profile_data,
+            raw_materials_media_id, work_process_1_media_id, work_process_2_media_id, work_process_3_media_id,
+            artist_at_work_media_id, booth_display_media_id, artist_working_video_media_id,
+            artist_bio_video_media_id, additional_video_media_id
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            work_description = VALUES(work_description),
+            additional_info = VALUES(additional_info),
+            profile_data = VALUES(profile_data),
+            raw_materials_media_id = COALESCE(VALUES(raw_materials_media_id), raw_materials_media_id),
+            work_process_1_media_id = COALESCE(VALUES(work_process_1_media_id), work_process_1_media_id),
+            work_process_2_media_id = COALESCE(VALUES(work_process_2_media_id), work_process_2_media_id),
+            work_process_3_media_id = COALESCE(VALUES(work_process_3_media_id), work_process_3_media_id),
+            artist_at_work_media_id = COALESCE(VALUES(artist_at_work_media_id), artist_at_work_media_id),
+            booth_display_media_id = COALESCE(VALUES(booth_display_media_id), booth_display_media_id),
+            artist_working_video_media_id = COALESCE(VALUES(artist_working_video_media_id), artist_working_video_media_id),
+            artist_bio_video_media_id = COALESCE(VALUES(artist_bio_video_media_id), artist_bio_video_media_id),
+            additional_video_media_id = COALESCE(VALUES(additional_video_media_id), additional_video_media_id),
+            updated_at = CURRENT_TIMESTAMP`,
+          [
+            req.userId,
+            work_description || null,
+            additional_info || null,
+            profileData,
+            juryMediaIds['jury_raw_materials'] || null,
+            juryMediaIds['jury_work_process_1'] || null,
+            juryMediaIds['jury_work_process_2'] || null,
+            juryMediaIds['jury_work_process_3'] || null,
+            juryMediaIds['jury_artist_at_work'] || null,
+            juryMediaIds['jury_booth_display'] || null,
+            juryMediaIds['jury_artist_working_video'] || null,
+            juryMediaIds['jury_artist_bio_video'] || null,
+            juryMediaIds['jury_additional_video'] || null
+          ]
+        );
+      }
+
+      res.json({ 
+        message: 'Profile updated successfully',
+        uploadedFiles: Object.keys(juryMediaIds).length > 0 ? juryMediaIds : undefined
+      });
     } catch (err) {
       console.error('Error updating user profile:', err.message);
       res.setHeader('Content-Type', 'application/json');

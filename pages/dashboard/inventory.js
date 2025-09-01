@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '../../components/Header';
 import { authenticatedApiRequest } from '../../lib/csrf';
+import { hasAddon } from '../../lib/userUtils';
 import styles from './Inventory.module.css';
 
 export default function InventoryManagement() {
@@ -12,6 +13,7 @@ export default function InventoryManagement() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [userPermissions, setUserPermissions] = useState(null);
+  const [userData, setUserData] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [bulkAdjustment, setBulkAdjustment] = useState({
@@ -23,6 +25,12 @@ export default function InventoryManagement() {
   const [adjustingInventory, setAdjustingInventory] = useState(false);
 
   const router = useRouter();
+
+  // Check user addons for dynamic columns
+  const hasTikTokAddon = userData ? hasAddon(userData, 'tiktok-connector') : false;
+  const hasAmazonAddon = userData ? hasAddon(userData, 'amazon-connector') : false;
+  const hasEtsyAddon = userData ? hasAddon(userData, 'etsy-connector') : false;
+  const hasAnyMarketplaceAddon = hasTikTokAddon || hasAmazonAddon || hasEtsyAddon;
 
   useEffect(() => {
     fetchUserPermissions();
@@ -47,8 +55,9 @@ export default function InventoryManagement() {
     try {
       const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/users/me');
       if (response.ok) {
-        const userData = await response.json();
-        setUserPermissions(userData);
+        const userDataResponse = await response.json();
+        setUserData(userDataResponse);
+        setUserPermissions(userDataResponse);
       }
     } catch (err) {
       console.error('Error fetching user permissions:', err);
@@ -294,6 +303,10 @@ export default function InventoryManagement() {
                 <th>On Hand</th>
                 <th>On Order</th>
                 <th>Available</th>
+                {hasAnyMarketplaceAddon && <th>Total Allocated</th>}
+                {hasTikTokAddon && <th>TT Allocated</th>}
+                {hasAmazonAddon && <th>AMZ Allocated</th>}
+                {hasEtsyAddon && <th>Etsy Allocated</th>}
                 <th>Reorder Level</th>
                 <th>Status</th>
                 <th>Actions</th>
@@ -308,6 +321,10 @@ export default function InventoryManagement() {
                   onSelect={handleProductSelect}
                   onInventoryUpdate={handleSingleInventoryUpdate}
                   showVendor={isAdmin}
+                  hasAnyMarketplaceAddon={hasAnyMarketplaceAddon}
+                  hasTikTokAddon={hasTikTokAddon}
+                  hasAmazonAddon={hasAmazonAddon}
+                  hasEtsyAddon={hasEtsyAddon}
                 />
               ))}
             </tbody>
@@ -386,7 +403,7 @@ export default function InventoryManagement() {
 }
 
 // Individual product row component
-function InventoryRow({ product, isSelected, onSelect, onInventoryUpdate, showVendor }) {
+function InventoryRow({ product, isSelected, onSelect, onInventoryUpdate, showVendor, hasAnyMarketplaceAddon, hasTikTokAddon, hasAmazonAddon, hasEtsyAddon }) {
   const [editing, setEditing] = useState(false);
   const [newQuantity, setNewQuantity] = useState(product.inventory?.qty_on_hand || 0);
   const [adjustmentReason, setAdjustmentReason] = useState('');
@@ -404,7 +421,10 @@ function InventoryRow({ product, isSelected, onSelect, onInventoryUpdate, showVe
   };
 
   const getStatusBadge = () => {
-    const available = product.inventory?.qty_available || 0;
+    // Use truly available (after allocations) for status, fallback to regular available
+    const available = product.inventory?.qty_truly_available !== undefined 
+      ? product.inventory.qty_truly_available 
+      : product.inventory?.qty_available || 0;
     const reorderLevel = product.inventory?.reorder_qty || 0;
     
     if (available <= 0) {
@@ -448,6 +468,10 @@ function InventoryRow({ product, isSelected, onSelect, onInventoryUpdate, showVe
       </td>
       <td>{product.inventory?.qty_on_order || 0}</td>
       <td>{product.inventory?.qty_available || 0}</td>
+      {hasAnyMarketplaceAddon && <td>{product.inventory?.total_allocated || 0}</td>}
+      {hasTikTokAddon && <td>{product.inventory?.tiktok_allocated || 0}</td>}
+      {hasAmazonAddon && <td>{product.inventory?.amazon_allocated || 0}</td>}
+      {hasEtsyAddon && <td>{product.inventory?.etsy_allocated || 0}</td>}
       <td>{product.inventory?.reorder_qty || 0}</td>
       <td>{getStatusBadge()}</td>
       <td>

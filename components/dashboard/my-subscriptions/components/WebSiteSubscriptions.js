@@ -906,6 +906,73 @@ function SiteManagementContent({
     }
   };
 
+  // Handler for user-level addons (works across all sites and marketplace)
+  const handleUserAddonPurchase = async (addon) => {
+    try {
+      setProcessing(true);
+      setError(null);
+      
+      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/sites/user-addons/${addon.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        // Refresh available addons to update user_already_has status
+        await fetchTemplatesAndAddons();
+        alert('Add-on activated successfully! This add-on now works across all your websites and marketplace.');
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to activate add-on');
+      }
+    } catch (error) {
+      console.error('Error activating user addon:', error);
+      setError('Error activating add-on. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Handler for site-specific addons (renamed from handleAddonToggle for clarity)
+  const handleSiteAddonToggle = async (addon, isActive) => {
+    try {
+      setProcessing(true);
+      setError(null);
+      
+      if (isActive) {
+        // Remove site addon
+        const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/sites/addons/${addon.id}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+          await fetchSiteAddons(); // Refresh the list
+        } else {
+          const errorData = await response.json();
+          setError(errorData.error || 'Failed to remove addon');
+        }
+      } else {
+        // Add site addon
+        const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/sites/addons/${addon.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+          await fetchSiteAddons(); // Refresh the list
+        } else {
+          const errorData = await response.json();
+          setError(errorData.error || 'Failed to add addon');
+        }
+      }
+    } catch (error) {
+      setError(`Error ${isActive ? 'removing' : 'adding'} addon`);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const handleTemplateChange = async (templateId) => {
     try {
       setProcessing(true);
@@ -1213,15 +1280,116 @@ function SiteManagementContent({
         </div>
       </div>
 
-      {/* Addon Management - Only for manage_sites users */}
+      {/* User-Wide Add-ons - Available to all users */}
+      <div style={{ marginBottom: '20px' }}>
+        <h4 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>User-Wide Add-ons</h4>
+        <p style={{ margin: '0 0 15px 0', color: '#6c757d', fontSize: '14px' }}>
+          These add-ons work across all your websites and marketplace
+        </p>
+        
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', 
+          gap: '15px' 
+        }}>
+          {availableAddons.filter(addon => addon.user_level === 1).map(addon => (
+            <div key={addon.id} style={{
+              background: 'white',
+              border: '1px solid #dee2e6',
+              borderRadius: '2px',
+              padding: '15px',
+              opacity: addon.user_already_has ? 0.7 : 1
+            }}>
+              <div style={{ 
+                fontSize: '16px', 
+                fontWeight: 'bold', 
+                color: '#2c3e50',
+                marginBottom: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                {addon.addon_name}
+                <span style={{
+                  background: '#e3f2fd',
+                  color: '#1976d2',
+                  padding: '2px 6px',
+                  borderRadius: '3px',
+                  fontSize: '11px',
+                  fontWeight: 'bold'
+                }}>
+                  USER-WIDE
+                </span>
+                {addon.user_already_has && (
+                  <span style={{
+                    background: '#e8f5e8',
+                    color: '#2e7d32',
+                    padding: '2px 6px',
+                    borderRadius: '3px',
+                    fontSize: '11px',
+                    fontWeight: 'bold'
+                  }}>
+                    OWNED
+                  </span>
+                )}
+              </div>
+              <div style={{ 
+                fontSize: '14px', 
+                color: '#6c757d',
+                marginBottom: '8px',
+                minHeight: '40px'
+              }}>
+                {addon.description}
+              </div>
+              <div style={{ 
+                fontSize: '14px', 
+                fontWeight: 'bold',
+                color: '#055474',
+                marginBottom: '12px'
+              }}>
+                {addon.user_already_has ? (
+                  <span style={{ color: '#2e7d32' }}>✓ Owned</span>
+                ) : (
+                  `$${addon.monthly_price}/month`
+                )}
+              </div>
+              <button
+                onClick={() => addon.user_already_has ? 
+                  alert('You already own this add-on!') : 
+                  handleUserAddonPurchase(addon)
+                }
+                disabled={addon.user_already_has || processing}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  background: addon.user_already_has ? '#6c757d' : '#055474',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '2px',
+                  cursor: addon.user_already_has ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 'bold'
+                }}
+              >
+                {addon.user_already_has ? 'Owned' : 'Add Add-on'}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Site-Specific Add-ons - Only for manage_sites users */}
       {hasManageSites && (
-              <div style={{ marginBottom: '20px' }}>
-          <h4 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>Add-ons</h4>
+        <div style={{ marginBottom: '20px' }}>
+          <h4 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>Site-Specific Add-ons</h4>
+          <p style={{ margin: '0 0 15px 0', color: '#6c757d', fontSize: '14px' }}>
+            These add-ons are activated per individual website
+          </p>
           
-          {/* Current Addons */}
+          {/* Current Site Addons */}
           {siteAddons.length > 0 && (
             <div style={{ marginBottom: '15px' }}>
-              <h5 style={{ margin: '0 0 10px 0', color: '#495057', fontSize: '14px' }}>Active Add-ons</h5>
+              <h5 style={{ margin: '0 0 10px 0', color: '#495057', fontSize: '14px' }}>Active for This Site</h5>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                 {siteAddons.map(addon => (
                   <div key={addon.id} style={{
@@ -1236,7 +1404,7 @@ function SiteManagementContent({
                   }}>
                     {addon.addon_name}
                     <button
-                      onClick={() => handleAddonToggle(addon, true)}
+                      onClick={() => handleSiteAddonToggle(addon, true)}
                       disabled={processing}
                       style={{
                         background: 'none',
@@ -1249,21 +1417,21 @@ function SiteManagementContent({
                     >
                       ×
                     </button>
-              </div>
+                  </div>
                 ))}
-            </div>
+              </div>
             </div>
           )}
 
-          {/* Available Addons */}
+          {/* Available Site Addons */}
           <div>
-            <h5 style={{ margin: '0 0 10px 0', color: '#495057', fontSize: '14px' }}>Available Add-ons</h5>
+            <h5 style={{ margin: '0 0 10px 0', color: '#495057', fontSize: '14px' }}>Available Site Add-ons</h5>
             <div style={{ 
               display: 'grid', 
               gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
               gap: '10px' 
             }}>
-              {availableAddons.map(addon => {
+              {availableAddons.filter(addon => addon.user_level !== 1).map(addon => {
                 const isActive = siteAddons.some(sa => sa.addon_id === addon.id);
                 return (
                   <div key={addon.id} style={{
@@ -1286,18 +1454,18 @@ function SiteManagementContent({
                       color: '#6c757d',
                       marginBottom: '8px'
                     }}>
-                      ${addon.monthly_price}/month
+                      ${addon.monthly_price}/month per site
                     </div>
-            <button
-                      onClick={() => handleAddonToggle(addon, isActive)}
+                    <button
+                      onClick={() => handleSiteAddonToggle(addon, isActive)}
                       disabled={processing}
-              style={{
-                width: '100%',
+                      style={{
+                        width: '100%',
                         padding: '6px',
                         background: isActive ? '#dc3545' : '#055474',
-                color: 'white',
-                border: 'none',
-                borderRadius: '2px',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '2px',
                         cursor: processing ? 'not-allowed' : 'pointer',
                         fontSize: '12px'
                       }}

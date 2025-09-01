@@ -365,54 +365,177 @@ export default function PricingTiers({ userData, onSubscriptionSuccess }) {
             {(selectedTier === 'Business Plan' || selectedTier === 'Promoter Plan' || selectedTier === 'Promoter Business Plan') && (
               <div style={{ marginBottom: '30px' }}>
                 <h4 style={{ color: '#2c3e50', marginBottom: '15px' }}>Select Add-ons</h4>
-                <div style={{ 
-                  background: '#f8f9fa', 
-                  padding: '20px', 
-                  borderRadius: '2px',
-                  border: '1px solid #dee2e6'
-                }}>
-                  {availableAddons.length > 0 ? (
-                    availableAddons.map(addon => (
-                      <div key={addon.id} style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '10px 0',
-                        borderBottom: '1px solid #e9ecef'
+                
+                {/* User-Level Addons Section */}
+                {(() => {
+                  const userLevelAddons = availableAddons.filter(addon => addon.user_level === 1);
+                  return userLevelAddons.length > 0 && (
+                    <div style={{ marginBottom: '20px' }}>
+                      <h5 style={{ color: '#495057', marginBottom: '10px', fontSize: '14px' }}>
+                        Works across all sites and marketplace
+                      </h5>
+                      <div style={{ 
+                        background: '#e8f4fd', 
+                        padding: '15px', 
+                        borderRadius: '2px',
+                        border: '1px solid #b8daff',
+                        marginBottom: '15px'
                       }}>
-                        <div style={{ flex: 1 }}>
-                          <label style={{
+                        {userLevelAddons.map(addon => (
+                          <div key={addon.id} style={{
                             display: 'flex',
+                            justifyContent: 'space-between',
                             alignItems: 'center',
-                            cursor: 'pointer'
+                            padding: '10px 0',
+                            borderBottom: userLevelAddons.indexOf(addon) < userLevelAddons.length - 1 ? '1px solid #b8daff' : 'none',
+                            opacity: addon.user_already_has ? 0.6 : 1
                           }}>
-                            <input
-                              type="checkbox"
-                              checked={selectedAddons.find(a => a.id === addon.id) || false}
-                              onChange={() => handleAddonToggle(addon)}
-                              style={{ marginRight: '10px' }}
-                            />
-                            <div>
-                              <strong>{addon.addon_name}</strong>
-                              {addon.description && (
-                                <div style={{ color: '#6c757d', fontSize: '14px' }}>
-                                  {addon.description}
+                            <div style={{ flex: 1 }}>
+                              <label style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                cursor: addon.user_already_has ? 'not-allowed' : 'pointer'
+                              }}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedAddons.find(a => a.id === addon.id) || false}
+                                  onChange={() => !addon.user_already_has && handleAddonToggle(addon)}
+                                  disabled={addon.user_already_has}
+                                  style={{ marginRight: '10px' }}
+                                />
+                                <div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <strong>{addon.addon_name}</strong>
+                                    <span style={{
+                                      background: '#1976d2',
+                                      color: 'white',
+                                      padding: '2px 6px',
+                                      borderRadius: '3px',
+                                      fontSize: '11px',
+                                      fontWeight: 'bold'
+                                    }}>
+                                      USER-WIDE
+                                    </span>
+                                    {addon.user_already_has && (
+                                      <span style={{
+                                        background: '#e8f5e8',
+                                        color: '#2e7d32',
+                                        padding: '2px 6px',
+                                        borderRadius: '3px',
+                                        fontSize: '11px',
+                                        fontWeight: 'bold'
+                                      }}>
+                                        OWNED
+                                      </span>
+                                    )}
+                                  </div>
+                                  {addon.description && (
+                                    <div style={{ color: '#495057', fontSize: '14px' }}>
+                                      {addon.description}
+                                      <span style={{ fontStyle: 'italic' }}>
+                                        {' '}- Applies to all your websites and marketplace
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
+                              </label>
+                            </div>
+                            <div style={{ color: '#2c3e50', fontWeight: 'bold' }}>
+                              {addon.user_already_has ? (
+                                <span style={{ color: '#2e7d32' }}>✓ Owned</span>
+                              ) : (
+                                `$${addon.monthly_price}/mo`
                               )}
                             </div>
-                          </label>
-                        </div>
-                        <div style={{ color: '#2c3e50', fontWeight: 'bold' }}>
-                          ${addon.monthly_price}/mo
-                        </div>
+                          </div>
+                        ))}
                       </div>
-                    ))
-                  ) : (
-                    <p style={{ color: '#6c757d', textAlign: 'center', margin: 0 }}>
+                    </div>
+                  );
+                })()}
+
+                {/* Site-Level Addons Section */}
+                {(() => {
+                  const siteLevelAddons = availableAddons.filter(addon => addon.user_level === 0);
+                  return siteLevelAddons.length > 0 && (
+                    <div>
+                      <h5 style={{ color: '#495057', marginBottom: '10px', fontSize: '14px' }}>
+                        Per site add-ons
+                      </h5>
+                      <div style={{ 
+                        background: '#f8f9fa', 
+                        padding: '15px', 
+                        borderRadius: '2px',
+                        border: '1px solid #dee2e6'
+                      }}>
+                        {siteLevelAddons.map(addon => (
+                          <div key={addon.id} style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '10px 0',
+                            borderBottom: siteLevelAddons.indexOf(addon) < siteLevelAddons.length - 1 ? '1px solid #e9ecef' : 'none'
+                          }}>
+                            <div style={{ flex: 1 }}>
+                              <label style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                cursor: 'pointer'
+                              }}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedAddons.find(a => a.id === addon.id) || false}
+                                  onChange={() => handleAddonToggle(addon)}
+                                  style={{ marginRight: '10px' }}
+                                />
+                                <div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <strong>{addon.addon_name}</strong>
+                                    <span style={{
+                                      background: '#f0f0f0',
+                                      color: '#666',
+                                      padding: '2px 6px',
+                                      borderRadius: '3px',
+                                      fontSize: '11px',
+                                      fontWeight: 'bold'
+                                    }}>
+                                      PER SITE
+                                    </span>
+                                  </div>
+                                  {addon.description && (
+                                    <div style={{ color: '#6c757d', fontSize: '14px' }}>
+                                      {addon.description}
+                                      <span style={{ fontStyle: 'italic' }}>
+                                        {' '}- Applies to individual websites
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </label>
+                            </div>
+                            <div style={{ color: '#2c3e50', fontWeight: 'bold' }}>
+                              ${addon.monthly_price}/mo
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {availableAddons.length === 0 && (
+                  <div style={{ 
+                    background: '#f8f9fa', 
+                    padding: '20px', 
+                    borderRadius: '2px',
+                    border: '1px solid #dee2e6',
+                    textAlign: 'center'
+                  }}>
+                    <p style={{ color: '#6c757d', margin: 0 }}>
                       Loading available add-ons...
                     </p>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             )}
 

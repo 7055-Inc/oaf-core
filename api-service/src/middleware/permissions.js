@@ -69,45 +69,8 @@ const requireAllAccess = (req, res, next) => {
   next();
 };
 
-/**
- * Validate that a user type is allowed to have a specific permission
- * Used when granting permissions to ensure business rules are followed
- */
-const canUserTypeHavePermission = async (userType, permission) => {
-  try {
-    const [restrictions] = await db.query(
-      'SELECT allowed_user_types FROM permission_restrictions WHERE permission_name = ?',
-      [permission]
-    );
-    
-    if (!restrictions[0]) {
-      return false; // Permission doesn't exist
-    }
-    
-    const allowedTypes = JSON.parse(restrictions[0].allowed_user_types);
-    return allowedTypes.includes(userType);
-  } catch (err) {
-    console.error('Error checking permission restrictions:', err);
-    return false;
-  }
-};
-
-/**
- * Permission middleware that checks if user has required permission
- * Usage: router.post('/sites', verifyToken, requireRestrictedPermission('manage_sites'), handler)
- */
-const requireRestrictedPermission = (permission) => {
-  return async (req, res, next) => {
-    // Check if user has the permission - permissions are independent of user type
-    if (!hasPermission(req, permission)) {
-      return res.status(403).json({ 
-        error: `Access denied. Required permission: ${permission}` 
-      });
-    }
-    
-    next();
-  };
-};
+// Removed deprecated permission restrictions system
+// All permissions are now managed through simple JWT-based checking
 
 /**
  * Legacy support: Check if user has specific user type
@@ -156,8 +119,6 @@ module.exports = {
   requirePermission,
   canAccessAll,
   requireAllAccess,
-  requireRestrictedPermission,
-  canUserTypeHavePermission,
   hasUserType,
   requireUserType,
   getEffectivePermissions

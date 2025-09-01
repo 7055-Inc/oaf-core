@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
+import WholesalePricing from '../../components/WholesalePricing';
+import { isWholesaleCustomer } from '../../lib/userUtils';
+import { getAuthToken } from '../../lib/csrf';
 import styles from './ArtistStorefront.module.css';
 
 const ArtistProductDetail = () => {
@@ -14,6 +17,7 @@ const ArtistProductDetail = () => {
   const [error, setError] = useState(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [userData, setUserData] = useState(null);
 
   // Image URL helper function (same as other components)
   const getImageUrl = (product) => {
@@ -57,6 +61,19 @@ const ArtistProductDetail = () => {
     
     return images;
   };
+
+  // Get user data for wholesale pricing
+  useEffect(() => {
+    const token = getAuthToken();
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setUserData(payload);
+      } catch (error) {
+        console.error('Error parsing user token:', error);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (subdomain && productId) {
@@ -205,7 +222,14 @@ const ArtistProductDetail = () => {
 
           <div className={styles.productInfo}>
             <h1 className={styles.productTitle}>{product.name}</h1>
-            <p className={styles.productPrice}>${product.price}</p>
+            <WholesalePricing
+              price={product.price}
+              wholesalePrice={product.wholesale_price}
+              isWholesaleCustomer={isWholesaleCustomer(userData)}
+              size="large"
+              layout="stacked"
+              className={styles.productPrice}
+            />
             
             {product.description && (
               <div className={styles.productDescription}>
@@ -220,6 +244,16 @@ const ArtistProductDetail = () => {
                 <p>{product.dimensions}</p>
               </div>
             )}
+
+            <div className={styles.productReturns}>
+              <h3>Returns Policy</h3>
+              <p style={{ 
+                color: product.allow_returns !== false ? '#28a745' : '#dc3545',
+                fontWeight: '500'
+              }}>
+                {product.allow_returns !== false ? '✓ Returns Accepted' : '✗ No Returns'}
+              </p>
+            </div>
 
             <div className={styles.purchaseSection}>
               <div className={styles.quantitySelector}>

@@ -3,7 +3,7 @@ const router = express.Router();
 const db = require('../../config/db');
 const rateLimit = require('express-rate-limit');
 const verifyToken = require('../middleware/jwt');
-const { requireRestrictedPermission } = require('../middleware/permissions');
+const { requirePermission } = require('../middleware/permissions');
 const EmailService = require('../services/emailService');
 
 const emailService = new EmailService();

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
 import slideInStyles from '../../SlideIn.module.css';
+import ReturnRequestModal from './myorders-components/ReturnRequestModal';
 
 const ORDER_STATUS_TABS = [
   { id: 'all', label: 'All' },
@@ -20,6 +21,9 @@ export default function MyOrders({ userData }) {
   const [expandedOrderIds, setExpandedOrderIds] = useState(new Set());
   const [vendorModalUserId, setVendorModalUserId] = useState(null);
   const [debounceTimer, setDebounceTimer] = useState(null);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [selectedReturnItem, setSelectedReturnItem] = useState(null);
+  const [returnStatuses, setReturnStatuses] = useState({});
 
   useEffect(() => {
     // Clear existing timer
@@ -68,6 +72,8 @@ export default function MyOrders({ userData }) {
               total: data.pagination?.total || (Array.isArray(data.orders) ? data.orders.length : 0)
             }
           }));
+          // Load return statuses after orders are loaded
+          loadReturnStatuses();
         } else {
           throw new Error(data?.error || 'Failed to fetch orders');
         }
@@ -134,6 +140,71 @@ export default function MyOrders({ userData }) {
 
   const closeVendorModal = () => {
     setVendorModalUserId(null);
+  };
+
+  const handleReturnRequest = (item, order) => {
+    setSelectedReturnItem({ ...item, order });
+    setShowReturnModal(true);
+  };
+
+  const closeReturnModal = () => {
+    setShowReturnModal(false);
+    setSelectedReturnItem(null);
+    // Reload return statuses after modal closes
+    loadReturnStatuses();
+  };
+
+  const loadReturnStatuses = async () => {
+    try {
+      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/returns/my');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          // Create a map of order_item_id to return status
+          const statusMap = {};
+          data.returns.forEach(returnItem => {
+            statusMap[returnItem.order_item_id] = {
+              id: returnItem.id,
+              status: returnItem.return_status,
+              has_label: returnItem.shipping_label_id ? true : false
+            };
+          });
+          setReturnStatuses(statusMap);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading return statuses:', error);
+    }
+  };
+
+  const handlePrintLabel = async (returnId) => {
+    try {
+      // Open the label PDF in a new window
+      const labelUrl = `https://api2.onlineartfestival.com/api/returns/${returnId}/label`;
+      window.open(labelUrl, '_blank');
+    } catch (error) {
+      console.error('Error opening label:', error);
+      alert('Failed to open return label. Please try again.');
+    }
+  };
+
+  // Check if item is eligible for returns
+  const isReturnEligible = (item, order) => {
+    // Only allow returns for shipped orders
+    if (order.status !== 'shipped') return false;
+    
+    // Check if product allows returns (default to true if not specified)
+    if (item.allow_returns === false) return false;
+    
+    // Check if within return window (30 days from ship date)
+    if (item.shipped_at) {
+      const shipDate = new Date(item.shipped_at);
+      const now = new Date();
+      const daysDiff = (now - shipDate) / (1000 * 60 * 60 * 24);
+      if (daysDiff > 30) return false;
+    }
+    
+    return true;
   };
 
   const getImageSrc = (url) => {
@@ -230,6 +301,68 @@ export default function MyOrders({ userData }) {
                               </button>
                             )}
                           </div>
+                          <div style={{ marginTop: '8px' }}>
+                            {(() => {
+                              const returnStatus = returnStatuses[item.item_id];
+                              
+                              if (returnStatus) {
+                                // Return request exists
+                                if (returnStatus.has_label) {
+                                  // Label exists - show print button
+                                  return (
+                                    <button 
+                                      className="secondary"
+                                      onClick={() => handlePrintLabel(returnStatus.id)}
+                                      style={{ fontSize: '14px' }}
+                                    >
+                                      Print Return Label
+                                    </button>
+                                  );
+                                } else {
+                                  // Return in progress but no label yet
+                                  return (
+                                    <button 
+                                      className="secondary"
+                                      disabled
+                                      style={{ 
+                                        fontSize: '14px', 
+                                        opacity: '0.7', 
+                                        cursor: 'not-allowed' 
+                                      }}
+                                    >
+                                      Return in progress
+                                    </button>
+                                  );
+                                }
+                              } else if (isReturnEligible(item, order)) {
+                                // No return request - show return button
+                                return (
+                                  <button 
+                                    className="secondary"
+                                    onClick={() => handleReturnRequest(item, order)}
+                                    style={{ fontSize: '14px' }}
+                                  >
+                                    Return this item
+                                  </button>
+                                );
+                              } else {
+                                // Not eligible for returns
+                                return (
+                                  <button 
+                                    className="secondary"
+                                    disabled
+                                    style={{ 
+                                      fontSize: '14px', 
+                                      opacity: '0.5', 
+                                      cursor: 'not-allowed' 
+                                    }}
+                                  >
+                                    Not eligible for returns
+                                  </button>
+                                );
+                              }
+                            })()}
+                          </div>
                           {item.shipped_at && (
                             <div className={slideInStyles.shipStatus}>
                               Shipped {formatDate(item.shipped_at)} via {item.selected_shipping_service || 'Standard'}
@@ -303,6 +436,14 @@ export default function MyOrders({ userData }) {
           </div>
         </div>
       )}
+
+      {/* Return Request Modal */}
+      <ReturnRequestModal 
+        isOpen={showReturnModal}
+        onClose={closeReturnModal}
+        item={selectedReturnItem}
+        order={selectedReturnItem?.order}
+      />
     </div>
   );
 }

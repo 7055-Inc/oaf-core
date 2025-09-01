@@ -2,15 +2,15 @@ const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
-const { requireRestrictedPermission } = require('../middleware/permissions');
+const { requirePermission } = require('../middleware/permissions');
 const EmailService = require('../services/emailService');
 
 const emailService = new EmailService();
 
-// Note: All admin endpoints now use requireRestrictedPermission('manage_system') instead of hardcoded admin checks
+// Note: All admin endpoints now use requirePermission('manage_system') instead of hardcoded admin checks
 
 // GET /admin/users - List all users
-router.get('/users', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/users', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/users request received, userId:', req.userId);
   try {
     const [users] = await db.query('SELECT id, username, status, user_type FROM users');
@@ -23,7 +23,7 @@ router.get('/users', verifyToken, requireRestrictedPermission('manage_system'), 
 });
 
 // POST /admin/users - Add a new user
-router.post('/users', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.post('/users', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('POST /admin/users request received, userId:', req.userId);
   const { username, status, user_type } = req.body;
   try {
@@ -50,7 +50,7 @@ router.post('/users', verifyToken, requireRestrictedPermission('manage_system'),
 });
 
 // PUT /admin/users/:id - Update a user
-router.put('/users/:id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.put('/users/:id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('PUT /admin/users/:id request received, userId:', req.userId);
   const { id } = req.params;
   const { username, status, user_type } = req.body;
@@ -68,7 +68,7 @@ router.put('/users/:id', verifyToken, requireRestrictedPermission('manage_system
 });
 
 // DELETE /admin/users/:id - Delete a user
-router.delete('/users/:id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.delete('/users/:id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('DELETE /admin/users/:id request received, userId:', req.userId);
   const { id } = req.params;
   try {
@@ -82,7 +82,7 @@ router.delete('/users/:id', verifyToken, requireRestrictedPermission('manage_sys
 });
 
 // GET /admin/users/:id/permissions - Get user's permissions
-router.get('/users/:id/permissions', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/users/:id/permissions', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/users/:id/permissions request received, userId:', req.userId);
   const { id } = req.params;
   try {
@@ -108,7 +108,7 @@ router.get('/users/:id/permissions', verifyToken, requireRestrictedPermission('m
 });
 
 // PUT /admin/users/:id/permissions - Update user's permissions
-router.put('/users/:id/permissions', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.put('/users/:id/permissions', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('PUT /admin/users/:id/permissions request received, userId:', req.userId);
   const { id } = req.params;
   const { vendor, events, stripe_connect, manage_sites, manage_content, manage_system } = req.body;
@@ -178,7 +178,7 @@ router.put('/users/:id/permissions', verifyToken, requireRestrictedPermission('m
 // ===== POLICY MANAGEMENT ENDPOINTS =====
 
 // GET /admin/default-policies - Get default shipping policy
-router.get('/default-policies', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/default-policies', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     console.log('GET /admin/default-policies request received, userId:', req.userId);
     
@@ -210,7 +210,7 @@ router.get('/default-policies', verifyToken, requireRestrictedPermission('manage
 });
 
 // PUT /admin/default-policies - Update default shipping policy
-router.put('/default-policies', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.put('/default-policies', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     console.log('PUT /admin/default-policies request received, userId:', req.userId);
     
@@ -262,7 +262,7 @@ router.put('/default-policies', verifyToken, requireRestrictedPermission('manage
 });
 
 // GET /admin/vendor-policies - Search and list vendor policies
-router.get('/vendor-policies', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/vendor-policies', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/vendor-policies request received, userId:', req.userId);
   const { search, page = 1, limit = 20 } = req.query;
   const offset = (page - 1) * limit;
@@ -328,7 +328,7 @@ router.get('/vendor-policies', verifyToken, requireRestrictedPermission('manage_
 });
 
 // GET /admin/vendor-policies/:user_id - Get specific vendor's policy and history
-router.get('/vendor-policies/:user_id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/vendor-policies/:user_id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/vendor-policies/:user_id request received, userId:', req.userId);
   const { user_id } = req.params;
   
@@ -391,7 +391,7 @@ router.get('/vendor-policies/:user_id', verifyToken, requireRestrictedPermission
 });
 
 // PUT /admin/vendor-policies/:user_id - Update vendor's policy as admin
-router.put('/vendor-policies/:user_id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.put('/vendor-policies/:user_id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('PUT /admin/vendor-policies/:user_id request received, userId:', req.userId);
   const { user_id } = req.params;
   const { policy_text } = req.body;
@@ -455,7 +455,7 @@ router.put('/vendor-policies/:user_id', verifyToken, requireRestrictedPermission
 });
 
 // DELETE /admin/vendor-policies/:user_id - Delete vendor's policy (revert to default)
-router.delete('/vendor-policies/:user_id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.delete('/vendor-policies/:user_id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('DELETE /admin/vendor-policies/:user_id request received, userId:', req.userId);
   const { user_id } = req.params;
   
@@ -493,7 +493,7 @@ router.delete('/vendor-policies/:user_id', verifyToken, requireRestrictedPermiss
 // ===== RETURN POLICY MANAGEMENT ENDPOINTS =====
 
 // GET /admin/default-return-policies - Get default return policy
-router.get('/default-return-policies', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/default-return-policies', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     console.log('GET /admin/default-return-policies request received, userId:', req.userId);
     
@@ -525,7 +525,7 @@ router.get('/default-return-policies', verifyToken, requireRestrictedPermission(
 });
 
 // PUT /admin/default-return-policies - Update default return policy
-router.put('/default-return-policies', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.put('/default-return-policies', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     console.log('PUT /admin/default-return-policies request received, userId:', req.userId);
     
@@ -577,7 +577,7 @@ router.put('/default-return-policies', verifyToken, requireRestrictedPermission(
 });
 
 // GET /admin/vendor-return-policies - Search and list vendor return policies
-router.get('/vendor-return-policies', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/vendor-return-policies', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/vendor-return-policies request received, userId:', req.userId);
   const { search, page = 1, limit = 20 } = req.query;
   const offset = (page - 1) * limit;
@@ -643,7 +643,7 @@ router.get('/vendor-return-policies', verifyToken, requireRestrictedPermission('
 });
 
 // GET /admin/vendor-return-policies/:user_id - Get specific vendor's return policy and history
-router.get('/vendor-return-policies/:user_id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/vendor-return-policies/:user_id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/vendor-return-policies/:user_id request received, userId:', req.userId);
   const { user_id } = req.params;
   
@@ -706,7 +706,7 @@ router.get('/vendor-return-policies/:user_id', verifyToken, requireRestrictedPer
 });
 
 // PUT /admin/vendor-return-policies/:user_id - Update vendor's return policy as admin
-router.put('/vendor-return-policies/:user_id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.put('/vendor-return-policies/:user_id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('PUT /admin/vendor-return-policies/:user_id request received, userId:', req.userId);
   const { user_id } = req.params;
   const { policy_text } = req.body;
@@ -770,7 +770,7 @@ router.put('/vendor-return-policies/:user_id', verifyToken, requireRestrictedPer
 });
 
 // DELETE /admin/vendor-return-policies/:user_id - Delete vendor's return policy (revert to default)
-router.delete('/vendor-return-policies/:user_id', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.delete('/vendor-return-policies/:user_id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('DELETE /admin/vendor-return-policies/:user_id request received, userId:', req.userId);
   const { user_id } = req.params;
   
@@ -808,7 +808,7 @@ router.delete('/vendor-return-policies/:user_id', verifyToken, requireRestricted
 // ===== EMAIL ADMINISTRATION ROUTES =====
 
 // GET /admin/email-stats - Get email system statistics (admin only)
-router.get('/email-stats', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/email-stats', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/email-stats request received, userId:', req.userId);
   
   try {
@@ -881,7 +881,7 @@ router.get('/email-stats', verifyToken, requireRestrictedPermission('manage_syst
 });
 
 // GET /admin/email-queue - Get email queue status (admin only)
-router.get('/email-queue', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/email-queue', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/email-queue request received, userId:', req.userId);
   
   try {
@@ -905,7 +905,7 @@ router.get('/email-queue', verifyToken, requireRestrictedPermission('manage_syst
 });
 
 // GET /admin/email-templates - Get all email templates (admin only)
-router.get('/email-templates', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/email-templates', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/email-templates request received, userId:', req.userId);
   
   try {
@@ -934,7 +934,7 @@ router.get('/email-templates', verifyToken, requireRestrictedPermission('manage_
 });
 
 // GET /admin/email-bounces - Get bounce tracking information (admin only)
-router.get('/email-bounces', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/email-bounces', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/email-bounces request received, userId:', req.userId);
   
   try {
@@ -977,7 +977,7 @@ router.get('/email-bounces', verifyToken, requireRestrictedPermission('manage_sy
 });
 
 // GET /admin/email-recent - Get recent email activity (admin only)
-router.get('/email-recent', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/email-recent', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/email-recent request received, userId:', req.userId);
   
   try {
@@ -1014,7 +1014,7 @@ router.get('/email-recent', verifyToken, requireRestrictedPermission('manage_sys
 });
 
 // POST /admin/email-test - Send test email (admin only)
-router.post('/email-test', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.post('/email-test', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('POST /admin/email-test request received, userId:', req.userId);
   console.log('Request headers:', req.headers);
   console.log('Request body:', req.body);
@@ -1078,7 +1078,7 @@ router.post('/email-test', verifyToken, requireRestrictedPermission('manage_syst
 });
 
 // POST /admin/email-process-queue - Manually process email queue (admin only)
-router.post('/email-process-queue', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.post('/email-process-queue', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('POST /admin/email-process-queue request received, userId:', req.userId);
   
   try {
@@ -1097,7 +1097,7 @@ router.post('/email-process-queue', verifyToken, requireRestrictedPermission('ma
 });
 
 // POST /admin/email-bounces-unblacklist - Remove domain from blacklist (admin only)
-router.post('/email-bounces-unblacklist', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.post('/email-bounces-unblacklist', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('POST /admin/email-bounces-unblacklist request received, userId:', req.userId);
   
   try {
@@ -1129,7 +1129,7 @@ router.post('/email-bounces-unblacklist', verifyToken, requireRestrictedPermissi
  * GET /admin/event-email-stats
  * Get event email system statistics
  */
-router.get('/event-email-stats', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/event-email-stats', verifyToken, requirePermission('manage_system'), async (req, res) => {
     try {
         // Get application email statistics
         const [emailStats] = await db.execute(`
@@ -1188,7 +1188,7 @@ router.get('/event-email-stats', verifyToken, requireRestrictedPermission('manag
  * POST /admin/process-event-reminders
  * Manually trigger event reminder processing
  */
-router.post('/process-event-reminders', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.post('/process-event-reminders', verifyToken, requirePermission('manage_system'), async (req, res) => {
     try {
         const EventEmailService = require('../services/eventEmailService');
         const emailService = new EventEmailService();
@@ -1212,7 +1212,7 @@ router.post('/process-event-reminders', verifyToken, requireRestrictedPermission
  * POST /admin/process-auto-decline
  * Manually trigger auto-decline processing
  */
-router.post('/process-auto-decline', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.post('/process-auto-decline', verifyToken, requirePermission('manage_system'), async (req, res) => {
     try {
         const EventEmailService = require('../services/eventEmailService');
         const emailService = new EventEmailService();
@@ -1236,7 +1236,7 @@ router.post('/process-auto-decline', verifyToken, requireRestrictedPermission('m
  * POST /admin/send-test-booth-fee-email
  * Send test booth fee email
  */
-router.post('/send-test-booth-fee-email', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.post('/send-test-booth-fee-email', verifyToken, requirePermission('manage_system'), async (req, res) => {
     try {
         const { application_id, email_type } = req.body;
 
@@ -1293,7 +1293,7 @@ router.post('/send-test-booth-fee-email', verifyToken, requireRestrictedPermissi
  * GET /admin/applications-needing-reminders
  * Get applications that need reminders
  */
-router.get('/applications-needing-reminders', verifyToken, requireRestrictedPermission('manage_system'), async (req, res) => {
+router.get('/applications-needing-reminders', verifyToken, requirePermission('manage_system'), async (req, res) => {
     try {
         const [applications] = await db.execute(`
             SELECT 
