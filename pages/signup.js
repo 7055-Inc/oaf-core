@@ -5,6 +5,7 @@ import { getAuth, createUserWithEmailAndPassword, sendEmailVerification, signInW
 import firebaseApp from '../lib/firebase';
 import Header from '../components/Header';
 import { clearAuthTokens } from '../lib/csrf';
+import CookieConsentModal from '../components/CookieConsentModal';
 
 export default function Signup() {
   const [email, setEmail] = useState('');
@@ -13,8 +14,20 @@ export default function Signup() {
   const [message, setMessage] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [countdown, setCountdown] = useState(null);
+  const [showConsentModal, setShowConsentModal] = useState(false);
+  const [canShowSignupForm, setCanShowSignupForm] = useState(false);
   const router = useRouter();
   const auth = getAuth(firebaseApp);
+
+  // Check cookie consent on page load
+  useEffect(() => {
+    const hasConsented = localStorage.getItem('cookieConsent');
+    if (hasConsented === 'true') {
+      setCanShowSignupForm(true);
+    } else {
+      setShowConsentModal(true);
+    }
+  }, []);
 
   // Handle countdown and redirect to login
   useEffect(() => {
@@ -125,7 +138,22 @@ export default function Signup() {
   return (
     <div>
       <Header />
-      <div style={{ padding: '2rem', maxWidth: '400px', margin: '0 auto' }}>
+      
+      {/* Cookie Consent Modal - blocks everything until consent */}
+      {showConsentModal && (
+        <CookieConsentModal 
+          onAccept={() => {
+            setShowConsentModal(false);
+            setCanShowSignupForm(true);
+          }}
+          onDecline={() => {
+            // Keep modal open, don't allow signup
+          }}
+        />
+      )}
+      
+      {canShowSignupForm ? (
+        <div style={{ padding: '2rem', maxWidth: '400px', margin: '0 auto' }}>
         <h1 style={{ color: '#055474', marginBottom: '2rem', textAlign: 'center' }}>Sign Up</h1>
         
         {error && (
@@ -296,7 +324,13 @@ export default function Signup() {
         <p style={{ marginTop: '2rem', textAlign: 'center', color: '#666' }}>
           Already have an account? <a href="/login" style={{ color: '#055474', textDecoration: 'none', fontWeight: '500' }}>Log in here</a>
         </p>
-      </div>
+        </div>
+      ) : !showConsentModal ? (
+        <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+          <h2>Cookie Consent Required</h2>
+          <p>Please accept cookies to access the signup form.</p>
+        </div>
+      ) : null}
     </div>
   );
 }

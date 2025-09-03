@@ -58,7 +58,27 @@ export default function ProductView() {
           }
         );
         
-        if (!res.ok) throw new Error('Failed to fetch product');
+        if (!res.ok) {
+          // If curated endpoint fails, try the regular products endpoint as fallback
+          console.log(`Curated endpoint failed with ${res.status}, trying regular products endpoint...`);
+          
+          const fallbackRes = await fetch(
+            `https://api2.onlineartfestival.com/products/${params.id}?include=images,shipping,vendor,inventory,categories`,
+            {
+              method: 'GET',
+              credentials: 'include'
+            }
+          );
+          
+          if (!fallbackRes.ok) {
+            throw new Error(`Product not found. Curated API: ${res.status}, Regular API: ${fallbackRes.status}`);
+          }
+          
+          const fallbackData = await fallbackRes.json();
+          setProduct(fallbackData);
+          console.log('Successfully loaded product from regular endpoint:', fallbackData);
+          return;
+        }
         
         const data = await res.json();
 

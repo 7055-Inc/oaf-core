@@ -365,4 +365,139 @@ router.post('/refresh', async (req, res) => {
   }
 });
 
+// Anonymous cookie consent logging (for audit trail before login)
+router.post('/cookie-consent/anonymous', async (req, res) => {
+  try {
+    const { consent, sessionId, timestamp } = req.body;
+
+    if (!consent || !sessionId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing required fields: consent and sessionId' 
+      });
+    }
+
+    // Validate consent value
+    if (!['yes', 'no'].includes(consent)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid consent value. Must be "yes" or "no"' 
+      });
+    }
+
+    // Get client info for audit
+    const clientIp = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'];
+    const userAgent = req.headers['user-agent'];
+
+    // For anonymous users, we just log the consent but don't store it
+    // It will be stored in the users table when they actually log in
+
+    secureLogger.info('Anonymous cookie consent logged', { 
+      sessionId: sessionId.substring(0, 12) + '...', // Don't log full session ID
+      consent
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Cookie consent logged successfully' 
+    });
+
+  } catch (error) {
+    secureLogger.error('Error logging anonymous cookie consent:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to log cookie consent' 
+    });
+  }
+});
+
+// Update user cookie consent (when user logs in after localStorage consent)
+router.post('/cookie-consent/user', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { consent, timestamp } = req.body;
+
+    if (!consent) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing required field: consent' 
+      });
+    }
+
+    // Validate consent value
+    if (!['yes', 'no'].includes(consent)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid consent value. Must be "yes" or "no"' 
+      });
+    }
+
+    // Update user's cookie consent in database
+    const consentBoolean = consent === 'yes';
+    const consentDate = timestamp ? new Date(timestamp) : new Date();
+
+    await db.query(`
+      UPDATE users 
+      SET cookie_consent_accepted = ?, last_consented = ?
+      WHERE id = ?
+    `, [consentBoolean, consentDate, userId]);
+
+    // Consent is now stored in the users table - no separate log needed
+
+    secureLogger.info('User cookie consent updated', { 
+      userId, 
+      consent
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Cookie consent updated successfully',
+      consent: consentBoolean,
+      consentDate: consentDate
+    });
+
+  } catch (error) {
+    secureLogger.error('Error updating user cookie consent:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to update cookie consent' 
+    });
+  }
+});
+
+// Get user's current cookie consent status
+router.get('/cookie-consent/status', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    const [rows] = await db.query(`
+      SELECT cookie_consent_accepted, last_consented
+      FROM users 
+      WHERE id = ?
+    `, [userId]);
+
+    if (!rows[0]) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'User not found' 
+      });
+    }
+
+    const user = rows[0];
+
+    res.json({
+      success: true,
+      hasConsented: Boolean(user.cookie_consent_accepted),
+      consentDate: user.last_consented
+    });
+
+  } catch (error) {
+    secureLogger.error('Error fetching cookie consent status:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch cookie consent status' 
+    });
+  }
+});
+
 module.exports = router;
