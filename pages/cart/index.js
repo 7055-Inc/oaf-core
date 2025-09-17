@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Header from '../../components/Header';
 import { authenticatedApiRequest, handleCsrfError } from '../../lib/csrf';
+import CouponEntry from '../../components/coupons/CouponEntry';
+import DiscountSummary from '../../components/coupons/DiscountSummary';
+import { useCoupons } from '../../hooks/useCoupons';
 import styles from './styles/Cart.module.css';
 
 export default function Cart() {
@@ -11,11 +14,45 @@ export default function Cart() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedCollections, setExpandedCollections] = useState({});
+  const [cartTotal, setCartTotal] = useState(0);
   const router = useRouter();
+
+  // Coupon functionality
+  const {
+    appliedCoupons,
+    autoDiscounts,
+    loading: couponLoading,
+    applyCoupon,
+    removeCoupon,
+    getAutoDiscounts,
+    calculateTotalsWithDiscounts,
+    clearAllCoupons
+  } = useCoupons();
 
   useEffect(() => {
     fetchCartData();
   }, []);
+
+  // Recalculate totals when coupons change
+  useEffect(() => {
+    if (cartItems.length > 0) {
+      recalculateCartTotals();
+      getAutoDiscounts(cartItems);
+    }
+  }, [appliedCoupons, cartItems, getAutoDiscounts]);
+
+  const recalculateCartTotals = async () => {
+    if (cartItems.length === 0) return;
+
+    try {
+      const totals = await calculateTotalsWithDiscounts(cartItems);
+      setCartItems(totals.items || cartItems); // Update items with discount info
+      setCartTotal(totals.total || calculateTotal());
+    } catch (error) {
+      console.error('Failed to recalculate totals:', error);
+      setCartTotal(calculateTotal()); // Fallback to original calculation
+    }
+  };
 
   const getAuthToken = () => {
     return document.cookie.split('token=')[1]?.split(';')[0];
@@ -187,9 +224,14 @@ export default function Cart() {
   };
 
   const proceedToCheckout = () => {
-    // Proceed to checkout clicked
-    // Store cart items in localStorage for the checkout page
-    localStorage.setItem('checkoutCart', JSON.stringify(cartItems));
+    // Store cart items and coupon data in localStorage for the checkout page
+    const checkoutData = {
+      items: cartItems,
+      appliedCoupons: appliedCoupons,
+      autoDiscounts: autoDiscounts,
+      total: cartTotal
+    };
+    localStorage.setItem('checkoutCart', JSON.stringify(checkoutData));
     // Navigate to checkout page
     router.push('/checkout');
   };
@@ -275,8 +317,25 @@ export default function Cart() {
                 </div>
               ))}
               
+              {/* Coupon Section */}
+              <CouponEntry
+                onApplyCoupon={(code) => applyCoupon(code, cartItems)}
+                onRemoveCoupon={removeCoupon}
+                appliedCoupons={appliedCoupons}
+                loading={couponLoading}
+                disabled={cartItems.length === 0}
+              />
+
+              {/* Discount Summary */}
+              <DiscountSummary
+                cartItems={cartItems}
+                autoDiscounts={autoDiscounts}
+                appliedCoupons={appliedCoupons}
+                showItemBreakdown={true}
+              />
+              
               <div className={styles.cartTotal}>
-                <h3>Total: ${calculateTotal()}</h3>
+                <h3>Total: ${cartTotal > 0 ? cartTotal.toFixed(2) : calculateTotal()}</h3>
                 <button className={styles.checkoutButton} onClick={proceedToCheckout}>
                   Proceed to Checkout
                 </button>

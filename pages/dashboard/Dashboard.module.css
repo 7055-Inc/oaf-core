@@ -141,6 +141,7 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
+  gap: 8px;
 }
 
 .notificationDot {
@@ -150,6 +151,51 @@
   border-radius: 50%;
   margin-left: 8px;
   flex-shrink: 0;
+}
+
+/* Add Shortcut Button */
+.addShortcutButton {
+  background: none;
+  border: none;
+  color: #055474;
+  width: 24px;
+  height: 24px;
+  border-radius: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  opacity: 0.7;
+  outline: none;
+  box-shadow: none;
+}
+
+.addShortcutButton:hover {
+  background: #055474;
+  color: white;
+  opacity: 1;
+  transform: scale(1.1);
+  outline: none;
+  box-shadow: none;
+}
+
+.addShortcutButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.addShortcutButton:disabled:hover {
+  background: none;
+  color: #055474;
+}
+
+.addShortcutButton:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(5, 84, 116, 0.3);
 }
 
 .sidebarSection ul {
@@ -166,7 +212,7 @@
 
 .sidebarLink {
   display: block;
-  width: 100%;
+  flex: 1;
   text-align: left;
   background: none;
   border: none;

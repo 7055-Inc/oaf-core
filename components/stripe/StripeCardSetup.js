@@ -27,15 +27,18 @@ export default function StripeCardSetup({
       }
     };
 
-    // Check if Stripe is already loaded
-    if (window.Stripe) {
-      initializeStripe();
-    } else {
-      // Wait for Stripe to load
-      const script = document.createElement('script');
-      script.src = 'https://js.stripe.com/v3/';
-      script.onload = initializeStripe;
-      document.head.appendChild(script);
+    // Only run on client side
+    if (typeof window !== 'undefined') {
+      // Check if Stripe is already loaded
+      if (window.Stripe) {
+        initializeStripe();
+      } else {
+        // Wait for Stripe to load
+        const script = document.createElement('script');
+        script.src = 'https://js.stripe.com/v3/';
+        script.onload = initializeStripe;
+        document.head.appendChild(script);
+      }
     }
   }, []);
 
@@ -93,6 +96,12 @@ export default function StripeCardSetup({
     
     if (!stripe || !elements || !cardElement) {
       onError('Stripe not loaded properly');
+      return;
+    }
+
+    // Check if setup intent is already succeeded
+    if (setupIntent.status === 'succeeded') {
+      onSuccess(setupIntent);
       return;
     }
 

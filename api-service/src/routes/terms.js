@@ -8,7 +8,7 @@ const { requirePermission } = require('../middleware/permissions');
 router.get('/current', async (req, res) => {
   try {
     const [terms] = await db.query(
-      'SELECT id, version, title, content, created_at FROM terms_versions WHERE is_current = TRUE ORDER BY created_at DESC LIMIT 1'
+      'SELECT id, version, title, content, created_at FROM terms_versions WHERE is_current = TRUE AND subscription_type = \'general\' ORDER BY created_at DESC LIMIT 1'
     );
     
     if (!terms[0]) {

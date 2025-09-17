@@ -364,6 +364,14 @@
   }
 }
 
+/* Coupon Section */
+.couponSection {
+  margin: 2rem 0;
+  padding: 1.5rem 0;
+  border-top: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
 @media (max-width: 480px) {
   .content {
     padding: 0.5rem;

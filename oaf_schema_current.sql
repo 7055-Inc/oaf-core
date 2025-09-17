@@ -960,6 +960,78 @@ CREATE TABLE `community_profiles` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `contact_submissions`
+--
+
+DROP TABLE IF EXISTS `contact_submissions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `contact_submissions` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `site_id` bigint NOT NULL,
+  `sender_name` varchar(100) NOT NULL,
+  `sender_email` varchar(150) NOT NULL,
+  `sender_phone` varchar(20) DEFAULT NULL,
+  `message` text NOT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` text,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_site_id` (`site_id`),
+  KEY `idx_created_at` (`created_at`),
+  CONSTRAINT `fk_contact_submissions_site` FOREIGN KEY (`site_id`) REFERENCES `sites` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `coupon_products`
+--
+
+DROP TABLE IF EXISTS `coupon_products`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `coupon_products` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `coupon_id` int NOT NULL,
+  `product_id` bigint NOT NULL,
+  `vendor_id` bigint NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_coupon_product` (`coupon_id`,`product_id`),
+  KEY `idx_coupon` (`coupon_id`),
+  KEY `idx_product` (`product_id`),
+  KEY `idx_vendor` (`vendor_id`),
+  CONSTRAINT `coupon_products_ibfk_1` FOREIGN KEY (`coupon_id`) REFERENCES `coupons` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `coupon_products_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `coupon_products_ibfk_3` FOREIGN KEY (`vendor_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `coupon_usage`
+--
+
+DROP TABLE IF EXISTS `coupon_usage`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `coupon_usage` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `coupon_id` int NOT NULL,
+  `user_id` bigint NOT NULL,
+  `order_id` bigint NOT NULL,
+  `usage_count` int DEFAULT '1',
+  `used_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `order_id` (`order_id`),
+  KEY `idx_coupon_user` (`coupon_id`,`user_id`),
+  KEY `idx_user_usage` (`user_id`,`used_at`),
+  CONSTRAINT `coupon_usage_ibfk_1` FOREIGN KEY (`coupon_id`) REFERENCES `coupons` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `coupon_usage_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `coupon_usage_ibfk_3` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `coupons`
 --
 
@@ -969,18 +1041,25 @@ DROP TABLE IF EXISTS `coupons`;
 CREATE TABLE `coupons` (
   `id` int NOT NULL AUTO_INCREMENT,
   `code` varchar(50) NOT NULL,
+  `name` varchar(255) DEFAULT NULL,
   `description` text,
+  `coupon_type` enum('vendor_coupon','admin_coupon','site_sale') NOT NULL DEFAULT 'vendor_coupon',
+  `created_by_vendor_id` bigint DEFAULT NULL,
+  `created_by_admin_id` bigint DEFAULT NULL,
   `discount_type` enum('percentage','fixed_amount') NOT NULL,
   `discount_value` decimal(10,2) NOT NULL,
-  `min_purchase_amount` decimal(10,2) DEFAULT NULL,
+  `application_type` enum('auto_apply','coupon_code') NOT NULL DEFAULT 'coupon_code',
+  `min_order_amount` decimal(10,2) DEFAULT '0.00',
+  `usage_limit_per_user` int DEFAULT '1',
   `max_discount_amount` decimal(10,2) DEFAULT NULL,
   `is_single_use` tinyint(1) DEFAULT '0',
   `is_vendor_specific` tinyint(1) DEFAULT '0',
   `vendor_id` bigint DEFAULT NULL,
   `valid_from` timestamp NOT NULL,
   `valid_until` timestamp NULL DEFAULT NULL,
-  `usage_count` int DEFAULT '0',
-  `max_usage_count` int DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT '1',
+  `current_usage_count` int DEFAULT '0',
+  `total_usage_limit` int DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -989,6 +1068,12 @@ CREATE TABLE `coupons` (
   KEY `idx_coupons_valid_until` (`valid_until`),
   KEY `idx_coupons_vendor_id` (`vendor_id`),
   KEY `idx_coupons_vendor_specific` (`is_vendor_specific`),
+  KEY `created_by_vendor_id` (`created_by_vendor_id`),
+  KEY `created_by_admin_id` (`created_by_admin_id`),
+  KEY `idx_type_active` (`coupon_type`,`is_active`),
+  KEY `idx_dates` (`valid_from`,`valid_until`),
+  CONSTRAINT `coupons_ibfk_1` FOREIGN KEY (`created_by_vendor_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `coupons_ibfk_2` FOREIGN KEY (`created_by_admin_id`) REFERENCES `users` (`id`),
   CONSTRAINT `fk_coupons_vendor_id` FOREIGN KEY (`vendor_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -1009,7 +1094,7 @@ CREATE TABLE `csv_upload_errors` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_job_id` (`job_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=55 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=64 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1038,7 +1123,7 @@ CREATE TABLE `csv_upload_jobs` (
   UNIQUE KEY `job_id` (`job_id`),
   KEY `idx_user_status` (`user_id`,`status`),
   KEY `idx_job_id` (`job_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1090,6 +1175,41 @@ CREATE TABLE `dashboard_widget_types` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `discounts`
+--
+
+DROP TABLE IF EXISTS `discounts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `discounts` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `subscription_type` enum('website','shipping_labels','verification') NOT NULL,
+  `discount_code` varchar(100) NOT NULL,
+  `discount_type` enum('percentage','fixed_amount','free_months','free_addon') NOT NULL,
+  `discount_value` decimal(10,2) NOT NULL,
+  `priority` int NOT NULL DEFAULT '10',
+  `can_stack` tinyint(1) DEFAULT '1',
+  `can_chain` tinyint(1) DEFAULT '0',
+  `valid_from` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `valid_until` timestamp NULL DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_by` bigint DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `created_by` (`created_by`),
+  KEY `idx_user_subscription` (`user_id`,`subscription_type`),
+  KEY `idx_discount_code` (`discount_code`),
+  KEY `idx_priority` (`priority`),
+  KEY `idx_active_dates` (`is_active`,`valid_from`,`valid_until`),
+  KEY `idx_stacking` (`can_stack`,`can_chain`),
+  CONSTRAINT `discounts_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `discounts_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `email_automation_rules`
 --
 
@@ -1109,6 +1229,23 @@ CREATE TABLE `email_automation_rules` (
   KEY `idx_automation_triggers` (`trigger_type`,`is_active`),
   KEY `idx_series_automation` (`series_id`),
   CONSTRAINT `email_automation_rules_ibfk_1` FOREIGN KEY (`series_id`) REFERENCES `event_series` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `email_layouts`
+--
+
+DROP TABLE IF EXISTS `email_layouts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `email_layouts` (
+  `layout_key` varchar(100) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `layout_template` text NOT NULL,
+  `is_active` tinyint(1) DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`layout_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -1138,7 +1275,7 @@ CREATE TABLE `email_log` (
   KEY `idx_log_user_template` (`user_id`,`template_id`,`sent_at` DESC),
   CONSTRAINT `email_log_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `email_log_ibfk_2` FOREIGN KEY (`template_id`) REFERENCES `email_templates` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Complete audit trail of all email send attempts';
+) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Complete audit trail of all email send attempts';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1164,25 +1301,7 @@ CREATE TABLE `email_queue` (
   KEY `idx_priority_schedule` (`priority`,`scheduled_for`),
   KEY `idx_queue_user_priority` (`user_id`,`priority`,`scheduled_for`),
   CONSTRAINT `email_queue_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Priority-based email queue with dynamic reordering';
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `email_layouts`
---
-
-DROP TABLE IF EXISTS `email_layouts`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `email_layouts` (
-  `layout_key` varchar(100) NOT NULL,
-  `name` varchar(255) NOT NULL,
-  `layout_template` text NOT NULL,
-  `is_active` tinyint(1) DEFAULT '1',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`layout_key`),
-  KEY `idx_layout_active` (`is_active`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Email layout templates for different contexts (default, artist sites, etc.)';
+) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Priority-based email queue with dynamic reordering';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1201,15 +1320,14 @@ CREATE TABLE `email_templates` (
   `is_transactional` tinyint(1) NOT NULL DEFAULT '0' COMMENT 'Bypass user frequency settings',
   `subject_template` text NOT NULL COMMENT 'Subject line template with variables',
   `body_template` text NOT NULL COMMENT 'Email body template with variables',
-  `layout_key` varchar(100) DEFAULT 'default' COMMENT 'Which email layout to use',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `layout_key` varchar(100) DEFAULT 'default',
   PRIMARY KEY (`id`),
   UNIQUE KEY `template_key` (`template_key`),
   KEY `idx_template_key` (`template_key`),
   KEY `idx_transactional` (`is_transactional`),
-  KEY `idx_priority` (`priority_level`),
-  KEY `idx_layout_key` (`layout_key`)
-) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='System email templates with priority and layout references';
+  KEY `idx_priority` (`priority_level`)
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Hardcoded system email templates with priority and compilation rules';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1742,7 +1860,7 @@ CREATE TABLE `inventory_history` (
   KEY `idx_external_source` (`created_at`),
   CONSTRAINT `inventory_history_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
   CONSTRAINT `inventory_history_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=32 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1767,6 +1885,124 @@ CREATE TABLE `manual_adjustments` (
   KEY `idx_reason_code` (`reason_code`),
   CONSTRAINT `manual_adjustments_ibfk_1` FOREIGN KEY (`vendor_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `manual_adjustments_ibfk_2` FOREIGN KEY (`admin_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `marketplace_applications`
+--
+
+DROP TABLE IF EXISTS `marketplace_applications`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `marketplace_applications` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `work_description` text NOT NULL,
+  `additional_info` text,
+  `profile_data` json DEFAULT NULL,
+  `raw_materials_media_id` bigint DEFAULT NULL,
+  `work_process_1_media_id` bigint DEFAULT NULL,
+  `work_process_2_media_id` bigint DEFAULT NULL,
+  `work_process_3_media_id` bigint DEFAULT NULL,
+  `artist_at_work_media_id` bigint DEFAULT NULL,
+  `booth_display_media_id` bigint DEFAULT NULL,
+  `artist_working_video_media_id` bigint DEFAULT NULL,
+  `artist_bio_video_media_id` bigint DEFAULT NULL,
+  `additional_video_media_id` bigint DEFAULT NULL,
+  `marketplace_status` enum('pending','approved','denied') DEFAULT 'pending',
+  `marketplace_reviewed_by` bigint DEFAULT NULL,
+  `marketplace_review_date` timestamp NULL DEFAULT NULL,
+  `marketplace_admin_notes` text,
+  `marketplace_denial_reason` text,
+  `verification_status` enum('pending','approved','denied') DEFAULT 'pending',
+  `verification_reviewed_by` bigint DEFAULT NULL,
+  `verification_review_date` timestamp NULL DEFAULT NULL,
+  `verification_admin_notes` text,
+  `verification_denial_reason` text,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `raw_materials_media_id` (`raw_materials_media_id`),
+  KEY `work_process_1_media_id` (`work_process_1_media_id`),
+  KEY `work_process_2_media_id` (`work_process_2_media_id`),
+  KEY `work_process_3_media_id` (`work_process_3_media_id`),
+  KEY `artist_at_work_media_id` (`artist_at_work_media_id`),
+  KEY `booth_display_media_id` (`booth_display_media_id`),
+  KEY `artist_working_video_media_id` (`artist_working_video_media_id`),
+  KEY `artist_bio_video_media_id` (`artist_bio_video_media_id`),
+  KEY `additional_video_media_id` (`additional_video_media_id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_status` (`marketplace_status`),
+  KEY `idx_created_at` (`created_at`),
+  KEY `idx_reviewed_by` (`marketplace_reviewed_by`),
+  KEY `fk_verification_reviewed_by` (`verification_reviewed_by`),
+  CONSTRAINT `fk_verification_reviewed_by` FOREIGN KEY (`verification_reviewed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `marketplace_applications_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `marketplace_applications_ibfk_10` FOREIGN KEY (`artist_bio_video_media_id`) REFERENCES `pending_images` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `marketplace_applications_ibfk_11` FOREIGN KEY (`additional_video_media_id`) REFERENCES `pending_images` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `marketplace_applications_ibfk_2` FOREIGN KEY (`marketplace_reviewed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `marketplace_applications_ibfk_3` FOREIGN KEY (`raw_materials_media_id`) REFERENCES `pending_images` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `marketplace_applications_ibfk_4` FOREIGN KEY (`work_process_1_media_id`) REFERENCES `pending_images` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `marketplace_applications_ibfk_5` FOREIGN KEY (`work_process_2_media_id`) REFERENCES `pending_images` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `marketplace_applications_ibfk_6` FOREIGN KEY (`work_process_3_media_id`) REFERENCES `pending_images` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `marketplace_applications_ibfk_7` FOREIGN KEY (`artist_at_work_media_id`) REFERENCES `pending_images` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `marketplace_applications_ibfk_8` FOREIGN KEY (`booth_display_media_id`) REFERENCES `pending_images` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `marketplace_applications_ibfk_9` FOREIGN KEY (`artist_working_video_media_id`) REFERENCES `pending_images` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `marketplace_curation`
+--
+
+DROP TABLE IF EXISTS `marketplace_curation`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `marketplace_curation` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `product_id` bigint NOT NULL,
+  `previous_category` enum('unsorted','art','crafts') DEFAULT NULL,
+  `current_category` enum('unsorted','art','crafts') NOT NULL,
+  `curated_by` bigint NOT NULL,
+  `curation_reason` text,
+  `curated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_product_history` (`product_id`,`curated_at`),
+  KEY `idx_curator_activity` (`curated_by`,`curated_at`),
+  KEY `idx_category_changes` (`current_category`,`curated_at`),
+  CONSTRAINT `marketplace_curation_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `marketplace_curation_ibfk_2` FOREIGN KEY (`curated_by`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `marketplace_permissions`
+--
+
+DROP TABLE IF EXISTS `marketplace_permissions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `marketplace_permissions` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `status` enum('pending','approved','rejected','suspended') DEFAULT 'pending',
+  `auto_sort_preference` enum('art','crafts','manual') DEFAULT 'manual',
+  `application_data` json DEFAULT NULL COMMENT 'Stores application form responses',
+  `terms_accepted_at` timestamp NULL DEFAULT NULL,
+  `terms_version` varchar(50) DEFAULT NULL,
+  `reviewed_by` bigint DEFAULT NULL,
+  `reviewed_at` timestamp NULL DEFAULT NULL,
+  `admin_notes` text,
+  `applied_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_user_marketplace` (`user_id`),
+  KEY `idx_status_applied` (`status`,`applied_at`),
+  KEY `idx_pending_review` (`status`,`applied_at`),
+  KEY `idx_reviewer` (`reviewed_by`,`reviewed_at`),
+  CONSTRAINT `marketplace_permissions_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `marketplace_permissions_ibfk_2` FOREIGN KEY (`reviewed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -1800,6 +2036,80 @@ CREATE TABLE `media_library` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `order_item_discounts`
+--
+
+DROP TABLE IF EXISTS `order_item_discounts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `order_item_discounts` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `order_id` bigint NOT NULL,
+  `order_item_id` bigint NOT NULL,
+  `discount_type` enum('coupon','promotion','sale') NOT NULL,
+  `coupon_id` int DEFAULT NULL,
+  `promotion_id` bigint DEFAULT NULL,
+  `discount_code` varchar(50) DEFAULT NULL,
+  `discount_name` varchar(255) NOT NULL,
+  `discount_percentage` decimal(5,2) NOT NULL,
+  `discount_amount` decimal(10,2) NOT NULL,
+  `admin_cost` decimal(10,2) DEFAULT '0.00',
+  `vendor_cost` decimal(10,2) DEFAULT '0.00',
+  `original_price` decimal(10,2) NOT NULL,
+  `discounted_price` decimal(10,2) NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `coupon_id` (`coupon_id`),
+  KEY `promotion_id` (`promotion_id`),
+  KEY `idx_order` (`order_id`),
+  KEY `idx_order_item` (`order_item_id`),
+  CONSTRAINT `order_item_discounts_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `order_item_discounts_ibfk_2` FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `order_item_discounts_ibfk_3` FOREIGN KEY (`coupon_id`) REFERENCES `coupons` (`id`),
+  CONSTRAINT `order_item_discounts_ibfk_4` FOREIGN KEY (`promotion_id`) REFERENCES `promotions` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `order_item_tracking`
+--
+
+DROP TABLE IF EXISTS `order_item_tracking`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `order_item_tracking` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `order_id` bigint NOT NULL,
+  `order_item_id` bigint NOT NULL,
+  `vendor_id` bigint NOT NULL,
+  `package_sequence` int NOT NULL DEFAULT '1',
+  `carrier` enum('ups','fedex','usps','other') NOT NULL,
+  `service_name` varchar(100) DEFAULT NULL,
+  `tracking_number` varchar(100) NOT NULL,
+  `tracking_method` enum('label_purchase','manual_entry') NOT NULL,
+  `status` enum('created','shipped','delivered') DEFAULT 'created',
+  `shipped_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `label_id` bigint DEFAULT NULL,
+  `last_status` varchar(100) DEFAULT NULL COMMENT 'Last known delivery status from carrier API',
+  `last_status_check` timestamp NULL DEFAULT NULL COMMENT 'When the status was last checked with carrier API',
+  PRIMARY KEY (`id`),
+  KEY `order_id` (`order_id`),
+  KEY `idx_order_item_packages` (`order_item_id`,`package_sequence`),
+  KEY `idx_vendor_tracking` (`vendor_id`,`created_at`),
+  KEY `idx_tracking_number` (`tracking_number`),
+  KEY `idx_status_tracking` (`status`,`updated_at`),
+  KEY `label_id` (`label_id`),
+  KEY `idx_delivery_status_check` (`last_status`,`last_status_check`),
+  CONSTRAINT `order_item_tracking_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `order_item_tracking_ibfk_2` FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `order_item_tracking_ibfk_3` FOREIGN KEY (`vendor_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `order_item_tracking_ibfk_4` FOREIGN KEY (`label_id`) REFERENCES `shipping_labels` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `order_items`
 --
 
@@ -1816,7 +2126,13 @@ CREATE TABLE `order_items` (
   `shipping_cost` decimal(10,2) DEFAULT '0.00',
   `commission_rate` decimal(5,2) NOT NULL,
   `commission_amount` decimal(10,2) NOT NULL,
+  `status` enum('pending','shipped','delivered') DEFAULT 'pending',
+  `product_name` varchar(255) DEFAULT NULL,
+  `variation_details` text,
+  `shipped_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `selected_shipping_service` varchar(50) DEFAULT NULL,
+  `shipping_rate` decimal(10,2) DEFAULT '0.00',
   PRIMARY KEY (`id`),
   KEY `idx_order_vendor` (`order_id`,`vendor_id`),
   KEY `idx_product` (`product_id`),
@@ -1824,7 +2140,38 @@ CREATE TABLE `order_items` (
   CONSTRAINT `order_items_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
   CONSTRAINT `order_items_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
   CONSTRAINT `order_items_ibfk_3` FOREIGN KEY (`vendor_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `order_tax_summary`
+--
+
+DROP TABLE IF EXISTS `order_tax_summary`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `order_tax_summary` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `order_id` bigint NOT NULL,
+  `stripe_tax_transaction_id` bigint NOT NULL,
+  `customer_state` varchar(2) NOT NULL,
+  `customer_zip` varchar(10) NOT NULL,
+  `taxable_amount` decimal(10,2) NOT NULL,
+  `tax_collected` decimal(10,2) NOT NULL,
+  `tax_rate_used` decimal(5,4) NOT NULL,
+  `tax_jurisdiction` varchar(100) NOT NULL,
+  `order_date` date NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `stripe_tax_transaction_id` (`stripe_tax_transaction_id`),
+  KEY `idx_order_id` (`order_id`),
+  KEY `idx_customer_state` (`customer_state`),
+  KEY `idx_order_date` (`order_date`),
+  KEY `idx_tax_jurisdiction` (`tax_jurisdiction`),
+  CONSTRAINT `order_tax_summary_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`),
+  CONSTRAINT `order_tax_summary_ibfk_2` FOREIGN KEY (`stripe_tax_transaction_id`) REFERENCES `stripe_tax_transactions` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1846,12 +2193,14 @@ CREATE TABLE `orders` (
   `currency` varchar(3) DEFAULT 'USD',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `marketplace_source` enum('oaf','tiktok','etsy','amazon') DEFAULT 'oaf',
+  `external_order_id` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_stripe_payment_intent` (`stripe_payment_intent_id`),
   KEY `idx_user_orders` (`user_id`),
   KEY `idx_status` (`status`),
   CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1894,10 +2243,9 @@ CREATE TABLE `pending_images` (
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
   CONSTRAINT `pending_images_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=140 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=160 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
-ab
 --
 -- Table structure for table `product_categories`
 --
@@ -1936,7 +2284,7 @@ CREATE TABLE `product_images` (
   PRIMARY KEY (`id`),
   KEY `idx_product_images_category` (`product_id`,`category`,`order`),
   CONSTRAINT `fk_pi_product_id` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=113 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=114 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1962,8 +2310,30 @@ CREATE TABLE `product_inventory` (
   KEY `updated_by` (`updated_by`),
   CONSTRAINT `product_inventory_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
   CONSTRAINT `product_inventory_ibfk_2` FOREIGN KEY (`updated_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=157 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=158 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Temporary view structure for view `product_inventory_with_allocations`
+--
+
+DROP TABLE IF EXISTS `product_inventory_with_allocations`;
+/*!50001 DROP VIEW IF EXISTS `product_inventory_with_allocations`*/;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `product_inventory_with_allocations` AS SELECT 
+ 1 AS `id`,
+ 1 AS `product_id`,
+ 1 AS `qty_on_hand`,
+ 1 AS `qty_on_order`,
+ 1 AS `qty_available`,
+ 1 AS `reorder_qty`,
+ 1 AS `updated_at`,
+ 1 AS `updated_by`,
+ 1 AS `qty_truly_available`,
+ 1 AS `total_allocated`,
+ 1 AS `tiktok_allocated`*/;
+SET character_set_client = @saved_cs_client;
 
 --
 -- Table structure for table `product_shipping`
@@ -1989,7 +2359,7 @@ CREATE TABLE `product_shipping` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_ps_product_package` (`product_id`,`package_number`),
   CONSTRAINT `fk_ps_product_id` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=226 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=228 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2045,6 +2415,11 @@ CREATE TABLE `products` (
   `weight_unit` enum('lbs','kg') DEFAULT NULL,
   `parent_id` bigint DEFAULT NULL,
   `product_type` enum('simple','variable','variant') DEFAULT 'simple',
+  `marketplace_enabled` tinyint(1) DEFAULT '0' COMMENT 'Auto-updated by permission cron job',
+  `marketplace_category` enum('unsorted','art','crafts') DEFAULT 'unsorted' COMMENT 'Admin curation: art=main site, crafts=crafts subdomain',
+  `wholesale_price` decimal(10,2) DEFAULT NULL COMMENT 'Wholesale price (shows with MSRP for wholesale customers)',
+  `wholesale_description` text COMMENT 'Additional description shown only to wholesale customers',
+  `allow_returns` tinyint(1) DEFAULT '1' COMMENT 'Whether this product accepts returns',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_products_sku` (`sku`),
   UNIQUE KEY `vendor_sku_unique` (`vendor_id`,`sku`),
@@ -2054,6 +2429,9 @@ CREATE TABLE `products` (
   KEY `fk_products_updated_by` (`updated_by`),
   KEY `idx_search_active` (`status`,`created_at`),
   KEY `idx_vendor_status` (`vendor_id`,`status`),
+  KEY `idx_marketplace_enabled` (`marketplace_enabled`,`marketplace_category`),
+  KEY `idx_marketplace_category` (`marketplace_category`,`created_at`),
+  KEY `idx_wholesale_pricing` (`wholesale_price`),
   FULLTEXT KEY `name` (`name`,`description`),
   FULLTEXT KEY `name_2` (`name`,`description`,`sku`),
   CONSTRAINT `fk_products_category_id` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`),
@@ -2061,7 +2439,7 @@ CREATE TABLE `products` (
   CONSTRAINT `fk_products_parent_id` FOREIGN KEY (`parent_id`) REFERENCES `products` (`id`),
   CONSTRAINT `fk_products_updated_by` FOREIGN KEY (`updated_by`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `products_ibfk_1` FOREIGN KEY (`vendor_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2000000407 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2000000408 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2094,12 +2472,132 @@ CREATE TABLE `promoter_profiles` (
   `founding_date` date DEFAULT NULL,
   `organization_size` varchar(50) DEFAULT NULL,
   `logo_path` varchar(255) DEFAULT NULL,
-  `upcoming_events` TEXT DEFAULT NULL,
-  `sponsorship_options` TEXT DEFAULT NULL,
+  `upcoming_events` text,
+  `sponsorship_options` text,
   PRIMARY KEY (`user_id`),
   KEY `idx_promoter_profiles_business` (`business_name`),
   FULLTEXT KEY `business_name` (`business_name`),
   CONSTRAINT `promoter_profiles_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `promotion_invitations`
+--
+
+DROP TABLE IF EXISTS `promotion_invitations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `promotion_invitations` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `promotion_id` bigint NOT NULL,
+  `vendor_id` bigint NOT NULL,
+  `invitation_status` enum('pending','accepted','rejected','expired') DEFAULT 'pending',
+  `vendor_discount_percentage` decimal(5,2) DEFAULT NULL,
+  `admin_message` text,
+  `vendor_response_message` text,
+  `invited_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `responded_at` timestamp NULL DEFAULT NULL,
+  `expires_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_promotion_vendor` (`promotion_id`,`vendor_id`),
+  KEY `idx_vendor_status` (`vendor_id`,`invitation_status`),
+  KEY `idx_promotion` (`promotion_id`),
+  CONSTRAINT `promotion_invitations_ibfk_1` FOREIGN KEY (`promotion_id`) REFERENCES `promotions` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `promotion_invitations_ibfk_2` FOREIGN KEY (`vendor_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `promotion_products`
+--
+
+DROP TABLE IF EXISTS `promotion_products`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `promotion_products` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `promotion_id` bigint NOT NULL,
+  `product_id` bigint NOT NULL,
+  `vendor_id` bigint NOT NULL,
+  `added_by` enum('admin','vendor') NOT NULL,
+  `added_by_user_id` bigint NOT NULL,
+  `approval_status` enum('pending','approved','rejected') DEFAULT 'approved',
+  `admin_discount_percentage` decimal(5,2) NOT NULL,
+  `vendor_discount_percentage` decimal(5,2) NOT NULL,
+  `total_customer_discount` decimal(5,2) GENERATED ALWAYS AS ((`admin_discount_percentage` + `vendor_discount_percentage`)) STORED,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `approved_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_promotion_product` (`promotion_id`,`product_id`),
+  KEY `product_id` (`product_id`),
+  KEY `vendor_id` (`vendor_id`),
+  KEY `added_by_user_id` (`added_by_user_id`),
+  KEY `idx_promotion_vendor` (`promotion_id`,`vendor_id`),
+  KEY `idx_approval_status` (`approval_status`),
+  CONSTRAINT `promotion_products_ibfk_1` FOREIGN KEY (`promotion_id`) REFERENCES `promotions` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `promotion_products_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `promotion_products_ibfk_3` FOREIGN KEY (`vendor_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `promotion_products_ibfk_4` FOREIGN KEY (`added_by_user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `promotion_usage`
+--
+
+DROP TABLE IF EXISTS `promotion_usage`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `promotion_usage` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `promotion_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  `order_id` bigint NOT NULL,
+  `usage_count` int DEFAULT '1',
+  `used_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `order_id` (`order_id`),
+  KEY `idx_promotion_user` (`promotion_id`,`user_id`),
+  KEY `idx_user_usage` (`user_id`,`used_at`),
+  CONSTRAINT `promotion_usage_ibfk_1` FOREIGN KEY (`promotion_id`) REFERENCES `promotions` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `promotion_usage_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `promotion_usage_ibfk_3` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `promotions`
+--
+
+DROP TABLE IF EXISTS `promotions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `promotions` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `description` text,
+  `admin_discount_percentage` decimal(5,2) NOT NULL,
+  `suggested_vendor_discount` decimal(5,2) NOT NULL,
+  `application_type` enum('auto_apply','coupon_code') NOT NULL,
+  `coupon_code` varchar(50) DEFAULT NULL,
+  `min_order_amount` decimal(10,2) DEFAULT '0.00',
+  `usage_limit_per_user` int DEFAULT '1',
+  `total_usage_limit` int DEFAULT NULL,
+  `current_usage_count` int DEFAULT '0',
+  `valid_from` datetime NOT NULL,
+  `valid_until` datetime DEFAULT NULL,
+  `status` enum('draft','inviting_vendors','active','paused','ended') DEFAULT 'draft',
+  `created_by_admin_id` bigint NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `coupon_code` (`coupon_code`),
+  KEY `created_by_admin_id` (`created_by_admin_id`),
+  KEY `idx_code` (`coupon_code`),
+  KEY `idx_status` (`status`),
+  KEY `idx_dates` (`valid_from`,`valid_until`),
+  CONSTRAINT `promotions_ibfk_1` FOREIGN KEY (`created_by_admin_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -2123,7 +2621,7 @@ CREATE TABLE `refresh_tokens` (
   KEY `idx_token_hash` (`token_hash`),
   KEY `idx_expires_at` (`expires_at`),
   CONSTRAINT `refresh_tokens_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=457 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=986 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2148,6 +2646,52 @@ CREATE TABLE `return_policies` (
   CONSTRAINT `fk_return_policies_created_by` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_return_policies_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `returns`
+--
+
+DROP TABLE IF EXISTS `returns`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `returns` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `order_id` bigint NOT NULL,
+  `order_item_id` bigint DEFAULT NULL,
+  `user_id` bigint NOT NULL,
+  `vendor_id` bigint DEFAULT NULL,
+  `marketplace_source` enum('oaf','tiktok','etsy','amazon') DEFAULT 'oaf',
+  `return_reason` varchar(255) DEFAULT NULL,
+  `return_message` text,
+  `return_address` json DEFAULT NULL,
+  `package_dimensions` json DEFAULT NULL,
+  `label_preference` enum('customer_label','purchase_label') DEFAULT NULL,
+  `return_status` enum('pending','approved','denied','processed') DEFAULT 'pending',
+  `refund_amount` decimal(10,2) DEFAULT NULL,
+  `label_cost` decimal(10,2) DEFAULT NULL,
+  `shipping_label_id` bigint DEFAULT NULL,
+  `case_messages` text,
+  `return_data` json DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `transit_deadline` date DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_order_id` (`order_id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_marketplace_source` (`marketplace_source`),
+  KEY `idx_return_status` (`return_status`),
+  KEY `idx_created_at` (`created_at`),
+  KEY `idx_vendor_returns` (`vendor_id`,`return_status`),
+  KEY `idx_transit_deadline` (`transit_deadline`),
+  KEY `order_item_id` (`order_item_id`),
+  KEY `shipping_label_id` (`shipping_label_id`),
+  CONSTRAINT `returns_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `returns_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `returns_ibfk_3` FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `returns_ibfk_4` FOREIGN KEY (`vendor_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `returns_ibfk_5` FOREIGN KEY (`shipping_label_id`) REFERENCES `shipping_labels` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Universal returns system for all marketplaces';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2320,6 +2864,103 @@ CREATE TABLE `sessions` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `shipping_addresses`
+--
+
+DROP TABLE IF EXISTS `shipping_addresses`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `shipping_addresses` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `order_id` bigint NOT NULL,
+  `recipient_name` varchar(255) NOT NULL,
+  `company` varchar(255) DEFAULT NULL,
+  `address_line_1` varchar(255) NOT NULL,
+  `address_line_2` varchar(255) DEFAULT NULL,
+  `city` varchar(100) NOT NULL,
+  `state` varchar(100) NOT NULL,
+  `postal_code` varchar(20) NOT NULL,
+  `country` varchar(100) NOT NULL DEFAULT 'US',
+  `phone` varchar(50) DEFAULT NULL,
+  `delivery_instructions` text,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_order_shipping` (`order_id`),
+  CONSTRAINT `shipping_addresses_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `shipping_label_purchases`
+--
+
+DROP TABLE IF EXISTS `shipping_label_purchases`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `shipping_label_purchases` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `subscription_id` bigint NOT NULL,
+  `shipping_label_id` bigint NOT NULL,
+  `stripe_payment_intent_id` varchar(255) DEFAULT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `status` enum('pending','succeeded','failed') DEFAULT 'pending',
+  `decline_reason` varchar(255) DEFAULT NULL,
+  `payment_method` enum('card','connect_balance') DEFAULT 'card',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_subscription_id` (`subscription_id`),
+  KEY `idx_shipping_label_id` (`shipping_label_id`),
+  KEY `idx_payment_method` (`payment_method`),
+  KEY `idx_status` (`status`),
+  CONSTRAINT `fk_slp_shipping_label` FOREIGN KEY (`shipping_label_id`) REFERENCES `shipping_labels` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_slp_subscription` FOREIGN KEY (`subscription_id`) REFERENCES `user_subscriptions` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `shipping_label_purchases_ibfk_1` FOREIGN KEY (`subscription_id`) REFERENCES `user_subscriptions` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `shipping_label_purchases_ibfk_2` FOREIGN KEY (`shipping_label_id`) REFERENCES `shipping_labels` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `shipping_labels`
+--
+
+DROP TABLE IF EXISTS `shipping_labels`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `shipping_labels` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `order_id` bigint NOT NULL,
+  `order_item_id` bigint NOT NULL,
+  `vendor_id` bigint NOT NULL,
+  `package_sequence` int NOT NULL DEFAULT '1',
+  `carrier` enum('ups','fedex','usps') NOT NULL,
+  `service_code` varchar(50) NOT NULL,
+  `service_name` varchar(100) NOT NULL,
+  `tracking_number` varchar(100) NOT NULL,
+  `label_file_path` varchar(500) DEFAULT NULL,
+  `label_format` enum('paper','label') NOT NULL,
+  `cost` decimal(10,2) NOT NULL,
+  `currency` varchar(3) DEFAULT 'USD',
+  `vendor_transaction_id` bigint DEFAULT NULL,
+  `status` enum('purchased','printed','voided') DEFAULT 'purchased',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `order_item_id` (`order_item_id`),
+  KEY `vendor_transaction_id` (`vendor_transaction_id`),
+  KEY `idx_vendor_labels` (`vendor_id`,`created_at`),
+  KEY `idx_label_tracking` (`tracking_number`),
+  KEY `idx_order_labels` (`order_id`,`package_sequence`),
+  KEY `idx_file_cleanup` (`created_at`,`label_file_path`),
+  CONSTRAINT `shipping_labels_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `shipping_labels_ibfk_2` FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `shipping_labels_ibfk_3` FOREIGN KEY (`vendor_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `shipping_labels_ibfk_4` FOREIGN KEY (`vendor_transaction_id`) REFERENCES `vendor_transactions` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `shipping_policies`
 --
 
@@ -2341,6 +2982,92 @@ CREATE TABLE `shipping_policies` (
   CONSTRAINT `shipping_policies_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `shipping_policies_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `site_addons`
+--
+
+DROP TABLE IF EXISTS `site_addons`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `site_addons` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `site_id` bigint NOT NULL,
+  `addon_id` bigint NOT NULL,
+  `is_active` tinyint(1) DEFAULT '1',
+  `activated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `deactivated_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_site_addon` (`site_id`,`addon_id`),
+  KEY `idx_site_id` (`site_id`),
+  KEY `idx_addon_id` (`addon_id`),
+  KEY `idx_is_active` (`is_active`),
+  CONSTRAINT `site_addons_ibfk_1` FOREIGN KEY (`site_id`) REFERENCES `sites` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `site_addons_ibfk_2` FOREIGN KEY (`addon_id`) REFERENCES `website_addons` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `site_customizations`
+--
+
+DROP TABLE IF EXISTS `site_customizations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `site_customizations` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `site_id` bigint NOT NULL,
+  `text_color` varchar(7) DEFAULT '#374151' COMMENT 'Main text color',
+  `main_color` varchar(7) DEFAULT '#667eea' COMMENT 'Primary brand color',
+  `secondary_color` varchar(7) DEFAULT '#764ba2' COMMENT 'Secondary brand color',
+  `accent_color` varchar(7) DEFAULT NULL COMMENT 'Accent color for advanced plans',
+  `background_color` varchar(7) DEFAULT NULL COMMENT 'Background color for advanced plans',
+  `body_font` varchar(255) DEFAULT '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif' COMMENT 'Body text font family',
+  `header_font` varchar(255) DEFAULT 'Georgia, "Times New Roman", Times, serif' COMMENT 'Header font family',
+  `h1_font` varchar(255) DEFAULT NULL COMMENT 'H1 specific font for advanced plans',
+  `h2_font` varchar(255) DEFAULT NULL COMMENT 'H2 specific font for advanced plans',
+  `h3_font` varchar(255) DEFAULT NULL COMMENT 'H3 specific font for advanced plans',
+  `layout_style` enum('default','minimal','bold','creative') DEFAULT 'default' COMMENT 'Template layout variation',
+  `header_style` enum('default','centered','split','minimal') DEFAULT 'default' COMMENT 'Header layout style',
+  `custom_css` text COMMENT 'Custom CSS for professional plans',
+  `advanced_settings` json DEFAULT NULL COMMENT 'Advanced customization settings',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_site_customization` (`site_id`),
+  KEY `idx_site_customizations_site_id` (`site_id`),
+  CONSTRAINT `site_customizations_ibfk_1` FOREIGN KEY (`site_id`) REFERENCES `sites` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Site customization settings for colors, fonts, and layout';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `site_media`
+--
+
+DROP TABLE IF EXISTS `site_media`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `site_media` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `site_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  `media_path` varchar(255) NOT NULL,
+  `media_type` enum('banner','background','logo','content','hero') NOT NULL,
+  `original_name` varchar(255) DEFAULT NULL,
+  `alt_text` varchar(255) DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT '1',
+  `display_order` int DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_site_media` (`site_id`,`media_type`,`display_order`),
+  KEY `idx_user_sites` (`user_id`,`site_id`),
+  CONSTRAINT `site_media_ibfk_1` FOREIGN KEY (`site_id`) REFERENCES `sites` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `site_media_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2376,73 +3103,42 @@ CREATE TABLE `sites` (
   KEY `idx_subdomain` (`subdomain`),
   KEY `idx_custom_domain` (`custom_domain`),
   KEY `idx_status` (`status`),
-  KEY `idx_template_id` (`template_id`),
   KEY `idx_sites_custom_domain_active` (`custom_domain_active`),
   KEY `idx_sites_domain_validation_status` (`domain_validation_status`),
+  KEY `idx_template_id` (`template_id`),
   CONSTRAINT `sites_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `website_templates`
+-- Table structure for table `standalone_shipping_labels`
 --
 
-DROP TABLE IF EXISTS `website_templates`;
+DROP TABLE IF EXISTS `standalone_shipping_labels`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `website_templates` (
+CREATE TABLE `standalone_shipping_labels` (
   `id` bigint NOT NULL AUTO_INCREMENT,
-  `template_name` varchar(100) NOT NULL,
-  `template_slug` varchar(100) NOT NULL,
-  `description` text,
-  `css_file_path` varchar(500) NOT NULL,
-  `preview_image_url` varchar(500) DEFAULT NULL,
-  `tier_required` enum('free','basic','pro','premium') DEFAULT 'free',
-  `is_active` tinyint(1) DEFAULT '1',
-  `display_order` int DEFAULT '0',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `template_slug` (`template_slug`),
-  KEY `idx_tier_required` (`tier_required`),
-  KEY `idx_is_active` (`is_active`),
-  KEY `idx_display_order` (`display_order`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `discounts`
---
-
-DROP TABLE IF EXISTS `discounts`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `discounts` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
+  `label_id` varchar(100) NOT NULL,
   `user_id` bigint NOT NULL,
-  `subscription_type` enum('website','shipping_labels','verification') NOT NULL,
-  `discount_code` varchar(100) NOT NULL,
-  `discount_type` enum('percentage','fixed_amount','free_months','free_addon') NOT NULL,
-  `discount_value` decimal(10,2) NOT NULL,
-  `priority` int NOT NULL DEFAULT '10',
-  `can_stack` tinyint(1) DEFAULT '1',
-  `can_chain` tinyint(1) DEFAULT '0',
-  `valid_from` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `valid_until` timestamp NULL DEFAULT NULL,
-  `is_active` tinyint(1) DEFAULT '1',
+  `carrier` enum('ups','fedex','usps') NOT NULL,
+  `service_code` varchar(50) NOT NULL,
+  `service_name` varchar(100) NOT NULL,
+  `tracking_number` varchar(100) NOT NULL,
+  `label_file_path` varchar(500) DEFAULT NULL,
+  `label_format` enum('paper','label') NOT NULL,
+  `cost` decimal(10,2) NOT NULL,
+  `currency` varchar(3) DEFAULT 'USD',
+  `status` enum('purchased','printed','voided') DEFAULT 'purchased',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `created_by` bigint DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_user_subscription` (`user_id`,`subscription_type`),
-  KEY `idx_discount_code` (`discount_code`),
-  KEY `idx_priority` (`priority`),
-  KEY `idx_active_dates` (`is_active`,`valid_from`,`valid_until`),
-  KEY `idx_stacking` (`can_stack`,`can_chain`),
-  KEY `created_by` (`created_by`),
-  CONSTRAINT `discounts_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `discounts_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  UNIQUE KEY `label_id` (`label_id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_label_id` (`label_id`),
+  KEY `idx_tracking_number` (`tracking_number`),
+  KEY `idx_created_at` (`created_at`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2500,37 +3196,7 @@ CREATE TABLE `stripe_tax_transactions` (
   KEY `idx_customer_state` (`customer_state`),
   KEY `idx_order_date` (`order_date`),
   CONSTRAINT `stripe_tax_transactions_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `order_tax_summary`
---
-
-DROP TABLE IF EXISTS `order_tax_summary`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `order_tax_summary` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `order_id` bigint NOT NULL,
-  `stripe_tax_transaction_id` bigint NOT NULL,
-  `customer_state` varchar(2) NOT NULL,
-  `customer_zip` varchar(10) NOT NULL,
-  `taxable_amount` decimal(10,2) NOT NULL,
-  `tax_collected` decimal(10,2) NOT NULL,
-  `tax_rate_used` decimal(5,4) NOT NULL,
-  `tax_jurisdiction` varchar(100) NOT NULL,
-  `order_date` date NOT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_order_id` (`order_id`),
-  KEY `idx_customer_state` (`customer_state`),
-  KEY `idx_order_date` (`order_date`),
-  KEY `idx_tax_jurisdiction` (`tax_jurisdiction`),
-  CONSTRAINT `order_tax_summary_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`),
-  CONSTRAINT `order_tax_summary_ibfk_2` FOREIGN KEY (`stripe_tax_transaction_id`) REFERENCES `stripe_tax_transactions` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2589,105 +3255,6 @@ CREATE TABLE `subscription_payments` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `shipping_label_purchases`
---
-
-DROP TABLE IF EXISTS `shipping_label_purchases`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `shipping_label_purchases` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `subscription_id` bigint NOT NULL,
-  `shipping_label_id` bigint NOT NULL,
-  `stripe_payment_intent_id` varchar(255) DEFAULT NULL,
-  `amount` decimal(10,2) NOT NULL,
-  `status` enum('pending','succeeded','failed') DEFAULT 'pending',
-  `decline_reason` varchar(255) DEFAULT NULL,
-  `payment_method` enum('card','connect_balance') DEFAULT 'card',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_subscription_id` (`subscription_id`),
-  KEY `idx_shipping_label_id` (`shipping_label_id`),
-  KEY `idx_payment_method` (`payment_method`),
-  KEY `idx_status` (`status`),
-  CONSTRAINT `shipping_label_purchases_ibfk_1` FOREIGN KEY (`subscription_id`) REFERENCES `user_subscriptions` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `shipping_label_purchases_ibfk_2` FOREIGN KEY (`shipping_label_id`) REFERENCES `shipping_labels` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `shipping_labels`
---
-
-DROP TABLE IF EXISTS `shipping_labels`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `shipping_labels` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `order_id` bigint NOT NULL,
-  `order_item_id` bigint NOT NULL,
-  `vendor_id` bigint NOT NULL,
-  `package_sequence` int NOT NULL DEFAULT '1',
-  `carrier` enum('ups','fedex','usps') NOT NULL,
-  `service_code` varchar(50) NOT NULL,
-  `service_name` varchar(100) NOT NULL,
-  `tracking_number` varchar(100) NOT NULL,
-  `label_file_path` varchar(500) DEFAULT NULL,
-  `label_format` enum('paper','label') NOT NULL,
-  `cost` decimal(10,2) NOT NULL,
-  `currency` varchar(3) DEFAULT 'USD',
-  `vendor_transaction_id` bigint DEFAULT NULL,
-  `status` enum('purchased','printed','voided') DEFAULT 'purchased',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `order_item_id` (`order_item_id`),
-  KEY `vendor_transaction_id` (`vendor_transaction_id`),
-  KEY `idx_vendor_labels` (`vendor_id`,`created_at`),
-  KEY `idx_label_tracking` (`tracking_number`),
-  KEY `idx_order_labels` (`order_id`,`package_sequence`),
-  KEY `idx_file_cleanup` (`created_at`,`label_file_path`),
-  CONSTRAINT `shipping_labels_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `shipping_labels_ibfk_2` FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `shipping_labels_ibfk_3` FOREIGN KEY (`vendor_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `shipping_labels_ibfk_4` FOREIGN KEY (`vendor_transaction_id`) REFERENCES `vendor_transactions` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `standalone_shipping_labels`
---
-
-DROP TABLE IF EXISTS `standalone_shipping_labels`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `standalone_shipping_labels` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `label_id` varchar(100) NOT NULL,
-  `user_id` bigint NOT NULL,
-  `carrier` enum('ups','fedex','usps') NOT NULL,
-  `service_code` varchar(50) NOT NULL,
-  `service_name` varchar(100) NOT NULL,
-  `tracking_number` varchar(100) NOT NULL,
-  `label_file_path` varchar(500) DEFAULT NULL,
-  `label_format` enum('paper','label') NOT NULL,
-  `cost` decimal(10,2) NOT NULL,
-  `currency` varchar(3) DEFAULT 'USD',
-  `status` enum('purchased','printed','voided') DEFAULT 'purchased',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `label_id` (`label_id`),
-  KEY `idx_user_id` (`user_id`),
-  KEY `idx_label_id` (`label_id`),
-  KEY `idx_tracking_number` (`tracking_number`),
-  KEY `idx_created_at` (`created_at`),
-  CONSTRAINT `standalone_shipping_labels_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
 -- Table structure for table `terms_versions`
 --
 
@@ -2698,6 +3265,7 @@ CREATE TABLE `terms_versions` (
   `id` int NOT NULL AUTO_INCREMENT,
   `version` varchar(50) NOT NULL,
   `title` varchar(255) NOT NULL,
+  `subscription_type` enum('general','verification','shipping_labels','marketplace','website','sites','wholesale') DEFAULT 'general',
   `content` text NOT NULL,
   `is_current` tinyint(1) DEFAULT '0',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
@@ -2707,7 +3275,7 @@ CREATE TABLE `terms_versions` (
   KEY `idx_version` (`version`),
   KEY `created_by` (`created_by`),
   CONSTRAINT `terms_versions_ibfk_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2742,6 +3310,214 @@ CREATE TABLE `ticket_purchases` (
   CONSTRAINT `ticket_purchases_ibfk_1` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE,
   CONSTRAINT `ticket_purchases_ibfk_2` FOREIGN KEY (`ticket_id`) REFERENCES `event_tickets` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `tiktok_corporate_products`
+--
+
+DROP TABLE IF EXISTS `tiktok_corporate_products`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tiktok_corporate_products` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `product_id` bigint NOT NULL,
+  `tiktok_product_id` varchar(100) DEFAULT NULL,
+  `corporate_title` varchar(255) DEFAULT NULL,
+  `corporate_description` text,
+  `corporate_price` decimal(10,2) DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT '1',
+  `created_by` bigint DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_corporate_product` (`product_id`),
+  KEY `idx_product_id` (`product_id`),
+  KEY `idx_tiktok_product_id` (`tiktok_product_id`),
+  KEY `idx_active` (`is_active`),
+  KEY `idx_created_by` (`created_by`),
+  CONSTRAINT `tiktok_corporate_products_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `tiktok_corporate_products_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Admin-curated products for corporate TikTok catalog';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `tiktok_inventory_allocations`
+--
+
+DROP TABLE IF EXISTS `tiktok_inventory_allocations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tiktok_inventory_allocations` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `product_id` bigint NOT NULL,
+  `allocated_quantity` int NOT NULL DEFAULT '0',
+  `last_sync_quantity` int DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_user_product_allocation` (`user_id`,`product_id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_product_id` (`product_id`),
+  CONSTRAINT `tiktok_inventory_allocations_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `tiktok_inventory_allocations_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Optional inventory allocations for TikTok';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `tiktok_orders`
+--
+
+DROP TABLE IF EXISTS `tiktok_orders`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tiktok_orders` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `tiktok_order_id` varchar(100) NOT NULL,
+  `tiktok_shop_id` varchar(100) DEFAULT NULL,
+  `order_data` json DEFAULT NULL,
+  `customer_email` varchar(255) DEFAULT NULL,
+  `customer_name` varchar(255) DEFAULT NULL,
+  `shipping_address` json DEFAULT NULL,
+  `total_amount` decimal(10,2) DEFAULT NULL,
+  `currency` varchar(3) DEFAULT 'USD',
+  `order_status` varchar(50) DEFAULT NULL,
+  `processed_to_main` tinyint(1) DEFAULT '0',
+  `main_order_id` bigint DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_tiktok_order` (`tiktok_order_id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_tiktok_order_id` (`tiktok_order_id`),
+  KEY `idx_processed` (`processed_to_main`),
+  KEY `idx_main_order_id` (`main_order_id`),
+  KEY `idx_created_at` (`created_at`),
+  CONSTRAINT `tiktok_orders_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Raw TikTok orders for isolated processing';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `tiktok_product_data`
+--
+
+DROP TABLE IF EXISTS `tiktok_product_data`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tiktok_product_data` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `product_id` bigint NOT NULL,
+  `tiktok_product_id` varchar(100) DEFAULT NULL,
+  `tiktok_title` varchar(255) DEFAULT NULL,
+  `tiktok_description` text,
+  `tiktok_price` decimal(10,2) DEFAULT NULL,
+  `tiktok_tags` text,
+  `tiktok_category_id` varchar(50) DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT '1',
+  `sync_status` enum('pending','synced','error') DEFAULT 'pending',
+  `last_sync_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_user_product` (`user_id`,`product_id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_product_id` (`product_id`),
+  KEY `idx_tiktok_product_id` (`tiktok_product_id`),
+  KEY `idx_active` (`is_active`),
+  KEY `idx_sync_status` (`sync_status`),
+  CONSTRAINT `tiktok_product_data_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `tiktok_product_data_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='TikTok-optimized product data and SEO settings';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `tiktok_returns`
+--
+
+DROP TABLE IF EXISTS `tiktok_returns`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tiktok_returns` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `tiktok_return_id` varchar(100) NOT NULL,
+  `tiktok_order_id` varchar(100) DEFAULT NULL,
+  `return_data` json DEFAULT NULL,
+  `return_reason` varchar(255) DEFAULT NULL,
+  `return_status` varchar(50) DEFAULT NULL,
+  `processed_to_main` tinyint(1) DEFAULT '0',
+  `main_return_id` bigint DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_tiktok_return` (`tiktok_return_id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_tiktok_return_id` (`tiktok_return_id`),
+  KEY `idx_tiktok_order_id` (`tiktok_order_id`),
+  KEY `idx_processed` (`processed_to_main`),
+  KEY `idx_created_at` (`created_at`),
+  CONSTRAINT `tiktok_returns_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='TikTok return requests for isolated processing';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `tiktok_sync_logs`
+--
+
+DROP TABLE IF EXISTS `tiktok_sync_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tiktok_sync_logs` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `sync_type` enum('product','inventory','order','return','tracking') NOT NULL,
+  `operation` enum('push','pull','update','delete') NOT NULL,
+  `reference_id` varchar(100) DEFAULT NULL,
+  `status` enum('success','error','warning') NOT NULL,
+  `message` text,
+  `api_response` json DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_sync_type` (`sync_type`),
+  KEY `idx_status` (`status`),
+  KEY `idx_created_at` (`created_at`),
+  KEY `idx_reference_id` (`reference_id`),
+  CONSTRAINT `tiktok_sync_logs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='TikTok API sync logs and error tracking';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `tiktok_user_shops`
+--
+
+DROP TABLE IF EXISTS `tiktok_user_shops`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tiktok_user_shops` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `shop_id` varchar(100) NOT NULL,
+  `shop_name` varchar(255) DEFAULT NULL,
+  `access_token` text,
+  `refresh_token` text,
+  `token_expires_at` timestamp NULL DEFAULT NULL,
+  `shop_region` varchar(10) DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT '1',
+  `terms_accepted` tinyint(1) DEFAULT '0',
+  `last_sync_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_user_shop` (`user_id`,`shop_id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_shop_id` (`shop_id`),
+  KEY `idx_active` (`is_active`),
+  CONSTRAINT `tiktok_user_shops_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='TikTok shop connections and OAuth tokens';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2793,6 +3569,32 @@ CREATE TABLE `user_acknowledgments` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `user_addons`
+--
+
+DROP TABLE IF EXISTS `user_addons`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `user_addons` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `addon_slug` varchar(100) NOT NULL COMMENT 'Matches website_addons.addon_slug',
+  `is_active` tinyint(1) DEFAULT '1' COMMENT 'Whether addon is currently active',
+  `activated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'When addon was purchased/activated',
+  `deactivated_at` timestamp NULL DEFAULT NULL COMMENT 'When addon was cancelled (if applicable)',
+  `subscription_source` enum('website_subscription','marketplace_subscription','manual') DEFAULT 'website_subscription' COMMENT 'How the addon was acquired',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_user_addon` (`user_id`,`addon_slug`),
+  KEY `idx_user_addons_lookup` (`user_id`,`addon_slug`,`is_active`),
+  KEY `idx_addon_slug` (`addon_slug`),
+  KEY `idx_user_active_addons` (`user_id`,`is_active`),
+  CONSTRAINT `user_addons_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='User-level addon tracking for subscription features';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `user_categories`
 --
 
@@ -2840,7 +3642,7 @@ CREATE TABLE `user_email_preference_log` (
   KEY `idx_change_by` (`changed_by_user_id`,`created_at` DESC),
   CONSTRAINT `user_email_preference_log_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `user_email_preference_log_ibfk_2` FOREIGN KEY (`changed_by_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Complete audit trail of all preference changes';
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Complete audit trail of all preference changes';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2864,7 +3666,7 @@ CREATE TABLE `user_email_preferences` (
   KEY `idx_enabled` (`is_enabled`),
   KEY `idx_prefs_user_enabled` (`user_id`,`is_enabled`),
   CONSTRAINT `user_email_preferences_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=32 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='User-controlled email frequency and category settings';
+) ENGINE=InnoDB AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='User-controlled email frequency and category settings';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2886,7 +3688,7 @@ CREATE TABLE `user_logins` (
   UNIQUE KEY `provider` (`provider`,`provider_id`),
   KEY `idx_user_logins_user_id` (`user_id`),
   CONSTRAINT `user_logins_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=24 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2912,6 +3714,10 @@ CREATE TABLE `user_permissions` (
   `events` tinyint(1) DEFAULT '0',
   `tickets` tinyint(1) DEFAULT '0',
   `verified` tinyint(1) DEFAULT '0' COMMENT 'Artist verification status',
+  `marketplace` tinyint(1) DEFAULT '0',
+  `shipping` tinyint(1) DEFAULT '0',
+  `sites` tinyint(1) DEFAULT '0' COMMENT 'Website subscription access',
+  `professional_sites` tinyint(1) DEFAULT '0' COMMENT 'Professional website features permission',
   PRIMARY KEY (`user_id`),
   KEY `idx_manage_sites` (`manage_sites`),
   KEY `idx_manage_content` (`manage_content`),
@@ -2920,8 +3726,6 @@ CREATE TABLE `user_permissions` (
   CONSTRAINT `user_permissions_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-
-
 
 --
 -- Table structure for table `user_profiles`
@@ -2954,18 +3758,19 @@ CREATE TABLE `user_profiles` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `birth_date` date DEFAULT NULL,
-  `gender` varchar(50) DEFAULT NULL,
+  `gender` enum('Male','Female','Custom','Prefer Not to Say') DEFAULT NULL,
   `nationality` varchar(100) DEFAULT NULL,
   `languages_known` json DEFAULT NULL,
   `job_title` varchar(255) DEFAULT NULL,
   `bio` text,
   `education` json DEFAULT NULL,
-  `awards` json DEFAULT NULL,
-  `memberships` json DEFAULT NULL,
+  `awards` text,
+  `memberships` text,
   `timezone` varchar(50) DEFAULT NULL,
   PRIMARY KEY (`user_id`),
   KEY `idx_user_profiles_name` (`first_name`,`last_name`),
-  CONSTRAINT `user_profiles_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT `user_profiles_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `chk_timezone_format` CHECK (((`timezone` is null) or regexp_like(`timezone`,_utf8mb4'^[A-Za-z]+/[A-Za-z_]+$')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -2997,7 +3802,7 @@ CREATE TABLE `user_subscriptions` (
   KEY `idx_subscription_status` (`status`),
   KEY `idx_subscription_type` (`subscription_type`),
   CONSTRAINT `user_subscriptions_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=56 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -3010,7 +3815,7 @@ DROP TABLE IF EXISTS `user_terms_acceptance`;
 CREATE TABLE `user_terms_acceptance` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `user_id` bigint NOT NULL,
-  `subscription_type` enum('general','verification','shipping_labels','marketplace','website') DEFAULT 'general',
+  `subscription_type` enum('general','verification','shipping_labels','marketplace','website','sites') DEFAULT 'general',
   `terms_version_id` int NOT NULL,
   `accepted_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `ip_address` varchar(45) DEFAULT NULL,
@@ -3018,11 +3823,11 @@ CREATE TABLE `user_terms_acceptance` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `unique_user_terms` (`user_id`,`terms_version_id`),
   KEY `idx_user_terms` (`user_id`,`terms_version_id`),
-  KEY `idx_user_subscription_type` (`user_id`,`subscription_type`),
   KEY `terms_version_id` (`terms_version_id`),
+  KEY `idx_user_subscription_type` (`user_id`,`subscription_type`),
   CONSTRAINT `user_terms_acceptance_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `user_terms_acceptance_ibfk_2` FOREIGN KEY (`terms_version_id`) REFERENCES `terms_versions` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=24 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -3138,7 +3943,7 @@ CREATE TABLE `users` (
   `username` varchar(255) NOT NULL,
   `password` varchar(255) DEFAULT NULL,
   `email_verified` enum('yes','no') DEFAULT 'no',
-  `user_type` enum('artist','promoter','community','admin','Draft') NOT NULL,
+  `user_type` enum('artist','promoter','community','admin','Draft','wholesale') NOT NULL,
   `status` enum('active','inactive','suspended','draft','deleted') DEFAULT 'draft',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -3149,11 +3954,16 @@ CREATE TABLE `users` (
   `google_uid` varchar(128) DEFAULT NULL,
   `last_checklist_pass` timestamp NULL DEFAULT NULL,
   `onboarding_completed` enum('yes','no') DEFAULT 'no',
+  `marketplace_auto_sort` enum('art','crafts','manual') DEFAULT 'manual' COMMENT 'Auto-assigns new products to marketplace category',
+  `cookie_consent_accepted` tinyint(1) DEFAULT '0',
+  `last_consented` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `username` (`username`),
   KEY `idx_google_uid` (`google_uid`),
-  KEY `idx_search_users` (`user_type`,`status`,`created_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=1234567985 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  KEY `idx_search_users` (`user_type`,`status`,`created_at`),
+  KEY `idx_marketplace_auto_sort` (`marketplace_auto_sort`),
+  KEY `idx_cookie_consent` (`cookie_consent_accepted`,`last_consented`)
+) ENGINE=InnoDB AUTO_INCREMENT=1234567986 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -3201,6 +4011,37 @@ CREATE TABLE `vendor_settings` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `vendor_ship_settings`
+--
+
+DROP TABLE IF EXISTS `vendor_ship_settings`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `vendor_ship_settings` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `vendor_id` bigint NOT NULL,
+  `return_company_name` varchar(255) DEFAULT NULL,
+  `return_contact_name` varchar(255) DEFAULT NULL,
+  `return_address_line_1` varchar(255) DEFAULT NULL,
+  `return_address_line_2` varchar(255) DEFAULT NULL,
+  `return_city` varchar(100) DEFAULT NULL,
+  `return_state` varchar(100) DEFAULT NULL,
+  `return_postal_code` varchar(20) DEFAULT NULL,
+  `return_country` varchar(100) DEFAULT 'US',
+  `return_phone` varchar(50) DEFAULT NULL,
+  `label_size_preference` enum('4x6','8.5x11') DEFAULT '4x6',
+  `signature_required_default` tinyint(1) DEFAULT '0',
+  `insurance_default` tinyint(1) DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_vendor` (`vendor_id`),
+  KEY `idx_vendor_id` (`vendor_id`),
+  CONSTRAINT `vendor_ship_settings_ibfk_1` FOREIGN KEY (`vendor_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `vendor_shipping_methods`
 --
 
@@ -3221,6 +4062,26 @@ CREATE TABLE `vendor_shipping_methods` (
   KEY `idx_vendor_shipping_vendor_id` (`vendor_id`),
   KEY `idx_vendor_shipping_default` (`is_default`),
   CONSTRAINT `fk_vendor_shipping_methods_vendor_id` FOREIGN KEY (`vendor_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `vendor_shipping_preferences`
+--
+
+DROP TABLE IF EXISTS `vendor_shipping_preferences`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `vendor_shipping_preferences` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `vendor_id` bigint NOT NULL,
+  `preferred_carrier` enum('ups','fedex','usps') DEFAULT NULL,
+  `default_label_format` enum('paper','label') DEFAULT 'paper',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_vendor_preferences` (`vendor_id`),
+  CONSTRAINT `vendor_shipping_preferences_ibfk_1` FOREIGN KEY (`vendor_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -3309,7 +4170,7 @@ CREATE TABLE `vendor_transactions` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `vendor_id` bigint NOT NULL,
   `order_id` bigint DEFAULT NULL,
-  `transaction_type` enum('sale','commission','payout','refund','adjustment','subscription_charge') NOT NULL,
+  `transaction_type` enum('sale','commission','payout','refund','adjustment','subscription_charge','shipping_charge') NOT NULL,
   `amount` decimal(10,2) NOT NULL,
   `commission_rate` decimal(5,2) DEFAULT NULL,
   `commission_amount` decimal(10,2) DEFAULT NULL,
@@ -3325,7 +4186,108 @@ CREATE TABLE `vendor_transactions` (
   KEY `idx_status` (`status`),
   CONSTRAINT `vendor_transactions_ibfk_1` FOREIGN KEY (`vendor_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `vendor_transactions_ibfk_2` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `website_addons`
+--
+
+DROP TABLE IF EXISTS `website_addons`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `website_addons` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `addon_name` varchar(100) NOT NULL,
+  `addon_slug` varchar(100) NOT NULL,
+  `description` text,
+  `addon_script_path` varchar(500) NOT NULL,
+  `tier_required` enum('free','basic','pro','premium') DEFAULT 'basic',
+  `monthly_price` decimal(10,2) DEFAULT '0.00',
+  `is_active` tinyint(1) DEFAULT '1',
+  `display_order` int DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `user_level` tinyint(1) DEFAULT '0' COMMENT 'Whether this addon applies to user (1) or site (0)',
+  `category` enum('site_features','user_features','marketplace','analytics','integrations') DEFAULT 'site_features' COMMENT 'Addon category for organization',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `addon_slug` (`addon_slug`),
+  KEY `idx_tier_required` (`tier_required`),
+  KEY `idx_is_active` (`is_active`),
+  KEY `idx_display_order` (`display_order`)
 ) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `website_templates`
+--
+
+DROP TABLE IF EXISTS `website_templates`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `website_templates` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `template_name` varchar(100) NOT NULL,
+  `template_slug` varchar(100) NOT NULL,
+  `description` text,
+  `css_file_path` varchar(500) NOT NULL,
+  `preview_image_url` varchar(500) DEFAULT NULL,
+  `tier_required` enum('free','basic','pro','premium') DEFAULT 'free',
+  `is_active` tinyint(1) DEFAULT '1',
+  `display_order` int DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `template_slug` (`template_slug`),
+  KEY `idx_tier_required` (`tier_required`),
+  KEY `idx_is_active` (`is_active`),
+  KEY `idx_display_order` (`display_order`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `wholesale_applications`
+--
+
+DROP TABLE IF EXISTS `wholesale_applications`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `wholesale_applications` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL,
+  `business_name` varchar(255) NOT NULL,
+  `business_type` enum('retail_store','online_retailer','gallery','museum_shop','gift_shop','boutique','interior_designer','event_planner','distributor','other') NOT NULL,
+  `tax_id` varchar(50) NOT NULL,
+  `years_in_business` enum('less_than_1','1_2','3_5','6_10','more_than_10') NOT NULL,
+  `business_address` varchar(255) NOT NULL,
+  `business_city` varchar(100) NOT NULL,
+  `business_state` varchar(50) NOT NULL,
+  `business_zip` varchar(20) NOT NULL,
+  `business_phone` varchar(50) NOT NULL,
+  `business_email` varchar(255) NOT NULL,
+  `contact_name` varchar(255) NOT NULL,
+  `contact_title` varchar(100) DEFAULT NULL,
+  `business_description` text NOT NULL,
+  `product_categories` text NOT NULL,
+  `expected_order_volume` enum('500_1000','1000_2500','2500_5000','5000_10000','10000_plus') NOT NULL,
+  `website_url` varchar(500) DEFAULT NULL,
+  `resale_certificate` varchar(100) DEFAULT NULL,
+  `additional_info` text,
+  `status` enum('pending','approved','denied','under_review') DEFAULT 'pending',
+  `reviewed_by` bigint DEFAULT NULL,
+  `review_date` timestamp NULL DEFAULT NULL,
+  `admin_notes` text,
+  `denial_reason` text,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_status` (`status`),
+  KEY `idx_created_at` (`created_at`),
+  KEY `reviewed_by` (`reviewed_by`),
+  CONSTRAINT `wholesale_applications_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `wholesale_applications_ibfk_2` FOREIGN KEY (`reviewed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Wholesale buyer applications and approval tracking';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -3350,44 +4312,218 @@ CREATE TABLE `wp_artifacts` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping routines for database 'oaf'
+-- Final view structure for view `product_inventory_with_allocations`
 --
-/*!50003 DROP PROCEDURE IF EXISTS `replenish_vendor_skus` */;
-/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
-/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
-/*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8mb4 */ ;
-/*!50003 SET character_set_results = utf8mb4 */ ;
-/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
-DELIMITER ;;
-CREATE DEFINER=`oafuser`@`%` PROCEDURE `replenish_vendor_skus`(IN vendorId BIGINT, IN batchSize INT)
-BEGIN
-    DECLARE lastSkuNumber INT DEFAULT 100;  
-    DECLARE i INT DEFAULT 0;
 
-    
-    SELECT IFNULL(MAX(CAST(SUBSTRING(sku, 4) AS UNSIGNED)), 100)
-    INTO lastSkuNumber
-    FROM vendor_sku_log
-    WHERE vendor_id = vendorId
-    AND sku REGEXP '^ART[0-9]+$';
-
-    
-    WHILE i < batchSize DO
-        SET lastSkuNumber = lastSkuNumber + 1;
-        INSERT INTO vendor_sku_log (vendor_id, sku)
-        VALUES (vendorId, CONCAT('ART', lastSkuNumber));
-        SET i = i + 1;
-    END WHILE;
-END ;;
-DELIMITER ;
-/*!50003 SET sql_mode              = @saved_sql_mode */ ;
-/*!50003 SET character_set_client  = @saved_cs_client */ ;
-/*!50003 SET character_set_results = @saved_cs_results */ ;
-/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50001 DROP VIEW IF EXISTS `product_inventory_with_allocations`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`oafuser`@`%` SQL SECURITY DEFINER */
+/*!50001 VIEW `product_inventory_with_allocations` AS select `pi`.`id` AS `id`,`pi`.`product_id` AS `product_id`,`pi`.`qty_on_hand` AS `qty_on_hand`,`pi`.`qty_on_order` AS `qty_on_order`,`pi`.`qty_available` AS `qty_available`,`pi`.`reorder_qty` AS `reorder_qty`,`pi`.`updated_at` AS `updated_at`,`pi`.`updated_by` AS `updated_by`,((`pi`.`qty_on_hand` - `pi`.`qty_on_order`) - coalesce(`tt`.`total_allocated`,0)) AS `qty_truly_available`,coalesce(`tt`.`total_allocated`,0) AS `total_allocated`,coalesce(`tt`.`tiktok_allocated`,0) AS `tiktok_allocated` from (`product_inventory` `pi` left join (select `tiktok_inventory_allocations`.`product_id` AS `product_id`,sum(`tiktok_inventory_allocations`.`allocated_quantity`) AS `total_allocated`,sum(`tiktok_inventory_allocations`.`allocated_quantity`) AS `tiktok_allocated` from `tiktok_inventory_allocations` group by `tiktok_inventory_allocations`.`product_id`) `tt` on((`pi`.`product_id` = `tt`.`product_id`))) */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+--
+-- Table structure for table `coupon_products`
+--
+
+DROP TABLE IF EXISTS `coupon_products`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `coupon_products` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `coupon_id` int NOT NULL,
+  `product_id` bigint NOT NULL,
+  `vendor_id` bigint NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_coupon_product` (`coupon_id`,`product_id`),
+  KEY `idx_coupon` (`coupon_id`),
+  KEY `idx_product` (`product_id`),
+  KEY `idx_vendor` (`vendor_id`),
+  CONSTRAINT `coupon_products_ibfk_1` FOREIGN KEY (`coupon_id`) REFERENCES `coupons` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `coupon_products_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `coupon_products_ibfk_3` FOREIGN KEY (`vendor_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `coupon_usage`
+--
+
+DROP TABLE IF EXISTS `coupon_usage`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `coupon_usage` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `coupon_id` int NOT NULL,
+  `user_id` bigint NOT NULL,
+  `order_id` bigint NOT NULL,
+  `usage_count` int DEFAULT '1',
+  `used_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_coupon_user` (`coupon_id`,`user_id`),
+  KEY `idx_user_usage` (`user_id`,`used_at`),
+  CONSTRAINT `coupon_usage_ibfk_1` FOREIGN KEY (`coupon_id`) REFERENCES `coupons` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `coupon_usage_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `coupon_usage_ibfk_3` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `promotions`
+--
+
+DROP TABLE IF EXISTS `promotions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `promotions` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `description` text,
+  `admin_discount_percentage` decimal(5,2) NOT NULL,
+  `suggested_vendor_discount` decimal(5,2) NOT NULL,
+  `application_type` enum('auto_apply','coupon_code') NOT NULL,
+  `coupon_code` varchar(50) DEFAULT NULL,
+  `min_order_amount` decimal(10,2) DEFAULT '0.00',
+  `usage_limit_per_user` int DEFAULT '1',
+  `total_usage_limit` int DEFAULT NULL,
+  `current_usage_count` int DEFAULT '0',
+  `valid_from` datetime NOT NULL,
+  `valid_until` datetime DEFAULT NULL,
+  `status` enum('draft','inviting_vendors','active','paused','ended') DEFAULT 'draft',
+  `created_by_admin_id` bigint NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `coupon_code` (`coupon_code`),
+  KEY `idx_code` (`coupon_code`),
+  KEY `idx_status` (`status`),
+  KEY `idx_dates` (`valid_from`,`valid_until`),
+  CONSTRAINT `promotions_ibfk_1` FOREIGN KEY (`created_by_admin_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `promotion_invitations`
+--
+
+DROP TABLE IF EXISTS `promotion_invitations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `promotion_invitations` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `promotion_id` bigint NOT NULL,
+  `vendor_id` bigint NOT NULL,
+  `invitation_status` enum('pending','accepted','rejected','expired') DEFAULT 'pending',
+  `vendor_discount_percentage` decimal(5,2) DEFAULT NULL,
+  `admin_message` text,
+  `vendor_response_message` text,
+  `invited_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `responded_at` timestamp NULL DEFAULT NULL,
+  `expires_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_promotion_vendor` (`promotion_id`,`vendor_id`),
+  KEY `idx_vendor_status` (`vendor_id`,`invitation_status`),
+  KEY `idx_promotion` (`promotion_id`),
+  CONSTRAINT `promotion_invitations_ibfk_1` FOREIGN KEY (`promotion_id`) REFERENCES `promotions` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `promotion_invitations_ibfk_2` FOREIGN KEY (`vendor_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `promotion_products`
+--
+
+DROP TABLE IF EXISTS `promotion_products`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `promotion_products` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `promotion_id` bigint NOT NULL,
+  `product_id` bigint NOT NULL,
+  `vendor_id` bigint NOT NULL,
+  `added_by` enum('admin','vendor') NOT NULL,
+  `added_by_user_id` bigint NOT NULL,
+  `approval_status` enum('pending','approved','rejected') DEFAULT 'approved',
+  `admin_discount_percentage` decimal(5,2) NOT NULL,
+  `vendor_discount_percentage` decimal(5,2) NOT NULL,
+  `total_customer_discount` decimal(5,2) GENERATED ALWAYS AS ((`admin_discount_percentage` + `vendor_discount_percentage`)) STORED,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `approved_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_promotion_product` (`promotion_id`,`product_id`),
+  KEY `idx_promotion_vendor` (`promotion_id`,`vendor_id`),
+  KEY `idx_approval_status` (`approval_status`),
+  CONSTRAINT `promotion_products_ibfk_1` FOREIGN KEY (`promotion_id`) REFERENCES `promotions` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `promotion_products_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `promotion_products_ibfk_3` FOREIGN KEY (`vendor_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `promotion_products_ibfk_4` FOREIGN KEY (`added_by_user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `promotion_usage`
+--
+
+DROP TABLE IF EXISTS `promotion_usage`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `promotion_usage` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `promotion_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  `order_id` bigint NOT NULL,
+  `usage_count` int DEFAULT '1',
+  `used_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_promotion_user` (`promotion_id`,`user_id`),
+  KEY `idx_user_usage` (`user_id`,`used_at`),
+  CONSTRAINT `promotion_usage_ibfk_1` FOREIGN KEY (`promotion_id`) REFERENCES `promotions` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `promotion_usage_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `promotion_usage_ibfk_3` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `order_item_discounts`
+--
+
+DROP TABLE IF EXISTS `order_item_discounts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `order_item_discounts` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `order_id` bigint NOT NULL,
+  `order_item_id` bigint NOT NULL,
+  `discount_type` enum('coupon','promotion','sale') NOT NULL,
+  `coupon_id` int DEFAULT NULL,
+  `promotion_id` bigint DEFAULT NULL,
+  `discount_code` varchar(50) DEFAULT NULL,
+  `discount_name` varchar(255) NOT NULL,
+  `discount_percentage` decimal(5,2) NOT NULL,
+  `discount_amount` decimal(10,2) NOT NULL,
+  `admin_cost` decimal(10,2) DEFAULT '0.00',
+  `vendor_cost` decimal(10,2) DEFAULT '0.00',
+  `original_price` decimal(10,2) NOT NULL,
+  `discounted_price` decimal(10,2) NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_order` (`order_id`),
+  KEY `idx_order_item` (`order_item_id`),
+  CONSTRAINT `order_item_discounts_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `order_item_discounts_ibfk_2` FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `order_item_discounts_ibfk_3` FOREIGN KEY (`coupon_id`) REFERENCES `coupons` (`id`),
+  CONSTRAINT `order_item_discounts_ibfk_4` FOREIGN KEY (`promotion_id`) REFERENCES `promotions` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
@@ -3397,4 +4533,5 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-07-31 18:06:31
+-- Dump completed on 2025-09-03  6:43:49
+-- Updated with Coupon System tables on 2024-12-XX

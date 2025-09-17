@@ -180,7 +180,7 @@ router.get('/all', async (req, res) => {
 router.get('/my/:ids?', verifyToken, async (req, res) => {
   try {
     const { ids } = req.params;
-    const { include } = req.query;
+    const { include, limit } = req.query;
     
     // Parse include parameter
     const includes = include ? include.split(',').map(i => i.trim()) : [];
@@ -197,6 +197,14 @@ router.get('/my/:ids?', verifyToken, async (req, res) => {
     if (!ids) {
       // Get all user's products
       query = `SELECT * FROM products WHERE vendor_id = ?${statusFilter} ORDER BY created_at DESC`;
+      
+      // Add LIMIT if specified
+      if (limit) {
+        const limitNum = parseInt(limit);
+        if (!isNaN(limitNum) && limitNum > 0) {
+          query += ` LIMIT ${limitNum}`;
+        }
+      }
     } else if (ids.includes(',')) {
       // Multiple specific products
       productIds = ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));

@@ -476,6 +476,13 @@
   box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
 }
 
+/* Coupon Section */
+.couponSection {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .content {

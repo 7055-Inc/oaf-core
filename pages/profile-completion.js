@@ -83,9 +83,83 @@ export default function ProfileCompletion() {
   };
 
   const handleCompleteLogin = () => {
-    const redirectUrl = redirect || '/dashboard';
-    router.push(redirectUrl);
+    let redirectUrl = '/dashboard';
+
+    // Next.js can provide query params as string or array
+    const rawRedirect = Array.isArray(redirect) ? redirect[0] : redirect;
+
+    if (rawRedirect && typeof rawRedirect === 'string') {
+      let decoded = rawRedirect;
+      try {
+        // Handle encoded values like %2Fprofile%2F123
+        decoded = decodeURIComponent(decoded);
+      } catch (_) {
+        // Keep original if decoding fails
+      }
+
+      // Ensure it starts with a single leading slash and is a relative path
+      if (decoded.startsWith('http://') || decoded.startsWith('https://')) {
+        // For safety, disallow absolute URLs and fallback
+        redirectUrl = '/dashboard';
+      } else {
+        // Normalize to "/..." only
+        decoded = decoded.trim();
+        if (!decoded.startsWith('/')) decoded = `/${decoded}`;
+        redirectUrl = decoded;
+      }
+    }
+
+    // Prevent loops back to this page
+    if (redirectUrl.startsWith('/profile-completion')) {
+      redirectUrl = '/dashboard';
+    }
+
+    // Use replace to avoid back-button loops
+    router.replace(redirectUrl);
   };
+
+  // Auto-redirect when profile is complete (must be above early returns)
+  useEffect(() => {
+    const complete = !!profileData && (profileData.requiresCompletion === false || profileData.isComplete === true);
+    if (complete) {
+      const timer = setTimeout(() => {
+        let redirectUrl = '/dashboard';
+
+        // Next.js can provide query params as string or array
+        const rawRedirect = Array.isArray(redirect) ? redirect[0] : redirect;
+
+        if (rawRedirect && typeof rawRedirect === 'string') {
+          let decoded = rawRedirect;
+          try {
+            // Handle encoded values like %2Fprofile%2F123
+            decoded = decodeURIComponent(decoded);
+          } catch (_) {
+            // Keep original if decoding fails
+          }
+
+          // Ensure it starts with a single leading slash and is a relative path
+          if (decoded.startsWith('http://') || decoded.startsWith('https://')) {
+            // For safety, disallow absolute URLs and fallback
+            redirectUrl = '/dashboard';
+          } else {
+            // Normalize to "/..." only
+            decoded = decoded.trim();
+            if (!decoded.startsWith('/')) decoded = `/${decoded}`;
+            redirectUrl = decoded;
+          }
+        }
+
+        // Prevent loops back to this page
+        if (redirectUrl.startsWith('/profile-completion')) {
+          redirectUrl = '/dashboard';
+        }
+
+        // Use replace to avoid back-button loops
+        router.replace(redirectUrl);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [profileData?.requiresCompletion, profileData?.isComplete, redirect, router]);
 
   const verifyAndCompleteLogin = async () => {
     // Verify profile completion before redirecting
@@ -105,7 +179,9 @@ export default function ProfileCompletion() {
           }
         }
       } catch (checkErr) {
-        // Continue with attempts if check fails
+        // If API calls are failing, just proceed with redirect to avoid infinite loops
+        profileComplete = true;
+        break;
       }
       
       verificationAttempts++;
@@ -179,13 +255,7 @@ export default function ProfileCompletion() {
     );
   }
 
-  if (profileData?.isComplete) {
-    // Auto-redirect after 2 seconds when profile is complete
-    useEffect(() => {
-      const timer = setTimeout(() => handleCompleteLogin(), 2000);
-      return () => clearTimeout(timer);
-    }, []);
-
+  if (!!profileData && (profileData.requiresCompletion === false || profileData.isComplete === true)) {
     return (
       <div className={styles.container}>
         <Head>

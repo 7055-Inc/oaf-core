@@ -26,7 +26,7 @@ import ManageTermsCore from '../../components/dashboard/manage-system/components
 import ManageCategories from '../../components/dashboard/manage-system/components/ManageCategories';
 import ManageCustomPolicies from '../../components/dashboard/manage-system/components/ManageCustomPolicies';
 import DashboardGrid from '../../components/dashboard/DashboardGrid';
-import { getAuthToken } from '../../lib/csrf';
+import { getAuthToken, authenticatedApiRequest } from '../../lib/csrf';
 import styles from './Dashboard.module.css';
 import '../../components/dashboard/SlideIn.module.css';
 
@@ -53,6 +53,7 @@ import ManageInventory from '../../components/dashboard/manage-my-store/componen
 import InventoryLog from '../../components/dashboard/manage-my-store/components/InventoryLog';
 import ManageOrders from '../../components/dashboard/manage-my-store/components/ManageOrders';
 import TikTokConnector from '../../components/dashboard/manage-my-store/components/TikTokConnector';
+import ManagePromotions from '../../components/dashboard/manage-my-store/components/ManagePromotions';
 import MyFinancesMenu from '../../components/dashboard/my-finances/MyFinancesMenu';
 import TransactionHistory from '../../components/dashboard/my-finances/components/TransactionHistory';
 import PayoutsEarnings from '../../components/dashboard/my-finances/components/PayoutsEarnings';
@@ -72,6 +73,7 @@ import MarketplaceProducts from '../../components/dashboard/admin/components/Mar
 import MarketplaceApplications from '../../components/dashboard/admin/components/MarketplaceApplications';
 import WholesaleApplications from '../../components/dashboard/admin/components/WholesaleApplications';
 import AdminReturns from '../../components/dashboard/admin/components/AdminReturns';
+import AdminPromotions from '../../components/dashboard/admin/components/AdminPromotions';
 
 
 
@@ -118,10 +120,9 @@ export default function Dashboard() {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         
-        fetch('https://api2.onlineartfestival.com/users/me', {
+        authenticatedApiRequest('https://api2.onlineartfestival.com/users/me', {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         })
@@ -154,12 +155,20 @@ export default function Dashboard() {
       router.push('/');
     };
     
+    // Listen for widget slide-in events
+    const handleWidgetSlideIn = (event) => {
+      const { type, title } = event.detail;
+      openSlideIn(type, { title });
+    };
+    
     window.addEventListener('auth-logout', handleAuthLogout);
+    window.addEventListener('dashboard-open-slide-in', handleWidgetSlideIn);
     
     return () => {
       window.removeEventListener('auth-logout', handleAuthLogout);
+      window.removeEventListener('dashboard-open-slide-in', handleWidgetSlideIn);
     };
-  }, []);
+  }, [openSlideIn]);
 
   if (!isLoggedIn) {
     return null;
@@ -558,6 +567,14 @@ export default function Dashboard() {
       );
     }
     
+    if (slideInContent.type === 'manage-promotions') {
+      return (
+        <ManagePromotions
+          userData={userData}
+        />
+      );
+    }
+    
     if (slideInContent.type === 'manage-articles') {
       return (
         <ManageArticles
@@ -601,6 +618,14 @@ export default function Dashboard() {
     if (slideInContent.type === 'manage-categories') {
       return (
         <ManageCategories
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'admin-promotions') {
+      return (
+        <AdminPromotions
           userData={userData}
         />
       );

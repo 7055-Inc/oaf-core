@@ -4,6 +4,9 @@ import Head from 'next/head';
 import Script from 'next/script';
 import Header from '../components/Header';
 import { authenticatedApiRequest, handleCsrfError } from '../lib/csrf';
+import CouponEntry from '../components/coupons/CouponEntry';
+import DiscountSummary from '../components/coupons/DiscountSummary';
+import { useCoupons } from '../hooks/useCoupons';
 import styles from '../styles/Checkout.module.css';
 
 export default function Checkout() {
@@ -18,6 +21,19 @@ export default function Checkout() {
   const [stripe, setStripe] = useState(null);
   const [elements, setElements] = useState(null);
   const [cardElement, setCardElement] = useState(null);
+  const [checkoutType, setCheckoutType] = useState('single'); // 'single' or 'unified'
+  
+  // Coupon functionality
+  const {
+    appliedCoupons,
+    autoDiscounts,
+    loading: couponLoading,
+    applyCoupon,
+    removeCoupon,
+    getAutoDiscounts,
+    calculateTotalsWithDiscounts,
+    clearAllCoupons
+  } = useCoupons();
   const [billingDetails, setBillingDetails] = useState({
     name: '',
     email: '',
@@ -46,13 +62,55 @@ export default function Checkout() {
     // Get cart data from localStorage
     const cartData = localStorage.getItem('checkoutCart');
     if (cartData) {
-      const items = JSON.parse(cartData);
-      setCartItems(items);
-      calculateOrderTotals(items);
+      const data = JSON.parse(cartData);
+      
+      // Handle different cart types
+      if (data.checkout_type === 'unified_multi_cart') {
+        // Unified cart with multiple sources
+        setCheckoutType('unified');
+        const allItems = [];
+        
+        // Extract all items from all sources
+        Object.values(data.unified_cart.grouped_by_source).forEach(source => {
+          source.carts.forEach(cart => {
+            allItems.push(...cart.items);
+          });
+        });
+        
+        setCartItems(allItems);
+        
+        // Load OAF coupon data if available
+        if (data.oaf_coupons) {
+          // Set coupon state from saved data
+          // Note: We'll need to re-apply coupons since the hook state is fresh
+          const oafItems = data.oaf_coupons.oafItems || [];
+          if (oafItems.length > 0) {
+            getAutoDiscounts(oafItems);
+          }
+        }
+        
+        calculateOrderTotals(allItems);
+      } else if (data.items) {
+        // Single cart with coupon data
+        setCheckoutType('single');
+        setCartItems(data.items);
+        
+        // Load coupon data if available
+        if (data.appliedCoupons && data.appliedCoupons.length > 0) {
+          // Re-apply coupons and get auto discounts
+          getAutoDiscounts(data.items);
+        }
+        
+        calculateOrderTotals(data.items);
+      } else {
+        // Legacy format - just items array
+        setCartItems(data);
+        calculateOrderTotals(data);
+      }
     } else {
       router.push('/cart');
     }
-  }, []);
+  }, [getAutoDiscounts]);
 
   useEffect(() => {
     // Initialize Stripe Elements when stripe is loaded and we have a payment intent
@@ -89,6 +147,30 @@ export default function Checkout() {
       }, 100);
     }
   }, [stripeLoaded, stripe, paymentIntent, elements]);
+
+  // Recalculate totals when coupons change
+  useEffect(() => {
+    if (cartItems.length > 0 && (appliedCoupons.length > 0 || autoDiscounts.length > 0)) {
+      recalculateCheckoutTotals();
+    }
+  }, [appliedCoupons, autoDiscounts]);
+
+  const recalculateCheckoutTotals = async () => {
+    if (cartItems.length === 0) return;
+
+    try {
+      const totals = await calculateTotalsWithDiscounts(cartItems, billingDetails.address);
+      setCartItems(totals.items || cartItems);
+      setOrderSummary(totals);
+      
+      // Update payment intent if totals changed
+      if (totals.total !== orderSummary?.total) {
+        createPaymentIntent(totals.items || cartItems, billingDetails.address);
+      }
+    } catch (error) {
+      console.error('Failed to recalculate checkout totals:', error);
+    }
+  };
 
   useEffect(() => {
     if (orderSummary) {
@@ -361,6 +443,26 @@ export default function Checkout() {
                   </div>
                 </div>
               ))}
+              
+              {/* Coupon Section - Only show for OAF items or single cart */}
+              {(checkoutType === 'single' || cartItems.some(item => item.marketplace_source === 'oaf')) && (
+                <div className={styles.couponSection}>
+                  <CouponEntry
+                    onApplyCoupon={(code) => applyCoupon(code, cartItems)}
+                    onRemoveCoupon={removeCoupon}
+                    appliedCoupons={appliedCoupons}
+                    loading={couponLoading}
+                    disabled={cartItems.length === 0}
+                  />
+
+                  <DiscountSummary
+                    cartItems={cartItems}
+                    autoDiscounts={autoDiscounts}
+                    appliedCoupons={appliedCoupons}
+                    showItemBreakdown={true}
+                  />
+                </div>
+              )}
               
               {/* Order Totals */}
               <div className={styles.orderTotals}>

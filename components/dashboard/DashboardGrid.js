@@ -118,19 +118,20 @@ export default function DashboardGrid() {
     const { widget, fromRow, fromCol } = draggedWidget;
     const newGrid = [...grid];
 
-    // If dropping on an occupied cell, move that widget to bottom
+    // If dropping on an occupied cell, move that widget to next available spot
     if (newGrid[toRow][toCol] && !newGrid[toRow][toCol].is_admin_locked) {
       const displacedWidget = newGrid[toRow][toCol];
       
-      // Find empty spot at bottom for displaced widget
-      for (let row = GRID_ROWS - 1; row >= 0; row--) {
+      // Find next empty spot starting from the top
+      let placed = false;
+      for (let row = 0; row < GRID_ROWS && !placed; row++) {
         for (let col = 0; col < GRID_COLS; col++) {
           if (!newGrid[row][col]) {
             newGrid[row][col] = displacedWidget;
+            placed = true;
             break;
           }
         }
-        if (newGrid.find((r, i) => i === row && r.some(cell => cell === displacedWidget))) break;
       }
     }
 
@@ -159,6 +160,11 @@ export default function DashboardGrid() {
 
   const visibleRows = getVisibleRows();
 
+  // Check if user has any widgets (including admin-locked ones like shortcuts)
+  const hasAnyWidgets = grid.some(row => 
+    row.some(cell => cell !== null)
+  );
+
   if (loading) {
     return (
       <div className={styles.loading}>
@@ -169,14 +175,17 @@ export default function DashboardGrid() {
   }
 
   return (
-    <div 
-      ref={gridRef}
-      className={styles.grid}
-      style={{ 
-        gridTemplateColumns: `repeat(${GRID_COLS}, 1fr)`,
-        gridTemplateRows: `repeat(${visibleRows}, 200px)`
-      }}
-    >
+    <div className={styles.dashboardContainer}>
+      {/* Widget Grid Container */}
+      <div className={styles.gridContainer}>
+        <div 
+          ref={gridRef}
+          className={styles.grid}
+          style={{ 
+            gridTemplateColumns: `repeat(${GRID_COLS}, 1fr)`,
+            gridTemplateRows: `repeat(${visibleRows}, 200px)`
+          }}
+        >
       {Array(visibleRows).fill(null).map((_, row) => 
         Array(GRID_COLS).fill(null).map((_, col) => {
           const widget = grid[row][col];
@@ -186,6 +195,9 @@ export default function DashboardGrid() {
             <div
               key={`${row}-${col}`}
               className={`${styles.gridCell} ${widget ? styles.occupied : styles.empty} ${isDropTarget ? styles.dropTarget : ''}`}
+              style={{
+                gridColumn: widget?.config?.gridSpan ? `span ${widget.config.gridSpan}` : undefined
+              }}
               onDragOver={(e) => handleDragOver(e, row, col)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, row, col)}
@@ -196,31 +208,17 @@ export default function DashboardGrid() {
                   draggable={!widget.is_admin_locked}
                   onDragStart={(e) => handleDragStart(e, row, col)}
                 >
-                  <div className={styles.widgetHeader}>
-                    <span className={styles.widgetTitle}>{widget.display_name}</span>
-                    {!widget.is_admin_locked && (
-                      <button
-                        onClick={() => removeWidget(row, col)}
-                        className={styles.removeButton}
-                        title="Remove widget"
-                      >
-                        <i className="fas fa-times"></i>
-                      </button>
-                    )}
-                    {widget.is_admin_locked && (
-                      <i className="fas fa-lock" title="Admin locked"></i>
-                    )}
-                  </div>
                   
                   <div className={styles.widgetContent}>
                     <WidgetRenderer
                       widgetType={widget.widget_type}
                       config={widget.config}
-                      onConfigChange={(newConfig) => {
+                      onConfigChange={async (newConfig) => {
                         const newGrid = [...grid];
                         newGrid[row][col].config = newConfig;
                         setGrid(newGrid);
-                        autoSave();
+                        await autoSave();
+                        // No need to reload - grid state is already updated
                       }}
                     />
                   </div>
@@ -230,6 +228,18 @@ export default function DashboardGrid() {
           );
         })
       )}
+        </div>
+
+        {/* Empty State Overlay */}
+        {!hasAnyWidgets && (
+          <div className={styles.emptyStateOverlay}>
+            <div className={styles.emptyStateContent}>
+              <h2>It looks like you have not added any shortcuts or widgets installed yet.</h2>
+              <p>Select widgets and shortcuts by clicking the '+' symbol next to the matching menu items.</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 } 

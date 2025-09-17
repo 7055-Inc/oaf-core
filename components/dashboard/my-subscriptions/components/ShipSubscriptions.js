@@ -63,7 +63,7 @@ export default function ShipSubscriptions({ userData, onComplete }) {
           
           // User has permission - check their subscription and terms status
           setRequirements({
-            hasValidCard: subscriptionData.subscription?.cardLast4 !== null,
+            hasValidCard: Boolean(subscriptionData.subscription?.cardLast4),
             hasAcceptedTerms: termsData.termsAccepted || false,
             hasPermission: true // We know this is true from JWT
           });
@@ -303,8 +303,30 @@ function CardSetupStep({ userData, onComplete, isProcessing, setIsProcessing }) 
     }
   };
 
-  const handleCardSuccess = () => {
-    onComplete(); // This will refresh and move to next step
+  const handleCardSuccess = async (confirmedSetupIntent) => {
+    try {
+      setIsProcessing(true);
+      
+      // Activate the subscription with the successful setup intent
+      const activateResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/shipping/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          setup_intent_id: confirmedSetupIntent.id
+        })
+      });
+
+      if (activateResponse.ok) {
+        onComplete(); // This will refresh and move to next step
+      } else {
+        const errorData = await activateResponse.json();
+        setError(errorData.error || 'Failed to activate subscription');
+      }
+    } catch (error) {
+      setError('Failed to activate subscription: ' + error.message);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleCardError = (errorMessage) => {

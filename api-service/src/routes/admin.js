@@ -4,6 +4,7 @@ const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
 const { requirePermission } = require('../middleware/permissions');
 const EmailService = require('../services/emailService');
+const discountService = require('../services/discountService');
 
 const emailService = new EmailService();
 
@@ -1349,6 +1350,819 @@ router.get('/applications-needing-reminders', verifyToken, requirePermission('ma
         console.error('Error fetching applications needing reminders:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
+});
+
+// ==================== PROMOTION MANAGEMENT ENDPOINTS ====================
+
+/**
+ * Get all promotions
+ * GET /api/admin/promotions/all
+ */
+router.get('/promotions/all', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    // Simple query following the working /users pattern
+    const [promotions] = await db.query('SELECT id, name, status, created_at FROM promotions ORDER BY created_at DESC');
+    res.json({
+      success: true,
+      promotions: promotions
+    });
+  } catch (error) {
+    console.error('Error getting promotions:', error);
+    res.status(500).json({ error: 'Failed to get promotions' });
+  }
+});
+
+/**
+ * Create new promotion
+ * POST /api/admin/promotions/create
+ */
+router.post('/promotions/create', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const adminId = req.userId;
+    const {
+      name,
+      description,
+      admin_discount_percentage,
+      suggested_vendor_discount,
+      application_type,
+      coupon_code,
+      min_order_amount = 0,
+      usage_limit_per_user = 1,
+      total_usage_limit,
+      valid_from,
+      valid_until
+    } = req.body;
+    
+    // Validation
+    if (!name || !admin_discount_percentage || !suggested_vendor_discount || !application_type || !valid_from) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    if (!['auto_apply', 'coupon_code'].includes(application_type)) {
+      return res.status(400).json({ error: 'Invalid application type' });
+    }
+    
+    if (application_type === 'coupon_code' && !coupon_code) {
+      return res.status(400).json({ error: 'Coupon code required for coupon_code application type' });
+    }
+    
+    if (admin_discount_percentage < 0 || suggested_vendor_discount < 0) {
+      return res.status(400).json({ error: 'Discount percentages must be positive' });
+    }
+    
+    const connection = await db.getConnection();
+    await connection.beginTransaction();
+    
+    try {
+      // Check if coupon code already exists (if provided)
+      if (coupon_code) {
+        const [existingCode] = await connection.execute(
+          'SELECT id FROM coupons WHERE code = ? UNION SELECT id FROM promotions WHERE coupon_code = ?',
+          [coupon_code, coupon_code]
+        );
+        
+        if (existingCode.length > 0) {
+          await connection.rollback();
+          return res.status(400).json({ error: 'Coupon code already exists' });
+        }
+      }
+      
+      // Create promotion
+      const promotionQuery = `
+        INSERT INTO promotions (
+          name, description, admin_discount_percentage, suggested_vendor_discount,
+          application_type, coupon_code, min_order_amount, usage_limit_per_user,
+          total_usage_limit, valid_from, valid_until, status, created_by_admin_id,
+          created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, NOW())
+      `;
+      
+      const [promotionResult] = await connection.execute(promotionQuery, [
+        name, description, admin_discount_percentage, suggested_vendor_discount,
+        application_type, coupon_code, min_order_amount, usage_limit_per_user,
+        total_usage_limit, valid_from, valid_until, adminId
+      ]);
+      
+      const promotionId = promotionResult.insertId;
+      
+      await connection.commit();
+      
+      res.json({
+        success: true,
+        promotion_id: promotionId,
+        message: 'Promotion created successfully'
+      });
+      
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+    
+  } catch (error) {
+    console.error('Error creating promotion:', error);
+    res.status(500).json({ error: 'Failed to create promotion' });
+  }
+});
+
+/**
+ * Update promotion (status, etc.)
+ * PUT /api/admin/promotions/:id
+ */
+router.put('/promotions/:id', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const promotionId = req.params.id;
+    const { status, name, description, valid_until } = req.body;
+    
+    // Verify promotion exists
+    const [promotionCheck] = await db.execute(
+      'SELECT id FROM promotions WHERE id = ?',
+      [promotionId]
+    );
+    
+    if (promotionCheck.length === 0) {
+      return res.status(404).json({ error: 'Promotion not found' });
+    }
+    
+    // Build update query dynamically
+    const updates = [];
+    const params = [];
+    
+    if (status !== undefined) { 
+      if (!['draft', 'inviting_vendors', 'active', 'paused', 'ended'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status' });
+      }
+      updates.push('status = ?'); 
+      params.push(status); 
+    }
+    if (name !== undefined) { updates.push('name = ?'); params.push(name); }
+    if (description !== undefined) { updates.push('description = ?'); params.push(description); }
+    if (valid_until !== undefined) { updates.push('valid_until = ?'); params.push(valid_until); }
+    
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+    
+    updates.push('updated_at = NOW()');
+    params.push(promotionId);
+    
+    const updateQuery = `UPDATE promotions SET ${updates.join(', ')} WHERE id = ?`;
+    await db.execute(updateQuery, params);
+    
+    res.json({
+      success: true,
+      message: 'Promotion updated successfully'
+    });
+    
+  } catch (error) {
+    console.error('Error updating promotion:', error);
+    res.status(500).json({ error: 'Failed to update promotion' });
+  }
+});
+
+/**
+ * Invite vendors to promotion
+ * POST /api/admin/promotions/:id/invite-vendors
+ */
+router.post('/promotions/:id/invite-vendors', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const promotionId = req.params.id;
+    const { vendor_ids, product_selections, admin_message } = req.body;
+    
+    if (!vendor_ids || !Array.isArray(vendor_ids) || vendor_ids.length === 0) {
+      return res.status(400).json({ error: 'Vendor IDs are required' });
+    }
+    
+    // Verify promotion exists and belongs to admin
+    const [promotionCheck] = await db.execute(
+      'SELECT id, status FROM promotions WHERE id = ?',
+      [promotionId]
+    );
+    
+    if (promotionCheck.length === 0) {
+      return res.status(404).json({ error: 'Promotion not found' });
+    }
+    
+    const promotion = promotionCheck[0];
+    
+    if (promotion.status !== 'draft' && promotion.status !== 'inviting_vendors') {
+      return res.status(400).json({ error: 'Cannot invite vendors to promotion in current status' });
+    }
+    
+    const connection = await db.getConnection();
+    await connection.beginTransaction();
+    
+    try {
+      // Create invitations
+      for (const vendorId of vendor_ids) {
+        // Check if invitation already exists
+        const [existingInvitation] = await connection.execute(
+          'SELECT id FROM promotion_invitations WHERE promotion_id = ? AND vendor_id = ?',
+          [promotionId, vendorId]
+        );
+        
+        if (existingInvitation.length === 0) {
+          await connection.execute(
+            `INSERT INTO promotion_invitations (
+              promotion_id, vendor_id, invitation_status, admin_message, 
+              invited_at, expires_at
+            ) VALUES (?, ?, 'pending', ?, NOW(), DATE_ADD(NOW(), INTERVAL 7 DAY))`,
+            [promotionId, vendorId, admin_message]
+          );
+        }
+      }
+      
+      // Add admin-selected products if provided
+      if (product_selections) {
+        for (const selection of product_selections) {
+          const { vendor_id, product_ids, admin_discount_percentage, vendor_discount_percentage } = selection;
+          
+          if (product_ids && product_ids.length > 0) {
+            for (const productId of product_ids) {
+              await connection.execute(
+                `INSERT INTO promotion_products (
+                  promotion_id, product_id, vendor_id, added_by, added_by_user_id,
+                  approval_status, admin_discount_percentage, vendor_discount_percentage,
+                  created_at
+                ) VALUES (?, ?, ?, 'admin', ?, 'approved', ?, ?, NOW())`,
+                [promotionId, productId, vendor_id, req.userId, admin_discount_percentage, vendor_discount_percentage]
+              );
+            }
+          }
+        }
+      }
+      
+      // Update promotion status
+      await connection.execute(
+        'UPDATE promotions SET status = \'inviting_vendors\', updated_at = NOW() WHERE id = ?',
+        [promotionId]
+      );
+      
+      await connection.commit();
+      
+      res.json({
+        success: true,
+        message: `Invitations sent to ${vendor_ids.length} vendors`
+      });
+      
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+    
+  } catch (error) {
+    console.error('Error inviting vendors:', error);
+    res.status(500).json({ error: 'Failed to invite vendors' });
+  }
+});
+
+/**
+ * Get vendor suggestions for promotion
+ * GET /api/admin/promotions/:id/vendor-suggestions
+ */
+router.get('/promotions/:id/vendor-suggestions', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const promotionId = req.params.id;
+    
+    const suggestionsQuery = `
+      SELECT 
+        pp.id,
+        pp.product_id,
+        pp.vendor_id,
+        pp.approval_status,
+        pp.admin_discount_percentage,
+        pp.vendor_discount_percentage,
+        pp.total_customer_discount,
+        pp.created_at,
+        p.name as product_name,
+        p.price as product_price,
+        u.username as vendor_name
+      FROM promotion_products pp
+      JOIN products p ON pp.product_id = p.id
+      JOIN users u ON pp.vendor_id = u.id
+      WHERE pp.promotion_id = ? 
+        AND pp.added_by = 'vendor'
+        AND pp.approval_status = 'pending'
+      ORDER BY pp.created_at DESC
+    `;
+    
+    const [suggestions] = await db.execute(suggestionsQuery, [promotionId]);
+    
+    res.json({
+      success: true,
+      suggestions: suggestions
+    });
+    
+  } catch (error) {
+    console.error('Error getting vendor suggestions:', error);
+    res.status(500).json({ error: 'Failed to get vendor suggestions' });
+  }
+});
+
+/**
+ * Approve vendor suggestion
+ * POST /api/admin/promotions/:id/approve-suggestion
+ */
+router.post('/promotions/:id/approve-suggestion', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const promotionId = req.params.id;
+    const { suggestion_id, admin_discount_percentage, vendor_discount_percentage } = req.body;
+    
+    if (!suggestion_id) {
+      return res.status(400).json({ error: 'Suggestion ID is required' });
+    }
+    
+    // Verify suggestion exists and belongs to promotion
+    const [suggestionCheck] = await db.execute(
+      `SELECT id FROM promotion_products 
+       WHERE id = ? AND promotion_id = ? AND added_by = 'vendor' AND approval_status = 'pending'`,
+      [suggestion_id, promotionId]
+    );
+    
+    if (suggestionCheck.length === 0) {
+      return res.status(404).json({ error: 'Suggestion not found or already processed' });
+    }
+    
+    // Update suggestion
+    const updateQuery = `
+      UPDATE promotion_products 
+      SET approval_status = 'approved',
+          admin_discount_percentage = COALESCE(?, admin_discount_percentage),
+          vendor_discount_percentage = COALESCE(?, vendor_discount_percentage),
+          approved_at = NOW()
+      WHERE id = ?
+    `;
+    
+    await db.execute(updateQuery, [admin_discount_percentage, vendor_discount_percentage, suggestion_id]);
+    
+    res.json({
+      success: true,
+      message: 'Suggestion approved successfully'
+    });
+    
+  } catch (error) {
+    console.error('Error approving suggestion:', error);
+    res.status(500).json({ error: 'Failed to approve suggestion' });
+  }
+});
+
+/**
+ * Reject vendor suggestion
+ * POST /api/admin/promotions/:id/reject-suggestion
+ */
+router.post('/promotions/:id/reject-suggestion', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const promotionId = req.params.id;
+    const { suggestion_id } = req.body;
+    
+    if (!suggestion_id) {
+      return res.status(400).json({ error: 'Suggestion ID is required' });
+    }
+    
+    // Verify suggestion exists and belongs to promotion
+    const [suggestionCheck] = await db.execute(
+      `SELECT id FROM promotion_products 
+       WHERE id = ? AND promotion_id = ? AND added_by = 'vendor' AND approval_status = 'pending'`,
+      [suggestion_id, promotionId]
+    );
+    
+    if (suggestionCheck.length === 0) {
+      return res.status(404).json({ error: 'Suggestion not found or already processed' });
+    }
+    
+    // Update suggestion
+    await db.execute(
+      'UPDATE promotion_products SET approval_status = \'rejected\' WHERE id = ?',
+      [suggestion_id]
+    );
+    
+    res.json({
+      success: true,
+      message: 'Suggestion rejected successfully'
+    });
+    
+  } catch (error) {
+    console.error('Error rejecting suggestion:', error);
+    res.status(500).json({ error: 'Failed to reject suggestion' });
+  }
+});
+
+/**
+ * Get all admin coupons
+ * GET /api/admin/coupons/all
+ */
+router.get('/coupons/all', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    // Simple query following the working pattern
+    const [coupons] = await db.query("SELECT id, code, name, discount_type, discount_value, is_active, vendor_id, is_vendor_specific, created_at FROM coupons WHERE coupon_type = 'admin_coupon' ORDER BY created_at DESC");
+    res.json({
+      success: true,
+      coupons: coupons
+    });
+  } catch (error) {
+    console.error('Error getting admin coupons:', error);
+    res.status(500).json({ error: 'Failed to get coupons' });
+  }
+});
+
+/**
+ * Create admin coupon for vendors
+ * POST /api/admin/coupons
+ */
+router.post('/coupons', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const adminId = req.userId;
+    const {
+      code,
+      name,
+      description,
+      discount_type,
+      discount_value,
+      application_type,
+      min_order_amount = 0,
+      usage_limit_per_user = 1,
+      total_usage_limit,
+      valid_from,
+      valid_until,
+      vendor_id, // For vendor-specific admin coupons
+      product_ids = [], // For product-specific coupons
+      max_discount_amount
+    } = req.body;
+    
+    // Validation
+    if (!code || !name || !discount_type || !discount_value || !application_type || !valid_from) {
+      return res.status(400).json({ error: 'Missing required fields: code, name, discount_type, discount_value, application_type, valid_from' });
+    }
+    
+    if (!['percentage', 'fixed_amount'].includes(discount_type)) {
+      return res.status(400).json({ error: 'Invalid discount type. Must be percentage or fixed_amount' });
+    }
+    
+    if (!['auto_apply', 'coupon_code'].includes(application_type)) {
+      return res.status(400).json({ error: 'Invalid application type. Must be auto_apply or coupon_code' });
+    }
+    
+    if (discount_value <= 0 || (discount_type === 'percentage' && discount_value > 100)) {
+      return res.status(400).json({ error: 'Invalid discount value' });
+    }
+
+    const connection = await db.getConnection();
+    await connection.beginTransaction();
+    
+    try {
+      // Check if coupon code already exists
+      const [existingCode] = await connection.execute(
+        'SELECT id FROM coupons WHERE code = ?',
+        [code]
+      );
+      
+      if (existingCode.length > 0) {
+        await connection.rollback();
+        return res.status(400).json({ error: 'Coupon code already exists' });
+      }
+      
+      // Create admin coupon
+      const couponQuery = `
+        INSERT INTO coupons (
+          code, name, description, coupon_type, created_by_admin_id,
+          discount_type, discount_value, application_type, min_order_amount,
+          usage_limit_per_user, total_usage_limit, max_discount_amount,
+          vendor_id, is_vendor_specific, valid_from, valid_until,
+          is_active, created_at
+        ) VALUES (?, ?, ?, 'admin_coupon', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
+      `;
+      
+      const [couponResult] = await connection.execute(couponQuery, [
+        code, name, description, adminId,
+        discount_type, discount_value, application_type, min_order_amount,
+        usage_limit_per_user, total_usage_limit, max_discount_amount,
+        vendor_id || null, vendor_id ? 1 : 0, valid_from, valid_until || null
+      ]);
+      
+      const couponId = couponResult.insertId;
+      
+      // Add specific products if provided
+      if (product_ids && product_ids.length > 0) {
+        for (const productId of product_ids) {
+          // Get vendor ID for the product
+          const [productInfo] = await connection.execute(
+            'SELECT user_id as vendor_id FROM products WHERE id = ?',
+            [productId]
+          );
+          
+          if (productInfo.length > 0) {
+            await connection.execute(
+              'INSERT INTO coupon_products (coupon_id, product_id, vendor_id) VALUES (?, ?, ?)',
+              [couponId, productId, productInfo[0].vendor_id]
+            );
+          }
+        }
+      }
+      
+      await connection.commit();
+      
+      res.json({
+        success: true,
+        message: 'Admin coupon created successfully',
+        coupon: {
+          id: couponId,
+          code,
+          name,
+          discount_type,
+          discount_value,
+          vendor_specific: !!vendor_id,
+          product_count: product_ids.length
+        }
+      });
+
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+
+  } catch (error) {
+    console.error('Error creating admin coupon:', error);
+    res.status(500).json({ error: 'Failed to create coupon' });
+  }
+});
+
+/**
+ * Update admin coupon status
+ * PUT /api/admin/coupons/:id
+ */
+router.put('/coupons/:id', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const couponId = req.params.id;
+    const { is_active } = req.body;
+
+    const [result] = await db.query(
+      'UPDATE coupons SET is_active = ? WHERE id = ? AND coupon_type = "admin_coupon"',
+      [is_active, couponId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Admin coupon not found' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Coupon status updated successfully'
+    });
+
+  } catch (error) {
+    console.error('Error updating coupon status:', error);
+    res.status(500).json({ error: 'Failed to update coupon status' });
+  }
+});
+
+/**
+ * Create site-wide sale
+ * POST /api/admin/sales/create-sitewide
+ */
+router.post('/sales/create-sitewide', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const adminId = req.userId;
+    const {
+      name,
+      description,
+      discount_type,
+      discount_value,
+      application_type,
+      coupon_code,
+      min_order_amount = 0,
+      usage_limit_per_user = 1,
+      total_usage_limit,
+      valid_from,
+      valid_until,
+      product_ids = [] // Empty = site-wide, otherwise specific products
+    } = req.body;
+    
+    // Validation
+    if (!name || !discount_type || !discount_value || !application_type || !valid_from) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    if (!['percentage', 'fixed_amount'].includes(discount_type)) {
+      return res.status(400).json({ error: 'Invalid discount type' });
+    }
+    
+    if (!['auto_apply', 'coupon_code'].includes(application_type)) {
+      return res.status(400).json({ error: 'Invalid application type' });
+    }
+    
+    if (application_type === 'coupon_code' && !coupon_code) {
+      return res.status(400).json({ error: 'Coupon code required for coupon_code application type' });
+    }
+    
+    const connection = await db.getConnection();
+    await connection.beginTransaction();
+    
+    try {
+      // Check if coupon code already exists (if provided)
+      if (coupon_code) {
+        const [existingCode] = await connection.execute(
+          'SELECT id FROM coupons WHERE code = ? UNION SELECT id FROM promotions WHERE coupon_code = ?',
+          [coupon_code, coupon_code]
+        );
+        
+        if (existingCode.length > 0) {
+          await connection.rollback();
+          return res.status(400).json({ error: 'Coupon code already exists' });
+        }
+      }
+      
+      // Create site-wide sale coupon
+      const saleQuery = `
+        INSERT INTO coupons (
+          code, name, description, coupon_type, created_by_admin_id,
+          discount_type, discount_value, application_type, min_order_amount,
+          usage_limit_per_user, total_usage_limit, valid_from, valid_until,
+          is_active, created_at
+        ) VALUES (?, ?, ?, 'site_sale', ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
+      `;
+      
+      const [saleResult] = await connection.execute(saleQuery, [
+        coupon_code || `SALE_${Date.now()}`, name, description, adminId,
+        discount_type, discount_value, application_type, min_order_amount,
+        usage_limit_per_user, total_usage_limit, valid_from, valid_until
+      ]);
+      
+      const saleId = saleResult.insertId;
+      
+      // Add specific products if provided (otherwise it's site-wide)
+      if (product_ids && product_ids.length > 0) {
+        for (const productId of product_ids) {
+          // Get vendor ID for the product
+          const [productInfo] = await connection.execute(
+            'SELECT user_id as vendor_id FROM products WHERE id = ?',
+            [productId]
+          );
+          
+          if (productInfo.length > 0) {
+            await connection.execute(
+              'INSERT INTO coupon_products (coupon_id, product_id, vendor_id) VALUES (?, ?, ?)',
+              [saleId, productId, productInfo[0].vendor_id]
+            );
+          }
+        }
+      }
+      
+      await connection.commit();
+      
+      res.json({
+        success: true,
+        sale_id: saleId,
+        message: 'Site-wide sale created successfully'
+      });
+      
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+    
+  } catch (error) {
+    console.error('Error creating site-wide sale:', error);
+    res.status(500).json({ error: 'Failed to create site-wide sale' });
+  }
+});
+
+/**
+ * Get all sales
+ * GET /api/admin/sales/all
+ */
+router.get('/sales/all', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    // Simple query following the working /users pattern
+    const [sales] = await db.query("SELECT id, code, name, discount_type, discount_value, is_active, created_at FROM coupons WHERE coupon_type = 'site_sale' ORDER BY created_at DESC");
+    res.json({
+      success: true,
+      sales: sales
+    });
+  } catch (error) {
+    console.error('Error getting sales:', error);
+    res.status(500).json({ error: 'Failed to get sales' });
+  }
+});
+
+/**
+ * Update sale (status, etc.)
+ * PUT /api/admin/sales/:id
+ */
+router.put('/sales/:id', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const saleId = req.params.id;
+    const { is_active, name, description, discount_value, valid_until } = req.body;
+    
+    // Verify sale exists and is a site_sale type
+    const [saleCheck] = await db.execute(
+      'SELECT id FROM coupons WHERE id = ? AND coupon_type = \'site_sale\'',
+      [saleId]
+    );
+    
+    if (saleCheck.length === 0) {
+      return res.status(404).json({ error: 'Sale not found' });
+    }
+    
+    // Build update query dynamically
+    const updates = [];
+    const params = [];
+    
+    if (is_active !== undefined) { 
+      updates.push('is_active = ?'); 
+      params.push(is_active ? 1 : 0); 
+    }
+    if (name !== undefined) { updates.push('name = ?'); params.push(name); }
+    if (description !== undefined) { updates.push('description = ?'); params.push(description); }
+    if (discount_value !== undefined) { updates.push('discount_value = ?'); params.push(discount_value); }
+    if (valid_until !== undefined) { updates.push('valid_until = ?'); params.push(valid_until); }
+    
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+    
+    updates.push('updated_at = NOW()');
+    params.push(saleId);
+    
+    const updateQuery = `UPDATE coupons SET ${updates.join(', ')} WHERE id = ?`;
+    await db.execute(updateQuery, params);
+    
+    res.json({
+      success: true,
+      message: 'Sale updated successfully'
+    });
+    
+  } catch (error) {
+    console.error('Error updating sale:', error);
+    res.status(500).json({ error: 'Failed to update sale' });
+  }
+});
+
+/**
+ * Get promotion analytics
+ * GET /api/admin/promotions/analytics/overview
+ */
+router.get('/promotions/analytics/overview', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    // Get overall promotion stats
+    const overviewQuery = `
+      SELECT 
+        COUNT(DISTINCT p.id) as total_promotions,
+        COUNT(DISTINCT CASE WHEN p.status = 'active' THEN p.id END) as active_promotions,
+        COUNT(DISTINCT pi.vendor_id) as total_invited_vendors,
+        COUNT(DISTINCT CASE WHEN pi.invitation_status = 'accepted' THEN pi.vendor_id END) as accepted_vendors,
+        COUNT(DISTINCT pp.product_id) as total_products_in_promotions,
+        COALESCE(SUM(p.current_usage_count), 0) as total_promotion_uses
+      FROM promotions p
+      LEFT JOIN promotion_invitations pi ON p.id = pi.promotion_id
+      LEFT JOIN promotion_products pp ON p.id = pp.promotion_id AND pp.approval_status = 'approved'
+    `;
+    
+    const [overview] = await db.execute(overviewQuery);
+    
+    // Get recent promotion activity
+    const activityQuery = `
+      SELECT 
+        'promotion_created' as activity_type,
+        p.name as description,
+        p.created_at as activity_date
+      FROM promotions p
+      WHERE p.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      
+      UNION ALL
+      
+      SELECT 
+        'vendor_accepted' as activity_type,
+        CONCAT(u.username, ' accepted promotion: ', p.name) as description,
+        pi.responded_at as activity_date
+      FROM promotion_invitations pi
+      JOIN promotions p ON pi.promotion_id = p.id
+      JOIN users u ON pi.vendor_id = u.id
+      WHERE pi.invitation_status = 'accepted' 
+        AND pi.responded_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      
+      ORDER BY activity_date DESC
+      LIMIT 20
+    `;
+    
+    const [activity] = await db.execute(activityQuery);
+    
+    res.json({
+      success: true,
+      overview: overview[0],
+      recent_activity: activity
+    });
+    
+  } catch (error) {
+    console.error('Error getting promotion analytics:', error);
+    res.status(500).json({ error: 'Failed to get promotion analytics' });
+  }
 });
 
 module.exports = router;

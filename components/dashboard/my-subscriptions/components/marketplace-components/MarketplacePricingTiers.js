@@ -109,7 +109,7 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
     
     // Load user profile data
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/users/me');
+      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/users/me');
       if (response.ok) {
         const profileData = await response.json();
         setUserProfile(profileData);
@@ -163,7 +163,7 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
       }
 
       // Submit everything to the enhanced /users/me PATCH endpoint
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/users/me', {
+      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/users/me', {
         method: 'PATCH',
         body: formData // multipart form data, no Content-Type header needed
       });

@@ -200,6 +200,17 @@ router.post('/exchange', async (req, res) => {
       }
     }
     
+    // Permission embedding/inheritance in the token
+    // All vendors implicitly have shipping and stripe_connect access
+    if (permissions.includes('vendor')) {
+      if (!permissions.includes('shipping')) {
+        permissions.push('shipping');
+      }
+      if (!permissions.includes('stripe_connect')) {
+        permissions.push('stripe_connect');
+      }
+    }
+    
     // Generate 1-hour access token instead of 7-day token
     const accessToken = jwt.sign({ userId, roles, permissions }, process.env.JWT_SECRET, { expiresIn: '1h' });
     

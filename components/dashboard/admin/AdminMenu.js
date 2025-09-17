@@ -94,6 +94,14 @@ export default function AdminMenu({
               Articles & Pages
             </button>
           </li>
+          <li>
+            <button 
+              className={styles.sidebarLink}
+              onClick={() => openSlideIn('admin-promotions', { title: 'Promotions' })}
+            >
+              Promotions
+            </button>
+          </li>
         </ul>
       )}
     </div>

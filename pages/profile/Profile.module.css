@@ -314,9 +314,77 @@
   border: 1px solid #e0e0e0;
 }
 
+/* Additional styles for new fields */
+.businessContactSection {
+  margin: 1rem 0;
+  padding: 1rem;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  border-left: 4px solid #3E1C56;
+}
+
+.businessContactSection h3 {
+  color: #3E1C56;
+  margin-bottom: 0.5rem;
+  font-size: 1.2rem;
+}
+
+.legalInfoSection {
+  margin: 1rem 0;
+  padding: 1rem;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.legalInfoSection h3 {
+  color: #055474;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.preferencesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.preferenceItem {
+  background-color: #f9f9f9;
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid #055474;
+}
+
+.preferenceItem strong {
+  color: #3E1C56;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.followingsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.followingItem {
+  background-color: #055474;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 15px;
+  font-size: 0.9rem;
+}
+
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .infoGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .preferencesGrid {
     grid-template-columns: 1fr;
   }
   
@@ -331,5 +399,11 @@
   
   .colorPalette {
     justify-content: flex-start;
+  }
+  
+  .businessContactSection,
+  .legalInfoSection {
+    margin: 0.5rem 0;
+    padding: 0.75rem;
   }
 }

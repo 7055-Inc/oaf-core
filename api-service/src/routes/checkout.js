@@ -1,6 +1,7 @@
 const express = require('express');
 const stripeService = require('../services/stripeService');
 const shippingService = require('../services/shippingService');
+const discountService = require('../services/discountService');
 const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
 const { orderHistoryLimiter } = require('../middleware/rateLimiter');
@@ -12,7 +13,7 @@ const router = express.Router();
  */
 router.post('/calculate-totals', verifyToken, async (req, res) => {
   try {
-    const { cart_items, shipping_address } = req.body;
+    const { cart_items, shipping_address, applied_coupons = [] } = req.body;
     
     if (!cart_items || !Array.isArray(cart_items)) {
       return res.status(400).json({ error: 'Cart items are required' });
@@ -24,8 +25,11 @@ router.post('/calculate-totals', verifyToken, async (req, res) => {
     // Calculate shipping costs for all items (including calculated shipping)
     const itemsWithShipping = await calculateShippingCosts(itemsWithDetails, shipping_address);
     
-    // Calculate commissions for each item
-    const itemsWithCommissions = await stripeService.calculateCommissions(itemsWithShipping);
+    // **NEW: Apply discounts after shipping calculation**
+    const itemsWithDiscounts = await discountService.applyDiscounts(itemsWithShipping, req.user.id, applied_coupons);
+    
+    // Calculate commissions for each item (on discounted prices)
+    const itemsWithCommissions = await stripeService.calculateCommissions(itemsWithDiscounts);
     
     // Group by vendor for display
     const vendorGroups = groupItemsByVendor(itemsWithCommissions);
@@ -782,5 +786,159 @@ async function clearUserCart(userId) {
   const query = 'DELETE FROM cart_items WHERE cart_id IN (SELECT id FROM carts WHERE user_id = ?)';
   return db.execute(query, [userId]);
 }
+
+/**
+ * Validate and apply coupon code
+ * POST /api/checkout/apply-coupon
+ */
+router.post('/apply-coupon', verifyToken, async (req, res) => {
+  try {
+    const { coupon_code, cart_items } = req.body;
+    
+    if (!coupon_code) {
+      return res.status(400).json({ error: 'Coupon code is required' });
+    }
+    
+    if (!cart_items || !Array.isArray(cart_items)) {
+      return res.status(400).json({ error: 'Cart items are required' });
+    }
+    
+    // Get detailed product information for cart items
+    const itemsWithDetails = await getCartItemsWithDetails(cart_items);
+    
+    // Validate coupon code
+    const validation = await discountService.validateCouponCode(coupon_code, req.user.id, itemsWithDetails);
+    
+    if (!validation.valid) {
+      return res.status(400).json({ 
+        success: false, 
+        error: validation.error 
+      });
+    }
+    
+    // Apply coupon to get preview of discounts
+    const itemsWithDiscounts = await discountService.applyDiscounts(itemsWithDetails, req.user.id, [coupon_code]);
+    
+    res.json({
+      success: true,
+      coupon: validation.coupon,
+      items_with_discounts: itemsWithDiscounts,
+      message: 'Coupon applied successfully'
+    });
+    
+  } catch (error) {
+    console.error('Error applying coupon:', error);
+    res.status(500).json({ error: 'Failed to apply coupon' });
+  }
+});
+
+/**
+ * Remove applied coupon
+ * POST /api/checkout/remove-coupon
+ */
+router.post('/remove-coupon', verifyToken, async (req, res) => {
+  try {
+    const { coupon_code, cart_items } = req.body;
+    
+    if (!coupon_code) {
+      return res.status(400).json({ error: 'Coupon code is required' });
+    }
+    
+    if (!cart_items || !Array.isArray(cart_items)) {
+      return res.status(400).json({ error: 'Cart items are required' });
+    }
+    
+    // Get detailed product information for cart items
+    const itemsWithDetails = await getCartItemsWithDetails(cart_items);
+    
+    // Return items without the removed coupon (empty coupon array)
+    const itemsWithoutCoupon = await discountService.applyDiscounts(itemsWithDetails, req.user.id, []);
+    
+    res.json({
+      success: true,
+      items_without_coupon: itemsWithoutCoupon,
+      message: 'Coupon removed successfully'
+    });
+    
+  } catch (error) {
+    console.error('Error removing coupon:', error);
+    res.status(500).json({ error: 'Failed to remove coupon' });
+  }
+});
+
+/**
+ * Get applicable auto-apply discounts
+ * POST /api/checkout/get-auto-discounts
+ */
+router.post('/get-auto-discounts', verifyToken, async (req, res) => {
+  try {
+    const { cart_items } = req.body;
+    
+    if (!cart_items || !Array.isArray(cart_items)) {
+      return res.status(400).json({ error: 'Cart items are required' });
+    }
+    
+    // Get detailed product information for cart items
+    const itemsWithDetails = await getCartItemsWithDetails(cart_items);
+    
+    // Apply auto-discounts only (no coupon codes)
+    const itemsWithAutoDiscounts = await discountService.applyDiscounts(itemsWithDetails, req.user.id, []);
+    
+    // Filter to only items that have auto-applied discounts
+    const autoDiscountedItems = itemsWithAutoDiscounts.filter(item => 
+      item.discount_applied && 
+      item.discount_details && 
+      item.discount_details.source_type !== 'coupon'
+    );
+    
+    res.json({
+      success: true,
+      auto_discounted_items: autoDiscountedItems,
+      items_with_auto_discounts: itemsWithAutoDiscounts
+    });
+    
+  } catch (error) {
+    console.error('Error getting auto-discounts:', error);
+    res.status(500).json({ error: 'Failed to get auto-discounts' });
+  }
+});
+
+/**
+ * Validate coupon code without applying
+ * GET /api/checkout/validate-coupon/:code
+ */
+router.get('/validate-coupon/:code', verifyToken, async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { cart_items } = req.query;
+    
+    let parsedCartItems = [];
+    if (cart_items) {
+      try {
+        parsedCartItems = JSON.parse(cart_items);
+      } catch (e) {
+        // If parsing fails, continue with empty array
+      }
+    }
+    
+    // Get detailed product information if cart items provided
+    let itemsWithDetails = [];
+    if (parsedCartItems.length > 0) {
+      itemsWithDetails = await getCartItemsWithDetails(parsedCartItems);
+    }
+    
+    const validation = await discountService.validateCouponCode(code, req.user.id, itemsWithDetails);
+    
+    res.json({
+      success: validation.valid,
+      coupon: validation.coupon || null,
+      error: validation.error || null
+    });
+    
+  } catch (error) {
+    console.error('Error validating coupon:', error);
+    res.status(500).json({ error: 'Failed to validate coupon' });
+  }
+});
 
 module.exports = router; 

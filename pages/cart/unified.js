@@ -3,6 +3,9 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Header from '../../components/Header';
 import { authenticatedApiRequest } from '../../lib/csrf';
+import CouponEntry from '../../components/coupons/CouponEntry';
+import DiscountSummary from '../../components/coupons/DiscountSummary';
+import { useCoupons } from '../../hooks/useCoupons';
 import styles from './styles/UnifiedCart.module.css';
 
 export default function UnifiedCart() {
@@ -10,11 +13,66 @@ export default function UnifiedCart() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedSources, setExpandedSources] = useState({});
+  const [oafCartItems, setOafCartItems] = useState([]);
   const router = useRouter();
+
+  // Coupon functionality (only for OAF items)
+  const {
+    appliedCoupons,
+    autoDiscounts,
+    loading: couponLoading,
+    applyCoupon,
+    removeCoupon,
+    getAutoDiscounts,
+    calculateTotalsWithDiscounts,
+    clearAllCoupons
+  } = useCoupons();
 
   useEffect(() => {
     fetchUnifiedCart();
   }, []);
+
+  // Extract OAF items and apply coupons when data changes
+  useEffect(() => {
+    if (unifiedCartData && unifiedCartData.grouped_by_source.oaf) {
+      const oafItems = unifiedCartData.grouped_by_source.oaf.items || [];
+      setOafCartItems(oafItems);
+      
+      if (oafItems.length > 0) {
+        getAutoDiscounts(oafItems);
+      }
+    }
+  }, [unifiedCartData, getAutoDiscounts]);
+
+  // Recalculate totals when coupons change
+  useEffect(() => {
+    if (oafCartItems.length > 0) {
+      recalculateOafTotals();
+    }
+  }, [appliedCoupons]);
+
+  const recalculateOafTotals = async () => {
+    if (oafCartItems.length === 0) return;
+
+    try {
+      const totals = await calculateTotalsWithDiscounts(oafCartItems);
+      // Update the OAF section in unified cart data
+      setUnifiedCartData(prev => ({
+        ...prev,
+        grouped_by_source: {
+          ...prev.grouped_by_source,
+          oaf: {
+            ...prev.grouped_by_source.oaf,
+            items: totals.items || oafCartItems,
+            total_amount: totals.total || prev.grouped_by_source.oaf.total_amount
+          }
+        }
+      }));
+      setOafCartItems(totals.items || oafCartItems);
+    } catch (error) {
+      console.error('Failed to recalculate OAF totals:', error);
+    }
+  };
 
   const fetchUnifiedCart = async () => {
     try {
@@ -102,12 +160,18 @@ export default function UnifiedCart() {
   };
 
   const proceedToCheckout = () => {
-    // Create checkout data from all carts
+    // Create checkout data from all carts, including coupon data for OAF items
     const checkoutData = {
       unified_cart: unifiedCartData,
       total_items: unifiedCartData.total_items,
       total_value: unifiedCartData.total_value,
-      checkout_type: 'unified_multi_cart'
+      checkout_type: 'unified_multi_cart',
+      // Include coupon data for OAF items only
+      oaf_coupons: {
+        appliedCoupons: appliedCoupons,
+        autoDiscounts: autoDiscounts,
+        oafItems: oafCartItems
+      }
     };
     
     localStorage.setItem('checkoutCart', JSON.stringify(checkoutData));
@@ -300,6 +364,26 @@ export default function UnifiedCart() {
                             )}
                           </div>
                         ))}
+                        
+                        {/* Add coupon components only for OAF section */}
+                        {sourceName === 'oaf' && sourceData.total_items > 0 && (
+                          <div className={styles.couponSection}>
+                            <CouponEntry
+                              onApplyCoupon={(code) => applyCoupon(code, oafCartItems)}
+                              onRemoveCoupon={removeCoupon}
+                              appliedCoupons={appliedCoupons}
+                              loading={couponLoading}
+                              disabled={oafCartItems.length === 0}
+                            />
+
+                            <DiscountSummary
+                              cartItems={oafCartItems}
+                              autoDiscounts={autoDiscounts}
+                              appliedCoupons={appliedCoupons}
+                              showItemBreakdown={false}
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

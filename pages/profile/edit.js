@@ -294,21 +294,59 @@ export default function ProfileEdit() {
     const { name } = e.target;
     const file = e.target.files[0];
     
-    // Check file size (5MB limit)
-    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
-    if (file && file.size > maxSize) {
-      setError(`File too large. Please choose an image smaller than 5MB. Current size: ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
+    if (!file) return;
+    
+    // Clear any previous errors
+    setError(null);
+    
+    // Check file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      setError(`Invalid file type. Please choose a JPEG or PNG image. Selected file type: ${file.type}`);
       e.target.value = ''; // Clear the file input
       return;
     }
     
-    if (name === 'profile_image') {
-      setProfileImage(file);
-    } else if (name === 'header_image') {
-      setHeaderImage(file);
-    } else if (name === 'logo_image') {
-      setLogoImage(file);
+    // Check file size (5MB limit)
+    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+    if (file.size > maxSize) {
+      setError(`Image file is too large! Please choose an image smaller than 5MB.\nCurrent size: ${(file.size / (1024 * 1024)).toFixed(2)}MB\n\nTips to reduce file size:\n• Use JPEG format for photos (smaller than PNG)\n• Resize image dimensions (e.g., 1920x1080 max)\n• Use image compression tools\n• Avoid uploading raw camera files`);
+      e.target.value = ''; // Clear the file input
+      return;
     }
+    
+    // Check image dimensions (optional - for very large images)
+    const img = new Image();
+    img.onload = function() {
+      const maxWidth = 4000;
+      const maxHeight = 4000;
+      
+      if (this.width > maxWidth || this.height > maxHeight) {
+        setError(`Image dimensions are too large! Maximum size: ${maxWidth}x${maxHeight} pixels. 
+          Current size: ${this.width}x${this.height} pixels
+          
+          Please resize your image before uploading.`);
+        e.target.value = ''; // Clear the file input
+        return;
+      }
+      
+      // If all checks pass, set the file
+      if (name === 'profile_image') {
+        setProfileImage(file);
+      } else if (name === 'header_image') {
+        setHeaderImage(file);
+      } else if (name === 'logo_image') {
+        setLogoImage(file);
+      }
+    };
+    
+    img.onerror = function() {
+      setError('Invalid image file. Please choose a valid JPEG or PNG image.');
+      e.target.value = ''; // Clear the file input
+    };
+    
+    // Create object URL to load image for dimension checking
+    img.src = URL.createObjectURL(file);
   };
 
   const handleSubmit = async (e) => {
@@ -412,6 +450,19 @@ export default function ProfileEdit() {
       });
       
       if (!res.ok) {
+        // Handle specific HTTP status codes
+        if (res.status === 413) {
+          throw new Error(`Upload failed: File size too large! 
+            
+            The server rejected your upload because one or more files exceed the maximum allowed size.
+            
+            Please try:
+            • Compress your images before uploading
+            • Use JPEG format instead of PNG for photos
+            • Resize images to smaller dimensions (e.g., 1920x1080)
+            • Upload images one at a time instead of all at once`);
+        }
+        
         const errorData = await res.json();
         throw new Error(errorData.error || 'Failed to update profile');
       }
@@ -451,7 +502,13 @@ export default function ProfileEdit() {
         {error && (
           <div className={styles.errorAlert}>
             <i className="fas fa-exclamation-circle"></i>
-            <span>{error}</span>
+            <div className={styles.errorContent}>
+              {error.split('\n').map((line, index) => (
+                <div key={index} className={styles.errorLine}>
+                  {line}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

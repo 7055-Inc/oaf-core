@@ -14,13 +14,25 @@ export default function ProfileDisplay({
     );
   }
 
+  // Ensure we only prefix the API host when the path is relative
+  const toAbsoluteImageUrl = (maybePath) => {
+    if (!maybePath || typeof maybePath !== 'string') return '';
+    const path = maybePath.trim();
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path; // already absolute
+    }
+    // Normalize missing leading slash
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+    return `https://api2.onlineartfestival.com${normalized}`;
+  };
+
   const isOwnProfile = currentUserId && userProfile.id && (currentUserId.toString() === userProfile.id.toString());
 
   return (
     <div className={styles.container}>
       {userProfile.header_image_path ? (
         <img
-          src={`https://api2.onlineartfestival.com${userProfile.header_image_path}`}
+          src={toAbsoluteImageUrl(userProfile.header_image_path)}
           alt="Header"
           className={styles.headerImage}
         />
@@ -38,7 +50,7 @@ export default function ProfileDisplay({
       <div className={styles.profileWrapper}>
         {userProfile.profile_image_path && (
           <img
-            src={`https://api2.onlineartfestival.com${userProfile.profile_image_path}`}
+            src={toAbsoluteImageUrl(userProfile.profile_image_path)}
             alt="Profile"
             className={styles.profileImage}
           />
@@ -187,7 +199,7 @@ export default function ProfileDisplay({
           {userProfile.logo_path && (
             <div className={styles.logoContainer}>
               <img
-                src={`https://api2.onlineartfestival.com${userProfile.logo_path}`}
+                src={toAbsoluteImageUrl(userProfile.logo_path)}
                 alt="Business Logo"
                 className={styles.logoImage}
               />
@@ -221,6 +233,15 @@ export default function ProfileDisplay({
                 {userProfile.business_website}
               </a>
             </p>
+          )}
+          {userProfile.customer_service_email && (
+            <p><strong>Customer Service Email:</strong> {userProfile.customer_service_email}</p>
+          )}
+          {userProfile.legal_name && (
+            <p><strong>Legal Business Name:</strong> {userProfile.legal_name}</p>
+          )}
+          {userProfile.tax_id && (
+            <p><strong>Tax ID:</strong> {userProfile.tax_id}</p>
           )}
           {userProfile.founding_date && (
             <p><strong>Founded:</strong> {new Date(userProfile.founding_date).toLocaleDateString()}</p>
@@ -284,7 +305,7 @@ export default function ProfileDisplay({
         <div className={styles.section}>
           <h2 className={styles.subtitle}>Community Details</h2>
           {userProfile.art_style_preferences && (
-            <p><strong>Art Style Preferences:</strong> {userProfile.art_style_preferences}</p>
+            <p><strong>Art Style Preferences:</strong> {Array.isArray(userProfile.art_style_preferences) ? userProfile.art_style_preferences.join(', ') : userProfile.art_style_preferences}</p>
           )}
           {userProfile.favorite_colors && Array.isArray(userProfile.favorite_colors) && userProfile.favorite_colors.length > 0 && (
             <div>
@@ -304,8 +325,20 @@ export default function ProfileDisplay({
           {userProfile.art_interests && Array.isArray(userProfile.art_interests) && userProfile.art_interests.length > 0 && (
             <p><strong>Art Interests:</strong> {userProfile.art_interests.join(', ')}</p>
           )}
+          {userProfile.collecting_preferences && Array.isArray(userProfile.collecting_preferences) && userProfile.collecting_preferences.length > 0 && (
+            <p><strong>Collecting Preferences:</strong> {userProfile.collecting_preferences.join(', ')}</p>
+          )}
+          {userProfile.event_preferences && Array.isArray(userProfile.event_preferences) && userProfile.event_preferences.length > 0 && (
+            <p><strong>Event Preferences:</strong> {userProfile.event_preferences.join(', ')}</p>
+          )}
           {userProfile.wishlist && Array.isArray(userProfile.wishlist) && userProfile.wishlist.length > 0 && (
             <p><strong>Wishlist:</strong> {userProfile.wishlist.join(', ')}</p>
+          )}
+          {userProfile.collection && Array.isArray(userProfile.collection) && userProfile.collection.length > 0 && (
+            <p><strong>Collection:</strong> {userProfile.collection.join(', ')}</p>
+          )}
+          {userProfile.followings && Array.isArray(userProfile.followings) && userProfile.followings.length > 0 && (
+            <p><strong>Following:</strong> {userProfile.followings.join(', ')}</p>
           )}
         </div>
       )}
@@ -313,24 +346,108 @@ export default function ProfileDisplay({
       {userProfile.user_type === 'promoter' && (
         <div className={styles.section}>
           <h2 className={styles.subtitle}>Promoter Details</h2>
+          {userProfile.logo_path && (
+            <div className={styles.logoContainer}>
+              <img
+                src={toAbsoluteImageUrl(userProfile.logo_path)}
+                alt="Organization Logo"
+                className={styles.logoImage}
+              />
+            </div>
+          )}
           {userProfile.business_name && <p><strong>Business Name:</strong> {userProfile.business_name}</p>}
+          {userProfile.legal_name && <p><strong>Legal Name:</strong> {userProfile.legal_name}</p>}
+          {userProfile.tax_id && <p><strong>Tax ID:</strong> {userProfile.tax_id}</p>}
           <p><strong>Non-Profit:</strong> {userProfile.is_non_profit}</p>
           {userProfile.organization_size && (
             <p><strong>Organization Size:</strong> {userProfile.organization_size}</p>
           )}
+          {userProfile.founding_date && (
+            <p><strong>Founded:</strong> {new Date(userProfile.founding_date).toLocaleDateString()}</p>
+          )}
+          
+          {/* Business Contact Information */}
+          {userProfile.business_phone && (
+            <p><strong>Business Phone:</strong> {userProfile.business_phone}</p>
+          )}
+          {userProfile.business_website && (
+            <p>
+              <strong>Business Website:</strong>{' '}
+              <a href={userProfile.business_website} target="_blank" rel="noopener noreferrer" className={styles.link}>
+                {userProfile.business_website}
+              </a>
+            </p>
+          )}
+          
+          {/* Office Address */}
+          {(userProfile.office_address_line1 || userProfile.office_address_line2) && (
+            <div className={styles.addressSection}>
+              <h3>Office Address</h3>
+              <div className={styles.address}>
+                {userProfile.office_address_line1 && <div>{userProfile.office_address_line1}</div>}
+                {userProfile.office_address_line2 && <div>{userProfile.office_address_line2}</div>}
+                {(userProfile.office_city || userProfile.office_state || userProfile.office_zip) && (
+                  <div>
+                    {userProfile.office_city && `${userProfile.office_city}, `}
+                    {userProfile.office_state && `${userProfile.office_state} `}
+                    {userProfile.office_zip}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
           {userProfile.sponsorship_options && (
             <p><strong>Sponsorship Options:</strong> {userProfile.sponsorship_options}</p>
           )}
-          {userProfile.upcoming_events && Array.isArray(userProfile.upcoming_events) && userProfile.upcoming_events.length > 0 && (
+          {userProfile.upcoming_events && (
             <div>
               <strong>Upcoming Events:</strong>
-              <ul className={styles.eventList}>
-                {userProfile.upcoming_events.map((event, index) => (
-                  <li key={index}>
-                    {event.name && event.date ? `${event.name} on ${event.date}` : event.name || event.date || event}
-                  </li>
-                ))}
-              </ul>
+              {Array.isArray(userProfile.upcoming_events) && userProfile.upcoming_events.length > 0 ? (
+                <ul className={styles.eventList}>
+                  {userProfile.upcoming_events.map((event, index) => (
+                    <li key={index}>
+                      {event.name && event.date ? `${event.name} on ${event.date}` : event.name || event.date || event}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>{userProfile.upcoming_events}</p>
+              )}
+            </div>
+          )}
+          
+          {/* Business Social Media */}
+          {(userProfile.business_social_facebook || userProfile.business_social_instagram || userProfile.business_social_tiktok || userProfile.business_social_twitter || userProfile.business_social_pinterest) && (
+            <div className={styles.businessSocialSection}>
+              <h3>Business Social Media</h3>
+              <div className={styles.socialIcons}>
+                {userProfile.business_social_facebook && (
+                  <a href={userProfile.business_social_facebook} target="_blank" rel="noopener noreferrer" className={styles.link}>
+                    <i className="fa-brands fa-facebook-f"></i>
+                  </a>
+                )}
+                {userProfile.business_social_instagram && (
+                  <a href={userProfile.business_social_instagram} target="_blank" rel="noopener noreferrer" className={styles.link}>
+                    <i className="fa-brands fa-instagram"></i>
+                  </a>
+                )}
+                {userProfile.business_social_tiktok && (
+                  <a href={userProfile.business_social_tiktok} target="_blank" rel="noopener noreferrer" className={styles.link}>
+                    <i className="fa-brands fa-tiktok"></i>
+                  </a>
+                )}
+                {userProfile.business_social_twitter && (
+                  <a href={userProfile.business_social_twitter} target="_blank" rel="noopener noreferrer" className={styles.link}>
+                    <i className="fa-brands fa-x-twitter"></i>
+                  </a>
+                )}
+                {userProfile.business_social_pinterest && (
+                  <a href={userProfile.business_social_pinterest} target="_blank" rel="noopener noreferrer" className={styles.link}>
+                    <i className="fa-brands fa-pinterest-p"></i>
+                  </a>
+                )}
+              </div>
             </div>
           )}
         </div>
