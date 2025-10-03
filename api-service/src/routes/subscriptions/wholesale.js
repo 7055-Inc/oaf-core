@@ -4,12 +4,34 @@ const db = require('../../../config/db');
 const verifyToken = require('../../middleware/jwt');
 const { requirePermission } = require('../../middleware/permissions');
 
+/**
+ * @fileoverview Wholesale subscription management routes
+ * 
+ * Handles wholesale buyer subscription functionality including:
+ * - Terms and conditions acceptance tracking for wholesale services
+ * - Wholesale buyer application submission and validation
+ * - Admin application management (approval, denial, review)
+ * - Application statistics and reporting
+ * - User type and permission management for wholesale access
+ * - Complete application lifecycle management
+ * 
+ * @author Beemeeart Development Team
+ * @version 1.0.0
+ */
+
 // ============================================================================
 // WHOLESALE SUBSCRIPTION ROUTES
 // ============================================================================
 // All routes for wholesale buyer subscription management
 
-// GET /subscriptions/wholesale/terms-check - Check if user accepted latest wholesale terms
+/**
+ * Check if user has accepted the latest wholesale terms
+ * @route GET /api/subscriptions/wholesale/terms-check
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Terms acceptance status and latest terms details
+ */
 router.get('/terms-check', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
@@ -56,7 +78,15 @@ router.get('/terms-check', verifyToken, async (req, res) => {
   }
 });
 
-// POST /subscriptions/wholesale/terms-accept - Record terms acceptance
+/**
+ * Record user acceptance of wholesale terms
+ * @route POST /api/subscriptions/wholesale/terms-accept
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {number} req.body.terms_version_id - ID of the terms version being accepted
+ * @param {Object} res - Express response object
+ * @returns {Object} Confirmation of terms acceptance recording
+ */
 router.post('/terms-accept', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
@@ -93,7 +123,32 @@ router.post('/terms-accept', verifyToken, async (req, res) => {
   }
 });
 
-// POST /subscriptions/wholesale/apply - Submit wholesale buyer application
+/**
+ * Submit wholesale buyer application
+ * @route POST /api/subscriptions/wholesale/apply
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.body.business_name - Business name
+ * @param {string} req.body.business_type - Type of business
+ * @param {string} req.body.tax_id - Business tax ID
+ * @param {string} req.body.business_address - Business address
+ * @param {string} req.body.business_city - Business city
+ * @param {string} req.body.business_state - Business state
+ * @param {string} req.body.business_zip - Business ZIP code
+ * @param {string} req.body.business_phone - Business phone number
+ * @param {string} req.body.business_email - Business email
+ * @param {string} req.body.contact_name - Primary contact name
+ * @param {string} req.body.contact_title - Contact title/position
+ * @param {number} req.body.years_in_business - Years in business
+ * @param {string} req.body.business_description - Business description
+ * @param {string} req.body.product_categories - Product categories of interest
+ * @param {string} req.body.expected_order_volume - Expected order volume
+ * @param {string} req.body.website_url - Business website URL (optional)
+ * @param {string} req.body.resale_certificate - Resale certificate info (optional)
+ * @param {string} req.body.additional_info - Additional information (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} Application submission confirmation
+ */
 router.post('/apply', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
@@ -178,7 +233,15 @@ router.post('/apply', verifyToken, async (req, res) => {
 // ADMIN WHOLESALE APPLICATION MANAGEMENT ROUTES
 // ============================================================================
 
-// GET /subscriptions/wholesale/admin/applications - Get wholesale applications by status
+/**
+ * Get wholesale applications by status (Admin only)
+ * @route GET /api/subscriptions/wholesale/admin/applications
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.query.status - Filter by application status (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} List of wholesale applications
+ */
 router.get('/admin/applications', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { status } = req.query;
@@ -215,7 +278,16 @@ router.get('/admin/applications', verifyToken, requirePermission('manage_system'
   }
 });
 
-// PUT /subscriptions/wholesale/admin/applications/:id/approve - Approve wholesale application
+/**
+ * Approve wholesale application (Admin only)
+ * @route PUT /api/subscriptions/wholesale/admin/applications/:id/approve
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Application ID to approve
+ * @param {string} req.body.admin_notes - Admin notes for approval (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} Approval confirmation
+ */
 router.put('/admin/applications/:id/approve', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -285,7 +357,17 @@ router.put('/admin/applications/:id/approve', verifyToken, requirePermission('ma
   }
 });
 
-// PUT /subscriptions/wholesale/admin/applications/:id/deny - Deny wholesale application
+/**
+ * Deny wholesale application (Admin only)
+ * @route PUT /api/subscriptions/wholesale/admin/applications/:id/deny
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Application ID to deny
+ * @param {string} req.body.denial_reason - Reason for denial (required)
+ * @param {string} req.body.admin_notes - Admin notes for denial (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} Denial confirmation
+ */
 router.put('/admin/applications/:id/deny', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -318,7 +400,14 @@ router.put('/admin/applications/:id/deny', verifyToken, requirePermission('manag
   }
 });
 
-// GET /subscriptions/wholesale/admin/stats - Get wholesale application statistics
+/**
+ * Get wholesale application statistics (Admin only)
+ * @route GET /api/subscriptions/wholesale/admin/stats
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Application statistics by status
+ */
 router.get('/admin/stats', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const [stats] = await db.execute(`

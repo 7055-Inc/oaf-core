@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest, refreshAuthToken } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
 import MarketplacePricingTiers from './marketplace-components/MarketplacePricingTiers';
 
 export default function MarketplaceSubscriptions({ userData }) {
@@ -38,7 +39,7 @@ export default function MarketplaceSubscriptions({ userData }) {
       if (hasMarketplacePermission) {
         // Step 2: User has permission - check if they've accepted latest marketplace terms
         try {
-          const termsResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/marketplace/terms-check');
+          const termsResponse = await authApiRequest('api/subscriptions/marketplace/terms-check');
           
           if (termsResponse.ok) {
             const termsData = await termsResponse.json();
@@ -88,7 +89,7 @@ export default function MarketplaceSubscriptions({ userData }) {
 
       // Fetch real addon data from API (only user-level addons for marketplace)
       try {
-        const addonsResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/sites/addons');
+        const addonsResponse = await authApiRequest('api/sites/addons');
         const addonsData = await addonsResponse.json();
         
         if (addonsData.success) {
@@ -134,7 +135,7 @@ export default function MarketplaceSubscriptions({ userData }) {
     try {
       setProcessing(true);
       
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/sites/user-addons/${addon.id}`, {
+      const response = await authenticatedApiRequest(`api/sites/user-addons/${addon.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });

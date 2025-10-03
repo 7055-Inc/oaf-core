@@ -1,0 +1,220 @@
+openapi: 3.0.0
+info:
+  title: Marketplace Subscriptions API
+  description: Marketplace subscription management with terms and conditions acceptance tracking
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/api
+    description: Production server
+
+paths:
+  /subscriptions/marketplace/terms-check:
+    get:
+      summary: Check terms acceptance
+      description: Check if the authenticated user has accepted the latest marketplace terms and conditions
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TermsCheckResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/marketplace/terms-accept:
+    post:
+      summary: Accept terms
+      description: Record the user's acceptance of specific marketplace terms and conditions
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TermsAcceptRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TermsAcceptResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Bearer token authentication
+
+  schemas:
+    LatestTerms:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Terms version ID
+        title:
+          type: string
+          description: Terms title
+        content:
+          type: string
+          description: Full terms and conditions text
+        version:
+          type: string
+          description: Version identifier
+        created_at:
+          type: string
+          format: date-time
+          description: Terms creation timestamp
+
+    TermsCheckResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        termsAccepted:
+          type: boolean
+          description: Whether user has accepted the latest terms
+        latestTerms:
+          $ref: '#/components/schemas/LatestTerms'
+
+    TermsAcceptRequest:
+      type: object
+      required:
+        - terms_version_id
+      properties:
+        terms_version_id:
+          type: integer
+          description: ID of the terms version being accepted
+
+    TermsAcceptResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Terms acceptance recorded successfully"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "terms_version_id is required"
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Invalid or missing API key"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            NoTerms:
+              summary: No marketplace terms found
+              value:
+                error: "No marketplace terms found"
+            InvalidTerms:
+              summary: Invalid terms version
+              value:
+                error: "Invalid terms version"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            CheckError:
+              summary: Terms check error
+              value:
+                error: "Failed to check terms acceptance"
+            AcceptError:
+              summary: Terms acceptance error
+              value:
+                error: "Failed to record terms acceptance"
+
+  examples:
+    TermsCheckAcceptedExample:
+      summary: User has accepted terms
+      value:
+        success: true
+        termsAccepted: true
+        latestTerms:
+          id: 123
+          title: "Marketplace Terms and Conditions"
+          content: "By using the Beemeeart marketplace, you agree to..."
+          version: "2.1"
+          created_at: "2025-09-17T19:30:00Z"
+
+    TermsCheckNotAcceptedExample:
+      summary: User has not accepted terms
+      value:
+        success: true
+        termsAccepted: false
+        latestTerms:
+          id: 123
+          title: "Marketplace Terms and Conditions"
+          content: "By using the Beemeeart marketplace, you agree to..."
+          version: "2.1"
+          created_at: "2025-09-17T19:30:00Z"
+
+    TermsAcceptRequestExample:
+      summary: Accept terms request
+      value:
+        terms_version_id: 123
+
+    TermsAcceptResponseExample:
+      summary: Terms acceptance success
+      value:
+        success: true
+        message: "Terms acceptance recorded successfully"
+
+tags:
+  - name: Marketplace Subscriptions
+    description: Marketplace subscription and terms management

@@ -6,8 +6,31 @@ const { requirePermission } = require('../middleware/permissions');
 const { secureLogger } = require('../middleware/secureLogger');
 
 /**
+ * @fileoverview Category management routes
+ * 
+ * Handles comprehensive category management functionality including:
+ * - Hierarchical category structure with parent-child relationships
+ * - Category CRUD operations with validation and circular reference prevention
+ * - Category content management (hero images, descriptions, banners)
+ * - Category SEO management (meta tags, structured data)
+ * - Change logging and audit trail for all category operations
+ * - Product association tracking and constraint enforcement
+ * 
+ * All administrative operations require proper authentication and permissions.
+ * Public endpoints provide read-only access to category data.
+ * 
+ * @author Beemeeart Development Team
+ * @version 1.0.0
+ */
+
+/**
  * Get all categories with hierarchical structure
- * GET /api/categories
+ * @route GET /api/categories
+ * @access Public
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Hierarchical and flat category structures with counts
+ * @description Retrieves all categories in both hierarchical tree and flat array formats with product/child counts
  */
 router.get('/', async (req, res) => {
   try {
@@ -61,8 +84,15 @@ router.get('/', async (req, res) => {
 });
 
 /**
- * Get category change log (admin only)
- * GET /api/categories/change-log
+ * Get category change log (admin)
+ * @route GET /api/categories/change-log
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {number} req.query.limit - Number of records to return (default: 50)
+ * @param {number} req.query.offset - Number of records to skip (default: 0)
+ * @param {Object} res - Express response object
+ * @returns {Object} Paginated change log with admin and category information
+ * @description Retrieves audit trail of all category changes with admin details and JSON parsing
  */
 router.get('/change-log', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -101,8 +131,14 @@ router.get('/change-log', verifyToken, requirePermission('manage_system'), async
 });
 
 /**
- * Get a single category by ID
- * GET /api/categories/:id
+ * Get single category by ID
+ * @route GET /api/categories/:id
+ * @access Public
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Category ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Complete category details with children and breadcrumb navigation
+ * @description Retrieves detailed category information including child categories and parent breadcrumb
  */
 router.get('/:id', async (req, res) => {
   try {
@@ -163,8 +199,16 @@ router.get('/:id', async (req, res) => {
 });
 
 /**
- * Create a new category
- * POST /api/categories
+ * Create new category
+ * @route POST /api/categories
+ * @access Private (requires authentication)
+ * @param {Object} req - Express request object
+ * @param {string} req.body.name - Category name (required)
+ * @param {number} req.body.parent_id - Parent category ID (optional)
+ * @param {string} req.body.description - Category description (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} Created category with parent information
+ * @description Creates new category with validation, uniqueness checking, and change logging
  */
 router.post('/', verifyToken, async (req, res) => {
   try {
@@ -225,8 +269,17 @@ router.post('/', verifyToken, async (req, res) => {
 });
 
 /**
- * Update a category
- * PUT /api/categories/:id
+ * Update category
+ * @route PUT /api/categories/:id
+ * @access Private (requires authentication)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Category ID
+ * @param {string} req.body.name - Category name (optional)
+ * @param {number} req.body.parent_id - Parent category ID (optional)
+ * @param {string} req.body.description - Category description (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} Updated category with parent information
+ * @description Updates category with circular reference prevention and change logging
  */
 router.put('/:id', verifyToken, async (req, res) => {
   try {
@@ -308,8 +361,14 @@ router.put('/:id', verifyToken, async (req, res) => {
 });
 
 /**
- * Delete a category
- * DELETE /api/categories/:id
+ * Delete category
+ * @route DELETE /api/categories/:id
+ * @access Private (requires authentication)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Category ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Deletion success message
+ * @description Deletes category with constraint checking (no children/products) and change logging
  */
 router.delete('/:id', verifyToken, async (req, res) => {
   try {
@@ -366,7 +425,16 @@ router.delete('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// CATEGORY CONTENT ENDPOINTS
+/**
+ * Get category content
+ * @route GET /api/categories/content/:category_id
+ * @access Public
+ * @param {Object} req - Express request object
+ * @param {string} req.params.category_id - Category ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Category content including hero image, description, banner, featured items
+ * @description Retrieves category content for display purposes
+ */
 router.get('/content/:category_id', async (req, res) => {
   try {
     const { category_id } = req.params;
@@ -377,6 +445,21 @@ router.get('/content/:category_id', async (req, res) => {
   }
 });
 
+/**
+ * Create/update category content
+ * @route POST /api/categories/content/:category_id
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.category_id - Category ID
+ * @param {string} req.body.hero_image - Hero image URL (optional)
+ * @param {string} req.body.description - Category description (optional)
+ * @param {string} req.body.banner - Banner content (optional)
+ * @param {string} req.body.featured_products - Featured products JSON (optional)
+ * @param {string} req.body.featured_artists - Featured artists JSON (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} Success confirmation
+ * @description Creates or updates category content with change logging
+ */
 router.post('/content/:category_id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { category_id } = req.params;
@@ -405,7 +488,16 @@ router.post('/content/:category_id', verifyToken, requirePermission('manage_syst
   }
 });
 
-// CATEGORY SEO ENDPOINTS
+/**
+ * Get category SEO data
+ * @route GET /api/categories/seo/:category_id
+ * @access Public
+ * @param {Object} req - Express request object
+ * @param {string} req.params.category_id - Category ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Category SEO data including meta tags and structured data
+ * @description Retrieves category SEO information for search engine optimization
+ */
 router.get('/seo/:category_id', async (req, res) => {
   try {
     const { category_id } = req.params;
@@ -416,6 +508,21 @@ router.get('/seo/:category_id', async (req, res) => {
   }
 });
 
+/**
+ * Create/update category SEO data
+ * @route POST /api/categories/seo/:category_id
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.category_id - Category ID
+ * @param {string} req.body.meta_title - Meta title (optional)
+ * @param {string} req.body.meta_description - Meta description (optional)
+ * @param {string} req.body.meta_keywords - Meta keywords (optional)
+ * @param {string} req.body.canonical_url - Canonical URL (optional)
+ * @param {string} req.body.json_ld - JSON-LD structured data (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} Success confirmation
+ * @description Creates or updates category SEO data with change logging
+ */
 router.post('/seo/:category_id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { category_id } = req.params;

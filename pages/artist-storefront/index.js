@@ -5,6 +5,7 @@ import Link from 'next/link';
 import WholesalePricing from '../../components/WholesalePricing';
 import { isWholesaleCustomer } from '../../lib/userUtils';
 import { getAuthToken } from '../../lib/csrf';
+import { getFrontendUrl } from '../../lib/config';
 import styles from './ArtistStorefront.module.css';
 
 const ArtistStorefront = () => {
@@ -38,7 +39,7 @@ const ArtistStorefront = () => {
     // Extract subdomain from the current URL if query params aren't available
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
-      if (hostname.includes('.onlineartfestival.com') && hostname !== 'main.onlineartfestival.com') {
+      if (hostname.includes('.beemeeart.com') && hostname !== 'main.beemeeart.com') {
         const subdomainFromUrl = hostname.split('.')[0];
         setExtractedSubdomain(subdomainFromUrl);
       }
@@ -57,7 +58,7 @@ const ArtistStorefront = () => {
       setLoading(true);
       
       // First fetch site data to get user_id
-      const siteResponse = await fetch(`https://api2.onlineartfestival.com/api/sites/resolve/${subdomainToUse}`);
+      const siteResponse = await fetch(`https://api2.beemeeart.com/api/sites/resolve/${subdomainToUse}`);
       let siteData = null;
       
       if (siteResponse.ok) {
@@ -70,11 +71,11 @@ const ArtistStorefront = () => {
       
       // Fetch all data in parallel including full profile
       const [profileResponse, productsResponse, articlesResponse, pagesResponse, categoriesResponse] = await Promise.all([
-        fetch(`https://api2.onlineartfestival.com/users/profile/by-id/${siteData.user_id}`),
-        fetch(`https://api2.onlineartfestival.com/products/all?vendor_id=${siteData.user_id}&include=images&limit=12`),
-        fetch(`https://api2.onlineartfestival.com/api/sites/resolve/${subdomainToUse}/articles?type=menu`),
-        fetch(`https://api2.onlineartfestival.com/api/sites/resolve/${subdomainToUse}/articles?type=pages`),
-        fetch(`https://api2.onlineartfestival.com/api/sites/resolve/${subdomainToUse}/categories`)
+        fetch(`https://api2.beemeeart.com/users/profile/by-id/${siteData.user_id}`),
+        fetch(`https://api2.beemeeart.com/products/all?vendor_id=${siteData.user_id}&include=images&limit=12`),
+        fetch(`https://api2.beemeeart.com/api/sites/resolve/${subdomainToUse}/articles?type=menu`),
+        fetch(`https://api2.beemeeart.com/api/sites/resolve/${subdomainToUse}/articles?type=pages`),
+        fetch(`https://api2.beemeeart.com/api/sites/resolve/${subdomainToUse}/categories`)
       ]);
 
       // Merge site data with full profile data
@@ -127,7 +128,7 @@ const ArtistStorefront = () => {
   // Simple addon trigger - loads and initializes active addons
   const loadSiteAddons = async (siteId) => {
     try {
-      const response = await fetch(`https://api2.onlineartfestival.com/api/sites/${siteId}/addons`);
+      const response = await fetch(`https://api2.beemeeart.com/api/sites/${siteId}/addons`);
       if (response.ok) {
         const data = await response.json();
         const addons = data.addons || [];
@@ -209,7 +210,7 @@ const ArtistStorefront = () => {
       };
 
       // Add to cart via enhanced API
-      const response = await fetch('https://api2.onlineartfestival.com/cart/add', {
+      const response = await fetch('https://api2.beemeeart.com/cart/add', {
         method: 'POST',
         headers,
         body: JSON.stringify(body)
@@ -270,18 +271,18 @@ const ArtistStorefront = () => {
     // Check for image_url first (this is the main product image field)
     if (product.image_url) {
       if (product.image_url.startsWith('http')) return product.image_url;
-      return `https://api2.onlineartfestival.com/api/media/serve/${product.image_url}`;
+      return `https://api2.beemeeart.com/api/media/serve/${product.image_url}`;
     }
     // Check for image_path (legacy field)
     if (product.image_path) {
       if (product.image_path.startsWith('http')) return product.image_path;
-      return `https://api2.onlineartfestival.com/api/media/serve/${product.image_path}`;
+      return `https://api2.beemeeart.com/api/media/serve/${product.image_path}`;
     }
     // Check for images array (from the include=images parameter)
     if (product.images && product.images.length > 0) {
       const img = product.images[0];
       if (img.startsWith('http')) return img;
-      return `https://api2.onlineartfestival.com/api/media/serve/${img}`;
+      return `https://api2.beemeeart.com/api/media/serve/${img}`;
     }
     return null; // No image available
   };
@@ -300,7 +301,7 @@ const ArtistStorefront = () => {
       <div className={styles.error}>
         <h1>Gallery Not Found</h1>
         <p>Sorry, this artist gallery is not available.</p>
-        <Link href="https://main.onlineartfestival.com">
+        <Link href="https://main.beemeeart.com">
           <a className={styles.homeLink}>← Back to Main Site</a>
         </Link>
       </div>
@@ -322,7 +323,7 @@ const ArtistStorefront = () => {
         <meta property="og:title" content={pageTitle} />
         <meta property="og:description" content={pageDescription} />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content={`https://${subdomain}.onlineartfestival.com`} />
+        <meta property="og:url" content={`https://${subdomain}.beemeeart.com`} />
         {siteData.profile_image_path && (
           <meta property="og:image" content={siteData.profile_image_path} />
         )}
@@ -364,16 +365,16 @@ const ArtistStorefront = () => {
             </div>
 
             <nav className={styles.navigation}>
-              <Link href={siteData.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.onlineartfestival.com`}>
+              <Link href={siteData.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.beemeeart.com`}>
                 <a className={styles.navLink}>Home</a>
               </Link>
               {articles.map(article => (
-                <Link key={article.id} href={`${siteData.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.onlineartfestival.com`}/${article.slug}`}>
+                <Link key={article.id} href={`${siteData.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.beemeeart.com`}/${article.slug}`}>
                   <a className={styles.navLink}>{article.title}</a>
                 </Link>
               ))}
               {pages.find(page => page.page_type === 'contact') && (
-                <Link href={`${siteData.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.onlineartfestival.com`}/${pages.find(page => page.page_type === 'contact').slug}`}>
+                <Link href={`${siteData.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.beemeeart.com`}/${pages.find(page => page.page_type === 'contact').slug}`}>
                   <a className={styles.navLink}>{pages.find(page => page.page_type === 'contact').title}</a>
                 </Link>
               )}
@@ -651,7 +652,7 @@ const ArtistStorefront = () => {
                   className={styles.brandLogo}
                 />
                 <a 
-                  href="https://onlineartfestival.com" 
+                  href={getFrontendUrl('/')} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className={styles.brandLink}

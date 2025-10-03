@@ -4,11 +4,37 @@ const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
 const { requirePermission } = require('../middleware/permissions');
 
+/**
+ * @fileoverview Event series management routes
+ * 
+ * Handles comprehensive event series functionality including:
+ * - Event series CRUD operations with recurrence patterns
+ * - Event template management and reusability
+ * - Automated event generation based on series patterns
+ * - Email automation rules and trigger management
+ * - Series-based event scheduling and lifecycle management
+ * - Template creation from existing events
+ * 
+ * All endpoints require authentication and proper ownership validation.
+ * Supports yearly, quarterly, and monthly recurrence patterns.
+ * 
+ * @author Beemeeart Development Team
+ * @version 1.0.0
+ */
+
 // ================================
 // EVENT SERIES MANAGEMENT
 // ================================
 
-// Get all series for a promoter
+/**
+ * Get all event series for promoter
+ * @route GET /api/series
+ * @access Private (requires authentication)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} List of promoter's event series with statistics
+ * @description Retrieves all event series for authenticated promoter with event counts and date ranges
+ */
 router.get('/', verifyToken, async (req, res) => {
   try {
     const promoterId = req.userId;
@@ -34,7 +60,16 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
-// Get specific series details
+/**
+ * Get specific event series details
+ * @route GET /api/series/:id
+ * @access Private (requires authentication and ownership)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Series ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Complete series details with events and automation rules
+ * @description Retrieves detailed series information including associated events and automation rules
+ */
 router.get('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -82,7 +117,24 @@ router.get('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// Create new event series
+/**
+ * Create new event series
+ * @route POST /api/series
+ * @access Private (requires authentication)
+ * @param {Object} req - Express request object
+ * @param {string} req.body.series_name - Series name (required)
+ * @param {string} req.body.series_description - Series description (optional)
+ * @param {string} req.body.recurrence_pattern - Recurrence pattern (yearly/quarterly/monthly) (required)
+ * @param {number} req.body.recurrence_interval - Recurrence interval (required)
+ * @param {string} req.body.series_start_date - Series start date (required)
+ * @param {string} req.body.series_end_date - Series end date (optional)
+ * @param {number} req.body.template_event_id - Template event ID (optional)
+ * @param {boolean} req.body.auto_generate - Auto-generate events flag (optional)
+ * @param {number} req.body.generate_months_ahead - Months ahead to generate (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} Created series ID and success message
+ * @description Creates new event series with recurrence pattern and automation settings
+ */
 router.post('/', verifyToken, async (req, res) => {
   try {
     const promoterId = req.userId;
@@ -135,7 +187,17 @@ router.post('/', verifyToken, async (req, res) => {
   }
 });
 
-// Update event series
+/**
+ * Update event series
+ * @route PUT /api/series/:id
+ * @access Private (requires authentication and ownership)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Series ID
+ * @param {Object} req.body - Update data (various optional fields)
+ * @param {Object} res - Express response object
+ * @returns {Object} Update success message
+ * @description Updates event series with dynamic field updates and ownership validation
+ */
 router.put('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -185,7 +247,16 @@ router.put('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// Generate next event in series
+/**
+ * Generate next event in series
+ * @route POST /api/series/:id/generate
+ * @access Private (requires authentication and ownership)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Series ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Generated event ID and success message
+ * @description Manually generates next event in series based on recurrence pattern and template
+ */
 router.post('/:id/generate', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -262,7 +333,15 @@ router.post('/:id/generate', verifyToken, async (req, res) => {
 // EVENT TEMPLATES
 // ================================
 
-// Get templates for promoter
+/**
+ * Get event templates for promoter
+ * @route GET /api/series/templates/my
+ * @access Private (requires authentication)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} List of available templates with usage statistics
+ * @description Retrieves event templates owned by promoter or public templates with usage counts
+ */
 router.get('/templates/my', verifyToken, async (req, res) => {
   try {
     const promoterId = req.userId;
@@ -284,7 +363,19 @@ router.get('/templates/my', verifyToken, async (req, res) => {
   }
 });
 
-// Create template from existing event
+/**
+ * Create template from existing event
+ * @route POST /api/series/templates/from-event/:eventId
+ * @access Private (requires authentication and event ownership)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.eventId - Event ID to create template from
+ * @param {string} req.body.template_name - Template name (required)
+ * @param {string} req.body.description - Template description (optional)
+ * @param {boolean} req.body.is_public - Public template flag (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} Created template ID and success message
+ * @description Creates reusable event template from existing event with configuration data
+ */
 router.post('/templates/from-event/:eventId', verifyToken, async (req, res) => {
   try {
     const { eventId } = req.params;
@@ -327,7 +418,16 @@ router.post('/templates/from-event/:eventId', verifyToken, async (req, res) => {
 // AUTOMATION RULES
 // ================================
 
-// Get automation rules for series
+/**
+ * Get automation rules for series
+ * @route GET /api/series/:id/automation
+ * @access Private (requires authentication and ownership)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Series ID
+ * @param {Object} res - Express response object
+ * @returns {Object} List of automation rules for the series
+ * @description Retrieves email automation rules configured for the event series
+ */
 router.get('/:id/automation', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -355,7 +455,20 @@ router.get('/:id/automation', verifyToken, async (req, res) => {
   }
 });
 
-// Create automation rule
+/**
+ * Create automation rule for series
+ * @route POST /api/series/:id/automation
+ * @access Private (requires authentication and ownership)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Series ID
+ * @param {string} req.body.trigger_type - Trigger type for automation
+ * @param {number} req.body.trigger_offset_days - Days offset for trigger (optional)
+ * @param {string} req.body.target_audience - Target audience (optional, default: 'artists')
+ * @param {number} req.body.template_id - Email template ID (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} Created rule ID and success message
+ * @description Creates email automation rule for series with trigger and audience configuration
+ */
 router.post('/:id/automation', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -392,6 +505,12 @@ router.post('/:id/automation', verifyToken, async (req, res) => {
 // UTILITY FUNCTIONS
 // ================================
 
+/**
+ * Get last sequence number for series
+ * @param {number} seriesId - Series ID
+ * @returns {Promise<number>} Last sequence number (0 if no events)
+ * @description Retrieves the highest sequence number for events in the series
+ */
 async function getLastSequenceNumber(seriesId) {
   const [result] = await db.execute(
     'SELECT COALESCE(MAX(sequence_number), 0) as last_number FROM series_events WHERE series_id = ?',
@@ -400,6 +519,13 @@ async function getLastSequenceNumber(seriesId) {
   return result[0].last_number;
 }
 
+/**
+ * Calculate next event dates based on recurrence pattern
+ * @param {Object} seriesInfo - Series configuration object
+ * @param {number} sequenceNumber - Sequence number for the new event
+ * @returns {Object} Object with start_date, end_date, and year
+ * @description Calculates event dates based on series recurrence pattern and sequence number
+ */
 function calculateNextEventDates(seriesInfo, sequenceNumber) {
   const baseDate = new Date(seriesInfo.series_start_date);
   let nextDate = new Date(baseDate);
@@ -433,6 +559,12 @@ function calculateNextEventDates(seriesInfo, sequenceNumber) {
   };
 }
 
+/**
+ * Create event from template data
+ * @param {Object} eventData - Event data object
+ * @returns {Promise<number>} Created event ID
+ * @description Creates new event record from template data with dynamic field insertion
+ */
 async function createEventFromTemplate(eventData) {
   const fields = Object.keys(eventData);
   const values = Object.values(eventData);

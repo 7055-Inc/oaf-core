@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
+import { getApiUrl, getFrontendUrl } from '../../lib/config';
 import Header from '../../components/Header';
 import SocialShare from '../../components/SocialShare';
 import styles from './styles/ArticleView.module.css';
@@ -24,7 +25,7 @@ export default function ArticlePage() {
   const fetchArticle = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`https://api2.onlineartfestival.com/api/articles/${slug}`);
+      const response = await fetch(getApiUrl(`api/articles/${slug}`));
       const data = await response.json();
       
       if (data.article) {
@@ -49,7 +50,7 @@ export default function ArticlePage() {
 
   const updateViewCount = async (articleId) => {
     try {
-      await fetch(`https://api2.onlineartfestival.com/api/articles/${articleId}/view`, {
+      await fetch(`api/articles/${articleId}/view`, {
         method: 'POST'
       });
     } catch (err) {
@@ -62,7 +63,7 @@ export default function ArticlePage() {
     
     try {
       const topicSlugs = topics.map(topic => topic.slug).join(',');
-      const response = await fetch(`https://api2.onlineartfestival.com/api/articles?topic=${topicSlugs}&limit=3&status=published`);
+      const response = await fetch(`api/articles?topic=${topicSlugs}&limit=3&status=published`);
       const data = await response.json();
       
       if (data.articles) {
@@ -85,7 +86,7 @@ export default function ArticlePage() {
           case 'user':
           case 'artist':
             try {
-              const userResponse = await fetch(`https://api2.onlineartfestival.com/api/users/${connection.connection_id}`);
+              const userResponse = await fetch(`api/users/${connection.connection_id}`);
               if (userResponse.ok) {
                 const userData = await userResponse.json();
                 details = {
@@ -103,7 +104,7 @@ export default function ArticlePage() {
             
           case 'event':
             try {
-              const eventResponse = await fetch(`https://api2.onlineartfestival.com/api/events/${connection.connection_id}`);
+              const eventResponse = await fetch(`api/events/${connection.connection_id}`);
               if (eventResponse.ok) {
                 const eventData = await eventResponse.json();
                 details = {
@@ -122,7 +123,7 @@ export default function ArticlePage() {
             
           case 'product':
             try {
-              const productResponse = await fetch(`https://api2.onlineartfestival.com/api/products/${connection.connection_id}`);
+              const productResponse = await fetch(`api/products/${connection.connection_id}`);
               if (productResponse.ok) {
                 const productData = await productResponse.json();
                 details = {
@@ -183,7 +184,7 @@ export default function ArticlePage() {
 
   // Generate JSON-LD structured data
   const generateArticleSchema = () => {
-    const canonicalUrl = `https://onlineartfestival.com/articles/${article.slug}`;
+    const canonicalUrl = getFrontendUrl(`/articles/${article.slug}`);
     
     const schema = {
       "@context": "https://schema.org",
@@ -193,15 +194,15 @@ export default function ArticlePage() {
       "author": {
         "@type": "Person",
         "name": article.author_display_name || article.author_username,
-        "url": `https://onlineartfestival.com/artists/${article.author_username}`
+        "url": getFrontendUrl(`/artists/${article.author_username}`)
       },
       "publisher": {
         "@type": "Organization",
         "name": "Online Art Festival",
-        "url": "https://onlineartfestival.com",
+        "url": getFrontendUrl('/'),
         "logo": {
           "@type": "ImageObject",
-          "url": "https://onlineartfestival.com/logo.png"
+          "url": getFrontendUrl('/logo.png')
         }
       },
       "datePublished": article.published_at,
@@ -214,7 +215,7 @@ export default function ArticlePage() {
       "isPartOf": {
         "@type": "WebSite",
         "name": "Online Art Festival",
-        "url": "https://onlineartfestival.com"
+        "url": ""
       },
       "inLanguage": "en-US",
       "copyrightHolder": {
@@ -248,7 +249,7 @@ export default function ArticlePage() {
       schema.about = article.topics.map(topic => ({
         "@type": "Thing",
         "name": topic.name,
-        "url": `https://onlineartfestival.com/topics/${topic.slug}`
+        "url": `/topics/${topic.slug}`
       }));
     }
 
@@ -345,20 +346,20 @@ export default function ArticlePage() {
         <title>{article.meta_title || article.title}</title>
         <meta name="description" content={article.meta_description || article.excerpt} />
         <meta name="keywords" content={article.meta_keywords || ''} />
-        <link rel="canonical" href={`https://onlineartfestival.com/articles/${article.slug}`} />
+        <link rel="canonical" href={`/articles/${article.slug}`} />
         
         <meta property="og:title" content={article.og_title || article.title} />
         <meta property="og:description" content={article.og_description || article.excerpt} />
         <meta property="og:type" content="article" />
-        <meta property="og:url" content={`https://onlineartfestival.com/articles/${article.slug}`} />
-        <meta property="og:image" content={article.og_image || article.featured_image || 'https://onlineartfestival.com/default-article.jpg'} />
+        <meta property="og:url" content={`/articles/${article.slug}`} />
+        <meta property="og:image" content={article.og_image || article.featured_image || '/default-article.jpg'} />
         <meta property="article:published_time" content={article.published_at} />
         <meta property="article:author" content={article.author_display_name || article.author_username} />
         
         <meta name="twitter:card" content={article.twitter_card_type || 'summary_large_image'} />
         <meta name="twitter:title" content={article.twitter_title || article.og_title || article.title} />
         <meta name="twitter:description" content={article.twitter_description || article.og_description || article.excerpt} />
-        <meta name="twitter:image" content={article.twitter_image || article.og_image || article.featured_image || 'https://onlineartfestival.com/default-article.jpg'} />
+        <meta name="twitter:image" content={article.twitter_image || article.og_image || article.featured_image || '/default-article.jpg'} />
         
         {/* JSON-LD Structured Data */}
         <script
@@ -431,7 +432,7 @@ export default function ArticlePage() {
 
           {/* Social Share Section */}
           <SocialShare 
-            url={`https://onlineartfestival.com/articles/${article.slug}`}
+            url={`/articles/${article.slug}`}
             title={article.title}
             description={article.excerpt || article.meta_description}
             image={article.og_image || article.featured_image}

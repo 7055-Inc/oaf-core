@@ -52,7 +52,7 @@ const SubdomainError = () => {
             marginBottom: '0.5rem',
             fontSize: '1.1rem'
           }}>
-            There was an error loading <strong>{subdomain}.onlineartfestival.com</strong>
+            There was an error loading <strong>{subdomain}.beemeeart.com</strong>
           </p>
           
           <p style={{
@@ -99,7 +99,7 @@ const SubdomainError = () => {
               🔄 Try Again
             </button>
             
-            <Link href="https://main.onlineartfestival.com">
+            <Link href="https://main.beemeeart.com">
               <a style={{
                 background: '#ee5a24',
                 color: 'white',

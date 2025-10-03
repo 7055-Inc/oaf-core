@@ -1,3 +1,10 @@
+/**
+ * Product Add-ons and Extensions Routes
+ * Comprehensive addon system for the Beemeeart platform
+ * Handles site-specific addons, contact forms, email collection, and social posting
+ * Supports extensible addon architecture with rate limiting and validation
+ */
+
 const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
@@ -8,7 +15,10 @@ const EmailService = require('../services/emailService');
 
 const emailService = new EmailService();
 
-// Rate limiting for addon API endpoints
+/**
+ * Rate limiting configuration for addon API endpoints
+ * Protects against abuse while allowing reasonable usage
+ */
 const addonRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 20, // Limit each IP to 20 requests per windowMs
@@ -25,7 +35,13 @@ const addonRateLimit = rateLimit({
 
 /**
  * GET /api/addons/sites/:id/addons
- * Get active addons for a site - MASTER ENDPOINT that triggers all addon functionality
+ * Get active addons for a site - Master endpoint that triggers all addon functionality
+ * Returns all enabled addons for a specific site with configuration and pricing
+ * 
+ * @route GET /api/addons/sites/:id/addons
+ * @param {string} id - Site ID to get addons for
+ * @returns {Array} List of active addons with configuration and pricing information
+ * @note Public endpoint for site addon discovery and configuration
  */
 router.get('/sites/:id/addons', async (req, res) => {
   try {
@@ -52,7 +68,13 @@ router.get('/sites/:id/addons', async (req, res) => {
 // CONTACT FORM ADDON
 // ============================================================================
 
-// Helper function for email validation
+/**
+ * Email validation helper function
+ * Validates email format using standard regex pattern
+ * 
+ * @param {string} email - Email address to validate
+ * @returns {boolean} True if email format is valid
+ */
 function isValidEmail(email) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
@@ -60,7 +82,19 @@ function isValidEmail(email) {
 
 /**
  * POST /api/addons/contact/submit
- * Submit a contact form message
+ * Submit a contact form message through site addon system
+ * Validates input, stores submission, and sends notification email to site owner
+ * 
+ * @route POST /api/addons/contact/submit
+ * @middleware addonRateLimit - Rate limiting protection
+ * @param {Object} req.body - Contact form data
+ * @param {number} req.body.siteId - Site ID for the contact form
+ * @param {string} req.body.name - Sender's name (required, max 100 chars)
+ * @param {string} req.body.email - Sender's email (required, valid format)
+ * @param {string} [req.body.phone] - Sender's phone (optional, max 20 chars)
+ * @param {string} req.body.message - Message content (required, 10-2000 chars)
+ * @returns {Object} Success confirmation with message
+ * @note Requires contact form addon to be enabled for the site
  */
 router.post('/contact/submit', addonRateLimit, async (req, res) => {
   try {
@@ -159,7 +193,7 @@ router.post('/contact/submit', addonRateLimit, async (req, res) => {
           site_name: site.site_name || `${site.first_name} ${site.last_name}'s Site`,
           site_url: site.custom_domain 
             ? `https://${site.custom_domain}` 
-            : `https://${site.subdomain}.onlineartfestival.com`,
+            : `https://${site.subdomain}.${process.env.FRONTEND_URL?.replace('https://', '') || 'beemeeart.com'}`,
           siteId: parseInt(siteId) // Pass siteId for artist layout data
         };
 
@@ -197,7 +231,17 @@ router.post('/contact/submit', addonRateLimit, async (req, res) => {
 
 /**
  * POST /api/addons/email-collection/subscribe
- * Subscribe to newsletter
+ * Subscribe to newsletter and email marketing lists
+ * Future implementation for email collection and marketing automation
+ * 
+ * @route POST /api/addons/email-collection/subscribe
+ * @middleware addonRateLimit - Rate limiting protection
+ * @param {Object} req.body - Subscription data
+ * @param {number} req.body.siteId - Site ID for the subscription
+ * @param {string} req.body.email - Subscriber email address
+ * @param {string} [req.body.name] - Subscriber name (optional)
+ * @returns {Object} Subscription confirmation
+ * @note Future implementation - currently returns 501 Not Implemented
  */
 router.post('/email-collection/subscribe', addonRateLimit, async (req, res) => {
   // TODO: Implement email collection functionality
@@ -210,7 +254,17 @@ router.post('/email-collection/subscribe', addonRateLimit, async (req, res) => {
 
 /**
  * POST /api/addons/social-posting/connect
- * Connect social media account
+ * Connect social media account for automated posting
+ * Future implementation for social media integration and automated posting
+ * 
+ * @route POST /api/addons/social-posting/connect
+ * @middleware addonRateLimit - Rate limiting protection
+ * @param {Object} req.body - Social media connection data
+ * @param {number} req.body.siteId - Site ID for the connection
+ * @param {string} req.body.platform - Social media platform (facebook, instagram, twitter, etc.)
+ * @param {string} req.body.accessToken - Platform access token
+ * @returns {Object} Connection confirmation
+ * @note Future implementation - currently returns 501 Not Implemented
  */
 router.post('/social-posting/connect', addonRateLimit, async (req, res) => {
   // TODO: Implement social posting functionality

@@ -1,0 +1,418 @@
+openapi: 3.0.0
+info:
+  title: Curated Content API
+  description: Public marketplace content API for art and crafts products with comprehensive data enrichment
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/api
+    description: Production server
+
+paths:
+  /curated/art/products/all:
+    get:
+      summary: Get all art marketplace products
+      description: Get all active art marketplace products with optional data enrichment and filtering
+      parameters:
+        - name: include
+          in: query
+          schema:
+            type: string
+          description: Comma-separated list of data to include (inventory,images,vendor)
+          example: "inventory,images,vendor"
+        - name: vendor_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by vendor ID
+          example: 456
+        - name: category_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by category ID
+          example: 1
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /curated/art/products/{id}:
+    get:
+      summary: Get single art marketplace product
+      description: Get detailed art product information with family structure and comprehensive data
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Product ID
+          example: 123
+        - name: include
+          in: query
+          schema:
+            type: string
+          description: Comma-separated list of data to include (inventory,images,shipping,categories,vendor)
+          example: "inventory,images,shipping,categories,vendor"
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDetailResponse'
+        '404':
+          $ref: '#/components/responses/ProductNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /curated/crafts/products/all:
+    get:
+      summary: Get all crafts marketplace products
+      description: Get all active crafts marketplace products with optional data enrichment and filtering
+      parameters:
+        - name: include
+          in: query
+          schema:
+            type: string
+          description: Comma-separated list of data to include (inventory,images,vendor)
+          example: "inventory,images,vendor"
+        - name: vendor_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by vendor ID
+          example: 321
+        - name: category_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by category ID
+          example: 10
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /curated/crafts/products/{id}:
+    get:
+      summary: Get single crafts marketplace product
+      description: Get detailed crafts product information with family structure and comprehensive data
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Product ID
+          example: 789
+        - name: include
+          in: query
+          schema:
+            type: string
+          description: Comma-separated list of data to include (inventory,images,shipping,categories,vendor)
+          example: "inventory,images,shipping,categories,vendor"
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDetailResponse'
+        '404':
+          $ref: '#/components/responses/ProductNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  schemas:
+    ProductType:
+      type: string
+      enum: [simple, variable, variant]
+      description: Product type
+
+    MarketplaceCategory:
+      type: string
+      enum: [art, crafts]
+      description: Marketplace category
+
+    BaseProduct:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Product ID
+        name:
+          type: string
+          description: Product name
+        description:
+          type: string
+          description: Product description
+        price:
+          type: number
+          format: decimal
+          description: Product price
+        status:
+          type: string
+          enum: [active]
+          description: Product status
+        marketplace_enabled:
+          type: boolean
+          description: Marketplace enabled flag
+        marketplace_category:
+          $ref: '#/components/schemas/MarketplaceCategory'
+        product_type:
+          $ref: '#/components/schemas/ProductType'
+        parent_id:
+          type: integer
+          nullable: true
+          description: Parent product ID
+        vendor_id:
+          type: integer
+          description: Vendor user ID
+        category_id:
+          type: integer
+          description: Primary category ID
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    Inventory:
+      type: object
+      properties:
+        qty_on_hand:
+          type: integer
+          description: Quantity on hand
+        qty_on_order:
+          type: integer
+          description: Quantity on order
+        qty_available:
+          type: integer
+          description: Available quantity
+        reorder_qty:
+          type: integer
+          description: Reorder threshold
+
+    Vendor:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Vendor ID
+        username:
+          type: string
+          description: Vendor username
+        first_name:
+          type: string
+          nullable: true
+          description: First name
+        last_name:
+          type: string
+          nullable: true
+          description: Last name
+        display_name:
+          type: string
+          nullable: true
+          description: Display name
+        business_name:
+          type: string
+          nullable: true
+          description: Business name
+        business_website:
+          type: string
+          nullable: true
+          description: Business website
+
+    Shipping:
+      type: object
+      properties:
+        weight:
+          type: number
+          format: decimal
+          description: Product weight
+        dimensions:
+          type: object
+          properties:
+            length:
+              type: number
+            width:
+              type: number
+            height:
+              type: number
+          description: Product dimensions
+        free_shipping:
+          type: boolean
+          description: Free shipping flag
+        shipping_class:
+          type: string
+          description: Shipping class
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Category ID
+        name:
+          type: string
+          description: Category name
+        description:
+          type: string
+          description: Category description
+
+    ProductListItem:
+      allOf:
+        - $ref: '#/components/schemas/BaseProduct'
+        - type: object
+          properties:
+            children:
+              type: array
+              items:
+                $ref: '#/components/schemas/BaseProduct'
+              description: Child products (for variable products)
+            parent:
+              $ref: '#/components/schemas/BaseProduct'
+              nullable: true
+              description: Parent product (for child products)
+            inventory:
+              $ref: '#/components/schemas/Inventory'
+              description: Inventory information (when included)
+            images:
+              type: array
+              items:
+                type: string
+              description: Product images (when included)
+            vendor:
+              $ref: '#/components/schemas/Vendor'
+              description: Vendor information (when included)
+
+    ProductDetail:
+      allOf:
+        - $ref: '#/components/schemas/BaseProduct'
+        - type: object
+          properties:
+            children:
+              type: array
+              items:
+                allOf:
+                  - $ref: '#/components/schemas/BaseProduct'
+                  - type: object
+                    properties:
+                      inventory:
+                        $ref: '#/components/schemas/Inventory'
+                      images:
+                        type: array
+                        items:
+                          type: string
+                      shipping:
+                        $ref: '#/components/schemas/Shipping'
+                      categories:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Category'
+              description: Child products with enriched data
+            inventory:
+              $ref: '#/components/schemas/Inventory'
+              description: Inventory information
+            images:
+              type: array
+              items:
+                type: string
+              description: Product images
+            shipping:
+              $ref: '#/components/schemas/Shipping'
+              description: Shipping information (when included)
+            categories:
+              type: array
+              items:
+                $ref: '#/components/schemas/Category'
+              description: Associated categories (when included)
+            vendor:
+              $ref: '#/components/schemas/Vendor'
+              description: Vendor information (when included)
+            family_size:
+              type: integer
+              description: Number of child products
+            requested_product_id:
+              type: integer
+              description: Originally requested product ID
+            is_requested_product_parent:
+              type: boolean
+              description: Whether requested product was parent
+
+    ProductListResponse:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductListItem'
+
+    ProductDetailResponse:
+      $ref: '#/components/schemas/ProductDetail'
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+
+  responses:
+    ProductNotFound:
+      description: Product not found or not available in marketplace
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Product not found"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            fetch_products_error:
+              summary: Fetch products error
+              value:
+                error: "Failed to fetch products"
+            fetch_product_error:
+              summary: Fetch product error
+              value:
+                error: "Failed to fetch product"
+
+tags:
+  - name: Art Marketplace
+    description: Art marketplace product curation
+
+  - name: Crafts Marketplace
+    description: Crafts marketplace product curation
+
+  - name: Product Discovery
+    description: Public product discovery and browsing
+
+  - name: Product Details
+    description: Comprehensive product information

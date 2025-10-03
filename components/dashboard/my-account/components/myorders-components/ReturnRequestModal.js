@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../../lib/csrf';
+import { getApiUrl } from '../../../../../lib/config';
 
 export default function ReturnRequestModal({ isOpen, onClose, item, order }) {
   const [loading, setLoading] = useState(true);
@@ -51,14 +52,14 @@ export default function ReturnRequestModal({ isOpen, onClose, item, order }) {
       setError(null);
 
       // Load vendor's return policy
-      const policyResponse = await fetch(`https://api2.onlineartfestival.com/users/${item.vendor_id}/policies`);
+      const policyResponse = await fetch(getApiUrl(`users/${item.vendor_id}/policies`));
       if (policyResponse.ok) {
         const policyData = await policyResponse.json();
         if (policyData.success && policyData.policies && policyData.policies.return) {
           setReturnPolicy(policyData.policies.return.policy_text);
         } else {
           // Fallback to default policy
-          const defaultResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/admin/default-return-policies');
+          const defaultResponse = await authenticatedApiRequest('admin/default-return-policies');
           if (defaultResponse.ok) {
             const defaultData = await defaultResponse.json();
             setReturnPolicy(defaultData.policy || 'Standard 30-day return policy applies.');
@@ -123,7 +124,7 @@ export default function ReturnRequestModal({ isOpen, onClose, item, order }) {
         returnData.label_preference = labelChoice;
       }
 
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/returns/create', {
+      const response = await authenticatedApiRequest('api/returns/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

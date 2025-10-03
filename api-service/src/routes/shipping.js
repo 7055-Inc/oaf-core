@@ -6,8 +6,30 @@ const verifyToken = require('../middleware/jwt');
 const { requirePermission } = require('../middleware/permissions');
 
 /**
- * Calculate shipping rates for a product
- * POST /api/shipping/calculate-rates
+ * @fileoverview Shipping management routes
+ * 
+ * Handles comprehensive shipping functionality including:
+ * - Shipping rate calculations for individual products and carts
+ * - Multi-carrier shipping service integration (UPS, FedEx, USPS)
+ * - Shipping label generation and purchase
+ * - Batch processing for multiple orders
+ * - Label library management and PDF serving
+ * - Label cancellation and refund processing
+ * - Subscription-based label purchasing
+ * 
+ * @author Beemeeart Development Team
+ * @version 1.0.0
+ */
+
+/**
+ * Calculate shipping rates for a single product
+ * @route POST /api/shipping/calculate-rates
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {number} req.body.product_id - Product ID to calculate rates for
+ * @param {Object} req.body.recipient_address - Destination shipping address
+ * @param {Object} res - Express response object
+ * @returns {Object} Available shipping rates for the product
  */
 router.post('/calculate-rates', verifyToken, async (req, res) => {
   try {
@@ -18,7 +40,7 @@ router.post('/calculate-rates', verifyToken, async (req, res) => {
     }
 
     // Get product shipping details
-    const [productShipping] = await db.execute(`
+    const [productShipping] = await db.query(`
       SELECT ps.*, p.name as product_name, p.vendor_id
       FROM product_shipping ps
       JOIN products p ON ps.product_id = p.id
@@ -74,8 +96,15 @@ router.post('/calculate-rates', verifyToken, async (req, res) => {
 });
 
 /**
- * Calculate shipping rates for multiple products (cart/checkout)
- * POST /api/shipping/calculate-cart-shipping
+ * Calculate shipping rates for multiple products in cart/checkout
+ * @route POST /api/shipping/calculate-cart-shipping
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {Array} req.body.cart_items - Array of cart items with product_id and quantity
+ * @param {Object} req.body.recipient_address - Destination shipping address
+ * @param {Array} req.body.test_packages - Optional test packages for rate estimation
+ * @param {Object} res - Express response object
+ * @returns {Object} Shipping results for all products with total cost
  */
 router.post('/calculate-cart-shipping', verifyToken, async (req, res) => {
   try {
@@ -114,7 +143,7 @@ router.post('/calculate-cart-shipping', verifyToken, async (req, res) => {
           shippingInfo = productShipping[0];
         } else {
           // Get product shipping details from database
-          const [dbShipping] = await db.execute(`
+          const [dbShipping] = await db.query(`
             SELECT ps.*, p.name as product_name, p.vendor_id
             FROM product_shipping ps
             JOIN products p ON ps.product_id = p.id
@@ -214,14 +243,19 @@ router.post('/calculate-cart-shipping', verifyToken, async (req, res) => {
 
 /**
  * Get available shipping services for a product
- * GET /api/shipping/services/:product_id
+ * @route GET /api/shipping/services/:product_id
+ * @access Public
+ * @param {Object} req - Express request object
+ * @param {string} req.params.product_id - Product ID to get services for
+ * @param {Object} res - Express response object
+ * @returns {Object} Available shipping services and methods
  */
 router.get('/services/:product_id', async (req, res) => {
   try {
     const { product_id } = req.params;
     
     // Get product shipping configuration
-    const [productShipping] = await db.execute(`
+    const [productShipping] = await db.query(`
       SELECT ps.*, p.name as product_name
       FROM product_shipping ps
       JOIN products p ON ps.product_id = p.id
@@ -271,10 +305,15 @@ router.get('/services/:product_id', async (req, res) => {
   }
 });
 
-// Add at the top or before the endpoint
+/**
+ * Get shipping address for a specific order
+ * @param {number} orderId - Order ID to get shipping address for
+ * @returns {Promise<Object>} Shipping address object
+ * @throws {Error} If shipping address not found
+ */
 async function getShippingAddressForOrder(orderId) {
   try {
-    const [addressData] = await db.execute(`
+    const [addressData] = await db.query(`
       SELECT sa.recipient_name as name, sa.address_line_1 as street, sa.address_line_2, sa.city, sa.state, sa.postal_code as zip, sa.country
       FROM shipping_addresses sa
       JOIN orders o ON sa.order_id = o.id
@@ -292,12 +331,22 @@ async function getShippingAddressForOrder(orderId) {
   }
 }
 
-// New endpoint for live label rates
+/**
+ * Get live shipping rates for label generation
+ * @route POST /api/shipping/get-label-rates
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {number} req.body.item_id - Order item ID
+ * @param {Array} req.body.packages - Optional package specifications
+ * @param {Object} res - Express response object
+ * @returns {Object} Live shipping rates for label purchase
+ */
 router.post('/get-label-rates', verifyToken, async (req, res) => {
   try {
     const { item_id, packages } = req.body;
+    console.log('DEBUG: get-label-rates called with:', { item_id, packages });
     
-    const [itemData] = await db.execute(`
+    const [itemData] = await db.query(`
       SELECT oi.*, ps.*, p.vendor_id
       FROM order_items oi
       JOIN product_shipping ps ON oi.product_id = ps.product_id
@@ -354,6 +403,15 @@ router.post('/get-label-rates', verifyToken, async (req, res) => {
   }
 });
 
+/**
+ * Process batch operations for shipping (tracking updates and label creation)
+ * @route POST /api/shipping/process-batch
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {Array} req.body.batch - Array of batch operations
+ * @param {Object} res - Express response object
+ * @returns {Object} Results of batch processing operations
+ */
 router.post('/process-batch', verifyToken, async (req, res) => {
   const connection = await db.getConnection();
   try {
@@ -487,7 +545,7 @@ router.post('/process-batch', verifyToken, async (req, res) => {
               order_id: item.order_id.toString(),
               item_ids: itemIds.join(','),
               label_type: 'order',
-              platform: 'oaf'
+              platform: 'beemeeart'
             }
           });
 
@@ -554,7 +612,17 @@ router.post('/process-batch', verifyToken, async (req, res) => {
   }
 });
 
-// Cancel shipping label
+/**
+ * Cancel shipping label and refund cost
+ * @route POST /api/shipping/cancel-label
+ * @access Vendor
+ * @param {Object} req - Express request object
+ * @param {string} req.body.trackingNumber - Tracking number of label to cancel
+ * @param {string} req.body.carrier - Shipping carrier (UPS, FedEx, USPS)
+ * @param {number} req.body.labelId - Optional label ID for database lookup
+ * @param {Object} res - Express response object
+ * @returns {Object} Cancellation confirmation and refund details
+ */
 router.post('/cancel-label', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
     const { trackingNumber, carrier, labelId } = req.body;
@@ -563,7 +631,7 @@ router.post('/cancel-label', verifyToken, requirePermission('vendor'), async (re
     // If labelId is provided, get carrier from database
     let actualCarrier = carrier;
     if (labelId && !carrier) {
-      const [labelRecords] = await db.execute(
+      const [labelRecords] = await db.query(
         'SELECT carrier FROM shipping_labels WHERE id = ? AND vendor_id = ?',
         [labelId, userId]
       );
@@ -638,12 +706,19 @@ router.post('/cancel-label', verifyToken, requirePermission('vendor'), async (re
   }
 });
 
-// Get user's label library
+/**
+ * Get vendor's shipping label library
+ * @route GET /api/shipping/my-labels
+ * @access Vendor
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Array of vendor's shipping labels with details
+ */
 router.get('/my-labels', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
     const vendorId = req.userId; // Use user ID directly
     
-    const [labels] = await db.execute(`
+    const [labels] = await db.query(`
       SELECT 
         sl.id,
         sl.order_id,
@@ -673,7 +748,15 @@ router.get('/my-labels', verifyToken, requirePermission('vendor'), async (req, r
   }
 });
 
-// Serve individual label PDF
+/**
+ * Serve individual shipping label PDF file
+ * @route GET /api/shipping/labels/:filename
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.params.filename - Label filename to serve
+ * @param {Object} res - Express response object
+ * @returns {File} PDF file of the shipping label
+ */
 router.get('/labels/:filename', verifyToken, async (req, res) => {
   try {
     const { filename } = req.params;
@@ -705,7 +788,15 @@ router.get('/labels/:filename', verifyToken, async (req, res) => {
   }
 });
 
-// Batch merge selected labels for printing
+/**
+ * Batch merge selected labels for printing
+ * @route POST /api/shipping/batch-labels
+ * @access Vendor
+ * @param {Object} req - Express request object
+ * @param {Array} req.body.labelIds - Array of label IDs to merge
+ * @param {Object} res - Express response object
+ * @returns {Object} Batch processing result with download URL
+ */
 router.post('/batch-labels', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
     const { labelIds } = req.body;
@@ -717,7 +808,7 @@ router.post('/batch-labels', verifyToken, requirePermission('vendor'), async (re
     
     // Get label file paths for security check
     const placeholders = labelIds.map(() => '?').join(',');
-    const [labels] = await db.execute(`
+    const [labels] = await db.query(`
       SELECT label_file_path 
       FROM shipping_labels 
       WHERE id IN (${placeholders}) AND vendor_id = ?

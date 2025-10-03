@@ -1,19 +1,28 @@
 /**
  * Event Schema.org JSON-LD Service
- * Generates comprehensive structured data for the VERY BEST SEO!
+ * Generates comprehensive structured data for SEO optimization on the Beemeeart platform
+ * Provides Schema.org compliant JSON-LD for events, venues, organizers, and pricing
  */
 
+/**
+ * EventSchemaService Class
+ * Generates Schema.org JSON-LD structured data for events to improve SEO visibility
+ * and search engine understanding of event content
+ */
 class EventSchemaService {
   
   /**
-   * Generate complete Event Schema.org JSON-LD
+   * Generate complete Event Schema.org JSON-LD for SEO optimization
+   * Creates comprehensive structured data including venue, organizer, pricing, and actions
+   * 
    * @param {Object} event - Event data from database
-   * @param {Object} promoter - Promoter/organizer data
+   * @param {Object} promoter - Promoter/organizer data  
    * @param {Array} images - Event image URLs
    * @returns {Object} Complete Schema.org JSON-LD structure
+   * @throws {Error} If required event data is missing
    */
   generateEventSchema(event, promoter, images = []) {
-    const baseUrl = 'https://onlineartfestival.com';
+    const baseUrl = process.env.FRONTEND_URL || 'https://beemeeart.com';
     
     // Main Event schema
     const eventSchema = {
@@ -77,7 +86,11 @@ class EventSchemaService {
   }
 
   /**
-   * Generate Place/Venue Schema
+   * Generate Place/Venue Schema.org structured data
+   * Creates location information with address, coordinates, and accessibility features
+   * 
+   * @param {Object} event - Event data containing venue information
+   * @returns {Object} Schema.org Place structured data
    */
   generatePlaceSchema(event) {
     const place = {
@@ -120,7 +133,11 @@ class EventSchemaService {
   }
 
   /**
-   * Generate Organization/Promoter Schema
+   * Generate Organization/Promoter Schema.org structured data
+   * Creates organizer information with contact details and social media
+   * 
+   * @param {Object} promoter - Promoter/organizer data from database
+   * @returns {Object} Schema.org Organization structured data
    */
   generateOrganizerSchema(promoter) {
     const organizer = {
@@ -152,7 +169,11 @@ class EventSchemaService {
   }
 
   /**
-   * Generate Image Schema
+   * Generate Image Schema.org structured data
+   * Creates image object for event gallery and featured images
+   * 
+   * @param {string} imageUrl - Full URL to the image
+   * @returns {Object} Schema.org ImageObject structured data
    */
   generateImageSchema(imageUrl) {
     return {
@@ -163,7 +184,11 @@ class EventSchemaService {
   }
 
   /**
-   * Generate Offers Schema (pricing)
+   * Generate Offers Schema.org structured data for event pricing
+   * Creates pricing information for admission, application fees, and booth fees
+   * 
+   * @param {Object} event - Event data containing pricing information
+   * @returns {Array} Array of Schema.org Offer structured data
    */
   generateOffersSchema(event) {
     const offers = [];
@@ -208,9 +233,15 @@ class EventSchemaService {
   }
 
   /**
-   * Generate BreadcrumbList Schema for event pages
+   * Generate BreadcrumbList Schema.org structured data for event pages
+   * Creates navigation breadcrumb structure for SEO and user experience
+   * 
+   * @param {Object} event - Event data containing title and ID
+   * @returns {Object} Schema.org BreadcrumbList structured data
    */
   generateBreadcrumbSchema(event) {
+    const baseUrl = process.env.FRONTEND_URL || 'https://beemeeart.com';
+    
     return {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
@@ -219,20 +250,27 @@ class EventSchemaService {
           "@type": "ListItem",
           "position": 1,
           "name": "Events",
-          "item": "https://onlineartfestival.com/events"
+          "item": `${baseUrl}/events`
         },
         {
           "@type": "ListItem",
           "position": 2,
           "name": event.title,
-          "item": `https://onlineartfestival.com/events/${event.id}`
+          "item": `${baseUrl}/events/${event.id}`
         }
       ]
     };
   }
 
   /**
-   * Generate complete schema package for event page
+   * Generate complete schema package for event page SEO
+   * Combines event schema and breadcrumb schema for comprehensive structured data
+   * 
+   * @param {Object} event - Event data from database
+   * @param {Object} promoter - Promoter/organizer data
+   * @param {Array} images - Event image URLs
+   * @returns {Object} Complete schema package with event and breadcrumb data
+   * @throws {Error} If schema generation fails
    */
   generateCompleteSchema(event, promoter, images = []) {
     return {

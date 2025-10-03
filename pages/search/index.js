@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { getApiUrl } from '../../lib/config';
 import SearchBar from '../../components/SearchBar';
 
 export default function SearchPage() {
@@ -47,7 +48,7 @@ export default function SearchPage() {
         }
       });
       
-      const searchUrl = `https://api2.onlineartfestival.com/search?${params.toString()}`;
+      const searchUrl = getApiUrl(`search?${params.toString()}`);
       
       const response = await fetch(searchUrl);
       
@@ -67,7 +68,7 @@ export default function SearchPage() {
 
   const fetchAvailableFilters = async (searchCategory) => {
     try {
-      const response = await fetch(`https://api2.onlineartfestival.com/search/filters?category=${searchCategory}`);
+      const response = await fetch(`search/filters?category=${searchCategory}`);
       if (response.ok) {
         const filters = await response.json();
         setAvailableFilters(filters);
@@ -100,7 +101,7 @@ export default function SearchPage() {
   const trackResultClick = async (resultId, resultType) => {
     if (searchResults?.searchQueryId) {
       try {
-        await fetch('https://api2.onlineartfestival.com/search/analytics/click', {
+        await fetch('search/analytics/click', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

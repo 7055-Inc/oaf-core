@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { authenticatedApiRequest } from '../../lib/csrf';
+import { authApiRequest } from '../../lib/apiUtils';
 
 export default function CSVUploadModal({ 
   isOpen, 
@@ -70,7 +71,7 @@ export default function CSVUploadModal({
       formData.append('csv', file);
       formData.append('jobType', jobType);
 
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/csv/upload', {
+      const response = await authApiRequest('csv/upload', {
         method: 'POST',
         body: formData
       });
@@ -101,7 +102,7 @@ export default function CSVUploadModal({
 
   const handleDownloadTemplate = async () => {
     try {
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/csv/template/${jobType}`);
+      const response = await authApiRequest(`csv/template/${jobType}`);
       
       if (!response.ok) {
         throw new Error('Failed to download template');
@@ -124,7 +125,7 @@ export default function CSVUploadModal({
 
   const handleDownloadCurrent = async () => {
     try {
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/csv/export/${jobType}`);
+      const response = await authApiRequest(`csv/export/${jobType}`);
       
       if (!response.ok) {
         throw new Error('Failed to download current data');

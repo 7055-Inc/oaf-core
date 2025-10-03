@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { authenticatedApiRequest } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
 
 export default function AdminPromotions({ userData }) {
   const [promotions, setPromotions] = useState([]);
@@ -74,7 +74,7 @@ export default function AdminPromotions({ userData }) {
 
   const fetchPromotions = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/admin/promotions/all', {
+      const response = await authApiRequest('admin/promotions/all', {
         method: 'GET'
       });
 
@@ -91,7 +91,7 @@ export default function AdminPromotions({ userData }) {
 
   const fetchSitewideSales = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/admin/sales/all', {
+      const response = await authApiRequest('admin/sales/all', {
         method: 'GET'
       });
 
@@ -108,7 +108,7 @@ export default function AdminPromotions({ userData }) {
 
   const fetchAdminCoupons = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/admin/coupons/all', {
+      const response = await authApiRequest('admin/coupons/all', {
         method: 'GET'
       });
 
@@ -233,7 +233,7 @@ export default function AdminPromotions({ userData }) {
         saleData.total_usage_limit = parseInt(saleForm.total_usage_limit);
       }
 
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/admin/sales/create-sitewide', {
+      const response = await authApiRequest('admin/sales/create-sitewide', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -291,7 +291,7 @@ export default function AdminPromotions({ userData }) {
         couponData.max_discount_amount = parseFloat(couponForm.max_discount_amount);
       }
 
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/admin/coupons', {
+      const response = await authApiRequest('admin/coupons', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -342,7 +342,7 @@ export default function AdminPromotions({ userData }) {
         promotionData.total_usage_limit = parseInt(promotionForm.total_usage_limit);
       }
 
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/admin/promotions/create', {
+      const response = await authApiRequest('admin/promotions/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -372,7 +372,7 @@ export default function AdminPromotions({ userData }) {
     
     try {
       // Fetch available vendors
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/admin/users?role=vendor', {
+      const response = await authApiRequest('admin/users?role=vendor', {
         method: 'GET'
       });
 
@@ -416,7 +416,7 @@ export default function AdminPromotions({ userData }) {
 
   const fetchVendorProducts = async (vendorId) => {
     try {
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/products?vendor_id=${vendorId}`, {
+      const response = await authApiRequest(`products?vendor_id=${vendorId}`, {
         method: 'GET'
       });
 
@@ -463,7 +463,7 @@ export default function AdminPromotions({ userData }) {
         }
       });
 
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/admin/promotions/${selectedPromotionId}/invite-vendors`, {
+      const response = await authApiRequest(`admin/promotions/${selectedPromotionId}/invite-vendors`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -506,7 +506,7 @@ export default function AdminPromotions({ userData }) {
   const handleTogglePromotion = async (promotionId, currentStatus) => {
     try {
       const newStatus = currentStatus === 'active' ? 'paused' : 'active';
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/admin/promotions/${promotionId}`, {
+      const response = await authApiRequest(`admin/promotions/${promotionId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
@@ -526,7 +526,7 @@ export default function AdminPromotions({ userData }) {
 
   const handleToggleSale = async (saleId, isActive) => {
     try {
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/admin/sales/${saleId}`, {
+      const response = await authApiRequest(`admin/sales/${saleId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_active: !isActive })
@@ -546,7 +546,7 @@ export default function AdminPromotions({ userData }) {
 
   const handleToggleCoupon = async (couponId, isActive) => {
     try {
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/admin/coupons/${couponId}`, {
+      const response = await authApiRequest(`admin/coupons/${couponId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_active: !isActive })

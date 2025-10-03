@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../lib/csrf';
+import { authApiRequest } from '../lib/apiUtils';
 import styles from './VariationManager.module.css';
 
 const VariationManager = ({ 
@@ -26,7 +27,7 @@ const VariationManager = ({
   const fetchUserVariationTypes = async () => {
     try {
       const response = await authenticatedApiRequest(
-        'https://api2.onlineartfestival.com/products/variations/types',
+        'products/variations/types',
         { method: 'GET' }
       );
       
@@ -45,8 +46,8 @@ const VariationManager = ({
   const loadVariationValues = async (typeId) => {
     try {
       const url = productId 
-        ? `https://api2.onlineartfestival.com/products/variations/types/${typeId}/values?product_id=${productId}`
-        : `https://api2.onlineartfestival.com/products/variations/types/${typeId}/values`;
+        ? `products/variations/types/${typeId}/values?product_id=${productId}`
+        : `products/variations/types/${typeId}/values`;
         
       const response = await authenticatedApiRequest(url, { method: 'GET' });
       
@@ -70,7 +71,7 @@ const VariationManager = ({
     setLoading(true);
     try {
       const response = await authenticatedApiRequest(
-        `https://api2.onlineartfestival.com/products/variations/types`,
+        `products/variations/types`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -104,7 +105,7 @@ const VariationManager = ({
 
     try {
       const response = await authenticatedApiRequest(
-        `https://api2.onlineartfestival.com/products/variations/values`,
+        `products/variations/values`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -143,7 +144,7 @@ const VariationManager = ({
     setLoading(true);
     try {
       const response = await authenticatedApiRequest(
-        `https://api2.onlineartfestival.com/products/variations/types/${typeId}`,
+        `products/variations/types/${typeId}`,
         {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
+import { getApiUrl } from '../lib/config';
 import styles from '../styles/Terms.module.css';
 
 export default function TermsOfService() {
@@ -14,7 +15,7 @@ export default function TermsOfService() {
   const fetchCurrentTerms = async () => {
     try {
       setLoading(true);
-      const response = await fetch('https://api2.onlineartfestival.com/api/terms/current', {
+      const response = await fetch(getApiUrl('api/terms/current'), {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -123,8 +124,8 @@ export default function TermsOfService() {
           </p>
           <p className={styles.contact}>
             If you have any questions about these terms, please contact us at{' '}
-            <a href="mailto:support@onlineartfestival.com" className={styles.contactLink}>
-              support@onlineartfestival.com
+            <a href="mailto:support@beemeeart.com" className={styles.contactLink}>
+              support@beemeeart.com
             </a>
           </p>
         </div>

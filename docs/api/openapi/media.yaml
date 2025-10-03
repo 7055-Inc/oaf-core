@@ -1,0 +1,816 @@
+openapi: 3.0.0
+info:
+  title: Beemeeart Media Management API
+  description: Comprehensive media processing and file management system with AI analysis
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/media
+    description: Production server
+  - url: https://test.beemeeart.com/media
+    description: Testing server
+
+paths:
+  /pending:
+    get:
+      summary: Get pending images
+      description: Get pending images for processing with pagination support
+      operationId: getPendingImages
+      tags:
+        - Pending Images
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: Number of images to return
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          description: Pagination offset
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: Pending images retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingImagesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /pending/all:
+    get:
+      summary: Get all pending images
+      description: Get ALL pending images without pagination for batch processing
+      operationId: getAllPendingImages
+      tags:
+        - Pending Images
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: All pending images retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AllPendingImagesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /download/{id}:
+    get:
+      summary: Download image file
+      description: Download temporary image file for processing
+      operationId: downloadImageFile
+      tags:
+        - File Download
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Pending image ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Image file stream
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Type:
+              description: Image MIME type
+              schema:
+                type: string
+            Content-Disposition:
+              description: Attachment with filename
+              schema:
+                type: string
+            X-Image-ID:
+              description: Pending image ID
+              schema:
+                type: string
+            X-User-ID:
+              description: Owner user ID
+              schema:
+                type: string
+            X-Created-At:
+              description: Creation timestamp
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /complete/{id}:
+    post:
+      summary: Mark image as processed
+      description: Mark image as processed with media ID and AI enhancement data
+      operationId: markImageProcessed
+      tags:
+        - Processing Completion
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Pending image ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessingCompletionRequest'
+      responses:
+        '200':
+          description: Image marked as processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessingCompletionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /cleanup/{id}:
+    delete:
+      summary: Mark image as failed
+      description: Mark image as failed while preserving temporary file as fallback
+      operationId: markImageFailed
+      tags:
+        - Cleanup
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Pending image ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Image marked as failed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CleanupResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /event/{id}:
+    get:
+      summary: Get event context
+      description: Get event details for media processing context
+      operationId: getEventContext
+      tags:
+        - Contextual Data
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Event ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Event context retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventContext'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /product/{id}:
+    get:
+      summary: Get product context
+      description: Get comprehensive product details for media processing context
+      operationId: getProductContext
+      tags:
+        - Contextual Data
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Product ID
+          schema:
+            type: string
+        - name: include
+          in: query
+          description: Comma-separated list of related data to include
+          schema:
+            type: string
+            enum: [inventory, images, shipping, categories, vendor]
+      responses:
+        '200':
+          description: Product context retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductContext'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /user/{id}:
+    get:
+      summary: Get user context
+      description: Get comprehensive user profile details for media processing context
+      operationId: getUserContext
+      tags:
+        - Contextual Data
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User context retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserContext'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /analysis/{mediaId}:
+    get:
+      summary: Get AI analysis
+      description: Get AI analysis data for a media item by proxying to processing VM
+      operationId: getAIAnalysis
+      tags:
+        - AI Analysis
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: mediaId
+          in: path
+          required: true
+          description: Media ID (must be numeric)
+          schema:
+            type: string
+            pattern: '^\d+$'
+      responses:
+        '200':
+          description: AI analysis retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIAnalysisResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+
+  schemas:
+    PendingImage:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Pending image ID
+        user_id:
+          type: integer
+          description: Owner user ID
+        image_path:
+          type: string
+          description: Temporary image file path
+        original_name:
+          type: string
+          description: Original filename
+        mime_type:
+          type: string
+          description: Image MIME type
+        status:
+          type: string
+          enum: [pending, processing, processed, failed]
+          description: Processing status
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    PendingImagesResponse:
+      type: object
+      properties:
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/PendingImage'
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+
+    AllPendingImagesResponse:
+      type: object
+      properties:
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/PendingImage'
+        total:
+          type: integer
+          description: Total number of pending images
+
+    PaginationInfo:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total number of items
+        limit:
+          type: integer
+          description: Items per page
+        offset:
+          type: integer
+          description: Current offset
+        hasMore:
+          type: boolean
+          description: Whether more items are available
+
+    ProcessingCompletionRequest:
+      type: object
+      required:
+        - media_id
+      properties:
+        media_id:
+          type: string
+          description: Permanent media ID (must be numeric)
+          pattern: '^\d+$'
+        permanent_url:
+          type: string
+          description: Permanent URL for processed image
+        processing_complete:
+          type: boolean
+          description: Whether processing is fully complete
+        ai_enhanced:
+          type: boolean
+          description: Whether AI enhancement was applied
+        formats_available:
+          type: array
+          items:
+            type: string
+          description: Available image formats
+        ai_analysis:
+          type: object
+          description: AI analysis results
+
+    ProcessingCompletionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        imageId:
+          type: string
+          description: Pending image ID
+        media_id:
+          type: string
+          description: Permanent media ID
+        status:
+          type: string
+          enum: [processed]
+        smart_url_preview:
+          type: string
+          description: Smart URL for accessing processed image
+        ai_enhanced:
+          type: boolean
+          description: Whether AI enhancement was applied
+        processing_complete:
+          type: boolean
+          description: Whether processing is fully complete
+        message:
+          type: string
+          description: Success message
+
+    CleanupResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        imageId:
+          type: string
+          description: Pending image ID
+        status:
+          type: string
+          enum: [failed]
+        message:
+          type: string
+          description: Cleanup message
+
+    EventContext:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Event ID
+        title:
+          type: string
+          description: Event title
+        description:
+          type: string
+          description: Event description
+        start_date:
+          type: string
+          format: date-time
+          description: Event start date
+        end_date:
+          type: string
+          format: date-time
+          description: Event end date
+        event_type_name:
+          type: string
+          description: Event type name
+        event_type_description:
+          type: string
+          description: Event type description
+        location:
+          type: string
+          description: Event location
+        status:
+          type: string
+          description: Event status
+
+    ProductContext:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Product ID
+        name:
+          type: string
+          description: Product name
+        description:
+          type: string
+          description: Product description
+        price:
+          type: number
+          format: float
+          description: Product price
+        product_type:
+          type: string
+          enum: [simple, variable, variant]
+          description: Product type
+        vendor_id:
+          type: integer
+          description: Vendor user ID
+        status:
+          type: string
+          description: Product status
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductVariant'
+          description: Child products (for variable products)
+        family_size:
+          type: integer
+          description: Number of products in family
+        requested_product_id:
+          type: integer
+          description: Originally requested product ID
+        is_requested_product_parent:
+          type: boolean
+          description: Whether requested product is parent
+        vendor:
+          $ref: '#/components/schemas/VendorInfo'
+        inventory:
+          $ref: '#/components/schemas/InventoryInfo'
+        images:
+          type: array
+          items:
+            type: string
+          description: Product images (temporary and permanent)
+        shipping:
+          $ref: '#/components/schemas/ShippingInfo'
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryInfo'
+
+    ProductVariant:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        parent_id:
+          type: integer
+        price:
+          type: number
+          format: float
+        inventory:
+          $ref: '#/components/schemas/InventoryInfo'
+        images:
+          type: array
+          items:
+            type: string
+        shipping:
+          $ref: '#/components/schemas/ShippingInfo'
+
+    VendorInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        display_name:
+          type: string
+        business_name:
+          type: string
+        business_website:
+          type: string
+
+    InventoryInfo:
+      type: object
+      properties:
+        qty_on_hand:
+          type: integer
+        qty_on_order:
+          type: integer
+        qty_available:
+          type: integer
+        reorder_qty:
+          type: integer
+
+    ShippingInfo:
+      type: object
+      properties:
+        weight:
+          type: number
+          format: float
+        dimensions:
+          type: string
+
+    CategoryInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+
+    UserContext:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: User ID
+        username:
+          type: string
+          description: Username
+        email_verified:
+          type: boolean
+          description: Email verification status
+        status:
+          type: string
+          description: User status
+        user_type:
+          type: string
+          enum: [artist, community, promoter, admin]
+          description: User type
+        first_name:
+          type: string
+          description: First name
+        last_name:
+          type: string
+          description: Last name
+        display_name:
+          type: string
+          description: Display name
+        bio:
+          type: string
+          description: User biography
+        profile_image_path:
+          type: string
+          description: Profile image path
+        business_name:
+          type: string
+          description: Business name (artist)
+        business_website:
+          type: string
+          description: Business website (artist)
+        art_style:
+          type: string
+          description: Art style (artist)
+        years_experience:
+          type: integer
+          description: Years of experience (artist)
+
+    AIAnalysisResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        analysis:
+          $ref: '#/components/schemas/AIAnalysis'
+
+    AIAnalysis:
+      type: object
+      properties:
+        objects_detected:
+          type: array
+          items:
+            $ref: '#/components/schemas/DetectedObject'
+          description: Objects detected in the image
+        dominant_colors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ColorInfo'
+          description: Dominant colors in the image
+        composition:
+          $ref: '#/components/schemas/CompositionInfo'
+          description: Image composition analysis
+        quality_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Image quality score
+        enhancement_applied:
+          type: boolean
+          description: Whether AI enhancement was applied
+        processing_time:
+          type: number
+          format: float
+          description: Processing time in seconds
+
+    DetectedObject:
+      type: object
+      properties:
+        object:
+          type: string
+          description: Object name
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Detection confidence
+        bounding_box:
+          type: array
+          items:
+            type: integer
+          minItems: 4
+          maxItems: 4
+          description: Bounding box coordinates [x, y, width, height]
+
+    ColorInfo:
+      type: object
+      properties:
+        color:
+          type: string
+          description: Color hex code
+        percentage:
+          type: number
+          format: float
+          description: Percentage of image
+
+    CompositionInfo:
+      type: object
+      properties:
+        balance:
+          type: string
+          enum: [symmetrical, asymmetrical]
+          description: Visual balance
+        focal_points:
+          type: integer
+          description: Number of focal points
+        complexity:
+          type: string
+          enum: [low, medium, high]
+          description: Composition complexity
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: string
+          description: Additional error details
+
+  responses:
+    BadRequest:
+      description: Bad request - validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Unauthorized:
+      description: Unauthorized - invalid API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    ServiceUnavailable:
+      description: Service unavailable
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+tags:
+  - name: Pending Images
+    description: Pending image management for processing queue
+  - name: File Download
+    description: Image file download for processing
+  - name: Processing Completion
+    description: Mark images as processed with results
+  - name: Cleanup
+    description: Handle failed processing and cleanup
+  - name: Contextual Data
+    description: Get contextual data for media processing
+  - name: AI Analysis
+    description: AI analysis data retrieval

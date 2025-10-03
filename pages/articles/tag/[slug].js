@@ -2,6 +2,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import { getApiUrl, getFrontendUrl } from '../../../lib/config';
 import Header from '../../../components/Header';
 import styles from '../styles/ArticleArchive.module.css';
 
@@ -19,8 +20,8 @@ export default function TagArchivePage() {
     setLoading(true);
     
     Promise.all([
-      fetch(`https://api2.onlineartfestival.com/api/articles/tags/${slug}`).then(res => res.json()),
-      fetch(`https://api2.onlineartfestival.com/api/articles?tag=${slug}&limit=${pagination.limit}&page=${pagination.page}`).then(res => res.json())
+      fetch(getApiUrl(`api/articles/tags/${slug}`)).then(res => res.json()),
+      fetch(`api/articles?tag=${slug}&limit=${pagination.limit}&page=${pagination.page}`).then(res => res.json())
     ])
       .then(([tagData, articlesData]) => {
         setTag(tagData.tag || { name: slug, slug });
@@ -78,7 +79,7 @@ export default function TagArchivePage() {
   // SEO meta tags
   const metaTitle = `${tag.name} Articles - Online Art Festival`;
   const metaDescription = `Explore articles tagged with "${tag.name}" on Online Art Festival. Discover insights, techniques, and stories from our community of artists.`;
-  const canonicalUrl = `https://onlineartfestival.com/articles/tag/${tag.slug}`;
+  const canonicalUrl = getFrontendUrl(`/articles/tag/${tag.slug}`);
 
   // Generate JSON-LD structured data
   const generateTagSchema = () => {
@@ -93,7 +94,7 @@ export default function TagArchivePage() {
         "@type": "Article",
         "position": index + 1,
         "name": article.title,
-        "url": `https://onlineartfestival.com/articles/${article.slug}`,
+        "url": getFrontendUrl(`/articles/${article.slug}`),
         "author": {
           "@type": "Person",
           "name": article.author_display_name || article.author_username
@@ -103,7 +104,7 @@ export default function TagArchivePage() {
         "publisher": {
           "@type": "Organization",
           "name": "Online Art Festival",
-          "url": "https://onlineartfestival.com"
+          "url": ""
         }
       }))
     };

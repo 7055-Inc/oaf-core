@@ -1,3 +1,10 @@
+/**
+ * Product Management Routes
+ * Handles comprehensive product catalog management including CRUD operations, variations, 
+ * inventory tracking, image uploads, and marketplace integration
+ * Supports simple products, variable products with variants, and complex product hierarchies
+ */
+
 const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
@@ -10,7 +17,17 @@ const { uploadLimiter } = require('../middleware/rateLimiter');
 const verifyToken = require('../middleware/jwt');
 const { requirePermission } = require('../middleware/permissions');
 
-// GET /products - PUBLIC endpoint - active products only, no drafts, no permissions
+/**
+ * GET /products
+ * Get public product catalog with smart parent/child logic
+ * Returns active products only, supports variant search and filtering
+ * 
+ * @route GET /products
+ * @param {string} [vendor_id] - Filter by vendor ID
+ * @param {string} [category_id] - Filter by category ID
+ * @param {string} [variant_search] - Show variants ('true') or parents only ('false')
+ * @returns {Array} Array of products matching criteria
+ */
 router.get('/', async (req, res) => {
   try {
     const { vendor_id, category_id, variant_search } = req.query;
@@ -66,7 +83,16 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /products/all - Get all products system-wide (PUBLIC for reading)
+/**
+ * GET /products/all
+ * Get all products system-wide with comprehensive related data
+ * Includes parent/child relationships, inventory, images, and vendor information
+ * 
+ * @route GET /products/all
+ * @param {string} [include] - Comma-separated list of data to include (inventory,images,vendor)
+ * @param {string} [vendor_id] - Filter by specific vendor
+ * @returns {Object} Object containing products array with related data
+ */
 router.get('/all', async (req, res) => {
   try {
     const { include, vendor_id } = req.query;
@@ -172,11 +198,23 @@ router.get('/all', async (req, res) => {
   }
 });
 
-// GET /products/my/[id(s)] - Unified endpoint for user's products with intelligent hierarchy
-// Examples:
-// /products/my/ - all user's products
-// /products/my/123 - single product with children if parent
-// /products/my/123,124,125 - specific set of products
+/**
+ * GET /products/my/:ids?
+ * Unified endpoint for user's products with intelligent hierarchy
+ * Supports single product, multiple products, or all user products
+ * 
+ * @route GET /products/my/:ids?
+ * @middleware verifyToken - Requires valid JWT token
+ * @param {string} [ids] - Product ID(s): single (123), multiple (123,124,125), or omit for all
+ * @param {string} [include] - Comma-separated data to include (inventory,images,shipping,categories,vendor)
+ * @param {number} [limit] - Limit number of results for all products query
+ * @returns {Object|Array} Single product object or products array with related data
+ * 
+ * @example
+ * GET /products/my/ - all user's products
+ * GET /products/my/123 - single product with children if parent
+ * GET /products/my/123,124,125 - specific set of products
+ */
 router.get('/my/:ids?', verifyToken, async (req, res) => {
   try {
     const { ids } = req.params;
@@ -335,9 +373,16 @@ router.get('/my/:ids?', verifyToken, async (req, res) => {
   }
 });
 
-// GET /products/:id - Retrieve a single product with optional related data
-// Query params: ?include=inventory,images,shipping,categories,vendor
-// Always returns complete family (parent + all children) for variable products
+/**
+ * GET /products/:id
+ * Retrieve a single product with complete family structure
+ * Always returns parent + all children for variable products
+ * 
+ * @route GET /products/:id
+ * @param {string} id - Product ID
+ * @param {string} [include] - Comma-separated data to include (inventory,images,shipping,categories,vendor)
+ * @returns {Object} Complete product family with parent and children
+ */
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -497,7 +542,15 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// GET /products/:id/packages - Get packages for a product
+/**
+ * GET /products/:id/packages
+ * Get shipping packages configuration for a product
+ * Returns formatted package dimensions and weights for shipping calculations
+ * 
+ * @route GET /products/:id/packages
+ * @param {string} id - Product ID
+ * @returns {Object} Object containing packages array with dimensions and weights
+ */
 router.get('/:id/packages', async (req, res) => {
   try {
     const { id } = req.params;
@@ -526,7 +579,15 @@ router.get('/:id/packages', async (req, res) => {
   }
 });
 
-// Middleware for optional authentication - allows both authenticated and guest access
+/**
+ * Optional authentication middleware
+ * Allows both authenticated and guest access to endpoints
+ * Sets user context if valid token provided, continues as guest otherwise
+ * 
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next function
+ */
 const optionalAuth = async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (token) {
@@ -542,7 +603,16 @@ const optionalAuth = async (req, res, next) => {
   next();
 };
 
-// GET /products/:id/variations - Get parent product with organized child variations for customer selection
+/**
+ * GET /products/:id/variations
+ * Get parent product with organized child variations for customer selection
+ * Provides variation types, options, and child products for variable products
+ * 
+ * @route GET /products/:id/variations
+ * @middleware optionalAuth - Optional authentication for draft product access
+ * @param {string} id - Parent product ID
+ * @returns {Object} Complete variation structure with parent, types, options, and children
+ */
 router.get('/:id/variations', optionalAuth, async (req, res) => {
   try {
     const { id } = req.params;
@@ -680,7 +750,18 @@ router.get('/:id/variations', optionalAuth, async (req, res) => {
 });
 
 
-// POST /products - Create a new product (vendor permission required)
+/**
+ * POST /products
+ * Create a new product with comprehensive features
+ * Supports simple products, variable products, and child variants
+ * 
+ * @route POST /products
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('vendor') - Requires vendor permissions
+ * @middleware uploadLimiter - Rate limiting for uploads
+ * @param {Object} req.body - Product creation data
+ * @returns {Object} Created product object
+ */
 router.post('/', verifyToken, requirePermission('vendor'), uploadLimiter, async (req, res) => {
   try {
     secureLogger.info('Product creation request', { 
@@ -918,7 +999,19 @@ router.post('/', verifyToken, requirePermission('vendor'), uploadLimiter, async 
   }
 });
 
-// PUT /products/:id - Update a product (vendor permission required)
+/**
+ * PUT /products/:id
+ * Update a product with complete replacement of data
+ * Handles images, shipping, and related data updates
+ * 
+ * @route PUT /products/:id
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('vendor') - Requires vendor permissions
+ * @middleware uploadLimiter - Rate limiting for uploads
+ * @param {string} id - Product ID to update
+ * @param {Object} req.body - Complete product update data
+ * @returns {Object} Updated product object with images and shipping
+ */
 router.put('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, async (req, res) => {
   try {
     const { id } = req.params;
@@ -1065,7 +1158,19 @@ router.put('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, asyn
   }
 });
 
-// PATCH /products/:id - Partial update a product (vendor permission required)
+/**
+ * PATCH /products/:id
+ * Partial update of a product (only provided fields are updated)
+ * Supports dynamic field updates and inventory management
+ * 
+ * @route PATCH /products/:id
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('vendor') - Requires vendor permissions
+ * @middleware uploadLimiter - Rate limiting for uploads
+ * @param {string} id - Product ID to update
+ * @param {Object} req.body - Partial product update data
+ * @returns {Object} Updated product object with images and shipping
+ */
 router.patch('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, async (req, res) => {
   try {
     const { id } = req.params;
@@ -1338,7 +1443,19 @@ router.patch('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, as
   }
 });
 
-// POST /products/upload - Upload product images (vendor permission required)
+/**
+ * POST /products/upload
+ * Upload product images with automatic processing and storage
+ * Supports both new product creation and existing product updates
+ * 
+ * @route POST /products/upload
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('vendor') - Requires vendor permissions
+ * @middleware uploadLimiter - Rate limiting for uploads
+ * @middleware upload.array('images') - Multer file upload handling
+ * @param {string} [product_id] - Product ID for existing products or 'new' for creation
+ * @returns {Object} Object containing uploaded image URLs
+ */
 router.post('/upload', 
   verifyToken,
   requirePermission('vendor'),
@@ -1399,7 +1516,20 @@ router.post('/upload',
   }
 );
 
-// POST /products/variations - Create product variation record (vendor permission required)
+/**
+ * POST /products/variations
+ * Create product variation record linking product to variation type and value
+ * Associates specific variation combinations with child products
+ * 
+ * @route POST /products/variations
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('vendor') - Requires vendor permissions
+ * @middleware uploadLimiter - Rate limiting for uploads
+ * @param {number} product_id - Product ID to associate variation with
+ * @param {number} variation_type_id - Variation type ID (e.g., Color, Size)
+ * @param {number} variation_value_id - Variation value ID (e.g., Red, Large)
+ * @returns {Object} Created variation record
+ */
 router.post('/variations', verifyToken, requirePermission('vendor'), uploadLimiter, async (req, res) => {
   try {
     secureLogger.info('Variation creation request', { 
@@ -1472,7 +1602,15 @@ router.post('/variations', verifyToken, requirePermission('vendor'), uploadLimit
   }
 });
 
-// GET /products/variations/types - Get all variation types for current user with usage counts
+/**
+ * GET /products/variations/types
+ * Get all variation types for current user with usage statistics
+ * Shows how many products use each variation type
+ * 
+ * @route GET /products/variations/types
+ * @middleware verifyToken - Requires valid JWT token
+ * @returns {Array} Array of variation types with usage counts
+ */
 router.get('/variations/types', verifyToken, async (req, res) => {
   try {
     const [types] = await db.query(`
@@ -1496,7 +1634,17 @@ router.get('/variations/types', verifyToken, async (req, res) => {
   }
 });
 
-// POST /products/variations/types - Create new variation type (vendor permission required)
+/**
+ * POST /products/variations/types
+ * Create new variation type (e.g., Color, Size, Material)
+ * Variation types are reusable across multiple products
+ * 
+ * @route POST /products/variations/types
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('vendor') - Requires vendor permissions
+ * @param {string} variation_name - Name of the variation type
+ * @returns {Object} Created variation type object
+ */
 router.post('/variations/types', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
     const { variation_name } = req.body;
@@ -1534,7 +1682,17 @@ router.post('/variations/types', verifyToken, requirePermission('vendor'), async
   }
 });
 
-// GET /products/variations/types/:id/values - Get all values for a variation type (optionally filtered by product)
+/**
+ * GET /products/variations/types/:id/values
+ * Get all values for a variation type with optional product filtering
+ * Returns available variation values (e.g., Red, Blue, Green for Color type)
+ * 
+ * @route GET /products/variations/types/:id/values
+ * @middleware verifyToken - Requires valid JWT token
+ * @param {string} id - Variation type ID
+ * @param {string} [product_id] - Filter values by specific product
+ * @returns {Array} Array of variation values for the type
+ */
 router.get('/variations/types/:id/values', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -1570,7 +1728,19 @@ router.get('/variations/types/:id/values', verifyToken, async (req, res) => {
   }
 });
 
-// POST /products/variations/values - Create new variation value (vendor permission required)
+/**
+ * POST /products/variations/values
+ * Create new variation value for a specific type and product
+ * Values are specific options within a variation type (e.g., "Red" for Color type)
+ * 
+ * @route POST /products/variations/values
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('vendor') - Requires vendor permissions
+ * @param {number} variation_type_id - Variation type ID this value belongs to
+ * @param {string} value_name - Name of the variation value
+ * @param {number} product_id - Product ID this value is associated with
+ * @returns {Object} Created variation value object
+ */
 router.post('/variations/values', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
     const { variation_type_id, value_name, product_id } = req.body;
@@ -1632,7 +1802,17 @@ router.post('/variations/values', verifyToken, requirePermission('vendor'), asyn
   }
 });
 
-// DELETE /products/variations/types/:id - Delete a variation type (vendor permission required)
+/**
+ * DELETE /products/variations/types/:id
+ * Delete a variation type and all associated values
+ * Removes variation type and cascades to delete all related values
+ * 
+ * @route DELETE /products/variations/types/:id
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('vendor') - Requires vendor permissions
+ * @param {string} id - Variation type ID to delete
+ * @returns {Object} Deletion confirmation message
+ */
 router.delete('/variations/types/:id', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -1660,7 +1840,17 @@ router.delete('/variations/types/:id', verifyToken, requirePermission('vendor'),
   }
 });
 
-// DELETE /products/variations/values/:id - Delete a variation value (vendor permission required)
+/**
+ * DELETE /products/variations/values/:id
+ * Delete a specific variation value
+ * Removes individual variation value while preserving the type
+ * 
+ * @route DELETE /products/variations/values/:id
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('vendor') - Requires vendor permissions
+ * @param {string} id - Variation value ID to delete
+ * @returns {Object} Deletion confirmation message
+ */
 router.delete('/variations/values/:id', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -1687,7 +1877,17 @@ router.delete('/variations/values/:id', verifyToken, requirePermission('vendor')
   }
 });
 
-// DELETE /products/:id - Delete a single product (vendor permission required)
+/**
+ * DELETE /products/:id
+ * Delete a single product and all its children (soft delete)
+ * For variable products, also deletes all child variants
+ * 
+ * @route DELETE /products/:id
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('vendor') - Requires vendor permissions
+ * @param {string} id - Product ID to delete
+ * @returns {Object} Deletion confirmation with affected product IDs
+ */
 router.delete('/:id', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -1765,7 +1965,18 @@ router.delete('/:id', verifyToken, requirePermission('vendor'), async (req, res)
   }
 });
 
-// POST /products/bulk-delete - Bulk delete products (vendor permission required)
+/**
+ * POST /products/bulk-delete
+ * Bulk delete multiple products and their children (soft delete)
+ * Processes multiple products efficiently with transaction safety
+ * 
+ * @route POST /products/bulk-delete
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('vendor') - Requires vendor permissions
+ * @middleware uploadLimiter - Rate limiting for bulk operations
+ * @param {Array} product_ids - Array of product IDs to delete
+ * @returns {Object} Bulk deletion confirmation with affected product IDs
+ */
 router.post('/bulk-delete', verifyToken, requirePermission('vendor'), uploadLimiter, async (req, res) => {
   try {
     const { product_ids } = req.body;
@@ -1867,7 +2078,14 @@ router.post('/bulk-delete', verifyToken, requirePermission('vendor'), uploadLimi
   }
 });
 
-// Helper function to clean up user variations after product deletion
+/**
+ * Helper function to clean up user variations after product deletion
+ * Removes associations between users and variation types/values that are no longer used
+ * Maintains data integrity while cleaning up unused variation data
+ * 
+ * @param {number} userId - User ID to clean up variations for
+ * @throws {Error} If cleanup operation fails
+ */
 async function cleanupUserVariationsAfterProductDeletion(userId) {
   try {
     // Find variation types that are no longer used by any active products for this user

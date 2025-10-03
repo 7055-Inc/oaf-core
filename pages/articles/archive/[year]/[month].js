@@ -2,6 +2,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import { getApiUrl, getFrontendUrl } from '../../../../lib/config';
 import Header from '../../../../components/Header';
 import styles from '../../styles/ArticleArchive.module.css';
 
@@ -17,7 +18,7 @@ export default function DateArchivePage() {
     if (!year || !month) return;
     setLoading(true);
     
-    fetch(`https://api2.onlineartfestival.com/api/articles?year=${year}&month=${month}&limit=${pagination.limit}&page=${pagination.page}`)
+    fetch(getApiUrl(`api/articles?year=${year}&month=${month}&limit=${pagination.limit}&page=${pagination.page}`))
       .then(res => res.json())
       .then(data => {
         setArticles(data.articles || []);
@@ -76,7 +77,7 @@ export default function DateArchivePage() {
   const monthName = getMonthName(month);
   const metaTitle = `Articles from ${monthName} ${year} - Online Art Festival`;
   const metaDescription = `Browse articles published in ${monthName} ${year} on Online Art Festival. Discover art insights, techniques, and stories from our community of artists.`;
-  const canonicalUrl = `https://onlineartfestival.com/articles/archive/${year}/${month}`;
+  const canonicalUrl = getFrontendUrl(`/articles/archive/${year}/${month}`);
 
   // Generate JSON-LD structured data
   const generateDateArchiveSchema = () => {
@@ -91,7 +92,7 @@ export default function DateArchivePage() {
         "@type": "Article",
         "position": index + 1,
         "name": article.title,
-        "url": `https://onlineartfestival.com/articles/${article.slug}`,
+        "url": getFrontendUrl(`/articles/${article.slug}`),
         "author": {
           "@type": "Person",
           "name": article.author_display_name || article.author_username
@@ -100,7 +101,7 @@ export default function DateArchivePage() {
         "publisher": {
           "@type": "Organization",
           "name": "Online Art Festival",
-          "url": "https://onlineartfestival.com"
+          "url": ""
         }
       }))
     };

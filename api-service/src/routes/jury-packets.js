@@ -3,9 +3,36 @@ const router = express.Router();
 const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
 
+/**
+ * @fileoverview Jury packet management routes
+ * 
+ * Handles comprehensive jury packet functionality including:
+ * - Jury packet CRUD operations with ownership validation
+ * - Artist persona integration and validation
+ * - Packet data and photo management with JSON storage
+ * - Secure packet access with artist authentication
+ * - Packet organization and listing with persona information
+ * 
+ * Jury packets are used by artists to organize and submit their work
+ * for jury review processes in events and applications. Each packet
+ * can be associated with an artist persona and contains structured
+ * data about the artist's work, photos, and submission materials.
+ * 
+ * @author Beemeeart Development Team
+ * @version 1.0.0
+ */
+
 // --- Jury Packets Management Endpoints ---
 
-// Get artist's jury packets
+/**
+ * Get artist's jury packets
+ * @route GET /api/jury-packets
+ * @access Private (requires authentication)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Array} List of artist's jury packets with persona information
+ * @description Retrieves all jury packets for authenticated artist with associated persona details
+ */
 router.get('/', verifyToken, async (req, res) => {
   try {
     const artistId = req.userId;
@@ -26,7 +53,16 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
-// Get single jury packet details
+/**
+ * Get single jury packet details
+ * @route GET /api/jury-packets/:id
+ * @access Private (requires authentication and ownership)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Jury packet ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Complete jury packet details
+ * @description Retrieves detailed information for specific jury packet with ownership validation
+ */
 router.get('/:id', verifyToken, async (req, res) => {
   try {
     const artistId = req.userId;
@@ -48,7 +84,19 @@ router.get('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// Create new jury packet
+/**
+ * Create new jury packet
+ * @route POST /api/jury-packets
+ * @access Private (requires authentication)
+ * @param {Object} req - Express request object
+ * @param {string} req.body.packet_name - Packet name (required)
+ * @param {Object} req.body.packet_data - Packet data object (optional)
+ * @param {Array} req.body.photos_data - Photos data array (optional)
+ * @param {number} req.body.persona_id - Artist persona ID (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} Created jury packet details
+ * @description Creates new jury packet with persona validation and JSON data storage
+ */
 router.post('/', verifyToken, async (req, res) => {
   try {
     const artistId = req.userId;
@@ -89,7 +137,20 @@ router.post('/', verifyToken, async (req, res) => {
   }
 });
 
-// Update jury packet
+/**
+ * Update jury packet
+ * @route PUT /api/jury-packets/:id
+ * @access Private (requires authentication and ownership)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Jury packet ID
+ * @param {string} req.body.packet_name - Packet name (required)
+ * @param {Object} req.body.packet_data - Packet data object (optional)
+ * @param {Array} req.body.photos_data - Photos data array (optional)
+ * @param {number} req.body.persona_id - Artist persona ID (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} Update success message
+ * @description Updates jury packet with ownership and persona validation
+ */
 router.put('/:id', verifyToken, async (req, res) => {
   try {
     const artistId = req.userId;
@@ -135,7 +196,16 @@ router.put('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// Delete jury packet
+/**
+ * Delete jury packet
+ * @route DELETE /api/jury-packets/:id
+ * @access Private (requires authentication and ownership)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Jury packet ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Deletion success message
+ * @description Deletes jury packet with ownership validation (hard delete)
+ */
 router.delete('/:id', verifyToken, async (req, res) => {
   try {
     const artistId = req.userId;

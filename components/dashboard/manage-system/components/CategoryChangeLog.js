@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { getApiUrl } from '../../../../lib/config';
 import styles from '../../SlideIn.module.css';
 
 export default function CategoryChangeLog() {
@@ -19,7 +20,7 @@ export default function CategoryChangeLog() {
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch('https://api2.onlineartfestival.com/categories/change-log', {
+      const response = await fetch(getApiUrl('categories/change-log'), {
         headers: {
           'Authorization': `Bearer ${token}`
         }

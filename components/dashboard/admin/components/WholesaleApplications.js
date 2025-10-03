@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
 
 // Wholesale Applications Admin Component
 // Title is handled by slide-in header template in Dashboard
@@ -32,8 +33,8 @@ export default function WholesaleApplications({ userData }) {
       };
       
       const status = statusMap[applicationsTab];
-      const response = await authenticatedApiRequest(
-        `https://api2.onlineartfestival.com/api/subscriptions/wholesale/admin/applications?status=${status}`
+      const response = await authApiRequest(
+        `api/subscriptions/wholesale/admin/applications?status=${status}`
       );
       
       if (response.ok) {
@@ -76,7 +77,7 @@ export default function WholesaleApplications({ userData }) {
       setProcessingAction(true);
       
       const response = await authenticatedApiRequest(
-        `https://api2.onlineartfestival.com/api/subscriptions/wholesale/admin/applications/${selectedApplication.id}/${action}`,
+        `api/subscriptions/wholesale/admin/applications/${selectedApplication.id}/${action}`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },

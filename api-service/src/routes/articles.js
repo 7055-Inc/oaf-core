@@ -1,3 +1,10 @@
+/**
+ * Article Management Routes
+ * Comprehensive content management system for the Beemeeart platform
+ * Handles articles, tags, topics, series, and access control with advanced permissions
+ * Supports hierarchical topics, article series, SEO optimization, and social media integration
+ */
+
 const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
@@ -7,7 +14,16 @@ const upload = require('../config/multer');
 const path = require('path');
 const fs = require('fs');
 
-// Check if user has content management permissions
+/**
+ * Middleware: Check if user has content management permissions
+ * Validates user permissions for content creation, editing, and management
+ * 
+ * @middleware checkContentPermissions
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next function
+ * @returns {void} Calls next() if authorized, returns 403 if unauthorized
+ */
 const checkContentPermissions = async (req, res, next) => {
   try {
     const [userPermissions] = await db.query('SELECT * FROM user_permissions WHERE user_id = ?', [req.userId]);
@@ -27,7 +43,17 @@ const checkContentPermissions = async (req, res, next) => {
   }
 };
 
-// Check access to article based on restrictions
+/**
+ * Check access to article based on restrictions
+ * Implements fine-grained access control for articles based on user roles, permissions, and specific restrictions
+ * 
+ * @function checkArticleAccess
+ * @param {number} userId - User ID requesting access
+ * @param {Array} roles - User roles array
+ * @param {Array} permissions - User permissions array
+ * @param {number} articleId - Article ID to check access for
+ * @returns {Promise<boolean>} True if user has access, false otherwise
+ */
 const checkArticleAccess = async (userId, roles, permissions, articleId) => {
   try {
     // Get article restrictions
@@ -65,7 +91,14 @@ const checkArticleAccess = async (userId, roles, permissions, articleId) => {
   }
 };
 
-// Generate slug from title
+/**
+ * Generate URL-friendly slug from title
+ * Creates SEO-friendly slugs for articles with proper character handling
+ * 
+ * @function generateSlug
+ * @param {string} title - Article title to convert to slug
+ * @returns {string} URL-friendly slug (max 100 characters)
+ */
 const generateSlug = (title) => {
   return title
     .toLowerCase()
@@ -81,7 +114,17 @@ const calculateReadingTime = (content) => {
   return Math.ceil(words / wordsPerMinute);
 };
 
-// GET /api/articles - List articles (public endpoint with access control)
+/**
+ * GET /api/articles
+ * List articles with pagination and access control
+ * Public endpoint that respects user authentication and role-based filtering
+ * 
+ * @route GET /api/articles
+ * @param {number} [page=1] - Page number for pagination
+ * @param {number} [limit=10] - Number of articles per page
+ * @returns {Object} Paginated list of articles with metadata
+ * @note Automatically filters to published articles for non-admin users
+ */
 router.get('/', async (req, res) => {
   console.log('GET /articles request received');
   try {
@@ -168,7 +211,14 @@ router.get('/', async (req, res) => {
 // TAGS ROUTES (must come before /:slug route)
 // =============================================
 
-// GET /api/articles/tags - List all tags
+/**
+ * GET /api/articles/tags
+ * List all article tags with article counts
+ * Public endpoint that shows tags with published article statistics
+ * 
+ * @route GET /api/articles/tags
+ * @returns {Array} List of tags with article counts and metadata
+ */
 router.get('/tags', async (req, res) => {
   try {
     const [tags] = await db.query(`
@@ -187,7 +237,17 @@ router.get('/tags', async (req, res) => {
   }
 });
 
-// GET /api/articles/tags/:slug - Get single tag
+/**
+ * GET /api/articles/tags/:slug
+ * Get single tag with associated articles
+ * Returns tag information and paginated list of articles with that tag
+ * 
+ * @route GET /api/articles/tags/:slug
+ * @param {string} slug - Tag slug identifier
+ * @param {number} [page=1] - Page number for article pagination
+ * @param {number} [limit=10] - Number of articles per page
+ * @returns {Object} Tag details with associated articles
+ */
 router.get('/tags/:slug', async (req, res) => {
   try {
     const { slug } = req.params;
@@ -234,7 +294,16 @@ router.get('/tags/:slug', async (req, res) => {
 // SERIES ROUTES (must come before /:slug route)
 // =============================================
 
-// GET /api/articles/series - List all series
+/**
+ * GET /api/articles/series
+ * List all article series with pagination
+ * Shows article series with article counts and metadata
+ * 
+ * @route GET /api/articles/series
+ * @param {number} [page=1] - Page number for pagination
+ * @param {number} [limit=10] - Number of series per page
+ * @returns {Object} Paginated list of article series with counts
+ */
 router.get('/series', async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
@@ -272,7 +341,15 @@ router.get('/series', async (req, res) => {
   }
 });
 
-// GET /api/articles/series/:slug - Get single series with articles
+/**
+ * GET /api/articles/series/:slug
+ * Get single series with all articles in order
+ * Returns series information and ordered list of articles with access control
+ * 
+ * @route GET /api/articles/series/:slug
+ * @param {string} slug - Series slug identifier
+ * @returns {Object} Series details with ordered articles (access-controlled)
+ */
 router.get('/series/:slug', async (req, res) => {
   try {
     const { slug } = req.params;
@@ -340,7 +417,28 @@ router.get('/series/:slug', async (req, res) => {
 
 // /:slug route moved to end of file after all specific routes
 
-// POST /api/articles - Create new article
+/**
+ * POST /api/articles
+ * Create new article with comprehensive metadata
+ * Supports topics, tags, series, SEO data, social media data, and connections
+ * 
+ * @route POST /api/articles
+ * @middleware verifyToken - Requires user authentication
+ * @middleware checkContentPermissions - Requires content management permissions
+ * @param {Object} req.body - Article creation data
+ * @param {string} req.body.title - Article title (required)
+ * @param {string} req.body.content - Article content (required)
+ * @param {string} [req.body.excerpt] - Article excerpt
+ * @param {string} [req.body.status=draft] - Article status (draft/published)
+ * @param {Array} [req.body.topics] - Topic IDs array
+ * @param {Array} [req.body.tags] - Tag IDs array
+ * @param {number} [req.body.series_id] - Series ID if part of series
+ * @param {number} [req.body.position_in_series] - Position in series
+ * @param {Array} [req.body.connections] - Related content connections
+ * @param {Object} [req.body.seo] - SEO metadata
+ * @param {Object} [req.body.social] - Social media metadata
+ * @returns {Object} Created article confirmation with ID and slug
+ */
 router.post('/', verifyToken, checkContentPermissions, async (req, res) => {
   try {
     const {
@@ -465,7 +563,18 @@ router.post('/', verifyToken, checkContentPermissions, async (req, res) => {
   }
 });
 
-// PUT /api/articles/:id - Update article
+/**
+ * PUT /api/articles/:id
+ * Update existing article with comprehensive permission checking
+ * Supports updating all article metadata including topics, series, SEO, and social data
+ * 
+ * @route PUT /api/articles/:id
+ * @middleware verifyToken - Requires user authentication
+ * @param {string} id - Article ID to update
+ * @param {Object} req.body - Article update data (same structure as POST)
+ * @returns {Object} Update confirmation message
+ * @note Authors can edit their own articles, content managers can edit any article
+ */
 router.put('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -621,7 +730,17 @@ router.put('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// DELETE /api/articles/:id - Delete article
+/**
+ * DELETE /api/articles/:id
+ * Delete article with permission validation
+ * Only authors and admins can delete articles
+ * 
+ * @route DELETE /api/articles/:id
+ * @middleware verifyToken - Requires user authentication
+ * @param {string} id - Article ID to delete
+ * @returns {Object} Deletion confirmation message
+ * @note Cascade deletion handles related records automatically
+ */
 router.delete('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -649,7 +768,16 @@ router.delete('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// POST /api/articles/:id/view - Update view count for an article
+/**
+ * POST /api/articles/:id/view
+ * Update view count for article analytics
+ * Public endpoint for tracking article engagement
+ * 
+ * @route POST /api/articles/:id/view
+ * @param {string} id - Article ID to track view for
+ * @returns {Object} Success confirmation
+ * @note Updates view count and last viewed timestamp
+ */
 router.post('/:id/view', async (req, res) => {
   try {
     const { id } = req.params;
@@ -670,7 +798,19 @@ router.post('/:id/view', async (req, res) => {
   }
 });
 
-// POST /api/articles/tags - Create new tag (admin only)
+/**
+ * POST /api/articles/tags
+ * Create new article tag
+ * Restricted to users with content management permissions
+ * 
+ * @route POST /api/articles/tags
+ * @middleware verifyToken - Requires user authentication
+ * @middleware checkContentPermissions - Requires content management permissions
+ * @param {Object} req.body - Tag creation data
+ * @param {string} req.body.tag_name - Tag name (required)
+ * @param {string} [req.body.description] - Tag description
+ * @returns {Object} Created tag data with generated slug
+ */
 router.post('/tags', verifyToken, checkContentPermissions, async (req, res) => {
   try {
     const { tag_name, description } = req.body;
@@ -703,7 +843,20 @@ router.post('/tags', verifyToken, checkContentPermissions, async (req, res) => {
   }
 });
 
-// PUT /api/articles/tags/:id - Update tag (admin only)
+/**
+ * PUT /api/articles/tags/:id
+ * Update existing article tag
+ * Restricted to users with content management permissions
+ * 
+ * @route PUT /api/articles/tags/:id
+ * @middleware verifyToken - Requires user authentication
+ * @middleware checkContentPermissions - Requires content management permissions
+ * @param {string} id - Tag ID to update
+ * @param {Object} req.body - Tag update data
+ * @param {string} req.body.tag_name - Updated tag name (required)
+ * @param {string} [req.body.description] - Updated tag description
+ * @returns {Object} Updated tag data
+ */
 router.put('/tags/:id', verifyToken, checkContentPermissions, async (req, res) => {
   try {
     const { id } = req.params;
@@ -738,7 +891,18 @@ router.put('/tags/:id', verifyToken, checkContentPermissions, async (req, res) =
   }
 });
 
-// DELETE /api/articles/tags/:id - Delete tag (admin only)
+/**
+ * DELETE /api/articles/tags/:id
+ * Delete article tag and all relationships
+ * Restricted to users with content management permissions
+ * 
+ * @route DELETE /api/articles/tags/:id
+ * @middleware verifyToken - Requires user authentication
+ * @middleware checkContentPermissions - Requires content management permissions
+ * @param {string} id - Tag ID to delete
+ * @returns {Object} Deletion confirmation message
+ * @note Removes all tag-article relationships before deletion
+ */
 router.delete('/tags/:id', verifyToken, checkContentPermissions, async (req, res) => {
   try {
     const { id } = req.params;
@@ -764,7 +928,16 @@ router.delete('/tags/:id', verifyToken, checkContentPermissions, async (req, res
 
 // ===== TOPICS ENDPOINTS =====
 
-// Check if user has articles topic management permissions
+/**
+ * Middleware: Check if user has topic management permissions
+ * Validates user permissions for topic creation, editing, and management
+ * 
+ * @middleware checkTopicPermissions
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next function
+ * @returns {void} Calls next() if authorized, returns 403 if unauthorized
+ */
 const checkTopicPermissions = async (req, res, next) => {
   try {
     const [userPermissions] = await db.query('SELECT * FROM user_permissions WHERE user_id = ?', [req.userId]);
@@ -784,7 +957,17 @@ const checkTopicPermissions = async (req, res, next) => {
   }
 };
 
-// Check access to topic based on restrictions
+/**
+ * Check access to topic based on restrictions
+ * Implements fine-grained access control for topics based on user roles, permissions, and specific restrictions
+ * 
+ * @function checkTopicAccess
+ * @param {number} userId - User ID requesting access
+ * @param {Array} roles - User roles array
+ * @param {Array} permissions - User permissions array
+ * @param {number} topicId - Topic ID to check access for
+ * @returns {Promise<boolean>} True if user has access, false otherwise
+ */
 const checkTopicAccess = async (userId, roles, permissions, topicId) => {
   try {
     // Get topic restrictions
@@ -822,7 +1005,16 @@ const checkTopicAccess = async (userId, roles, permissions, topicId) => {
   }
 };
 
-// GET /api/articles/topics - List topics (public endpoint with access control)
+/**
+ * GET /api/articles/topics
+ * List topics with hierarchical structure and access control
+ * Public endpoint that respects topic restrictions and user permissions
+ * 
+ * @route GET /api/articles/topics
+ * @param {number} [parent_id] - Filter by parent topic ID for hierarchical browsing
+ * @param {string} [include_articles=false] - Include article counts for each topic
+ * @returns {Object} List of accessible topics with optional article counts
+ */
 router.get('/topics', async (req, res) => {
   try {
     const { parent_id, include_articles = 'false' } = req.query;
@@ -888,7 +1080,15 @@ router.get('/topics', async (req, res) => {
   }
 });
 
-// GET /api/articles/topics/:slug - Get single topic
+/**
+ * GET /api/articles/topics/:slug
+ * Get single topic with comprehensive details and access control
+ * Returns topic information, child topics, and recent articles
+ * 
+ * @route GET /api/articles/topics/:slug
+ * @param {string} slug - Topic slug identifier
+ * @returns {Object} Topic details with child topics, article count, and recent articles
+ */
 router.get('/topics/:slug', async (req, res) => {
   try {
     const { slug } = req.params;
@@ -972,7 +1172,25 @@ router.get('/topics/:slug', async (req, res) => {
   }
 });
 
-// POST /api/articles/topics - Create new topic
+/**
+ * POST /api/articles/topics
+ * Create new topic with hierarchical support and access restrictions
+ * Supports parent-child relationships and fine-grained access control
+ * 
+ * @route POST /api/articles/topics
+ * @middleware verifyToken - Requires user authentication
+ * @middleware checkTopicPermissions - Requires topic management permissions
+ * @param {Object} req.body - Topic creation data
+ * @param {string} req.body.name - Topic name (required)
+ * @param {string} [req.body.description] - Topic description
+ * @param {number} [req.body.parent_id] - Parent topic ID for hierarchy
+ * @param {number} [req.body.product_category_id] - Related product category
+ * @param {string} [req.body.meta_title] - SEO meta title
+ * @param {string} [req.body.meta_description] - SEO meta description
+ * @param {number} [req.body.sort_order=0] - Display sort order
+ * @param {Array} [req.body.restrictions] - Access restriction rules
+ * @returns {Object} Created topic confirmation with ID and slug
+ */
 router.post('/topics', verifyToken, checkTopicPermissions, async (req, res) => {
   try {
     const {
@@ -1049,7 +1267,18 @@ router.post('/topics', verifyToken, checkTopicPermissions, async (req, res) => {
   }
 });
 
-// PUT /api/articles/topics/:id - Update topic
+/**
+ * PUT /api/articles/topics/:id
+ * Update existing topic with full metadata support
+ * Supports updating hierarchy, SEO data, and access restrictions
+ * 
+ * @route PUT /api/articles/topics/:id
+ * @middleware verifyToken - Requires user authentication
+ * @middleware checkTopicPermissions - Requires topic management permissions
+ * @param {string} id - Topic ID to update
+ * @param {Object} req.body - Topic update data (same structure as POST)
+ * @returns {Object} Update confirmation message
+ */
 router.put('/topics/:id', verifyToken, checkTopicPermissions, async (req, res) => {
   try {
     const { id } = req.params;
@@ -1142,7 +1371,17 @@ router.put('/topics/:id', verifyToken, checkTopicPermissions, async (req, res) =
   }
 });
 
-// DELETE /api/articles/topics/:id - Delete topic
+/**
+ * DELETE /api/articles/topics/:id
+ * Delete topic with validation for articles and child topics
+ * Prevents deletion if topic has associated articles or child topics
+ * 
+ * @route DELETE /api/articles/topics/:id
+ * @middleware verifyToken - Requires user authentication
+ * @middleware checkTopicPermissions - Requires topic management permissions
+ * @param {string} id - Topic ID to delete
+ * @returns {Object} Deletion confirmation or error if topic has dependencies
+ */
 router.delete('/topics/:id', verifyToken, checkTopicPermissions, async (req, res) => {
   try {
     const { id } = req.params;
@@ -1189,7 +1428,18 @@ router.delete('/topics/:id', verifyToken, checkTopicPermissions, async (req, res
   }
 });
 
-// GET /api/articles/topics/:id/articles - Get articles in topic
+/**
+ * GET /api/articles/topics/:id/articles
+ * Get paginated list of articles in specific topic
+ * Includes access control validation for both topic and articles
+ * 
+ * @route GET /api/articles/topics/:id/articles
+ * @param {string} id - Topic ID
+ * @param {number} [page=1] - Page number for pagination
+ * @param {number} [limit=10] - Number of articles per page
+ * @param {string} [status=published] - Article status filter
+ * @returns {Object} Paginated list of articles in topic with metadata
+ */
 router.get('/topics/:id/articles', async (req, res) => {
   try {
     const { id } = req.params;
@@ -1260,7 +1510,17 @@ router.get('/topics/:id/articles', async (req, res) => {
   }
 });
 
-// GET /api/articles/:slug - Get single article (MUST come after ALL specific routes)
+/**
+ * GET /api/articles/:slug
+ * Get single article with comprehensive metadata and access control
+ * Returns complete article data including topics, tags, series navigation, and analytics
+ * 
+ * @route GET /api/articles/:slug
+ * @param {string} slug - Article slug identifier
+ * @returns {Object} Complete article data with metadata, navigation, and analytics
+ * @note MUST come after ALL specific routes to avoid route conflicts
+ * @note Automatically updates view count when article is accessed
+ */
 router.get('/:slug', async (req, res) => {
   try {
     const { slug } = req.params;

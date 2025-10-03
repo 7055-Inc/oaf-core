@@ -14,7 +14,7 @@ const db = require('../config/db');
 
 // Configuration
 const RETENTION_DAYS = 90;
-const LABELS_DIR = path.join(__dirname, '../storage/labels');
+const LABELS_DIR = path.join(__dirname, '../../public/static_media/labels');
 const DRY_RUN = process.argv.includes('--dry-run');
 
 /**
@@ -105,7 +105,7 @@ async function getOldLabels(cutoffDate) {
     ORDER BY created_at ASC
   `;
   
-  const [rows] = await db.execute(query, [cutoffDate]);
+  const [rows] = await db.query(query, [cutoffDate]);
   return rows;
 }
 
@@ -120,7 +120,7 @@ async function updateLabelFileDeleted(labelId) {
     WHERE id = ?
   `;
   
-  await db.execute(query, [labelId]);
+  await db.query(query, [labelId]);
 }
 
 /**
@@ -167,7 +167,7 @@ async function validateSetup() {
 
   // Test database connection
   try {
-    await db.execute('SELECT 1');
+    await db.query('SELECT 1');
   } catch (error) {
     console.error('❌ Database connection failed:', error.message);
     process.exit(1);

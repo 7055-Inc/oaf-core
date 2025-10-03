@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getAuthToken } from '../../../../lib/csrf';
+import { getApiUrl } from '../../../../lib/config';
 import styles from '../../SlideIn.module.css';
 
 const CommissionManagement = () => {
@@ -24,7 +25,7 @@ const CommissionManagement = () => {
       setLoading(true);
       const token = getAuthToken();
       
-      const response = await fetch('https://api2.onlineartfestival.com/api/finance/commission-rates', {
+      const response = await fetch(getApiUrl('api/finance/commission-rates'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -94,7 +95,7 @@ const CommissionManagement = () => {
       const token = getAuthToken();
       const changes = pendingChanges[id];
       
-      const response = await fetch(`https://api2.onlineartfestival.com/api/finance/commission-rates/${id}`, {
+      const response = await fetch(`api/finance/commission-rates/${id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -175,7 +176,7 @@ const CommissionManagement = () => {
         ...bulkChanges
       }));
 
-      const response = await fetch('https://api2.onlineartfestival.com/api/finance/commission-rates/bulk', {
+      const response = await fetch('api/finance/commission-rates/bulk', {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

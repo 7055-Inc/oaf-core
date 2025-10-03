@@ -1,3 +1,10 @@
+/**
+ * Dashboard Management Routes
+ * Comprehensive dashboard system consolidating functionality from vendor.js, admin.js, and other permission-based routes
+ * Provides unified dashboard interface with role-based access control and permission-specific data views
+ * Supports multi-role users with dynamic permission evaluation and dashboard section generation
+ */
+
 const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
@@ -11,7 +18,7 @@ const {
 } = require('../middleware/permissions');
 
 /**
- * Dashboard API Routes
+ * Dashboard API Routes Architecture
  * 
  * This file consolidates dashboard functionality that was previously scattered
  * across vendor.js, admin.js, and other permission-based route files.
@@ -30,8 +37,14 @@ const {
 // ============================================================================
 
 /**
- * GET /dashboard/overview - Get dashboard overview for current user
+ * GET /dashboard/overview
+ * Get comprehensive dashboard overview for current user
  * Returns user-specific dashboard data based on their user type and permissions
+ * Dynamically generates available sections based on effective permissions
+ * 
+ * @route GET /dashboard/overview
+ * @middleware verifyToken - Requires valid JWT token
+ * @returns {Object} Dashboard overview with user info, permissions, and available sections
  */
 router.get('/overview', verifyToken, async (req, res) => {
   try {
@@ -102,8 +115,15 @@ router.get('/overview', verifyToken, async (req, res) => {
 // ============================================================================
 
 /**
- * GET /dashboard/vendor/overview - Vendor financial dashboard
- * Replaces: GET /vendor/dashboard
+ * GET /dashboard/vendor/overview
+ * Vendor financial dashboard with sales analytics and e-commerce metrics
+ * Consolidates vendor dashboard functionality from legacy vendor.js routes
+ * 
+ * @route GET /dashboard/vendor/overview
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('vendor') - Requires vendor permissions
+ * @returns {Object} Vendor dashboard data with financial metrics and sales analytics
+ * @replaces GET /vendor/dashboard
  */
 router.get('/vendor/overview', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
@@ -122,8 +142,14 @@ router.get('/vendor/overview', verifyToken, requirePermission('vendor'), async (
 });
 
 /**
- * GET /dashboard/vendor/products - Vendor product management
- * Consolidates product management views for vendors
+ * GET /dashboard/vendor/products
+ * Vendor product management dashboard with analytics and inventory insights
+ * Consolidates product management views with vendor-specific analytics
+ * 
+ * @route GET /dashboard/vendor/products
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('vendor') - Requires vendor permissions
+ * @returns {Object} Vendor product dashboard with analytics and management tools
  */
 router.get('/vendor/products', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
@@ -143,8 +169,15 @@ router.get('/vendor/products', verifyToken, requirePermission('vendor'), async (
 // ============================================================================
 
 /**
- * GET /dashboard/system/users - User management (admin only)
- * Replaces: GET /admin/users
+ * GET /dashboard/system/users
+ * System user management dashboard (admin only)
+ * Provides comprehensive user listing with status and type information
+ * 
+ * @route GET /dashboard/system/users
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('manage_system') - Requires system management permissions
+ * @returns {Array} All users with basic information for administrative purposes
+ * @replaces GET /admin/users
  */
 router.get('/system/users', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -158,8 +191,16 @@ router.get('/system/users', verifyToken, requirePermission('manage_system'), asy
 });
 
 /**
- * POST /dashboard/system/users - Create new user (admin only)
- * Replaces: POST /admin/users
+ * POST /dashboard/system/users
+ * Create new user account (admin only)
+ * Consolidates user creation functionality from legacy admin.js routes
+ * 
+ * @route POST /dashboard/system/users
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('manage_system') - Requires system management permissions
+ * @param {Object} req.body - User creation data
+ * @returns {Object} Created user confirmation
+ * @replaces POST /admin/users
  */
 router.post('/system/users', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -179,8 +220,15 @@ router.post('/system/users', verifyToken, requirePermission('manage_system'), as
 // ============================================================================
 
 /**
- * GET /dashboard/sites/my - Current user's sites
- * Provides dashboard view of sites (existing sites.js routes remain for API access)
+ * GET /dashboard/sites/my
+ * Current user's sites dashboard with enhanced metadata
+ * Provides dashboard-specific view of sites with analytics and quick actions
+ * 
+ * @route GET /dashboard/sites/my
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('manage_sites') - Requires site management permissions
+ * @returns {Array} User's sites with dashboard metadata and public URLs
+ * @note Existing sites.js routes remain for direct API access
  */
 router.get('/sites/my', verifyToken, requirePermission('manage_sites'), async (req, res) => {
   try {
@@ -193,7 +241,7 @@ router.get('/sites/my', verifyToken, requirePermission('manage_sites'), async (r
     const sitesWithStats = sites.map(site => ({
       ...site,
       dashboardUrl: `/dashboard/sites/${site.id}`,
-      publicUrl: site.custom_domain || `${site.subdomain}.onlineartfestival.com`
+      publicUrl: site.custom_domain || `${site.subdomain}.${process.env.FRONTEND_URL?.replace('https://', '') || 'beemeeart.com'}`
     }));
     
     res.json(sitesWithStats);
@@ -208,7 +256,14 @@ router.get('/sites/my', verifyToken, requirePermission('manage_sites'), async (r
 // ============================================================================
 
 /**
- * GET /dashboard/content/articles - Content creator's articles dashboard
+ * GET /dashboard/content/articles
+ * Content creator's articles dashboard with analytics and management tools
+ * Provides comprehensive article overview with status statistics and access control
+ * 
+ * @route GET /dashboard/content/articles
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('manage_content') - Requires content management permissions
+ * @returns {Object} Articles dashboard with statistics and access information
  */
 router.get('/content/articles', verifyToken, requirePermission('manage_content'), async (req, res) => {
   try {
@@ -243,8 +298,13 @@ router.get('/content/articles', verifyToken, requirePermission('manage_content')
 // ============================================================================
 
 /**
- * GET /dashboard/permissions/my - Get current user's effective permissions
- * Useful for frontend to understand what the user can access
+ * GET /dashboard/permissions/my
+ * Get current user's effective permissions with detailed descriptions
+ * Provides comprehensive permission information for frontend dashboard rendering
+ * 
+ * @route GET /dashboard/permissions/my
+ * @middleware verifyToken - Requires valid JWT token
+ * @returns {Object} Complete permission information with descriptions and access levels
  */
 router.get('/permissions/my', verifyToken, async (req, res) => {
   try {

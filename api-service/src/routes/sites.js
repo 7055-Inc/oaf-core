@@ -1,3 +1,10 @@
+/**
+ * Site Management Routes
+ * Comprehensive site and subdomain management system for the Beemeeart platform
+ * Handles site creation, customization, templates, addons, discounts, and subdomain resolution
+ * Supports multitenant architecture with custom domains and subdomain routing
+ */
+
 const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
@@ -5,15 +12,27 @@ const verifyToken = require('../middleware/jwt');
 
 const { requirePermission } = require('../middleware/permissions');
 
-// Middleware to verify site management permissions (replaces verifyArtist)
-// Now uses permission-based access instead of hardcoded user types
+/**
+ * Middleware to verify site management permissions
+ * Uses permission-based access instead of hardcoded user types
+ * Replaces legacy verifyArtist middleware with modern permission system
+ */
 const verifySiteAccess = requirePermission('manage_sites');
 
 // ============================================================================
 // DISCOUNT MANAGEMENT ROUTES
 // ============================================================================
 
-// GET /sites/discounts/calculate - Calculate discounts for a user/subscription type
+/**
+ * GET /sites/discounts/calculate
+ * Calculate applicable discounts for a user and subscription type
+ * Handles discount stacking logic and priority ordering
+ * 
+ * @route GET /sites/discounts/calculate
+ * @middleware verifyToken - Requires valid JWT token
+ * @param {string} subscription_type - Type of subscription to calculate discounts for
+ * @returns {Object} Applicable discounts with stacking information
+ */
 router.get('/discounts/calculate', verifyToken, async (req, res) => {
   try {
     const { subscription_type } = req.query;
@@ -59,7 +78,17 @@ router.get('/discounts/calculate', verifyToken, async (req, res) => {
   }
 });
 
-// POST /sites/discounts - Add a discount for a user (admin only)
+/**
+ * POST /sites/discounts
+ * Create a new discount for a user (admin only)
+ * Supports discount stacking and chaining rules with validation
+ * 
+ * @route POST /sites/discounts
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('manage_system') - Requires system management permissions
+ * @param {Object} req.body - Discount creation data
+ * @returns {Object} Created discount confirmation
+ */
 router.post('/discounts', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const {
@@ -118,7 +147,17 @@ router.post('/discounts', verifyToken, requirePermission('manage_system'), async
   }
 });
 
-// DELETE /sites/discounts/:id - Remove a discount (admin only)
+/**
+ * DELETE /sites/discounts/:id
+ * Remove a discount from the system (admin only)
+ * Permanently deletes discount record from database
+ * 
+ * @route DELETE /sites/discounts/:id
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('manage_system') - Requires system management permissions
+ * @param {string} id - Discount ID to delete
+ * @returns {Object} Deletion confirmation message
+ */
 router.delete('/discounts/:id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const discountId = req.params.id;
@@ -141,7 +180,15 @@ router.delete('/discounts/:id', verifyToken, requirePermission('manage_system'),
 // TEMPLATE MANAGEMENT ROUTES
 // ============================================================================
 
-// GET /sites/templates - Get available templates (filtered by user's subscription tier)
+/**
+ * GET /sites/templates
+ * Get available website templates filtered by user's subscription tier
+ * Returns active templates with preview information and tier requirements
+ * 
+ * @route GET /sites/templates
+ * @middleware verifyToken - Requires valid JWT token
+ * @returns {Object} Available templates with tier information
+ */
 router.get('/templates', verifyToken, async (req, res) => {
   try {
     // For now, return all active templates - subscription filtering will be added in Phase 3
@@ -161,7 +208,16 @@ router.get('/templates', verifyToken, async (req, res) => {
 });
 
 
-// GET /sites/templates/:id - Get specific template details
+/**
+ * GET /sites/templates/:id
+ * Get detailed information for a specific template
+ * Returns complete template configuration and metadata
+ * 
+ * @route GET /sites/templates/:id
+ * @middleware verifyToken - Requires valid JWT token
+ * @param {string} id - Template ID
+ * @returns {Object} Complete template details
+ */
 router.get('/templates/:id', verifyToken, async (req, res) => {
   try {
     const templateId = req.params.id;
@@ -182,7 +238,17 @@ router.get('/templates/:id', verifyToken, async (req, res) => {
   }
 });
 
-// PUT /sites/template/:id - Apply template to user's site
+/**
+ * PUT /sites/template/:id
+ * Apply a template to the user's site
+ * Updates site template configuration with tier validation
+ * 
+ * @route PUT /sites/template/:id
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('manage_sites') - Requires site management permissions
+ * @param {string} id - Template ID to apply
+ * @returns {Object} Template application confirmation
+ */
 router.put('/template/:id', verifyToken, requirePermission('manage_sites'), async (req, res) => {
   try {
     const templateId = req.params.id;
@@ -223,7 +289,17 @@ router.put('/template/:id', verifyToken, requirePermission('manage_sites'), asyn
   }
 });
 
-// POST /sites/templates - Create new template (admin only)
+/**
+ * POST /sites/templates
+ * Create a new website template (admin only)
+ * Adds new template to the system with CSS and preview configuration
+ * 
+ * @route POST /sites/templates
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('manage_system') - Requires system management permissions
+ * @param {Object} req.body - Template creation data
+ * @returns {Object} Created template confirmation
+ */
 router.post('/templates', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const {
@@ -264,7 +340,15 @@ router.post('/templates', verifyToken, requirePermission('manage_system'), async
 // ADDON MANAGEMENT ROUTES
 // ============================================================================
 
-// GET /sites/addons - Get available addons (filtered by user's subscription tier)
+/**
+ * GET /sites/addons
+ * Get available website addons filtered by user's subscription tier
+ * Returns both user-level and site-level addons with ownership status
+ * 
+ * @route GET /sites/addons
+ * @middleware verifyToken - Requires valid JWT token
+ * @returns {Object} Available addons with tier requirements and ownership status
+ */
 router.get('/addons', verifyToken, async (req, res) => {
   try {
     // Get all active addons, marking which level they apply to
@@ -310,7 +394,16 @@ router.get('/addons', verifyToken, async (req, res) => {
   }
 });
 
-// GET /sites/my-addons - Get user's active addons
+/**
+ * GET /sites/my-addons
+ * Get user's currently active addons for their site
+ * Returns addons with activation dates and pricing information
+ * 
+ * @route GET /sites/my-addons
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('manage_sites') - Requires site management permissions
+ * @returns {Object} User's active addons with details
+ */
 router.get('/my-addons', verifyToken, requirePermission('manage_sites'), async (req, res) => {
   try {
     const userId = req.userId;
@@ -344,7 +437,15 @@ router.get('/my-addons', verifyToken, requirePermission('manage_sites'), async (
   }
 });
 
-// GET /sites/:id/addons - Get active addons for a specific site (PUBLIC - for artist storefronts)
+/**
+ * GET /sites/:id/addons
+ * Get active addons for a specific site (PUBLIC - for artist storefronts)
+ * Returns addons that are active and should be loaded on the public site
+ * 
+ * @route GET /sites/:id/addons
+ * @param {string} id - Site ID
+ * @returns {Object} Active addons for the site
+ */
 router.get('/:id/addons', async (req, res) => {
   try {
     const siteId = req.params.id;
@@ -376,7 +477,17 @@ router.get('/:id/addons', async (req, res) => {
   }
 });
 
-// POST /sites/addons/:id - Add addon to user's site
+/**
+ * POST /sites/addons/:id
+ * Add an addon to the user's site
+ * Activates addon with tier validation and duplicate checking
+ * 
+ * @route POST /sites/addons/:id
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('manage_sites') - Requires site management permissions
+ * @param {string} id - Addon ID to activate
+ * @returns {Object} Addon activation confirmation
+ */
 router.post('/addons/:id', verifyToken, requirePermission('manage_sites'), async (req, res) => {
   try {
     const addonId = req.params.id;
@@ -430,7 +541,17 @@ router.post('/addons/:id', verifyToken, requirePermission('manage_sites'), async
   }
 });
 
-// DELETE /sites/addons/:id - Remove addon from user's site
+/**
+ * DELETE /sites/addons/:id
+ * Remove an addon from the user's site
+ * Deactivates addon while preserving historical data
+ * 
+ * @route DELETE /sites/addons/:id
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('manage_sites') - Requires site management permissions
+ * @param {string} id - Addon ID to deactivate
+ * @returns {Object} Addon deactivation confirmation
+ */
 router.delete('/addons/:id', verifyToken, requirePermission('manage_sites'), async (req, res) => {
   try {
     const addonId = req.params.id;
@@ -466,7 +587,16 @@ router.delete('/addons/:id', verifyToken, requirePermission('manage_sites'), asy
   }
 });
 
-// POST /sites/user-addons/:id - Activate user-level addon
+/**
+ * POST /sites/user-addons/:id
+ * Activate a user-level addon (applies to all user's sites)
+ * Handles user-wide addon subscriptions and marketplace integration
+ * 
+ * @route POST /sites/user-addons/:id
+ * @middleware verifyToken - Requires valid JWT token
+ * @param {string} id - User-level addon ID to activate
+ * @returns {Object} User addon activation confirmation
+ */
 router.post('/user-addons/:id', verifyToken, async (req, res) => {
   try {
     const addonId = req.params.id;
@@ -517,7 +647,17 @@ router.post('/user-addons/:id', verifyToken, async (req, res) => {
   }
 });
 
-// POST /sites/addons - Create new addon (admin only)
+/**
+ * POST /sites/addons
+ * Create a new website addon (admin only)
+ * Adds new addon to the system with script path and pricing configuration
+ * 
+ * @route POST /sites/addons
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('manage_system') - Requires system management permissions
+ * @param {Object} req.body - Addon creation data
+ * @returns {Object} Created addon confirmation
+ */
 router.post('/addons', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const {
@@ -558,7 +698,16 @@ router.post('/addons', verifyToken, requirePermission('manage_system'), async (r
 // SITE MANAGEMENT ROUTES
 // ============================================================================
 
-// GET /sites/me - Get current user's sites
+/**
+ * GET /sites/me
+ * Get all sites belonging to the current user
+ * Returns user's sites ordered by creation date
+ * 
+ * @route GET /sites/me
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('manage_sites') - Requires site management permissions
+ * @returns {Array} User's sites with complete details
+ */
 router.get('/me', verifyToken, requirePermission('manage_sites'), async (req, res) => {
   try {
     const [sites] = await db.query(
@@ -572,7 +721,15 @@ router.get('/me', verifyToken, requirePermission('manage_sites'), async (req, re
   }
 });
 
-// GET /sites/all - Get all sites (admin only)
+/**
+ * GET /sites/all
+ * Get all sites in the system (admin only)
+ * Returns all sites with user information for administrative purposes
+ * 
+ * @route GET /sites/all
+ * @middleware verifyToken - Requires valid JWT token
+ * @returns {Array} All sites with user details (admin access required)
+ */
 router.get('/all', verifyToken, async (req, res) => {
   try {
     // Check if user is admin
@@ -604,7 +761,16 @@ router.get('/all', verifyToken, async (req, res) => {
   }
 });
 
-// POST /sites - Create a new site
+/**
+ * POST /sites
+ * Create a new site for the authenticated user
+ * Handles subdomain validation, uniqueness checking, and site limits
+ * 
+ * @route POST /sites
+ * @middleware verifyToken - Requires valid JWT token
+ * @param {Object} req.body - Site creation data
+ * @returns {Object} Created site details
+ */
 router.post('/', verifyToken, async (req, res) => {
   try {
     const { site_name, subdomain, site_title, site_description, theme_name = 'default' } = req.body;
@@ -667,7 +833,17 @@ router.post('/', verifyToken, async (req, res) => {
   }
 });
 
-// PUT /sites/:id - Update site
+/**
+ * PUT /sites/:id
+ * Update an existing site's configuration
+ * Handles site details, custom domains, and status changes with validation
+ * 
+ * @route PUT /sites/:id
+ * @middleware verifyToken - Requires valid JWT token
+ * @param {string} id - Site ID to update
+ * @param {Object} req.body - Site update data
+ * @returns {Object} Updated site details
+ */
 router.put('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -717,7 +893,16 @@ router.put('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// DELETE /sites/:id - Delete site
+/**
+ * DELETE /sites/:id
+ * Delete a site (soft delete by setting status to 'deleted')
+ * Preserves site data while marking it as deleted for historical purposes
+ * 
+ * @route DELETE /sites/:id
+ * @middleware verifyToken - Requires valid JWT token
+ * @param {string} id - Site ID to delete
+ * @returns {Object} Deletion confirmation message
+ */
 router.delete('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -757,7 +942,15 @@ router.delete('/:id', verifyToken, async (req, res) => {
 // USER CATEGORIES MANAGEMENT
 // ============================================================================
 
-// GET /sites/categories - Get user's custom categories
+/**
+ * GET /sites/categories
+ * Get user's custom categories for organizing content
+ * Returns hierarchical category structure with display ordering
+ * 
+ * @route GET /sites/categories
+ * @middleware verifyToken - Requires valid JWT token
+ * @returns {Array} User's custom categories with hierarchy
+ */
 router.get('/categories', verifyToken, async (req, res) => {
   try {
     const [categories] = await db.query(
@@ -771,7 +964,16 @@ router.get('/categories', verifyToken, async (req, res) => {
   }
 });
 
-// POST /sites/categories - Create custom category
+/**
+ * POST /sites/categories
+ * Create a new custom category for the user
+ * Supports hierarchical categories with parent-child relationships
+ * 
+ * @route POST /sites/categories
+ * @middleware verifyToken - Requires valid JWT token
+ * @param {Object} req.body - Category creation data
+ * @returns {Object} Created category details
+ */
 router.post('/categories', verifyToken, async (req, res) => {
   try {
     const { name, description, parent_id, display_order = 0 } = req.body;
@@ -817,7 +1019,17 @@ router.post('/categories', verifyToken, async (req, res) => {
   }
 });
 
-// PUT /sites/categories/:id - Update custom category
+/**
+ * PUT /sites/categories/:id
+ * Update an existing custom category
+ * Handles category details and hierarchy changes with circular reference prevention
+ * 
+ * @route PUT /sites/categories/:id
+ * @middleware verifyToken - Requires valid JWT token
+ * @param {string} id - Category ID to update
+ * @param {Object} req.body - Category update data
+ * @returns {Object} Updated category details
+ */
 router.put('/categories/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -854,7 +1066,16 @@ router.put('/categories/:id', verifyToken, async (req, res) => {
   }
 });
 
-// DELETE /sites/categories/:id - Delete custom category
+/**
+ * DELETE /sites/categories/:id
+ * Delete a custom category
+ * Prevents deletion of categories with subcategories to maintain data integrity
+ * 
+ * @route DELETE /sites/categories/:id
+ * @middleware verifyToken - Requires valid JWT token
+ * @param {string} id - Category ID to delete
+ * @returns {Object} Deletion confirmation message
+ */
 router.delete('/categories/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -889,7 +1110,15 @@ router.delete('/categories/:id', verifyToken, async (req, res) => {
 // SUBDOMAIN RESOLUTION & PUBLIC ROUTES
 // ============================================================================
 
-// GET /sites/resolve/:subdomain - Resolve subdomain to site data (PUBLIC)
+/**
+ * GET /sites/resolve/:subdomain
+ * Resolve subdomain to complete site data (PUBLIC)
+ * Returns site information with user profile and customization data
+ * 
+ * @route GET /sites/resolve/:subdomain
+ * @param {string} subdomain - Subdomain to resolve
+ * @returns {Object} Complete site data with user and customization information
+ */
 router.get('/resolve/:subdomain', async (req, res) => {
   try {
     const { subdomain } = req.params;
@@ -901,7 +1130,7 @@ router.get('/resolve/:subdomain', async (req, res) => {
        JOIN users u ON s.user_id = u.id 
        LEFT JOIN user_profiles up ON u.id = up.user_id 
        LEFT JOIN site_customizations sc ON s.id = sc.site_id
-       WHERE s.subdomain = ? AND s.status = 'active'`,
+       WHERE s.subdomain = ?`,
       [subdomain]
     );
 
@@ -909,14 +1138,63 @@ router.get('/resolve/:subdomain', async (req, res) => {
       return res.status(404).json({ error: 'Site not found' });
     }
 
-    res.json(site[0]);
+    const siteData = site[0];
+
+    // If site is not active, return status information
+    if (siteData.status !== 'active') {
+      return res.status(200).json({
+        ...siteData,
+        available: false,
+        statusMessage: getStatusMessage(siteData.status)
+      });
+    }
+
+    res.json({
+      ...siteData,
+      available: true
+    });
   } catch (err) {
     // Error('Error resolving subdomain:', err);
     res.status(500).json({ error: 'Failed to resolve subdomain' });
   }
 });
 
-// GET /sites/resolve/:subdomain/products - Get products for a site (PUBLIC)
+/**
+ * Get human-readable status message for site status
+ * @param {string} status - Site status from database
+ * @returns {string} Human-readable status message
+ */
+function getStatusMessage(status) {
+  switch (status) {
+    case 'draft':
+      return 'This site is currently being set up and will be available soon.';
+    case 'inactive':
+      return 'This site is temporarily unavailable. Please check back later.';
+    case 'suspended':
+      return 'This site has been temporarily suspended.';
+    case 'suspended_violation':
+      return 'This site has been suspended due to policy violations.';
+    case 'suspended_finance':
+      return 'This site has been suspended due to payment issues.';
+    case 'deleted':
+      return 'This site no longer exists or has been removed.';
+    default:
+      return 'This site is currently unavailable.';
+  }
+}
+
+/**
+ * GET /sites/resolve/:subdomain/products
+ * Get products for a specific site (PUBLIC)
+ * Returns paginated product listings with images for public storefronts
+ * 
+ * @route GET /sites/resolve/:subdomain/products
+ * @param {string} subdomain - Site subdomain
+ * @param {number} [limit=20] - Number of products to return
+ * @param {number} [offset=0] - Pagination offset
+ * @param {string} [category] - Category filter
+ * @returns {Array} Site's products with images
+ */
 router.get('/resolve/:subdomain/products', async (req, res) => {
   try {
     const { subdomain } = req.params;
@@ -961,7 +1239,18 @@ router.get('/resolve/:subdomain/products', async (req, res) => {
   }
 });
 
-// GET /sites/resolve/:subdomain/articles - Get articles for a site (PUBLIC)
+/**
+ * GET /sites/resolve/:subdomain/articles
+ * Get articles for a specific site (PUBLIC)
+ * Returns articles filtered by type (menu, blog, pages) with featured images
+ * 
+ * @route GET /sites/resolve/:subdomain/articles
+ * @param {string} subdomain - Site subdomain
+ * @param {string} [type=all] - Article type filter (all, menu, blog, pages)
+ * @param {number} [limit=10] - Number of articles to return
+ * @param {number} [offset=0] - Pagination offset
+ * @returns {Array} Site's articles with featured images
+ */
 router.get('/resolve/:subdomain/articles', async (req, res) => {
   try {
     const { subdomain } = req.params;
@@ -1009,7 +1298,15 @@ router.get('/resolve/:subdomain/articles', async (req, res) => {
   }
 });
 
-// GET /sites/resolve/:subdomain/categories - Get user categories for a site (PUBLIC)
+/**
+ * GET /sites/resolve/:subdomain/categories
+ * Get user categories for a specific site (PUBLIC)
+ * Returns hierarchical category structure for public site navigation
+ * 
+ * @route GET /sites/resolve/:subdomain/categories
+ * @param {string} subdomain - Site subdomain
+ * @returns {Array} Site's custom categories with hierarchy
+ */
 router.get('/resolve/:subdomain/categories', async (req, res) => {
   try {
     const { subdomain } = req.params;
@@ -1042,7 +1339,17 @@ router.get('/resolve/:subdomain/categories', async (req, res) => {
 // SITE CUSTOMIZATION ROUTES
 // ============================================================================
 
-// GET /sites/:id/customizations - Get site customization settings
+/**
+ * GET /sites/:id/customizations
+ * Get site customization settings (colors, fonts, CSS)
+ * Returns current customizations or default values with permission-based access
+ * 
+ * @route GET /sites/:id/customizations
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('sites') - Requires sites permissions
+ * @param {string} id - Site ID
+ * @returns {Object} Site customization settings
+ */
 router.get('/:id/customizations', verifyToken, requirePermission('sites'), async (req, res) => {
   try {
     const siteId = req.params.id;
@@ -1092,7 +1399,18 @@ router.get('/:id/customizations', verifyToken, requirePermission('sites'), async
   }
 });
 
-// PUT /sites/:id/customizations - Update site customization settings
+/**
+ * PUT /sites/:id/customizations
+ * Update site customization settings with tiered permission validation
+ * Supports basic colors, advanced styling, and professional custom CSS
+ * 
+ * @route PUT /sites/:id/customizations
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware requirePermission('sites') - Requires sites permissions
+ * @param {string} id - Site ID
+ * @param {Object} req.body - Customization settings
+ * @returns {Object} Updated customization settings
+ */
 router.put('/:id/customizations', verifyToken, requirePermission('sites'), async (req, res) => {
   try {
     const siteId = req.params.id;
@@ -1261,7 +1579,15 @@ router.put('/:id/customizations', verifyToken, requirePermission('sites'), async
 // UTILITY ROUTES
 // ============================================================================
 
-// GET /sites/check-subdomain/:subdomain - Check if subdomain is available (PUBLIC)
+/**
+ * GET /sites/check-subdomain/:subdomain
+ * Check if a subdomain is available for registration (PUBLIC)
+ * Validates format, checks reserved names, and verifies availability
+ * 
+ * @route GET /sites/check-subdomain/:subdomain
+ * @param {string} subdomain - Subdomain to check
+ * @returns {Object} Availability status with reason if unavailable
+ */
 router.get('/check-subdomain/:subdomain', async (req, res) => {
   try {
     const { subdomain } = req.params;
@@ -1293,7 +1619,15 @@ router.get('/check-subdomain/:subdomain', async (req, res) => {
   }
 });
 
-// GET /sites/resolve-custom-domain/:domain - Resolve custom domain to subdomain
+/**
+ * GET /sites/resolve-custom-domain/:domain
+ * Resolve custom domain to site information
+ * Returns site details for verified custom domains with active status
+ * 
+ * @route GET /sites/resolve-custom-domain/:domain
+ * @param {string} domain - Custom domain to resolve
+ * @returns {Object} Site information for the custom domain
+ */
 router.get('/resolve-custom-domain/:domain', async (req, res) => {
   try {
     const { domain } = req.params;

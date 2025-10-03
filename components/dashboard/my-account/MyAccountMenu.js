@@ -1,7 +1,8 @@
 // My Account Menu Component
 // This file will contain ONLY the menu building logic for My Account section
 import React, { useState, useEffect } from 'react';
-import { authenticatedApiRequest } from '../../../lib/csrf';
+import { authApiRequest, API_ENDPOINTS } from '../../../lib/apiUtils';
+import { hasPermission } from '../../../lib/userUtils';
 import styles from '../../../pages/dashboard/Dashboard.module.css';
 
 export default function MyAccountMenu({ 
@@ -31,7 +32,7 @@ export default function MyAccountMenu({
 
   const loadShortcuts = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/dashboard-widgets/widget-data/my_shortcuts');
+      const response = await authApiRequest(`${API_ENDPOINTS.DASHBOARD_WIDGETS_DATA}/my_shortcuts`);
       if (response.ok) {
         const result = await response.json();
         setShortcuts(result.data.shortcuts || []);
@@ -46,7 +47,7 @@ export default function MyAccountMenu({
     
     setLoading(true);
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/dashboard-widgets/shortcuts/add', {
+      const response = await authApiRequest(API_ENDPOINTS.DASHBOARD_WIDGETS_SHORTCUT_ADD, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ shortcut })
@@ -167,39 +168,45 @@ export default function MyAccountMenu({
               )}
             </div>
           </li>
-          <li>
-            <button 
-              className={styles.sidebarLink}
-              onClick={() => openSlideIn('payment-settings', { title: 'Payment Settings' })}
-            >
-              Payment Settings
-            </button>
-          </li>
-          <li>
-            <div className={styles.menuItemContent}>
+          {/* Payment Settings - Only show if user has stripe_connect permission */}
+          {hasPermission(userData, 'stripe_connect') && (
+            <li>
               <button 
                 className={styles.sidebarLink}
-                onClick={() => openSlideIn('shipping-settings', { title: 'Shipping Settings' })}
+                onClick={() => openSlideIn('payment-settings', { title: 'Payment Settings' })}
               >
-                Shipping Settings
+                Payment Settings
               </button>
-              {!hasShortcut('shipping-settings') && (
-                <button
-                  className={styles.addShortcutButton}
-                  onClick={() => addShortcut({
-                    id: 'shipping-settings',
-                    label: 'Shipping Settings',
-                    icon: 'fas fa-shipping-fast',
-                    slideInType: 'shipping-settings'
-                  })}
-                  disabled={loading}
-                  title="Add to shortcuts"
+            </li>
+          )}
+          {/* Shipping Settings - Only show if user has shipping permission */}
+          {hasPermission(userData, 'shipping') && (
+            <li>
+              <div className={styles.menuItemContent}>
+                <button 
+                  className={styles.sidebarLink}
+                  onClick={() => openSlideIn('shipping-settings', { title: 'Shipping Settings' })}
                 >
-                  <i className="fas fa-plus"></i>
+                  Shipping Settings
                 </button>
-              )}
-            </div>
-          </li>
+                {!hasShortcut('shipping-settings') && (
+                  <button
+                    className={styles.addShortcutButton}
+                    onClick={() => addShortcut({
+                      id: 'shipping-settings',
+                      label: 'Shipping Settings',
+                      icon: 'fas fa-shipping-fast',
+                      slideInType: 'shipping-settings'
+                    })}
+                    disabled={loading}
+                    title="Add to shortcuts"
+                  >
+                    <i className="fas fa-plus"></i>
+                  </button>
+                )}
+              </div>
+            </li>
+          )}
         </ul>
       )}
     </div>

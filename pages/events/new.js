@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
 import Header from '../../components/Header';
 import { authenticatedApiRequest } from '../../lib/csrf';
 import styles from './styles/EventForm.module.css';
@@ -109,7 +110,7 @@ export default function NewEvent() {
     const userRoles = payload.roles || [];
 
     // Fetch user data for profile information
-    fetch('https://api2.onlineartfestival.com/users/me', {
+    fetch(getApiUrl('users/me'), {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -146,7 +147,7 @@ export default function NewEvent() {
   const fetchEventTypes = async () => {
     try {
       const token = document.cookie.split('token=')[1]?.split(';')[0];
-              const response = await fetch('https://api2.onlineartfestival.com/api/events/types', {
+              const response = await fetch(getApiUrl('api/events/types'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -338,7 +339,7 @@ export default function NewEvent() {
         uploadFormData.append('images', file);
       });
 
-      const res = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/events/upload', {
+      const res = await authenticatedApiRequest('api/events/upload', {
         method: 'POST',
         body: uploadFormData
       });
@@ -377,7 +378,7 @@ export default function NewEvent() {
         max_applications: formData.max_applications ? parseInt(formData.max_applications) : null
       };
 
-      const res = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/events', {
+      const res = await authenticatedApiRequest('api/events', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -396,7 +397,7 @@ export default function NewEvent() {
       if (availableAddons.length > 0) {
         try {
           for (const addon of availableAddons) {
-            await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/events/${result.id}/available-addons`, {
+            await authenticatedApiRequest(`api/events/${result.id}/available-addons`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
@@ -419,7 +420,7 @@ export default function NewEvent() {
       if (applicationFields.length > 0) {
         try {
           for (const field of applicationFields) {
-            await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/events/${result.id}/application-fields`, {
+            await authenticatedApiRequest(`api/events/${result.id}/application-fields`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
@@ -467,7 +468,7 @@ export default function NewEvent() {
                 fieldType = 'url';
               }
 
-              await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/events/${result.id}/application-fields`, {
+              await authenticatedApiRequest(`api/events/${result.id}/application-fields`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json'
@@ -498,7 +499,7 @@ export default function NewEvent() {
                 booth_2: 'Booth Setup Photo #2'
               };
 
-              await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/events/${result.id}/application-fields`, {
+              await authenticatedApiRequest(`api/events/${result.id}/application-fields`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json'
@@ -1474,7 +1475,7 @@ export default function NewEvent() {
                 <div className={styles.imagePreview}>
                   {formData.images.map((url, index) => (
                     <div key={index} className={styles.imageThumbnail}>
-                      <img src={`https://api2.onlineartfestival.com${url}`} alt={`Event ${index + 1}`} />
+                      <img src={getSmartMediaUrl(url)} alt={`Event ${index + 1}`} />
                     </div>
                   ))}
                 </div>

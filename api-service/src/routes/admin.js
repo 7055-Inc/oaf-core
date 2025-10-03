@@ -6,11 +6,39 @@ const { requirePermission } = require('../middleware/permissions');
 const EmailService = require('../services/emailService');
 const discountService = require('../services/discountService');
 
+// Import maintenance control routes
+const maintenanceRoutes = require('./admin/maintenance');
+
+/**
+ * @fileoverview Admin management routes
+ * 
+ * Handles comprehensive administrative functionality including:
+ * - User management (CRUD operations, permissions)
+ * - Policy management (shipping and return policies)
+ * - Email administration (templates, queue, bounces, statistics)
+ * - Event email management (reminders, auto-decline)
+ * - Promotion management (creation, vendor invitations, analytics)
+ * - Coupon management (admin coupons, site-wide sales)
+ * - System statistics and monitoring
+ * 
+ * All endpoints require 'manage_system' permission for security.
+ * 
+ * @author Beemeeart Development Team
+ * @version 1.0.0
+ */
+
 const emailService = new EmailService();
 
 // Note: All admin endpoints now use requirePermission('manage_system') instead of hardcoded admin checks
 
-// GET /admin/users - List all users
+/**
+ * List all users
+ * @route GET /api/admin/users
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Array} List of users with basic information
+ */
 router.get('/users', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/users request received, userId:', req.userId);
   try {
@@ -23,7 +51,17 @@ router.get('/users', verifyToken, requirePermission('manage_system'), async (req
   }
 });
 
-// POST /admin/users - Add a new user
+/**
+ * Add a new user
+ * @route POST /api/admin/users
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.body.username - Username for the new user
+ * @param {string} req.body.status - User status
+ * @param {string} req.body.user_type - User type
+ * @param {Object} res - Express response object
+ * @returns {Object} Created user information
+ */
 router.post('/users', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('POST /admin/users request received, userId:', req.userId);
   const { username, status, user_type } = req.body;
@@ -50,7 +88,18 @@ router.post('/users', verifyToken, requirePermission('manage_system'), async (re
   }
 });
 
-// PUT /admin/users/:id - Update a user
+/**
+ * Update a user
+ * @route PUT /api/admin/users/:id
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - User ID to update
+ * @param {string} req.body.username - Updated username
+ * @param {string} req.body.status - Updated status
+ * @param {string} req.body.user_type - Updated user type
+ * @param {Object} res - Express response object
+ * @returns {Object} Update confirmation
+ */
 router.put('/users/:id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('PUT /admin/users/:id request received, userId:', req.userId);
   const { id } = req.params;
@@ -68,7 +117,15 @@ router.put('/users/:id', verifyToken, requirePermission('manage_system'), async 
   }
 });
 
-// DELETE /admin/users/:id - Delete a user
+/**
+ * Delete a user
+ * @route DELETE /api/admin/users/:id
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - User ID to delete
+ * @param {Object} res - Express response object
+ * @returns {Object} Deletion confirmation
+ */
 router.delete('/users/:id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('DELETE /admin/users/:id request received, userId:', req.userId);
   const { id } = req.params;
@@ -82,7 +139,15 @@ router.delete('/users/:id', verifyToken, requirePermission('manage_system'), asy
   }
 });
 
-// GET /admin/users/:id/permissions - Get user's permissions
+/**
+ * Get user's permissions
+ * @route GET /api/admin/users/:id/permissions
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - User ID
+ * @param {Object} res - Express response object
+ * @returns {Object} User permissions
+ */
 router.get('/users/:id/permissions', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/users/:id/permissions request received, userId:', req.userId);
   const { id } = req.params;
@@ -108,7 +173,21 @@ router.get('/users/:id/permissions', verifyToken, requirePermission('manage_syst
   }
 });
 
-// PUT /admin/users/:id/permissions - Update user's permissions
+/**
+ * Update user's permissions
+ * @route PUT /api/admin/users/:id/permissions
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - User ID
+ * @param {boolean} req.body.vendor - Vendor permission
+ * @param {boolean} req.body.events - Events permission
+ * @param {boolean} req.body.stripe_connect - Stripe Connect permission
+ * @param {boolean} req.body.manage_sites - Site management permission
+ * @param {boolean} req.body.manage_content - Content management permission
+ * @param {boolean} req.body.manage_system - System management permission
+ * @param {Object} res - Express response object
+ * @returns {Object} Update confirmation
+ */
 router.put('/users/:id/permissions', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('PUT /admin/users/:id/permissions request received, userId:', req.userId);
   const { id } = req.params;
@@ -178,7 +257,14 @@ router.put('/users/:id/permissions', verifyToken, requirePermission('manage_syst
 
 // ===== POLICY MANAGEMENT ENDPOINTS =====
 
-// GET /admin/default-policies - Get default shipping policy
+/**
+ * Get default shipping policy
+ * @route GET /api/admin/default-policies
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Default shipping policy information
+ */
 router.get('/default-policies', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     console.log('GET /admin/default-policies request received, userId:', req.userId);
@@ -195,7 +281,7 @@ router.get('/default-policies', verifyToken, requirePermission('manage_system'),
       WHERE sp.user_id IS NULL AND sp.status = 'active'
     `;
     
-    const [rows] = await db.execute(query);
+    const [rows] = await db.query(query);
     
     res.json({
       success: true,
@@ -210,7 +296,15 @@ router.get('/default-policies', verifyToken, requirePermission('manage_system'),
   }
 });
 
-// PUT /admin/default-policies - Update default shipping policy
+/**
+ * Update default shipping policy
+ * @route PUT /api/admin/default-policies
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.body.policy_text - New policy text
+ * @param {Object} res - Express response object
+ * @returns {Object} Update confirmation
+ */
 router.put('/default-policies', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     console.log('PUT /admin/default-policies request received, userId:', req.userId);
@@ -262,7 +356,17 @@ router.put('/default-policies', verifyToken, requirePermission('manage_system'),
   }
 });
 
-// GET /admin/vendor-policies - Search and list vendor policies
+/**
+ * Search and list vendor policies
+ * @route GET /api/admin/vendor-policies
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.query.search - Search term for username or user ID
+ * @param {number} req.query.page - Page number for pagination
+ * @param {number} req.query.limit - Items per page
+ * @param {Object} res - Express response object
+ * @returns {Object} Paginated list of vendor policies
+ */
 router.get('/vendor-policies', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/vendor-policies request received, userId:', req.userId);
   const { search, page = 1, limit = 20 } = req.query;
@@ -328,7 +432,15 @@ router.get('/vendor-policies', verifyToken, requirePermission('manage_system'), 
   }
 });
 
-// GET /admin/vendor-policies/:user_id - Get specific vendor's policy and history
+/**
+ * Get specific vendor's policy and history
+ * @route GET /api/admin/vendor-policies/:user_id
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.user_id - Vendor user ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Vendor policy details and history
+ */
 router.get('/vendor-policies/:user_id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/vendor-policies/:user_id request received, userId:', req.userId);
   const { user_id } = req.params;
@@ -391,7 +503,16 @@ router.get('/vendor-policies/:user_id', verifyToken, requirePermission('manage_s
   }
 });
 
-// PUT /admin/vendor-policies/:user_id - Update vendor's policy as admin
+/**
+ * Update vendor's policy as admin
+ * @route PUT /api/admin/vendor-policies/:user_id
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.user_id - Vendor user ID
+ * @param {string} req.body.policy_text - New policy text
+ * @param {Object} res - Express response object
+ * @returns {Object} Update confirmation
+ */
 router.put('/vendor-policies/:user_id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('PUT /admin/vendor-policies/:user_id request received, userId:', req.userId);
   const { user_id } = req.params;
@@ -455,7 +576,15 @@ router.put('/vendor-policies/:user_id', verifyToken, requirePermission('manage_s
   }
 });
 
-// DELETE /admin/vendor-policies/:user_id - Delete vendor's policy (revert to default)
+/**
+ * Delete vendor's policy (revert to default)
+ * @route DELETE /api/admin/vendor-policies/:user_id
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.user_id - Vendor user ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Deletion confirmation
+ */
 router.delete('/vendor-policies/:user_id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('DELETE /admin/vendor-policies/:user_id request received, userId:', req.userId);
   const { user_id } = req.params;
@@ -493,7 +622,14 @@ router.delete('/vendor-policies/:user_id', verifyToken, requirePermission('manag
 
 // ===== RETURN POLICY MANAGEMENT ENDPOINTS =====
 
-// GET /admin/default-return-policies - Get default return policy
+/**
+ * Get default return policy
+ * @route GET /api/admin/default-return-policies
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Default return policy information
+ */
 router.get('/default-return-policies', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     console.log('GET /admin/default-return-policies request received, userId:', req.userId);
@@ -510,7 +646,7 @@ router.get('/default-return-policies', verifyToken, requirePermission('manage_sy
       WHERE rp.user_id IS NULL AND rp.status = 'active'
     `;
     
-    const [rows] = await db.execute(query);
+    const [rows] = await db.query(query);
     
     res.json({
       success: true,
@@ -525,7 +661,15 @@ router.get('/default-return-policies', verifyToken, requirePermission('manage_sy
   }
 });
 
-// PUT /admin/default-return-policies - Update default return policy
+/**
+ * Update default return policy
+ * @route PUT /api/admin/default-return-policies
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.body.policy_text - New return policy text
+ * @param {Object} res - Express response object
+ * @returns {Object} Update confirmation
+ */
 router.put('/default-return-policies', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     console.log('PUT /admin/default-return-policies request received, userId:', req.userId);
@@ -577,7 +721,17 @@ router.put('/default-return-policies', verifyToken, requirePermission('manage_sy
   }
 });
 
-// GET /admin/vendor-return-policies - Search and list vendor return policies
+/**
+ * Search and list vendor return policies
+ * @route GET /api/admin/vendor-return-policies
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.query.search - Search term for username or user ID
+ * @param {number} req.query.page - Page number for pagination
+ * @param {number} req.query.limit - Items per page
+ * @param {Object} res - Express response object
+ * @returns {Object} Paginated list of vendor return policies
+ */
 router.get('/vendor-return-policies', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/vendor-return-policies request received, userId:', req.userId);
   const { search, page = 1, limit = 20 } = req.query;
@@ -643,7 +797,15 @@ router.get('/vendor-return-policies', verifyToken, requirePermission('manage_sys
   }
 });
 
-// GET /admin/vendor-return-policies/:user_id - Get specific vendor's return policy and history
+/**
+ * Get specific vendor's return policy and history
+ * @route GET /api/admin/vendor-return-policies/:user_id
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.user_id - Vendor user ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Vendor return policy details and history
+ */
 router.get('/vendor-return-policies/:user_id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/vendor-return-policies/:user_id request received, userId:', req.userId);
   const { user_id } = req.params;
@@ -706,7 +868,16 @@ router.get('/vendor-return-policies/:user_id', verifyToken, requirePermission('m
   }
 });
 
-// PUT /admin/vendor-return-policies/:user_id - Update vendor's return policy as admin
+/**
+ * Update vendor's return policy as admin
+ * @route PUT /api/admin/vendor-return-policies/:user_id
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.user_id - Vendor user ID
+ * @param {string} req.body.policy_text - New return policy text
+ * @param {Object} res - Express response object
+ * @returns {Object} Update confirmation
+ */
 router.put('/vendor-return-policies/:user_id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('PUT /admin/vendor-return-policies/:user_id request received, userId:', req.userId);
   const { user_id } = req.params;
@@ -770,7 +941,15 @@ router.put('/vendor-return-policies/:user_id', verifyToken, requirePermission('m
   }
 });
 
-// DELETE /admin/vendor-return-policies/:user_id - Delete vendor's return policy (revert to default)
+/**
+ * Delete vendor's return policy (revert to default)
+ * @route DELETE /api/admin/vendor-return-policies/:user_id
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.user_id - Vendor user ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Deletion confirmation
+ */
 router.delete('/vendor-return-policies/:user_id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('DELETE /admin/vendor-return-policies/:user_id request received, userId:', req.userId);
   const { user_id } = req.params;
@@ -808,18 +987,25 @@ router.delete('/vendor-return-policies/:user_id', verifyToken, requirePermission
 
 // ===== EMAIL ADMINISTRATION ROUTES =====
 
-// GET /admin/email-stats - Get email system statistics (admin only)
+/**
+ * Get email system statistics (admin only)
+ * @route GET /api/admin/email-stats
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Comprehensive email system statistics
+ */
 router.get('/email-stats', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/email-stats request received, userId:', req.userId);
   
   try {
     // Queue stats
-    const [queueStats] = await db.execute(
+    const [queueStats] = await db.query(
       'SELECT status, COUNT(*) as count FROM email_queue GROUP BY status'
     );
 
     // Email log stats (last 30 days)
-    const [emailStats] = await db.execute(`
+    const [emailStats] = await db.query(`
       SELECT 
         DATE(sent_at) as date,
         status,
@@ -831,7 +1017,7 @@ router.get('/email-stats', verifyToken, requirePermission('manage_system'), asyn
     `);
 
     // Template usage stats
-    const [templateStats] = await db.execute(`
+    const [templateStats] = await db.query(`
       SELECT 
         et.name,
         et.template_key,
@@ -843,7 +1029,7 @@ router.get('/email-stats', verifyToken, requirePermission('manage_system'), asyn
     `);
 
     // Bounce stats
-    const [bounceStats] = await db.execute(`
+    const [bounceStats] = await db.query(`
       SELECT 
         SUBSTRING_INDEX(email_address, '@', -1) as domain,
         SUM(CASE WHEN bounce_type = 'hard' THEN bounce_count ELSE 0 END) as hard_bounces,
@@ -857,7 +1043,7 @@ router.get('/email-stats', verifyToken, requirePermission('manage_system'), asyn
     `);
 
     // User preference stats
-    const [preferenceStats] = await db.execute(`
+    const [preferenceStats] = await db.query(`
       SELECT 
         frequency,
         is_enabled,
@@ -881,16 +1067,23 @@ router.get('/email-stats', verifyToken, requirePermission('manage_system'), asyn
   }
 });
 
-// GET /admin/email-queue - Get email queue status (admin only)
+/**
+ * Get email queue status (admin only)
+ * @route GET /api/admin/email-queue
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Email queue statistics and recent items
+ */
 router.get('/email-queue', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/email-queue request received, userId:', req.userId);
   
   try {
-    const [stats] = await db.execute(
+    const [stats] = await db.query(
       'SELECT status, COUNT(*) as count FROM email_queue GROUP BY status'
     );
 
-    const [recent] = await db.execute(
+    const [recent] = await db.query(
       'SELECT eq.*, et.name as template_name, u.username FROM email_queue eq JOIN email_templates et ON eq.template_id = et.id JOIN users u ON eq.user_id = u.id ORDER BY eq.created_at DESC LIMIT 20'
     );
 
@@ -905,12 +1098,19 @@ router.get('/email-queue', verifyToken, requirePermission('manage_system'), asyn
   }
 });
 
-// GET /admin/email-templates - Get all email templates (admin only)
+/**
+ * Get all email templates (admin only)
+ * @route GET /api/admin/email-templates
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Array} List of email templates
+ */
 router.get('/email-templates', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/email-templates request received, userId:', req.userId);
   
   try {
-    const [templates] = await db.execute(`
+    const [templates] = await db.query(`
       SELECT 
         id,
         template_key,
@@ -934,12 +1134,19 @@ router.get('/email-templates', verifyToken, requirePermission('manage_system'), 
   }
 });
 
-// GET /admin/email-bounces - Get bounce tracking information (admin only)
+/**
+ * Get bounce tracking information (admin only)
+ * @route GET /api/admin/email-bounces
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Array} Email bounce tracking data
+ */
 router.get('/email-bounces', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/email-bounces request received, userId:', req.userId);
   
   try {
-    const [bounces] = await db.execute(`
+    const [bounces] = await db.query(`
       SELECT 
         bt.id,
         bt.email_address,
@@ -977,7 +1184,16 @@ router.get('/email-bounces', verifyToken, requirePermission('manage_system'), as
   }
 });
 
-// GET /admin/email-recent - Get recent email activity (admin only)
+/**
+ * Get recent email activity (admin only)
+ * @route GET /api/admin/email-recent
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {number} req.query.limit - Number of emails to retrieve
+ * @param {number} req.query.offset - Offset for pagination
+ * @param {Object} res - Express response object
+ * @returns {Object} Recent email activity with pagination
+ */
 router.get('/email-recent', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/email-recent request received, userId:', req.userId);
   
@@ -988,7 +1204,7 @@ router.get('/email-recent', verifyToken, requirePermission('manage_system'), asy
     console.log('Query parameters:', { limit, offset });
 
     // Use string concatenation for LIMIT/OFFSET to avoid parameter issues
-    const [recent] = await db.execute(`
+    const [recent] = await db.query(`
       SELECT 
         el.*
       FROM email_log el
@@ -997,7 +1213,7 @@ router.get('/email-recent', verifyToken, requirePermission('manage_system'), asy
     `);
 
     // Get total count
-    const [countResult] = await db.execute('SELECT COUNT(*) as total FROM email_log');
+    const [countResult] = await db.query('SELECT COUNT(*) as total FROM email_log');
     const total = countResult[0].total;
 
     res.json({
@@ -1014,7 +1230,17 @@ router.get('/email-recent', verifyToken, requirePermission('manage_system'), asy
   }
 });
 
-// POST /admin/email-test - Send test email (admin only)
+/**
+ * Send test email (admin only)
+ * @route POST /api/admin/email-test
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.body.recipient - Email recipient (user ID or email)
+ * @param {string} req.body.templateKey - Email template key
+ * @param {Object} req.body.testData - Test data for email template
+ * @param {Object} res - Express response object
+ * @returns {Object} Test email send confirmation
+ */
 router.post('/email-test', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('POST /admin/email-test request received, userId:', req.userId);
   console.log('Request headers:', req.headers);
@@ -1036,7 +1262,7 @@ router.post('/email-test', verifyToken, requirePermission('manage_system'), asyn
     let targetUserId = null;
     if (recipient.includes('@')) {
       // Email address - find user by email domain (since email is username in this system)
-      const [userRows] = await db.execute(
+      const [userRows] = await db.query(
         'SELECT id FROM users WHERE username = ?',
         [recipient]
       );
@@ -1078,7 +1304,14 @@ router.post('/email-test', verifyToken, requirePermission('manage_system'), asyn
   }
 });
 
-// POST /admin/email-process-queue - Manually process email queue (admin only)
+/**
+ * Manually process email queue (admin only)
+ * @route POST /api/admin/email-process-queue
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Queue processing confirmation
+ */
 router.post('/email-process-queue', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('POST /admin/email-process-queue request received, userId:', req.userId);
   
@@ -1097,7 +1330,15 @@ router.post('/email-process-queue', verifyToken, requirePermission('manage_syste
   }
 });
 
-// POST /admin/email-bounces-unblacklist - Remove domain from blacklist (admin only)
+/**
+ * Remove domain from blacklist (admin only)
+ * @route POST /api/admin/email-bounces-unblacklist
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.body.domain - Domain to remove from blacklist
+ * @param {Object} res - Express response object
+ * @returns {Object} Unblacklist confirmation
+ */
 router.post('/email-bounces-unblacklist', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('POST /admin/email-bounces-unblacklist request received, userId:', req.userId);
   
@@ -1108,7 +1349,7 @@ router.post('/email-bounces-unblacklist', verifyToken, requirePermission('manage
       return res.status(400).json({ error: 'Domain is required' });
     }
 
-    await db.execute(`
+    await db.query(`
       UPDATE bounce_tracking 
       SET is_blacklisted = 0,
           bounce_count = 0,
@@ -1133,7 +1374,7 @@ router.post('/email-bounces-unblacklist', verifyToken, requirePermission('manage
 router.get('/event-email-stats', verifyToken, requirePermission('manage_system'), async (req, res) => {
     try {
         // Get application email statistics
-        const [emailStats] = await db.execute(`
+        const [emailStats] = await db.query(`
             SELECT 
                 email_type,
                 COUNT(*) as total_sent,
@@ -1145,7 +1386,7 @@ router.get('/event-email-stats', verifyToken, requirePermission('manage_system')
         `);
 
         // Get recent email activity
-        const [recentActivity] = await db.execute(`
+        const [recentActivity] = await db.query(`
             SELECT 
                 ael.email_type,
                 ael.sent_at,
@@ -1162,7 +1403,7 @@ router.get('/event-email-stats', verifyToken, requirePermission('manage_system')
         `);
 
         // Get applications needing reminders
-        const [reminderStats] = await db.execute(`
+        const [reminderStats] = await db.query(`
             SELECT 
                 COUNT(CASE WHEN DATE(booth_fee_due_date) = DATE(DATE_ADD(NOW(), INTERVAL 3 DAY)) THEN 1 END) as due_soon,
                 COUNT(CASE WHEN DATE(booth_fee_due_date) = DATE(DATE_SUB(NOW(), INTERVAL 1 DAY)) THEN 1 END) as overdue,
@@ -1266,7 +1507,7 @@ router.post('/send-test-booth-fee-email', verifyToken, requirePermission('manage
                 break;
             case 'booth_fee_confirmation':
                 // For testing, we'll need a payment intent ID
-                const [paymentData] = await db.execute(`
+                const [paymentData] = await db.query(`
                     SELECT payment_intent_id FROM event_booth_fees WHERE application_id = ?
                 `, [application_id]);
                 
@@ -1296,7 +1537,7 @@ router.post('/send-test-booth-fee-email', verifyToken, requirePermission('manage
  */
 router.get('/applications-needing-reminders', verifyToken, requirePermission('manage_system'), async (req, res) => {
     try {
-        const [applications] = await db.execute(`
+        const [applications] = await db.query(`
             SELECT 
                 ea.id,
                 ea.booth_fee_amount,
@@ -1356,7 +1597,11 @@ router.get('/applications-needing-reminders', verifyToken, requirePermission('ma
 
 /**
  * Get all promotions
- * GET /api/admin/promotions/all
+ * @route GET /api/admin/promotions/all
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} List of all promotions
  */
 router.get('/promotions/all', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -1374,7 +1619,22 @@ router.get('/promotions/all', verifyToken, requirePermission('manage_system'), a
 
 /**
  * Create new promotion
- * POST /api/admin/promotions/create
+ * @route POST /api/admin/promotions/create
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.body.name - Promotion name
+ * @param {string} req.body.description - Promotion description
+ * @param {number} req.body.admin_discount_percentage - Admin discount percentage
+ * @param {number} req.body.suggested_vendor_discount - Suggested vendor discount
+ * @param {string} req.body.application_type - Application type (auto_apply or coupon_code)
+ * @param {string} req.body.coupon_code - Coupon code (if application_type is coupon_code)
+ * @param {number} req.body.min_order_amount - Minimum order amount
+ * @param {number} req.body.usage_limit_per_user - Usage limit per user
+ * @param {number} req.body.total_usage_limit - Total usage limit
+ * @param {string} req.body.valid_from - Valid from date
+ * @param {string} req.body.valid_until - Valid until date
+ * @param {Object} res - Express response object
+ * @returns {Object} Created promotion information
  */
 router.post('/promotions/create', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -1468,7 +1728,16 @@ router.post('/promotions/create', verifyToken, requirePermission('manage_system'
 
 /**
  * Update promotion (status, etc.)
- * PUT /api/admin/promotions/:id
+ * @route PUT /api/admin/promotions/:id
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Promotion ID
+ * @param {string} req.body.status - Promotion status
+ * @param {string} req.body.name - Promotion name
+ * @param {string} req.body.description - Promotion description
+ * @param {string} req.body.valid_until - Valid until date
+ * @param {Object} res - Express response object
+ * @returns {Object} Update confirmation
  */
 router.put('/promotions/:id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -1476,7 +1745,7 @@ router.put('/promotions/:id', verifyToken, requirePermission('manage_system'), a
     const { status, name, description, valid_until } = req.body;
     
     // Verify promotion exists
-    const [promotionCheck] = await db.execute(
+    const [promotionCheck] = await db.query(
       'SELECT id FROM promotions WHERE id = ?',
       [promotionId]
     );
@@ -1508,7 +1777,7 @@ router.put('/promotions/:id', verifyToken, requirePermission('manage_system'), a
     params.push(promotionId);
     
     const updateQuery = `UPDATE promotions SET ${updates.join(', ')} WHERE id = ?`;
-    await db.execute(updateQuery, params);
+    await db.query(updateQuery, params);
     
     res.json({
       success: true,
@@ -1535,7 +1804,7 @@ router.post('/promotions/:id/invite-vendors', verifyToken, requirePermission('ma
     }
     
     // Verify promotion exists and belongs to admin
-    const [promotionCheck] = await db.execute(
+    const [promotionCheck] = await db.query(
       'SELECT id, status FROM promotions WHERE id = ?',
       [promotionId]
     );
@@ -1649,7 +1918,7 @@ router.get('/promotions/:id/vendor-suggestions', verifyToken, requirePermission(
       ORDER BY pp.created_at DESC
     `;
     
-    const [suggestions] = await db.execute(suggestionsQuery, [promotionId]);
+    const [suggestions] = await db.query(suggestionsQuery, [promotionId]);
     
     res.json({
       success: true,
@@ -1676,7 +1945,7 @@ router.post('/promotions/:id/approve-suggestion', verifyToken, requirePermission
     }
     
     // Verify suggestion exists and belongs to promotion
-    const [suggestionCheck] = await db.execute(
+    const [suggestionCheck] = await db.query(
       `SELECT id FROM promotion_products 
        WHERE id = ? AND promotion_id = ? AND added_by = 'vendor' AND approval_status = 'pending'`,
       [suggestion_id, promotionId]
@@ -1696,7 +1965,7 @@ router.post('/promotions/:id/approve-suggestion', verifyToken, requirePermission
       WHERE id = ?
     `;
     
-    await db.execute(updateQuery, [admin_discount_percentage, vendor_discount_percentage, suggestion_id]);
+    await db.query(updateQuery, [admin_discount_percentage, vendor_discount_percentage, suggestion_id]);
     
     res.json({
       success: true,
@@ -1723,7 +1992,7 @@ router.post('/promotions/:id/reject-suggestion', verifyToken, requirePermission(
     }
     
     // Verify suggestion exists and belongs to promotion
-    const [suggestionCheck] = await db.execute(
+    const [suggestionCheck] = await db.query(
       `SELECT id FROM promotion_products 
        WHERE id = ? AND promotion_id = ? AND added_by = 'vendor' AND approval_status = 'pending'`,
       [suggestion_id, promotionId]
@@ -1734,7 +2003,7 @@ router.post('/promotions/:id/reject-suggestion', verifyToken, requirePermission(
     }
     
     // Update suggestion
-    await db.execute(
+    await db.query(
       'UPDATE promotion_products SET approval_status = \'rejected\' WHERE id = ?',
       [suggestion_id]
     );
@@ -1752,7 +2021,11 @@ router.post('/promotions/:id/reject-suggestion', verifyToken, requirePermission(
 
 /**
  * Get all admin coupons
- * GET /api/admin/coupons/all
+ * @route GET /api/admin/coupons/all
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} List of all admin coupons
  */
 router.get('/coupons/all', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -1770,7 +2043,25 @@ router.get('/coupons/all', verifyToken, requirePermission('manage_system'), asyn
 
 /**
  * Create admin coupon for vendors
- * POST /api/admin/coupons
+ * @route POST /api/admin/coupons
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.body.code - Coupon code
+ * @param {string} req.body.name - Coupon name
+ * @param {string} req.body.description - Coupon description
+ * @param {string} req.body.discount_type - Discount type (percentage or fixed_amount)
+ * @param {number} req.body.discount_value - Discount value
+ * @param {string} req.body.application_type - Application type
+ * @param {number} req.body.min_order_amount - Minimum order amount
+ * @param {number} req.body.usage_limit_per_user - Usage limit per user
+ * @param {number} req.body.total_usage_limit - Total usage limit
+ * @param {string} req.body.valid_from - Valid from date
+ * @param {string} req.body.valid_until - Valid until date
+ * @param {number} req.body.vendor_id - Vendor ID for vendor-specific coupons
+ * @param {Array} req.body.product_ids - Product IDs for product-specific coupons
+ * @param {number} req.body.max_discount_amount - Maximum discount amount
+ * @param {Object} res - Express response object
+ * @returns {Object} Created coupon information
  */
 router.post('/coupons', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -2061,7 +2352,7 @@ router.put('/sales/:id', verifyToken, requirePermission('manage_system'), async 
     const { is_active, name, description, discount_value, valid_until } = req.body;
     
     // Verify sale exists and is a site_sale type
-    const [saleCheck] = await db.execute(
+    const [saleCheck] = await db.query(
       'SELECT id FROM coupons WHERE id = ? AND coupon_type = \'site_sale\'',
       [saleId]
     );
@@ -2091,7 +2382,7 @@ router.put('/sales/:id', verifyToken, requirePermission('manage_system'), async 
     params.push(saleId);
     
     const updateQuery = `UPDATE coupons SET ${updates.join(', ')} WHERE id = ?`;
-    await db.execute(updateQuery, params);
+    await db.query(updateQuery, params);
     
     res.json({
       success: true,
@@ -2124,7 +2415,7 @@ router.get('/promotions/analytics/overview', verifyToken, requirePermission('man
       LEFT JOIN promotion_products pp ON p.id = pp.promotion_id AND pp.approval_status = 'approved'
     `;
     
-    const [overview] = await db.execute(overviewQuery);
+    const [overview] = await db.query(overviewQuery);
     
     // Get recent promotion activity
     const activityQuery = `
@@ -2151,7 +2442,7 @@ router.get('/promotions/analytics/overview', verifyToken, requirePermission('man
       LIMIT 20
     `;
     
-    const [activity] = await db.execute(activityQuery);
+    const [activity] = await db.query(activityQuery);
     
     res.json({
       success: true,
@@ -2164,5 +2455,8 @@ router.get('/promotions/analytics/overview', verifyToken, requirePermission('man
     res.status(500).json({ error: 'Failed to get promotion analytics' });
   }
 });
+
+// Mount maintenance control routes
+router.use('/maintenance', maintenanceRoutes);
 
 module.exports = router;

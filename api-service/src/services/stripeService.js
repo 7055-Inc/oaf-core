@@ -1,8 +1,26 @@
+/**
+ * Stripe Service
+ * Comprehensive payment processing service for the Beemeeart platform
+ * Handles vendor accounts, payment intents, tax calculations, subscriptions, and financial reporting
+ */
+
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../../config/db');
 
+/**
+ * StripeService Class
+ * Provides enterprise-grade payment processing with Stripe Connect for multi-vendor marketplace,
+ * tax calculation, subscription management, and comprehensive financial reporting
+ */
 class StripeService {
+  /**
+   * Initialize StripeService with Stripe SDK
+   * Validates Stripe secret key configuration
+   */
   constructor() {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error('STRIPE_SECRET_KEY environment variable is required');
+    }
     this.stripe = stripe;
   }
 
@@ -10,6 +28,13 @@ class StripeService {
   
   /**
    * Create a Stripe Connect account for a vendor
+   * Sets up Express account with card payments and transfers capability
+   * 
+   * @param {number} vendorId - Vendor user ID
+   * @param {string} email - Vendor email address
+   * @param {Object} businessInfo - Additional business information
+   * @returns {Promise<Object>} Stripe account object
+   * @throws {Error} If account creation fails
    */
   async createVendorAccount(vendorId, email, businessInfo = {}) {
     try {
@@ -24,7 +49,7 @@ class StripeService {
         business_type: 'individual',
         metadata: {
           vendor_id: vendorId.toString(),
-          platform: 'oaf'
+          platform: 'beemeeart'
         }
       });
 
@@ -39,12 +64,18 @@ class StripeService {
   }
 
   /**
-   * Generate onboarding link for vendor
+   * Generate onboarding link for vendor Stripe Connect setup
+   * Creates account link with proper return and refresh URLs
+   * 
+   * @param {string} stripeAccountId - Stripe Connect account ID
+   * @param {number} vendorId - Vendor user ID
+   * @returns {Promise<Object>} Stripe account link object
+   * @throws {Error} If link creation fails
    */
   async createAccountLink(stripeAccountId, vendorId) {
     try {
-      // Force HTTPS URLs for Stripe Connect onboarding
-      const baseUrl = process.env.CLIENT_URL?.replace('http://', 'https://') || 'https://main.onlineartfestival.com';
+      // Use environment-configured frontend URL for Stripe Connect onboarding
+      const baseUrl = process.env.FRONTEND_URL || 'https://beemeeart.com';
       
       const accountLink = await this.stripe.accountLinks.create({
         account: stripeAccountId,
@@ -85,6 +116,15 @@ class StripeService {
 
   /**
    * Create payment intent for multi-vendor order
+   * Handles amount conversion and metadata for order tracking
+   * 
+   * @param {Object} orderData - Order data including amount, currency, customer
+   * @param {number} orderData.total_amount - Total amount in dollars
+   * @param {string} orderData.currency - Currency code (default: 'usd')
+   * @param {string} orderData.customer_id - Stripe customer ID (optional)
+   * @param {Object} orderData.metadata - Additional metadata
+   * @returns {Promise<Object>} Stripe payment intent object
+   * @throws {Error} If payment intent creation fails
    */
   async createPaymentIntent(orderData) {
     try {
@@ -95,7 +135,7 @@ class StripeService {
         currency: currency.toLowerCase(),
         metadata: {
           order_id: metadata.order_id?.toString(),
-          platform: 'oaf',
+          platform: 'beemeeart',
           ...metadata
         },
         automatic_payment_methods: {
@@ -119,6 +159,14 @@ class StripeService {
 
   /**
    * Calculate tax using Stripe Tax API
+   * Provides accurate tax calculation based on customer address and line items
+   * 
+   * @param {Object} taxData - Tax calculation data
+   * @param {Array} taxData.line_items - Array of line items for tax calculation
+   * @param {Object} taxData.customer_address - Customer shipping address
+   * @param {string} taxData.currency - Currency code (default: 'usd')
+   * @returns {Promise<Object>} Stripe tax calculation object
+   * @throws {Error} If tax calculation fails
    */
   async calculateTax(taxData) {
     try {
@@ -233,7 +281,7 @@ class StripeService {
         currency: currency.toLowerCase(),
         expires_at: expires_at, // Custom expiration timestamp
         metadata: {
-          platform: 'oaf',
+          platform: 'beemeeart',
           payment_type: 'event_booth_fee',
           ...metadata
         },
@@ -277,6 +325,12 @@ class StripeService {
 
   /**
    * Process vendor transfers after successful payment
+   * Distributes payment to vendors based on commission structure
+   * 
+   * @param {number} orderId - Order ID for transfer processing
+   * @param {string} paymentIntentId - Stripe payment intent ID
+   * @returns {Promise<Array>} Array of transfer objects
+   * @throws {Error} If transfer processing fails
    */
   async processVendorTransfers(orderId, paymentIntentId) {
     try {
@@ -328,6 +382,11 @@ class StripeService {
 
   /**
    * Calculate commission for order items with proper Stripe fee handling
+   * Supports both commission and pass-through fee structures
+   * 
+   * @param {Array} orderItems - Array of order items to calculate commissions for
+   * @returns {Promise<Array>} Array of items with commission calculations
+   * @throws {Error} If commission calculation fails
    */
   async calculateCommissions(orderItems) {
     const itemsWithCommissions = [];
@@ -654,7 +713,7 @@ class StripeService {
         name: name,
         metadata: {
           user_id: userId.toString(),
-          platform: 'oaf'
+          platform: 'beemeeart'
         }
       });
 
@@ -704,7 +763,7 @@ class StripeService {
         metadata: {
           user_id: userId.toString(),
           type: 'verification',
-          platform: 'oaf'
+          platform: 'beemeeart'
         },
         payment_behavior: 'default_incomplete',
         payment_settings: { 
@@ -855,7 +914,7 @@ class StripeService {
           user_id: userId.toString(),
           subscription_id: subscriptionId,
           type: 'verification_payment',
-          platform: 'oaf'
+          platform: 'beemeeart'
         }
       });
 

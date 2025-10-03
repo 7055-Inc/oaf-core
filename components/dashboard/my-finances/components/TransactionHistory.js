@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
 import styles from '../../../../pages/dashboard/Dashboard.module.css';
 
 export default function TransactionHistory({ userData }) {
@@ -23,7 +24,7 @@ export default function TransactionHistory({ userData }) {
   // Check if user is admin
   const checkAdminStatus = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/users/me', {
+      const response = await authApiRequest('users/me', {
         method: 'GET'
       });
 
@@ -51,10 +52,10 @@ export default function TransactionHistory({ userData }) {
 
       // Use admin endpoint if showing all transactions, otherwise use vendor endpoint
       const endpoint = showAllTransactions && isAdmin 
-        ? `https://api2.onlineartfestival.com/admin/all-transactions?${queryParams}`
-        : `https://api2.onlineartfestival.com/api/vendor-financials/my-transactions?${queryParams}`;
+        ? `admin/all-transactions?${queryParams}`
+        : `api/vendor-financials/my-transactions?${queryParams}`;
 
-      const response = await authenticatedApiRequest(endpoint, {
+      const response = await authApiRequest(endpoint, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -87,8 +88,8 @@ export default function TransactionHistory({ userData }) {
   const [balance, setBalance] = useState(null);
   const fetchBalance = async () => {
     try {
-      const response = await authenticatedApiRequest(
-        'https://api2.onlineartfestival.com/api/vendor-financials/my-balance',
+      const response = await authApiRequest(
+        'api/vendor-financials/my-balance',
         {
           method: 'GET',
           headers: {

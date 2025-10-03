@@ -1,0 +1,1143 @@
+openapi: 3.0.0
+info:
+  title: Vendor Management API
+  description: Comprehensive vendor management system for marketplace operations including orders, financials, Stripe integration, policies, coupons, and promotions
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/api
+    description: Production server
+
+paths:
+  /vendor/orders:
+    get:
+      summary: Get vendor orders
+      description: Get paginated list of vendor's orders with optional status filtering
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+          description: Page number
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+          description: Items per page
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, paid, processing, shipped, delivered, cancelled, refunded, all]
+          description: Filter by order status
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorOrdersResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vendor/orders/my:
+    get:
+      summary: Get vendor orders (alternative)
+      description: Get vendor orders with shipping status filtering
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [unshipped, shipped]
+          description: Filter by shipping status
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorOrdersMyResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vendor/dashboard:
+    get:
+      summary: Get vendor dashboard
+      description: Get comprehensive vendor financial dashboard
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorDashboardResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vendor/balance:
+    get:
+      summary: Get vendor balance
+      description: Get detailed vendor balance information
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorBalanceResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vendor/transactions:
+    get:
+      summary: Get transaction history
+      description: Get paginated vendor transaction history
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+          description: Page number
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+          description: Items per page
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorTransactionsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vendor/stripe-account:
+    post:
+      summary: Create Stripe account
+      description: Create new Stripe Connect account for vendor
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStripeAccountRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StripeAccountResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vendor/shipping-policy:
+    get:
+      summary: Get shipping policy
+      description: Get vendor shipping policy with fallback to default
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      summary: Update shipping policy
+      description: Create new shipping policy version
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePolicyRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      summary: Delete shipping policy
+      description: Archive active shipping policy (reverts to platform default)
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vendor/coupons/my:
+    get:
+      summary: Get vendor coupons
+      description: Get list of vendor's created coupons
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorCouponsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vendor/coupons/create:
+    post:
+      summary: Create vendor coupon
+      description: Create new vendor coupon with comprehensive options
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCouponRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateCouponResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vendor/coupons/{id}:
+    put:
+      summary: Update vendor coupon
+      description: Update existing vendor coupon
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Coupon ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCouponRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      summary: Delete vendor coupon
+      description: Delete unused vendor coupon
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Coupon ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vendor/coupons/{id}/analytics:
+    get:
+      summary: Get coupon analytics
+      description: Get comprehensive coupon usage analytics
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Coupon ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CouponAnalyticsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Bearer token authentication with vendor or stripe_connect permissions
+
+  schemas:
+    VendorOrder:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Order ID
+        stripe_payment_intent_id:
+          type: string
+          description: Stripe payment intent ID
+        status:
+          type: string
+          enum: [pending, paid, processing, shipped, delivered, cancelled, refunded]
+          description: Order status
+        total_amount:
+          type: number
+          format: decimal
+          description: Total order amount
+        shipping_amount:
+          type: number
+          format: decimal
+          description: Shipping amount
+        created_at:
+          type: string
+          format: date-time
+          description: Order creation date
+        updated_at:
+          type: string
+          format: date-time
+          description: Order last update date
+        customer_email:
+          type: string
+          description: Customer email
+        customer_name:
+          type: string
+          description: Customer name
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendorOrderItem'
+
+    VendorOrderItem:
+      type: object
+      properties:
+        product_id:
+          type: integer
+          description: Product ID
+        product_name:
+          type: string
+          description: Product name
+        quantity:
+          type: integer
+          description: Item quantity
+        price:
+          type: number
+          format: decimal
+          description: Item price
+        commission_rate:
+          type: number
+          format: decimal
+          description: Commission rate
+        commission_amount:
+          type: number
+          format: decimal
+          description: Commission amount
+        shipping_cost:
+          type: number
+          format: decimal
+          description: Shipping cost
+        vendor_receives:
+          type: number
+          format: decimal
+          description: Amount vendor receives
+
+    VendorOrderMy:
+      type: object
+      properties:
+        order_id:
+          type: integer
+          description: Order ID
+        created_at:
+          type: string
+          format: date-time
+          description: Order creation date
+        order_status:
+          type: string
+          description: Order status
+        customer_name:
+          type: string
+          description: Customer name
+        shipping_address:
+          $ref: '#/components/schemas/ShippingAddress'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendorOrderItemMy'
+
+    VendorOrderItemMy:
+      type: object
+      properties:
+        item_id:
+          type: integer
+          description: Item ID
+        product_id:
+          type: integer
+          description: Product ID
+        product_name:
+          type: string
+          description: Product name
+        quantity:
+          type: integer
+          description: Item quantity
+        price:
+          type: number
+          format: decimal
+          description: Item price
+        shipping_cost:
+          type: number
+          format: decimal
+          description: Shipping cost
+        item_status:
+          type: string
+          description: Item status
+        shipped_at:
+          type: string
+          format: date-time
+          description: Shipping date
+          nullable: true
+
+    ShippingAddress:
+      type: object
+      properties:
+        street:
+          type: string
+          description: Street address
+        address_line_2:
+          type: string
+          description: Address line 2
+        city:
+          type: string
+          description: City
+        state:
+          type: string
+          description: State
+        zip:
+          type: string
+          description: ZIP code
+        country:
+          type: string
+          description: Country
+        recipient_name:
+          type: string
+          description: Recipient name
+
+    VendorBalance:
+      type: object
+      properties:
+        available_balance:
+          type: number
+          format: decimal
+          description: Available balance
+        pending_payout:
+          type: number
+          format: decimal
+          description: Pending payout amount
+        total_sales:
+          type: number
+          format: decimal
+          description: Total sales amount
+        total_orders:
+          type: integer
+          description: Total order count
+        current_balance:
+          type: number
+          format: decimal
+          description: Current available balance
+
+    VendorTransaction:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Transaction ID
+        vendor_id:
+          type: integer
+          description: Vendor ID
+        order_id:
+          type: integer
+          description: Order ID
+          nullable: true
+        transaction_type:
+          type: string
+          enum: [sale, commission, payout, refund, adjustment, subscription_charge]
+          description: Transaction type
+        amount:
+          type: number
+          format: decimal
+          description: Transaction amount
+        commission_amount:
+          type: number
+          format: decimal
+          description: Commission amount
+          nullable: true
+        status:
+          type: string
+          enum: [pending, completed, failed, cancelled]
+          description: Transaction status
+        payout_date:
+          type: string
+          format: date
+          description: Payout date
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        order_number:
+          type: integer
+          description: Order number
+          nullable: true
+        type_display:
+          type: string
+          description: Human-readable transaction type
+
+    VendorPayout:
+      type: object
+      properties:
+        payout_date:
+          type: string
+          format: date
+          description: Payout date
+        transaction_count:
+          type: integer
+          description: Number of transactions
+        payout_amount:
+          type: number
+          format: decimal
+          description: Payout amount
+
+    VendorSettings:
+      type: object
+      properties:
+        commission_rate:
+          type: number
+          format: decimal
+          description: Commission rate
+        minimum_payout:
+          type: number
+          format: decimal
+          description: Minimum payout amount
+        stripe_account_id:
+          type: string
+          description: Stripe account ID
+          nullable: true
+        stripe_account_verified:
+          type: boolean
+          description: Stripe account verification status
+          nullable: true
+        payment_schedule:
+          type: string
+          enum: [weekly, biweekly, monthly]
+          description: Payment schedule
+
+    StripeAccount:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Stripe account ID
+        charges_enabled:
+          type: boolean
+          description: Charges enabled status
+        payouts_enabled:
+          type: boolean
+          description: Payouts enabled status
+        details_submitted:
+          type: boolean
+          description: Details submitted status
+
+    Policy:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Policy ID
+        policy_text:
+          type: string
+          description: Policy text content
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Update timestamp
+        created_by_username:
+          type: string
+          description: Creator username
+        policy_source:
+          type: string
+          enum: [custom, default]
+          description: Policy source type
+
+    VendorCoupon:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Coupon ID
+        code:
+          type: string
+          description: Coupon code
+        name:
+          type: string
+          description: Coupon name
+        discount_type:
+          type: string
+          enum: [percentage, fixed_amount]
+          description: Discount type
+        discount_value:
+          type: number
+          format: decimal
+          description: Discount value
+        is_active:
+          type: boolean
+          description: Active status
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+
+    CouponAnalytics:
+      type: object
+      properties:
+        overall:
+          type: object
+          properties:
+            unique_users:
+              type: integer
+              description: Number of unique users
+            total_uses:
+              type: integer
+              description: Total number of uses
+            total_discount_given:
+              type: number
+              format: decimal
+              description: Total discount amount given
+        daily_usage:
+          type: array
+          items:
+            type: object
+            properties:
+              use_date:
+                type: string
+                format: date
+                description: Usage date
+              daily_uses:
+                type: integer
+                description: Uses on this date
+              total_discount_given:
+                type: number
+                format: decimal
+                description: Total discount given on this date
+              avg_discount_per_use:
+                type: number
+                format: decimal
+                description: Average discount per use
+
+    CreateStripeAccountRequest:
+      type: object
+      properties:
+        business_info:
+          type: object
+          properties:
+            business_type:
+              type: string
+              enum: [individual, company]
+              description: Business type
+            country:
+              type: string
+              description: Country code
+          description: Business information for Stripe account
+
+    UpdatePolicyRequest:
+      type: object
+      required:
+        - policy_text
+      properties:
+        policy_text:
+          type: string
+          description: Policy text content
+
+    CreateCouponRequest:
+      type: object
+      required:
+        - code
+        - name
+        - discount_type
+        - discount_value
+        - application_type
+        - valid_from
+      properties:
+        code:
+          type: string
+          description: Unique coupon code
+        name:
+          type: string
+          description: Coupon name
+        description:
+          type: string
+          description: Coupon description
+        discount_type:
+          type: string
+          enum: [percentage, fixed_amount]
+          description: Discount type
+        discount_value:
+          type: number
+          format: decimal
+          description: Discount value
+        application_type:
+          type: string
+          enum: [auto_apply, coupon_code]
+          description: Application type
+        min_order_amount:
+          type: number
+          format: decimal
+          default: 0
+          description: Minimum order amount
+        usage_limit_per_user:
+          type: integer
+          default: 1
+          description: Usage limit per user
+        total_usage_limit:
+          type: integer
+          description: Total usage limit
+        valid_from:
+          type: string
+          format: date-time
+          description: Valid from date
+        valid_until:
+          type: string
+          format: date-time
+          description: Valid until date
+        product_ids:
+          type: array
+          items:
+            type: integer
+          description: Product IDs to include (empty = all vendor products)
+
+    UpdateCouponRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Coupon name
+        description:
+          type: string
+          description: Coupon description
+        discount_value:
+          type: number
+          format: decimal
+          description: Discount value
+        min_order_amount:
+          type: number
+          format: decimal
+          description: Minimum order amount
+        usage_limit_per_user:
+          type: integer
+          description: Usage limit per user
+        total_usage_limit:
+          type: integer
+          description: Total usage limit
+        valid_until:
+          type: string
+          format: date-time
+          description: Valid until date
+        is_active:
+          type: boolean
+          description: Active status
+        product_ids:
+          type: array
+          items:
+            type: integer
+          description: Product IDs to include
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Current page number
+        limit:
+          type: integer
+          description: Items per page
+        total:
+          type: integer
+          description: Total number of items
+        pages:
+          type: integer
+          description: Total number of pages
+
+    VendorOrdersResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendorOrder'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    VendorOrdersMyResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendorOrderMy'
+
+    VendorDashboardResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        dashboard:
+          type: object
+          properties:
+            balance:
+              $ref: '#/components/schemas/VendorBalance'
+            recent_transactions:
+              type: array
+              items:
+                $ref: '#/components/schemas/VendorTransaction'
+            upcoming_payouts:
+              type: array
+              items:
+                $ref: '#/components/schemas/VendorPayout'
+            vendor_settings:
+              $ref: '#/components/schemas/VendorSettings'
+            stripe_account:
+              $ref: '#/components/schemas/StripeAccount'
+
+    VendorBalanceResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        balance:
+          $ref: '#/components/schemas/VendorBalance'
+
+    VendorTransactionsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendorTransaction'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    StripeAccountResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        stripe_account:
+          type: object
+          properties:
+            id:
+              type: string
+              description: Stripe account ID
+            onboarding_url:
+              type: string
+              description: Onboarding URL
+
+    PolicyResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        policy:
+          $ref: '#/components/schemas/Policy'
+
+    VendorCouponsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        coupons:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendorCoupon'
+
+    CreateCouponResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        coupon_id:
+          type: integer
+          description: Created coupon ID
+        message:
+          type: string
+          description: Success message
+
+    CouponAnalyticsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        coupon:
+          type: object
+          properties:
+            id:
+              type: integer
+              description: Coupon ID
+            name:
+              type: string
+              description: Coupon name
+            current_usage_count:
+              type: integer
+              description: Current usage count
+        analytics:
+          $ref: '#/components/schemas/CouponAnalytics'
+
+    MessageResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: string
+          description: Additional error details
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missing_fields:
+              summary: Missing required fields
+              value:
+                error: "Missing required fields"
+            invalid_discount:
+              summary: Invalid discount value
+              value:
+                error: "Invalid discount value"
+            duplicate_code:
+              summary: Duplicate coupon code
+              value:
+                error: "Coupon code already exists"
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Unauthorized access"
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            vendor_required:
+              summary: Vendor permission required
+              value:
+                error: "Insufficient permissions - requires vendor"
+            stripe_connect_required:
+              summary: Stripe Connect permission required
+              value:
+                error: "Insufficient permissions - requires stripe_connect"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            vendor_not_found:
+              summary: Vendor not found
+              value:
+                error: "Vendor not found"
+            coupon_not_found:
+              summary: Coupon not found
+              value:
+                error: "Coupon not found or not owned by vendor"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            orders_error:
+              summary: Failed to fetch orders
+              value:
+                error: "Failed to fetch orders"
+            dashboard_error:
+              summary: Failed to load dashboard
+              value:
+                error: "Failed to load dashboard"
+            stripe_error:
+              summary: Failed to create Stripe account
+              value:
+                error: "Failed to create Stripe account"
+
+tags:
+  - name: Vendor Management
+    description: Comprehensive vendor management system for marketplace operations

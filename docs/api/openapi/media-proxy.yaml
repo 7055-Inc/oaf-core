@@ -1,0 +1,412 @@
+openapi: 3.0.0
+info:
+  title: Media Proxy API
+  description: Media serving and proxy functionality with format negotiation and optimization
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/api/media
+    description: Production media server
+
+paths:
+  /serve/{filePath}:
+    get:
+      summary: Direct file serving
+      description: Serves media files directly from backend with streaming and caching support
+      parameters:
+        - name: filePath
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Complete file path (supports nested paths)
+          example: "user_123/product/img/123_processed.jpg"
+        - name: If-None-Match
+          in: header
+          required: false
+          schema:
+            type: string
+          description: ETag value for conditional requests
+        - name: If-Modified-Since
+          in: header
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Date for conditional requests
+      responses:
+        '200':
+          description: Media file content
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              description: Media MIME type
+            Content-Length:
+              schema:
+                type: integer
+              description: File size in bytes
+            Cache-Control:
+              schema:
+                type: string
+                example: "public, max-age=3600, immutable"
+              description: Cache control directives
+            ETag:
+              schema:
+                type: string
+              description: Entity tag for caching
+            Last-Modified:
+              schema:
+                type: string
+                format: date-time
+              description: Last modification date
+            X-Content-Type-Options:
+              schema:
+                type: string
+                example: "nosniff"
+              description: Content type options
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: Not Modified - content hasn't changed
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/MediaNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
+
+    head:
+      summary: Get file metadata
+      description: Get media file metadata without downloading content
+      parameters:
+        - name: filePath
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Complete file path
+          example: "user_123/product/img/123_processed.jpg"
+      responses:
+        '200':
+          description: File metadata (headers only)
+          headers:
+            Content-Type:
+              schema:
+                type: string
+              description: Media MIME type
+            Content-Length:
+              schema:
+                type: integer
+              description: File size in bytes
+            Cache-Control:
+              schema:
+                type: string
+                example: "public, max-age=3600, immutable"
+              description: Cache control directives
+            ETag:
+              schema:
+                type: string
+              description: Entity tag for caching
+            Last-Modified:
+              schema:
+                type: string
+                format: date-time
+              description: Last modification date
+        '400':
+          description: Bad Request - missing file path
+        '404':
+          description: Not Found - media not found
+        '503':
+          description: Service Unavailable - backend unavailable
+
+  /images/{mediaId}:
+    get:
+      summary: Smart image serving
+      description: Serves optimized images with automatic format negotiation and size variants
+      parameters:
+        - name: mediaId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Numeric media identifier
+          example: 456
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [thumbnail, small, grid, detail, header, zoom]
+            default: detail
+          description: Size variant for the image
+          example: "thumbnail"
+        - name: Accept
+          in: header
+          required: false
+          schema:
+            type: string
+            example: "image/avif,image/webp,image/*,*/*;q=0.8"
+          description: Accepted image formats for negotiation
+        - name: If-None-Match
+          in: header
+          required: false
+          schema:
+            type: string
+          description: ETag value for conditional requests
+        - name: If-Modified-Since
+          in: header
+          required: false
+          schema:
+            type: string
+            format: date-time
+          description: Date for conditional requests
+      responses:
+        '200':
+          description: Optimized image content
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                enum: [image/avif, image/webp, image/jpeg]
+              description: Optimized image MIME type
+            Content-Length:
+              schema:
+                type: integer
+              description: Optimized file size
+            Cache-Control:
+              schema:
+                type: string
+                example: "public, max-age=31536000, immutable"
+              description: Extended cache control (1 year)
+            ETag:
+              schema:
+                type: string
+              description: Entity tag for optimized content
+            Last-Modified:
+              schema:
+                type: string
+                format: date-time
+              description: Optimization timestamp
+            Vary:
+              schema:
+                type: string
+                example: "Accept"
+              description: Vary header for CDN caching
+            X-Content-Type-Options:
+              schema:
+                type: string
+                example: "nosniff"
+              description: Content type options
+          content:
+            image/avif:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: Not Modified - content hasn't changed
+        '400':
+          $ref: '#/components/responses/InvalidMediaRequest'
+        '404':
+          $ref: '#/components/responses/MediaNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
+
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        message:
+          type: string
+          description: Detailed error message
+      required:
+        - error
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        validSizes:
+          type: array
+          items:
+            type: string
+          description: List of valid size parameters
+      required:
+        - error
+
+    SizeVariant:
+      type: string
+      enum: [thumbnail, small, grid, detail, header, zoom]
+      description: Available image size variants
+      example: "detail"
+
+    ImageFormat:
+      type: string
+      enum: [image/avif, image/webp, image/jpeg]
+      description: Supported image formats
+      example: "image/webp"
+
+  responses:
+    BadRequest:
+      description: Bad Request - invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missing_path:
+              summary: Missing file path
+              value:
+                error: "File path is required"
+
+    InvalidMediaRequest:
+      description: Bad Request - invalid media request
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - $ref: '#/components/schemas/ValidationErrorResponse'
+          examples:
+            invalid_media_id:
+              summary: Invalid media ID
+              value:
+                error: "Valid media ID is required"
+            invalid_size:
+              summary: Invalid size parameter
+              value:
+                error: "Invalid size parameter"
+                validSizes: ["thumbnail", "small", "grid", "detail", "header", "zoom"]
+
+    MediaNotFound:
+      description: Media not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Media not found"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            streaming_failed:
+              summary: Media streaming failed
+              value:
+                error: "Media streaming failed"
+            auth_failed:
+              summary: Backend authentication failed
+              value:
+                error: "Media backend authentication failed"
+                message: "Internal authentication error with media server."
+            proxy_error:
+              summary: Media proxy error
+              value:
+                error: "Media proxy error"
+                message: "An unexpected error occurred while fetching the media."
+            smart_proxy_error:
+              summary: Smart media proxy error
+              value:
+                error: "Smart media proxy error"
+                message: "An unexpected error occurred while fetching the optimized media."
+
+    ServiceUnavailable:
+      description: Service unavailable - backend unavailable
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Media backend unavailable"
+            message: "The media processing server is currently unavailable. Please try again later."
+
+    GatewayTimeout:
+      description: Gateway timeout - backend timeout
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Media backend timeout"
+            message: "The media server took too long to respond. Please try again."
+
+  examples:
+    ThumbnailImage:
+      summary: Thumbnail image request
+      value:
+        mediaId: 123
+        size: "thumbnail"
+        Accept: "image/avif,image/webp,image/*,*/*;q=0.8"
+
+    DetailImage:
+      summary: Detail view image request
+      value:
+        mediaId: 456
+        size: "detail"
+        Accept: "image/avif,image/webp,image/*,*/*;q=0.8"
+
+    HeaderBanner:
+      summary: Header banner image request
+      value:
+        mediaId: 789
+        size: "header"
+        Accept: "image/avif,image/webp,image/*,*/*;q=0.8"
+
+    DirectFileServing:
+      summary: Direct file serving request
+      value:
+        filePath: "user_123/product/img/processed_image.jpg"
+
+    ConditionalRequest:
+      summary: Conditional request with ETag
+      value:
+        filePath: "events/456/banner/hero.webp"
+        If-None-Match: "abc123def456"
+
+tags:
+  - name: Direct Serving
+    description: Direct file serving with streaming and caching
+
+  - name: Smart Serving
+    description: Optimized image serving with format negotiation
+
+  - name: Metadata
+    description: File metadata and existence checks
+
+externalDocs:
+  description: Media Proxy API Documentation
+  url: https://docs.beemeeart.com/api/media-proxy

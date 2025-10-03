@@ -1,8 +1,24 @@
+/**
+ * Shipping Service
+ * Comprehensive shipping rate calculation and label generation service for the Beemeeart platform
+ * Integrates with UPS, FedEx, and USPS APIs for multi-carrier shipping solutions
+ */
+
 const axios = require('axios');
 const fs = require('fs').promises;
 const path = require('path');
 
+/**
+ * ShippingService Class
+ * Provides enterprise-grade shipping functionality including rate calculation,
+ * label generation, tracking, and multi-carrier API integration
+ */
 class ShippingService {
+  /**
+   * Initialize ShippingService with carrier API credentials
+   * Validates required environment variables and sets up token caching
+   * @throws {Error} If required shipping credentials are missing
+   */
   constructor() {
     this.upsClientId = process.env.UPS_CLIENT_ID;
     this.upsClientSecret = process.env.UPS_CLIENT_SECRET;
@@ -15,7 +31,7 @@ class ShippingService {
     this.uspsConsumerSecret = process.env.USPS_CONSUMER_SECRET;
     this.uspsCrid = process.env.USPS_CRID;
     
-    // OAuth tokens cache
+    // OAuth tokens cache for performance optimization
     this.tokens = {
       ups: null,
       fedex: null,
@@ -24,33 +40,39 @@ class ShippingService {
   }
 
   /**
-   * Calculate shipping rates for all carriers
-   * @param {Object} shipment - Shipment details
-   * @returns {Array} Array of shipping rate options
+   * Calculate shipping rates from all available carriers
+   * Provides comprehensive rate comparison across UPS, FedEx, and USPS
+   * 
+   * @param {Object} shipment - Shipment details including shipper, recipient, and packages
+   * @param {Object} shipment.shipper - Shipper information and address
+   * @param {Object} shipment.recipient - Recipient information and address  
+   * @param {Array} shipment.packages - Array of package dimensions and weights
+   * @returns {Promise<Array>} Array of shipping rate options sorted by cost
+   * @throws {Error} If rate calculation fails for all carriers
    */
   async calculateShippingRates(shipment) {
     const rates = [];
     
     try {
-      // Get rates from FedEx only (for testing)
-      const [fedexRates] = await Promise.allSettled([
-        // this.getUPSRates(shipment),
+      // Get rates from all carriers (UPS, FedEx, USPS)
+      const [upsRates, fedexRates, uspsRates] = await Promise.allSettled([
+        this.getUPSRates(shipment),
         this.getFedExRates(shipment),
-        // this.getUSPSRates(shipment)
+        this.getUSPSRates(shipment)
       ]);
 
       // Combine all successful rates
-      // if (upsRates.status === 'fulfilled') {
-      //   rates.push(...upsRates.value);
-      // }
+      if (upsRates.status === 'fulfilled') {
+        rates.push(...upsRates.value);
+      }
       
       if (fedexRates.status === 'fulfilled') {
         rates.push(...fedexRates.value);
       }
       
-      // if (uspsRates.status === 'fulfilled') {
-      //   rates.push(...uspsRates.value);
-      // }
+      if (uspsRates.status === 'fulfilled') {
+        rates.push(...uspsRates.value);
+      }
 
       // Sort by price (lowest first)
       rates.sort((a, b) => a.cost - b.cost);
@@ -63,7 +85,12 @@ class ShippingService {
   }
 
   /**
-   * Get UPS shipping rates
+   * Get UPS shipping rates using UPS Rating API
+   * Calculates rates for all available UPS services
+   * 
+   * @param {Object} shipment - Shipment details for rate calculation
+   * @returns {Promise<Array>} Array of UPS rate options
+   * @throws {Error} If UPS API call fails
    */
   async getUPSRates(shipment) {
     try {
@@ -79,7 +106,7 @@ class ShippingService {
         RateRequest: {
           Request: {
             TransactionReference: {
-              CustomerContext: "OAF Rate Request"
+              CustomerContext: "Beemeeart Rate Request"
             }
           },
           Shipment: {
@@ -154,7 +181,7 @@ class ShippingService {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
             'transId': `${Date.now()}`,
-            'transactionSrc': 'OAF'
+            'transactionSrc': 'Beemeeart'
           }
         }
       );
@@ -167,7 +194,12 @@ class ShippingService {
   }
 
   /**
-   * Get FedEx shipping rates
+   * Get FedEx shipping rates using FedEx Rate API
+   * Calculates rates for all available FedEx services with transit times
+   * 
+   * @param {Object} shipment - Shipment details for rate calculation
+   * @returns {Promise<Array>} Array of FedEx rate options with delivery estimates
+   * @throws {Error} If FedEx API call fails
    */
   async getFedExRates(shipment) {
     try {
@@ -248,7 +280,12 @@ class ShippingService {
   }
 
   /**
-   * Get USPS shipping rates
+   * Get USPS shipping rates using USPS API v3
+   * Calculates rates for USPS Ground Advantage and other services
+   * 
+   * @param {Object} shipment - Shipment details for rate calculation
+   * @returns {Promise<Array>} Array of USPS rate options
+   * @throws {Error} If USPS API call fails
    */
   async getUSPSRates(shipment) {
     try {
@@ -302,7 +339,11 @@ class ShippingService {
   }
 
   /**
-   * Get UPS OAuth token
+   * Get UPS OAuth token for API authentication
+   * Manages token caching and automatic renewal
+   * 
+   * @returns {Promise<string>} Valid UPS OAuth access token
+   * @throws {Error} If OAuth authentication fails
    */
   async getUPSToken() {
     if (this.tokens.ups && this.tokens.ups.expires > Date.now()) {
@@ -334,7 +375,11 @@ class ShippingService {
   }
 
   /**
-   * Get FedEx OAuth token
+   * Get FedEx OAuth token for API authentication
+   * Manages token caching and automatic renewal
+   * 
+   * @returns {Promise<string>} Valid FedEx OAuth access token
+   * @throws {Error} If OAuth authentication fails
    */
   async getFedExToken() {
     // Disable caching - get fresh token every time
@@ -370,7 +415,11 @@ class ShippingService {
   }
 
   /**
-   * Get USPS OAuth token (new API v3)
+   * Get USPS OAuth token for API v3 authentication
+   * Manages token caching and automatic renewal for new USPS API
+   * 
+   * @returns {Promise<string>} Valid USPS OAuth access token
+   * @throws {Error} If OAuth authentication fails
    */
   async getUSPSToken() {
     if (this.tokens.usps && this.tokens.usps.expires > Date.now()) {
@@ -434,7 +483,11 @@ class ShippingService {
   }
 
   /**
-   * Parse UPS response
+   * Parse UPS API response into standardized rate format
+   * Converts UPS-specific response structure to common rate object
+   * 
+   * @param {Object} data - Raw UPS API response data
+   * @returns {Array} Array of standardized rate objects
    */
   parseUPSResponse(data) {
     const rates = [];
@@ -480,7 +533,11 @@ class ShippingService {
   }
 
   /**
-   * Parse FedEx response
+   * Parse FedEx API response into standardized rate format
+   * Converts FedEx-specific response structure to common rate object
+   * 
+   * @param {Object} data - Raw FedEx API response data
+   * @returns {Array} Array of standardized rate objects
    */
   parseFedExResponse(data) {
     const rates = [];
@@ -562,7 +619,11 @@ class ShippingService {
   }
 
   /**
-   * Get company address from database
+   * Get company address from database for shipping labels
+   * Retrieves default company shipping address for label generation
+   * 
+   * @returns {Promise<Object>} Company address object with shipping details
+   * @throws {Error} If company address not found in database
    */
   async getCompanyAddress() {
     try {
@@ -594,12 +655,20 @@ class ShippingService {
     }
   }
 
+  /**
+   * Get vendor shipping address and preferences from database
+   * Retrieves vendor-specific shipping settings and return address
+   * 
+   * @param {number} vendorId - Vendor user ID
+   * @returns {Promise<Object>} Vendor address and shipping preferences
+   * @throws {Error} If vendor shipping settings not configured
+   */
   async getVendorAddress(vendorId) {
     try {
       const db = require('../../config/db');
       
       // Look up vendor address from vendor_ship_settings table
-      const [vendorData] = await db.execute(`
+      const [vendorData] = await db.query(`
         SELECT return_company_name, return_contact_name, return_address_line_1, return_address_line_2, 
                return_city, return_state, return_postal_code, return_country, return_phone,
                label_size_preference, signature_required_default, insurance_default
@@ -633,6 +702,16 @@ class ShippingService {
     }
   }
 
+  /**
+   * Purchase shipping label from specified carrier
+   * Creates shipping label and stores it for order fulfillment
+   * 
+   * @param {string} carrier - Carrier name (UPS, FedEx, USPS)
+   * @param {Object} shipment - Complete shipment information
+   * @param {Object} selectedRate - Selected shipping rate and service
+   * @returns {Promise<Object>} Label purchase result with tracking number and URL
+   * @throws {Error} If label creation fails
+   */
   async purchaseLabel(carrier, shipment, selectedRate) {
     let labelData;
     switch (carrier.toUpperCase()) {
@@ -655,6 +734,16 @@ class ShippingService {
     return { trackingNumber: labelData.tracking, labelUrl };
   }
 
+  /**
+   * Purchase standalone shipping label (not tied to specific order)
+   * Creates shipping label for general use or manual shipping
+   * 
+   * @param {string} carrier - Carrier name (UPS, FedEx, USPS)
+   * @param {Object} shipment - Complete shipment information
+   * @param {Object} selectedRate - Selected shipping rate and service
+   * @returns {Promise<Object>} Label purchase result with tracking and label ID
+   * @throws {Error} If label creation fails
+   */
   async purchaseStandaloneLabel(carrier, shipment, selectedRate) {
     let labelData;
     switch (carrier.toUpperCase()) {
@@ -675,6 +764,15 @@ class ShippingService {
     };
   }
 
+  /**
+   * Cancel shipping label with specified carrier
+   * Attempts to void/cancel a previously created shipping label
+   * 
+   * @param {string} carrier - Carrier name (UPS, FedEx, USPS)
+   * @param {string} trackingNumber - Tracking number of label to cancel
+   * @returns {Promise<Object>} Cancellation result with success status
+   * @throws {Error} If label cancellation fails
+   */
   async cancelLabel(carrier, trackingNumber) {
     try {
       switch (carrier.toUpperCase()) {
@@ -702,7 +800,7 @@ class ShippingService {
     const shipmentRequest = {
       ShipmentRequest: {
         Shipment: {
-          Description: 'OAF Shipment',
+          Description: 'Beemeeart Shipment',
           Shipper: {
             Name: shipment.shipper.name,
             ShipperNumber: this.upsAccountNumber,
@@ -948,6 +1046,19 @@ class ShippingService {
     };
   }
 
+  /**
+   * Store shipping label PDF file and database record
+   * Saves label to filesystem and creates database entry for order tracking
+   * 
+   * @param {string} pdfBase64 - Base64 encoded PDF label data
+   * @param {number} userId - Vendor/user ID
+   * @param {number} itemId - Order item ID
+   * @param {Object} labelData - Label creation response data
+   * @param {Object} selectedRate - Selected shipping rate information
+   * @param {Object} shipment - Complete shipment details
+   * @returns {Promise<string>} URL path to stored label file
+   * @throws {Error} If file storage or database insert fails
+   */
   async storeLabel(pdfBase64, userId, itemId, labelData, selectedRate, shipment) {
     const dir = path.join(__dirname, '../../../public/static_media/labels');
     await fs.mkdir(dir, { recursive: true });
@@ -982,6 +1093,18 @@ class ShippingService {
     return `/static_media/labels/${fileName}`;
   }
 
+  /**
+   * Store standalone shipping label PDF file and database record
+   * Saves label to filesystem and creates database entry for standalone labels
+   * 
+   * @param {string} pdfBase64 - Base64 encoded PDF label data
+   * @param {number} userId - User ID creating the label
+   * @param {Object} labelData - Label creation response data
+   * @param {Object} selectedRate - Selected shipping rate information
+   * @param {Object} shipment - Complete shipment details
+   * @returns {Promise<string>} URL path to stored label file
+   * @throws {Error} If file storage or database insert fails
+   */
   async storeStandaloneLabel(pdfBase64, userId, labelData, selectedRate, shipment) {
     const dir = path.join(__dirname, '../../../public/static_media/labels');
     await fs.mkdir(dir, { recursive: true });

@@ -5,21 +5,35 @@ const verifyToken = require('../middleware/jwt');
 const { requirePermission } = require('../middleware/permissions');
 
 /**
- * Finance API Routes
+ * @fileoverview Financial operations routes
  * 
- * These routes handle financial data including commission rates,
- * vendor earnings, and platform financial metrics.
+ * Handles financial operations including:
+ * - Commission rate management for artists and promoters
+ * - Bulk commission rate updates for administrative efficiency
+ * - Vendor earnings tracking and reporting
+ * - Fee structure management (commission vs passthrough)
+ * - Financial settings administration
  * 
- * All routes require authentication and appropriate permissions.
+ * This module provides comprehensive financial management capabilities
+ * for the multi-vendor marketplace platform.
+ * 
+ * @author Beemeeart Development Team
+ * @version 1.0.0
  */
+
 
 // ============================================================================
 // COMMISSION MANAGEMENT ROUTES
 // ============================================================================
 
 /**
- * GET /api/finance/commission-rates - Get all commission rates for admin management
- * Returns combined list of artists and promoters with their commission settings
+ * Get all commission rates for admin management
+ * @route GET /api/finance/commission-rates
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Combined list of artists and promoters with their commission settings
+ * @description Returns comprehensive commission rate data including user profiles, business names, and Stripe account information
  */
 router.get('/commission-rates', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -79,8 +93,14 @@ router.get('/commission-rates', verifyToken, requirePermission('manage_system'),
 });
 
 /**
- * PUT /api/finance/commission-rates/bulk - Bulk update commission rates
- * Updates multiple commission rates at once
+ * Bulk update commission rates
+ * @route PUT /api/finance/commission-rates/bulk
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {Array} req.body.updates - Array of commission rate updates
+ * @param {Object} res - Express response object
+ * @returns {Object} Results of bulk update operation with success and error details
+ * @description Updates multiple commission rates at once with comprehensive validation and error handling
  */
 router.put('/commission-rates/bulk', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -171,8 +191,17 @@ router.put('/commission-rates/bulk', verifyToken, requirePermission('manage_syst
 });
 
 /**
- * PUT /api/finance/commission-rates/:id - Update a single commission rate
- * Updates commission rate, fee structure, or notes for a specific user
+ * Update a single commission rate
+ * @route PUT /api/finance/commission-rates/:id
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Financial setting ID
+ * @param {number} req.body.commission_rate - Commission rate (0-100, optional)
+ * @param {string} req.body.fee_structure - Fee structure ('commission' or 'passthrough', optional)
+ * @param {string} req.body.notes - Notes about the setting (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} Update confirmation with changed fields
+ * @description Updates commission rate, fee structure, or notes for a specific user with validation
  */
 router.put('/commission-rates/:id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -249,8 +278,14 @@ router.put('/commission-rates/:id', verifyToken, requirePermission('manage_syste
 // ============================================================================
 
 /**
- * GET /api/finance/vendor-earnings - Get earnings for current vendor
- * Returns earnings data for the authenticated vendor
+ * Get earnings for current vendor
+ * @route GET /api/finance/vendor-earnings
+ * @access Private (requires vendor permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Earnings data for the authenticated vendor
+ * @description Returns comprehensive earnings data for the authenticated vendor (placeholder implementation)
+ * @todo Implement full vendor earnings calculation and reporting
  */
 router.get('/vendor-earnings', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {

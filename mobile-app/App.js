@@ -161,7 +161,7 @@ export default function App() {
       
       if (token && refreshToken) {
         // Validate token with backend
-        const response = await fetch('https://api2.onlineartfestival.com/auth/exchange', {
+        const response = await fetch('https://api.beemeeart.com/auth/exchange', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

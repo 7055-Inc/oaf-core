@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { authenticatedApiRequest } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
 import styles from '../../SlideIn.module.css';
 
 export default function ManagePermissions() {
@@ -20,7 +20,7 @@ export default function ManagePermissions() {
 
   const fetchUsers = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/admin/users', {
+      const response = await authApiRequest('admin/users', {
         headers: {
           'Content-Type': 'application/json'
         }
@@ -35,7 +35,7 @@ export default function ManagePermissions() {
       // Fetch permissions for each user
       const usersWithPermissions = await Promise.all(
         data.map(async (user) => {
-          const permissionsResponse = await authenticatedApiRequest(`https://api2.onlineartfestival.com/admin/users/${user.id}/permissions`, {
+          const permissionsResponse = await authApiRequest(`admin/users/${user.id}/permissions`, {
             headers: {
               'Content-Type': 'application/json'
             }
@@ -81,7 +81,7 @@ export default function ManagePermissions() {
 
   const updatePermission = async (userId, permissionType, value) => {
     try {
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/admin/users/${userId}/permissions`, {
+      const response = await authApiRequest(`admin/users/${userId}/permissions`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'

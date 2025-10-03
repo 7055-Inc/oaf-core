@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { getAuthToken } from '../../../../../lib/csrf';
+import { getApiUrl } from '../../../../../lib/config';
 import styles from '../../../SlideIn.module.css';
 
 export default function BulkAcceptanceInterface({ applications, selectedEvent, onBulkAccept }) {
@@ -21,7 +22,7 @@ export default function BulkAcceptanceInterface({ applications, selectedEvent, o
         const application = applications.find(app => app.id === appId);
         const boothFee = bulkBoothFee || application.booth_fee || 0;
         
-        return fetch(`https://api2.onlineartfestival.com/api/applications/${appId}/bulk-accept`, {
+        return fetch(getApiUrl(`api/applications/${appId}/bulk-accept`), {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,

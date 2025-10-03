@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import ProfileDisplay from '../../../shared/ProfileDisplay';
+import { getApiUrl } from '../../../../lib/config';
 
 export default function ViewProfile({ userData }) {
   const [userProfile, setUserProfile] = useState(null);
@@ -15,7 +16,7 @@ export default function ViewProfile({ userData }) {
     
     const fetchProfile = async () => {
       try {
-        const response = await fetch(`https://api2.onlineartfestival.com/users/profile/by-id/${userData.id}`, {
+        const response = await fetch(getApiUrl(`users/profile/by-id/${userData.id}`), {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json'

@@ -1,5 +1,6 @@
 // My Finances Menu Component
 // This file contains ONLY the menu building logic for My Finances section
+import { hasPermission } from '../../../lib/userUtils';
 import styles from '../../../pages/dashboard/Dashboard.module.css';
 
 export default function MyFinancesMenu({ 
@@ -9,6 +10,9 @@ export default function MyFinancesMenu({
   openSlideIn = () => {} 
 }) {
   if (!userData) return null;
+  
+  // Only show to users with stripe_connect permission
+  if (!hasPermission(userData, 'stripe_connect')) return null;
   
   return (
     <div className={styles.sidebarSection}>

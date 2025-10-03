@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { getApiUrl } from '../../../../lib/config';
 
 export default function CategoryManagement() {
   const [categories, setCategories] = useState([]);
@@ -37,7 +38,7 @@ export default function CategoryManagement() {
   const loadCategories = async () => {
     try {
       setLoading(true);
-      const res = await fetch('https://api2.onlineartfestival.com/categories');
+      const res = await fetch(getApiUrl('categories'));
       if (!res.ok) {
         throw new Error('Failed to load categories');
       }
@@ -62,8 +63,8 @@ export default function CategoryManagement() {
       
       // Save basic category info
       const url = editingCategory 
-        ? `https://api2.onlineartfestival.com/categories/${editingCategory.id}`
-        : 'https://api2.onlineartfestival.com/categories';
+        ? `categories/${editingCategory.id}`
+        : 'categories';
       
       const method = editingCategory ? 'PUT' : 'POST';
       
@@ -89,7 +90,7 @@ export default function CategoryManagement() {
 
       // If editing existing category, also save content and SEO
       if (editingCategory && contentData) {
-        await fetch(`https://api2.onlineartfestival.com/categories/content/${editingCategory.id}`, {
+        await fetch(`categories/content/${editingCategory.id}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify(contentData)
@@ -97,7 +98,7 @@ export default function CategoryManagement() {
       }
 
       if (editingCategory && seoData) {
-        await fetch(`https://api2.onlineartfestival.com/categories/seo/${editingCategory.id}`, {
+        await fetch(`categories/seo/${editingCategory.id}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify(seoData)
@@ -151,7 +152,7 @@ export default function CategoryManagement() {
         throw new Error('No authentication token found');
       }
       
-      const res = await fetch(`https://api2.onlineartfestival.com/categories/${categoryId}`, {
+      const res = await fetch(`categories/${categoryId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -252,10 +253,10 @@ export default function CategoryManagement() {
       }
       
       const [contentRes, seoRes] = await Promise.all([
-        fetch(`https://api2.onlineartfestival.com/categories/content/${categoryId}`, {
+        fetch(`categories/content/${categoryId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }).then(r => r.json()),
-        fetch(`https://api2.onlineartfestival.com/categories/seo/${categoryId}`, {
+        fetch(`categories/seo/${categoryId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }).then(r => r.json())
       ]);
@@ -574,7 +575,7 @@ export default function CategoryManagement() {
                     value={seoData?.canonical_url || ''} 
                     onChange={e => setSeoData({ ...seoData, canonical_url: e.target.value })}
                     style={{ display: 'block', width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
-                    placeholder="https://onlineartfestival.com/category/name"
+                    placeholder="https://beemeeart.com/category/name"
                   />
                 </div>
                 

@@ -4,7 +4,35 @@ const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
 const { requirePermission } = require('../middleware/permissions');
 
-// GET /api/announcements/check-pending - Check if user has pending announcements (MUST BE BEFORE ADMIN ROUTES)
+/**
+ * @fileoverview System announcements routes
+ * 
+ * Handles comprehensive system announcement functionality including:
+ * - User-facing announcement checking and retrieval
+ * - Admin announcement management (CRUD operations)
+ * - User acknowledgment and reminder system
+ * - Announcement statistics and analytics
+ * - Target user type filtering and validation
+ * - Time-based announcement scheduling and expiration
+ * 
+ * All endpoints support proper authentication and authorization.
+ * User-facing endpoints filter announcements by user type and date range.
+ * Admin endpoints require system management permissions.
+ * 
+ * @author Beemeeart Development Team
+ * @version 1.0.0
+ */
+
+/**
+ * Check if user has pending announcements
+ * @route GET /api/announcements/check-pending
+ * @access Private (requires authentication)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Pending announcement status with counts
+ * @description Checks if authenticated user has unacknowledged announcements based on user type and date range
+ * @note MUST BE BEFORE ADMIN ROUTES to avoid route conflicts
+ */
 router.get('/check-pending', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
@@ -60,7 +88,16 @@ router.get('/check-pending', verifyToken, async (req, res) => {
   }
 });
 
-// GET /api/announcements/pending - Get pending announcements for current user (MUST BE BEFORE ADMIN ROUTES)
+/**
+ * Get pending announcements for current user
+ * @route GET /api/announcements/pending
+ * @access Private (requires authentication)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Array} List of pending announcements for the user's type
+ * @description Retrieves unacknowledged announcements targeted to user's type within active date range
+ * @note MUST BE BEFORE ADMIN ROUTES to avoid route conflicts
+ */
 router.get('/pending', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
@@ -147,7 +184,15 @@ router.get('/pending', verifyToken, async (req, res) => {
   }
 });
 
-// GET /api/announcements - Get all announcements (system management permission required)
+/**
+ * Get all announcements (admin)
+ * @route GET /api/announcements
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Array} List of all announcements with creator information
+ * @description Retrieves all announcements for system management with proper JSON parsing
+ */
 router.get('/', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const [announcements] = await db.query(
@@ -203,7 +248,21 @@ router.get('/', verifyToken, requirePermission('manage_system'), async (req, res
   }
 });
 
-// POST /api/announcements - Create new announcement (system management permission required)
+/**
+ * Create new announcement (admin)
+ * @route POST /api/announcements
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.body.title - Announcement title (required)
+ * @param {string} req.body.content - Announcement content (required)
+ * @param {string} req.body.show_from - Start date/time (required)
+ * @param {string} req.body.expires_at - Expiration date/time (required)
+ * @param {Array} req.body.target_user_types - Target user types array (required)
+ * @param {boolean} req.body.is_active - Active status (default: true)
+ * @param {Object} res - Express response object
+ * @returns {Object} Created announcement ID and success message
+ * @description Creates new system announcement with validation and proper date/user type checking
+ */
 router.post('/', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { title, content, show_from, expires_at, target_user_types, is_active = true } = req.body;
@@ -244,7 +303,22 @@ router.post('/', verifyToken, requirePermission('manage_system'), async (req, re
   }
 });
 
-// PUT /api/announcements/:id - Update announcement (system management permission required)
+/**
+ * Update announcement (admin)
+ * @route PUT /api/announcements/:id
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Announcement ID
+ * @param {string} req.body.title - Announcement title (optional)
+ * @param {string} req.body.content - Announcement content (optional)
+ * @param {string} req.body.show_from - Start date/time (optional)
+ * @param {string} req.body.expires_at - Expiration date/time (optional)
+ * @param {Array} req.body.target_user_types - Target user types array (optional)
+ * @param {boolean} req.body.is_active - Active status (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} Update success message
+ * @description Updates existing announcement with dynamic field updates and validation
+ */
 router.put('/:id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -307,7 +381,16 @@ router.put('/:id', verifyToken, requirePermission('manage_system'), async (req, 
   }
 });
 
-// DELETE /api/announcements/:id - Delete announcement (system management permission required)
+/**
+ * Delete announcement (admin)
+ * @route DELETE /api/announcements/:id
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Announcement ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Deletion success message
+ * @description Deletes announcement and all related user acknowledgments with cascade handling
+ */
 router.delete('/:id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -332,7 +415,16 @@ router.delete('/:id', verifyToken, requirePermission('manage_system'), async (re
   }
 });
 
-// GET /api/announcements/:id/stats - Get acknowledgment statistics (system management permission required)
+/**
+ * Get announcement statistics (admin)
+ * @route GET /api/announcements/:id/stats
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Announcement ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Comprehensive announcement statistics including acknowledgment rates
+ * @description Provides detailed analytics on announcement performance and user engagement
+ */
 router.get('/:id/stats', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -411,7 +503,16 @@ router.get('/:id/stats', verifyToken, requirePermission('manage_system'), async 
   }
 });
 
-// POST /api/announcements/:id/acknowledge - Acknowledge announcement
+/**
+ * Acknowledge announcement
+ * @route POST /api/announcements/:id/acknowledge
+ * @access Private (requires authentication)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Announcement ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Acknowledgment success message
+ * @description Records user acknowledgment of announcement with IP and user agent tracking
+ */
 router.post('/:id/acknowledge', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -489,7 +590,16 @@ router.post('/:id/acknowledge', verifyToken, async (req, res) => {
   }
 });
 
-// POST /api/announcements/:id/remind-later - Remind me later
+/**
+ * Set reminder for announcement
+ * @route POST /api/announcements/:id/remind-later
+ * @access Private (requires authentication)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Announcement ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Reminder set success message
+ * @description Sets reminder for announcement without marking as acknowledged
+ */
 router.post('/:id/remind-later', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;

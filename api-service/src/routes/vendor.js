@@ -7,8 +7,37 @@ const { requirePermission } = require('../middleware/permissions');
 const router = express.Router();
 
 /**
+ * @fileoverview Vendor management routes
+ * 
+ * Handles comprehensive vendor operations including:
+ * - Order management and fulfillment tracking
+ * - Financial dashboard and balance information
+ * - Transaction history and payout management
+ * - Stripe Connect account setup and onboarding
+ * - Subscription preferences and payment methods
+ * - Shipping and return policy management
+ * - Coupon creation and management system
+ * - Promotion invitation handling
+ * - Vendor settings and preferences
+ * 
+ * All endpoints require vendor authentication and appropriate permissions.
+ * Provides complete vendor portal functionality for marketplace operations.
+ * 
+ * @author Beemeeart Development Team
+ * @version 1.0.0
+ */
+
+/**
  * Get vendor orders
- * GET /api/vendor/orders
+ * @route GET /api/vendor/orders
+ * @access Private (requires vendor permission)
+ * @param {Object} req - Express request object
+ * @param {number} req.query.page - Page number for pagination (default: 1)
+ * @param {number} req.query.limit - Items per page (default: 20)
+ * @param {string} req.query.status - Filter by order status (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} Paginated vendor orders with customer and product details
+ * @description Retrieves vendor's orders with optional status filtering and comprehensive order information
  */
 router.get('/orders', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
@@ -56,7 +85,7 @@ router.get('/orders', verifyToken, requirePermission('vendor'), async (req, res)
       LIMIT ${limit} OFFSET ${offset}
     `;
 
-    const [orders] = await db.execute(ordersQuery, params);
+    const [orders] = await db.query(ordersQuery, params);
     
     // Get total count for pagination
     const countQuery = `
@@ -66,7 +95,7 @@ router.get('/orders', verifyToken, requirePermission('vendor'), async (req, res)
       ${whereClause}
     `;
     
-    const [countResult] = await db.execute(countQuery, params);
+    const [countResult] = await db.query(countQuery, params);
     const totalOrders = countResult[0].total;
     
     // Group orders by order ID
@@ -121,7 +150,12 @@ router.get('/orders', verifyToken, requirePermission('vendor'), async (req, res)
 
 /**
  * Get vendor financial dashboard
- * GET /api/vendor/dashboard
+ * @route GET /api/vendor/dashboard
+ * @access Private (requires vendor permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Comprehensive dashboard data including balance, transactions, payouts, and Stripe account status
+ * @description Provides complete vendor dashboard with financial overview, recent activity, and account status
  */
 router.get('/dashboard', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
@@ -162,7 +196,12 @@ router.get('/dashboard', verifyToken, requirePermission('vendor'), async (req, r
 
 /**
  * Get vendor balance details
- * GET /api/vendor/balance
+ * @route GET /api/vendor/balance
+ * @access Private (requires vendor permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Detailed balance information including available, pending, and total amounts
+ * @description Retrieves comprehensive vendor balance information for financial tracking
  */
 router.get('/balance', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
@@ -183,7 +222,14 @@ router.get('/balance', verifyToken, requirePermission('vendor'), async (req, res
 
 /**
  * Get vendor transaction history
- * GET /api/vendor/transactions
+ * @route GET /api/vendor/transactions
+ * @access Private (requires vendor permission)
+ * @param {Object} req - Express request object
+ * @param {number} req.query.page - Page number for pagination (default: 1)
+ * @param {number} req.query.limit - Items per page (default: 20)
+ * @param {Object} res - Express response object
+ * @returns {Object} Paginated transaction history with human-readable type displays
+ * @description Provides vendor transaction history with pagination and detailed transaction information
  */
 router.get('/transactions', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
@@ -214,7 +260,12 @@ router.get('/transactions', verifyToken, requirePermission('vendor'), async (req
 
 /**
  * Get upcoming payouts
- * GET /api/vendor/payouts
+ * @route GET /api/vendor/payouts
+ * @access Private (requires vendor permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Upcoming payout schedule with amounts and dates
+ * @description Retrieves scheduled payouts for vendor financial planning
  */
 router.get('/payouts', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
@@ -235,7 +286,12 @@ router.get('/payouts', verifyToken, requirePermission('vendor'), async (req, res
 
 /**
  * Get vendor settings
- * GET /api/vendor/settings
+ * @route GET /api/vendor/settings
+ * @access Private (requires vendor permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Vendor settings including commission rates, payout preferences, and Stripe account information
+ * @description Retrieves comprehensive vendor settings for account management
  */
 router.get('/settings', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
@@ -256,7 +312,13 @@ router.get('/settings', verifyToken, requirePermission('vendor'), async (req, re
 
 /**
  * Create Stripe Connect account for vendor
- * POST /api/vendor/stripe-account
+ * @route POST /api/vendor/stripe-account
+ * @access Private (requires stripe_connect permission)
+ * @param {Object} req - Express request object
+ * @param {Object} req.body.business_info - Business information for Stripe account setup (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} Stripe account ID and onboarding URL for account setup
+ * @description Creates new Stripe Connect account for vendor with onboarding link
  */
 router.post('/stripe-account', verifyToken, requirePermission('stripe_connect'), async (req, res) => {
   try {
@@ -271,7 +333,7 @@ router.post('/stripe-account', verifyToken, requirePermission('stripe_connect'),
 
     // Get vendor email from user profile
     const vendorQuery = 'SELECT username FROM users WHERE id = ?';
-    const [vendorRows] = await db.execute(vendorQuery, [vendorId]);
+    const [vendorRows] = await db.query(vendorQuery, [vendorId]);
     
     if (vendorRows.length === 0) {
       return res.status(404).json({ error: 'Vendor not found' });
@@ -301,7 +363,12 @@ router.post('/stripe-account', verifyToken, requirePermission('stripe_connect'),
 
 /**
  * Get Stripe account onboarding link
- * GET /api/vendor/stripe-onboarding
+ * @route GET /api/vendor/stripe-onboarding
+ * @access Private (requires stripe_connect permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Onboarding URL for existing Stripe account setup
+ * @description Generates new onboarding link for existing Stripe Connect account
  */
 router.get('/stripe-onboarding', verifyToken, requirePermission('stripe_connect'), async (req, res) => {
   try {
@@ -328,7 +395,14 @@ router.get('/stripe-onboarding', verifyToken, requirePermission('stripe_connect'
 
 /**
  * Update vendor subscription preferences
- * POST /api/vendor/subscription-preferences
+ * @route POST /api/vendor/subscription-preferences
+ * @access Private (requires vendor permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.body.payment_method - Payment method preference ('balance_first' or 'card_only')
+ * @param {boolean} req.body.reverse_transfer_enabled - Enable reverse transfers for subscriptions
+ * @param {Object} res - Express response object
+ * @returns {Object} Update confirmation message
+ * @description Updates vendor subscription payment preferences and reverse transfer settings
  */
 router.post('/subscription-preferences', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
@@ -350,7 +424,7 @@ router.post('/subscription-preferences', verifyToken, requirePermission('vendor'
         updated_at = CURRENT_TIMESTAMP
     `;
     
-    await db.execute(updateQuery, [vendorId, payment_method, reverse_transfer_enabled]);
+    await db.query(updateQuery, [vendorId, payment_method, reverse_transfer_enabled]);
     
     res.json({
       success: true,
@@ -365,7 +439,12 @@ router.post('/subscription-preferences', verifyToken, requirePermission('vendor'
 
 /**
  * Get vendor shipping policy
- * GET /api/vendor/shipping-policy
+ * @route GET /api/vendor/shipping-policy
+ * @access Private (requires vendor permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Vendor shipping policy with fallback to default policy
+ * @description Retrieves vendor's custom shipping policy or default platform policy
  */
 router.get('/shipping-policy', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
@@ -386,7 +465,13 @@ router.get('/shipping-policy', verifyToken, requirePermission('vendor'), async (
 
 /**
  * Update vendor shipping policy
- * PUT /api/vendor/shipping-policy
+ * @route PUT /api/vendor/shipping-policy
+ * @access Private (requires vendor permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.body.policy_text - New shipping policy text (required)
+ * @param {Object} res - Express response object
+ * @returns {Object} Updated shipping policy information
+ * @description Creates new shipping policy version and archives previous policy
  */
 router.put('/shipping-policy', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
@@ -589,7 +674,7 @@ router.get('/orders/my', verifyToken, async (req, res) => {
     `;
 
     // Add params to execute to prevent injection (like in events)
-    const [rows] = await db.execute(query, params);
+    const [rows] = await db.query(query, params);
     console.log(`Fetched ${rows.length} rows for vendor ${vendorId}`);  // Temp log to confirm in PM2
 
     // Group items by order_id
@@ -646,7 +731,7 @@ router.get('/order-item-details', verifyToken, async (req, res) => {
       JOIN product_shipping ps ON oi.product_id = ps.product_id AND ps.package_number = 1
       WHERE oi.id = ? AND oi.vendor_id = ?
     `;
-    const [rows] = await db.execute(query, [item_id, vendorId]);
+    const [rows] = await db.query(query, [item_id, vendorId]);
     
     if (rows.length === 0) return res.status(404).json({ error: 'Item not found' });
     res.json(rows[0]);
@@ -660,6 +745,9 @@ router.get('/order-item-details', verifyToken, async (req, res) => {
 
 /**
  * Get vendor balance summary
+ * @param {number} vendorId - Vendor ID
+ * @returns {Object} Balance information including available, pending, total sales, and order counts
+ * @description Calculates comprehensive vendor balance with current balance (available - pending)
  */
 async function getVendorBalance(vendorId) {
   const query = `
@@ -691,7 +779,7 @@ async function getVendorBalance(vendorId) {
     WHERE vendor_id = ?
   `;
   
-  const [rows] = await db.execute(query, [vendorId]);
+  const [rows] = await db.query(query, [vendorId]);
   const balance = rows[0];
   
   // Calculate current balance (available - pending payouts)
@@ -702,6 +790,10 @@ async function getVendorBalance(vendorId) {
 
 /**
  * Get recent transactions
+ * @param {number} vendorId - Vendor ID
+ * @param {number} limit - Number of transactions to return (default: 10)
+ * @returns {Array} Recent transactions with human-readable type displays
+ * @description Retrieves recent vendor transactions with order context and type formatting
  */
 async function getRecentTransactions(vendorId, limit = 10) {
   const query = `
@@ -724,12 +816,20 @@ async function getRecentTransactions(vendorId, limit = 10) {
     LIMIT ?
   `;
   
-  const [rows] = await db.execute(query, [vendorId, limit]);
+  const [rows] = await db.query(query, [vendorId, limit]);
   return rows;
 }
 
 /**
  * Get vendor transactions with pagination and filters
+ * @param {number} vendorId - Vendor ID
+ * @param {Object} options - Query options
+ * @param {number} options.page - Page number (default: 1)
+ * @param {number} options.limit - Items per page (default: 20)
+ * @param {string} options.type - Filter by transaction type (optional)
+ * @param {string} options.status - Filter by transaction status (optional)
+ * @returns {Object} Paginated transactions with total count
+ * @description Retrieves vendor transactions with filtering, pagination, and human-readable formatting
  */
 async function getVendorTransactions(vendorId, options = {}) {
   const { page = 1, limit = 20, type, status } = options;
@@ -755,7 +855,7 @@ async function getVendorTransactions(vendorId, options = {}) {
     ${whereClause}
   `;
   
-  const [countRows] = await db.execute(countQuery, params);
+  const [countRows] = await db.query(countQuery, params);
   const total = countRows[0].total;
   
   // Get transactions
@@ -780,7 +880,7 @@ async function getVendorTransactions(vendorId, options = {}) {
   `;
   
   params.push(limit, offset);
-  const [dataRows] = await db.execute(dataQuery, params);
+  const [dataRows] = await db.query(dataQuery, params);
   
   return {
     data: dataRows,
@@ -790,6 +890,9 @@ async function getVendorTransactions(vendorId, options = {}) {
 
 /**
  * Get upcoming payouts
+ * @param {number} vendorId - Vendor ID
+ * @returns {Array} Upcoming payouts grouped by date with amounts and transaction counts
+ * @description Retrieves scheduled payouts for vendor financial planning (next 10 payout dates)
  */
 async function getUpcomingPayouts(vendorId) {
   const query = `
@@ -807,12 +910,15 @@ async function getUpcomingPayouts(vendorId) {
     LIMIT 10
   `;
   
-  const [rows] = await db.execute(query, [vendorId]);
+  const [rows] = await db.query(query, [vendorId]);
   return rows;
 }
 
 /**
  * Get vendor's shipping policy (with fallback to default)
+ * @param {number} vendorId - Vendor ID
+ * @returns {Object|null} Shipping policy with source indicator (custom or default)
+ * @description Retrieves vendor's custom policy or falls back to platform default policy
  */
 async function getVendorShippingPolicy(vendorId) {
   // First try to get vendor's custom policy
@@ -829,7 +935,7 @@ async function getVendorShippingPolicy(vendorId) {
     WHERE sp.user_id = ? AND sp.status = 'active'
   `;
   
-  const [vendorRows] = await db.execute(vendorQuery, [vendorId]);
+  const [vendorRows] = await db.query(vendorQuery, [vendorId]);
   
   if (vendorRows.length > 0) {
     return vendorRows[0];
@@ -849,7 +955,7 @@ async function getVendorShippingPolicy(vendorId) {
     WHERE sp.user_id IS NULL AND sp.status = 'active'
   `;
   
-  const [defaultRows] = await db.execute(defaultQuery);
+  const [defaultRows] = await db.query(defaultQuery);
   
   if (defaultRows.length > 0) {
     return defaultRows[0];
@@ -861,6 +967,10 @@ async function getVendorShippingPolicy(vendorId) {
 
 /**
  * Update vendor's shipping policy
+ * @param {number} vendorId - Vendor ID
+ * @param {string} policyText - New policy text
+ * @returns {Object} Updated shipping policy information
+ * @description Creates new policy version, archives existing policy, uses database transaction
  */
 async function updateVendorShippingPolicy(vendorId, policyText) {
   // Get a connection from the pool for transaction
@@ -914,7 +1024,7 @@ async function getVendorShippingPolicyHistory(vendorId) {
     ORDER BY sp.created_at DESC
   `;
   
-  const [rows] = await db.execute(query, [vendorId]);
+  const [rows] = await db.query(query, [vendorId]);
   return rows;
 }
 
@@ -928,7 +1038,7 @@ async function deleteVendorShippingPolicy(vendorId) {
     WHERE user_id = ? AND status = 'active'
   `;
   
-  await db.execute(query, [vendorId]);
+  await db.query(query, [vendorId]);
 }
 
 /**
@@ -949,7 +1059,7 @@ async function getVendorReturnPolicy(vendorId) {
     WHERE rp.user_id = ? AND rp.status = 'active'
   `;
   
-  const [vendorRows] = await db.execute(vendorQuery, [vendorId]);
+  const [vendorRows] = await db.query(vendorQuery, [vendorId]);
   
   if (vendorRows.length > 0) {
     return vendorRows[0];
@@ -969,7 +1079,7 @@ async function getVendorReturnPolicy(vendorId) {
     WHERE rp.user_id IS NULL AND rp.status = 'active'
   `;
   
-  const [defaultRows] = await db.execute(defaultQuery);
+  const [defaultRows] = await db.query(defaultQuery);
   
   if (defaultRows.length > 0) {
     return defaultRows[0];
@@ -1034,7 +1144,7 @@ async function getVendorReturnPolicyHistory(vendorId) {
     ORDER BY rp.created_at DESC
   `;
   
-  const [rows] = await db.execute(query, [vendorId]);
+  const [rows] = await db.query(query, [vendorId]);
   return rows;
 }
 
@@ -1048,7 +1158,7 @@ async function deleteVendorReturnPolicy(vendorId) {
     WHERE user_id = ? AND status = 'active'
   `;
   
-  await db.execute(query, [vendorId]);
+  await db.query(query, [vendorId]);
 }
 
 // Get vendor shipping preferences
@@ -1056,7 +1166,7 @@ router.get('/shipping-preferences', verifyToken, requirePermission('vendor'), as
   try {
     const vendorId = req.userId;
     
-    const [preferences] = await db.execute(
+    const [preferences] = await db.query(
       'SELECT * FROM vendor_ship_settings WHERE vendor_id = ?',
       [vendorId]
     );
@@ -1130,14 +1240,14 @@ router.post('/shipping-preferences', verifyToken, requirePermission('vendor'), a
     };
     
     // Check if preferences already exist
-    const [existing] = await db.execute(
+    const [existing] = await db.query(
       'SELECT id FROM vendor_ship_settings WHERE vendor_id = ?',
       [vendorId]
     );
     
     if (existing.length > 0) {
       // Update existing preferences
-      await db.execute(`
+      await db.query(`
         UPDATE vendor_ship_settings SET
           return_company_name = ?,
           return_contact_name = ?,
@@ -1170,7 +1280,7 @@ router.post('/shipping-preferences', verifyToken, requirePermission('vendor'), a
       ]);
     } else {
       // Create new preferences
-      await db.execute(`
+      await db.query(`
         INSERT INTO vendor_ship_settings (
           vendor_id,
           return_company_name,
@@ -1372,7 +1482,7 @@ router.put('/coupons/:id', verifyToken, requirePermission('vendor'), async (req,
     } = req.body;
     
     // Verify coupon belongs to vendor
-    const [couponCheck] = await db.execute(
+    const [couponCheck] = await db.query(
       'SELECT id FROM coupons WHERE id = ? AND created_by_vendor_id = ?',
       [couponId, vendorId]
     );
@@ -1464,7 +1574,7 @@ router.delete('/coupons/:id', verifyToken, requirePermission('vendor'), async (r
     const couponId = req.params.id;
     
     // Verify coupon belongs to vendor
-    const [couponCheck] = await db.execute(
+    const [couponCheck] = await db.query(
       'SELECT id, current_usage_count FROM coupons WHERE id = ? AND created_by_vendor_id = ?',
       [couponId, vendorId]
     );
@@ -1483,7 +1593,7 @@ router.delete('/coupons/:id', verifyToken, requirePermission('vendor'), async (r
     }
     
     // Delete coupon (cascade will handle related records)
-    await db.execute('DELETE FROM coupons WHERE id = ?', [couponId]);
+    await db.query('DELETE FROM coupons WHERE id = ?', [couponId]);
     
     res.json({
       success: true,
@@ -1506,7 +1616,7 @@ router.get('/coupons/:id/analytics', verifyToken, requirePermission('vendor'), a
     const couponId = req.params.id;
     
     // Verify coupon belongs to vendor
-    const [couponCheck] = await db.execute(
+    const [couponCheck] = await db.query(
       'SELECT id, name, current_usage_count FROM coupons WHERE id = ? AND created_by_vendor_id = ?',
       [couponId, vendorId]
     );
@@ -1534,7 +1644,7 @@ router.get('/coupons/:id/analytics', verifyToken, requirePermission('vendor'), a
       LIMIT 30
     `;
     
-    const [usageStats] = await db.execute(usageQuery, [couponId]);
+    const [usageStats] = await db.query(usageQuery, [couponId]);
     
     // Get overall stats
     const overallQuery = `
@@ -1547,7 +1657,7 @@ router.get('/coupons/:id/analytics', verifyToken, requirePermission('vendor'), a
       WHERE cu.coupon_id = ?
     `;
     
-    const [overallStats] = await db.execute(overallQuery, [couponId]);
+    const [overallStats] = await db.query(overallQuery, [couponId]);
     
     res.json({
       success: true,
@@ -1588,7 +1698,7 @@ router.get('/coupons/products', verifyToken, requirePermission('vendor'), async 
       ORDER BY p.name ASC
     `;
     
-    const [products] = await db.execute(productsQuery, [vendorId]);
+    const [products] = await db.query(productsQuery, [vendorId]);
     
     res.json({
       success: true,
@@ -1642,7 +1752,7 @@ router.post('/promotions/:id/respond', verifyToken, requirePermission('vendor'),
     }
     
     // Verify invitation exists and belongs to vendor
-    const [invitationCheck] = await db.execute(
+    const [invitationCheck] = await db.query(
       'SELECT id, promotion_id FROM promotion_invitations WHERE id = ? AND vendor_id = ? AND invitation_status = \'pending\'',
       [invitationId, vendorId]
     );
@@ -1658,7 +1768,7 @@ router.post('/promotions/:id/respond', verifyToken, requirePermission('vendor'),
       WHERE id = ?
     `;
     
-    await db.execute(updateQuery, [
+    await db.query(updateQuery, [
       response,
       response === 'accepted' ? vendor_discount_percentage : null,
       vendor_response_message || null,

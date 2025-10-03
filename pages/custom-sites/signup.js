@@ -4,6 +4,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { getAuth, onAuthStateChanged, getIdToken, applyActionCode, isSignInWithEmailLink, signInWithEmailLink, confirmPasswordReset, verifyPasswordResetCode } from 'firebase/auth';
 import firebaseApp from '../../lib/firebase';
+import { getFrontendUrl, getApiUrl } from '../../lib/config';
 import { clearAuthTokens } from '../../lib/csrf';
 import styles from './signup.module.css';
 
@@ -16,13 +17,22 @@ const SignupCallbackPage = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPasswordForm, setShowPasswordForm] = useState(false);
-  const auth = getAuth(firebaseApp);
+  
+  // Only initialize Firebase on client side
+  const [auth, setAuth] = useState(null);
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const { getAuth } = require('firebase/auth');
+      setAuth(getAuth(firebaseApp));
+    }
+  }, []);
 
   useEffect(() => {
-    if (router.isReady) {
+    if (router.isReady && auth) {
       handleAuthFlow();
     }
-  }, [router.isReady, mode, oobCode, apiKey]);
+  }, [router.isReady, mode, oobCode, apiKey, auth]);
 
   const handleAuthFlow = async () => {
     try {
@@ -63,7 +73,7 @@ const SignupCallbackPage = () => {
       
       // Redirect to login after 3 seconds
       setTimeout(() => {
-        window.location.href = 'https://main.onlineartfestival.com/login';
+        window.location.href = getFrontendUrl('/login');
       }, 3000);
       
     } catch (err) {
@@ -132,7 +142,7 @@ const SignupCallbackPage = () => {
       
       // Redirect to login after 3 seconds
       setTimeout(() => {
-        window.location.href = 'https://main.onlineartfestival.com/login';
+        window.location.href = getFrontendUrl('/login');
       }, 3000);
       
     } catch (err) {
@@ -220,7 +230,7 @@ const SignupCallbackPage = () => {
       // Clear any existing tokens first
       clearAuthTokens();
       
-      const response = await fetch('https://api2.onlineartfestival.com/auth/exchange', {
+      const response = await fetch(getApiUrl('auth/exchange'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -242,8 +252,8 @@ const SignupCallbackPage = () => {
         localStorage.setItem('refreshToken', data.refreshToken);
         
         // Set secure cookies for middleware
-        document.cookie = `token=${data.token}; path=/; domain=.onlineartfestival.com; secure; samesite=lax; max-age=3600`;
-        document.cookie = `refreshToken=${data.refreshToken}; path=/; domain=.onlineartfestival.com; secure; samesite=lax; max-age=604800`;
+        document.cookie = `token=${data.token}; path=/; domain=.beemeeart.com; secure; samesite=lax; max-age=3600`;
+        document.cookie = `refreshToken=${data.refreshToken}; path=/; domain=.beemeeart.com; secure; samesite=lax; max-age=604800`;
         
         setStatus('success');
         setMessage('Authentication successful! Redirecting to main site...');
@@ -252,7 +262,7 @@ const SignupCallbackPage = () => {
         await new Promise(resolve => setTimeout(resolve, 500));
         
         // Redirect to main site dashboard
-        window.location.href = 'https://main.onlineartfestival.com/dashboard';
+        window.location.href = '/dashboard';
       } else {
         throw new Error('Invalid response: missing tokens');
       }
@@ -264,7 +274,7 @@ const SignupCallbackPage = () => {
   };
 
   const handleRetry = () => {
-    window.location.href = 'https://main.onlineartfestival.com/login';
+    window.location.href = '/login';
   };
 
   return (
@@ -422,7 +432,7 @@ const SignupCallbackPage = () => {
           {status !== 'error' && (
             <div className={styles.actions}>
               <a 
-                href="https://main.onlineartfestival.com" 
+                href="" 
                 className={styles.linkButton}
               >
                 Continue to Main Site

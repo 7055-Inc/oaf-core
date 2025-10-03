@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getAuthToken } from '../../../../lib/csrf';
+import { getApiUrl } from '../../../../lib/config';
 import styles from '../../SlideIn.module.css';
 
 // Custom Event Modal Component
@@ -147,7 +148,7 @@ export default function MyCalendar({ userData }) {
       }
 
       // Fetch application events
-      const applicationsResponse = await fetch('https://api2.onlineartfestival.com/api/applications/my-applications', {
+      const applicationsResponse = await fetch(getApiUrl('api/applications/my-applications'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -155,7 +156,7 @@ export default function MyCalendar({ userData }) {
       });
 
       // Fetch custom events
-      const customEventsResponse = await fetch('https://api2.onlineartfestival.com/api/events/my-events', {
+      const customEventsResponse = await fetch(getApiUrl('api/events/my-events'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -188,7 +189,7 @@ export default function MyCalendar({ userData }) {
   const addCustomEvent = async (eventData) => {
     try {
       const token = getAuthToken();
-      const response = await fetch('https://api2.onlineartfestival.com/api/events/custom', {
+      const response = await fetch(getApiUrl('api/events/custom'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

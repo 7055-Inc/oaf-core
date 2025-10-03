@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
 
 export default function ShippingSettings({ userData }) {
   const [preferences, setPreferences] = useState({
@@ -24,7 +25,7 @@ export default function ShippingSettings({ userData }) {
   useEffect(() => {
     const loadPreferences = async () => {
       try {
-        const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/vendor/shipping-preferences');
+        const response = await authApiRequest('vendor/shipping-preferences');
         if (response.ok) {
           const data = await response.json();
           if (data.success) {
@@ -60,7 +61,7 @@ export default function ShippingSettings({ userData }) {
     setSaving(true);
     setMessage('');
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/vendor/shipping-preferences', {
+      const response = await authenticatedApiRequest('vendor/shipping-preferences', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

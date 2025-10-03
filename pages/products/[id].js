@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { getApiUrl } from '../../lib/config';
 import Header from '../../components/Header';
 import AboutTheArtist from '../../components/AboutTheArtist';
 import VariationSelector from '../../components/VariationSelector';
@@ -51,7 +52,7 @@ export default function ProductView() {
         
         // Use the new curated art marketplace API - includes all data in single call
         const res = await fetch(
-          `https://api2.onlineartfestival.com/curated/art/products/${params.id}?include=images,shipping,vendor,inventory,categories`,
+          getApiUrl(`curated/art/products/${params.id}?include=images,shipping,vendor,inventory,categories`),
           {
             method: 'GET',
             credentials: 'include'
@@ -63,7 +64,7 @@ export default function ProductView() {
           console.log(`Curated endpoint failed with ${res.status}, trying regular products endpoint...`);
           
           const fallbackRes = await fetch(
-            `https://api2.onlineartfestival.com/products/${params.id}?include=images,shipping,vendor,inventory,categories`,
+            `products/${params.id}?include=images,shipping,vendor,inventory,categories`,
             {
               method: 'GET',
               credentials: 'include'
@@ -142,7 +143,7 @@ export default function ProductView() {
           return;
         }
         
-        const response = await fetch('https://api2.onlineartfestival.com/users/me', {
+        const response = await fetch('users/me', {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -178,7 +179,7 @@ export default function ProductView() {
       let cartId;
       
       // Try to get existing cart
-      const cartRes = await authenticatedApiRequest('https://api2.onlineartfestival.com/cart');
+      const cartRes = await authenticatedApiRequest('cart');
 
       if (cartRes.ok) {
         const carts = await cartRes.json();
@@ -189,7 +190,7 @@ export default function ProductView() {
           cartId = activeCart.id;
         } else {
           // Create a new cart
-          const createCartRes = await authenticatedApiRequest('https://api2.onlineartfestival.com/cart', {
+          const createCartRes = await authenticatedApiRequest('cart', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -209,7 +210,7 @@ export default function ProductView() {
       }
 
       // Now add the item to the cart
-      const addItemRes = await authenticatedApiRequest(`https://api2.onlineartfestival.com/cart/${cartId}/items`, {
+      const addItemRes = await authenticatedApiRequest(`cart/${cartId}/items`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -261,7 +262,7 @@ export default function ProductView() {
       
       if (!policiesData) {
         // Fetch all policies at once
-        const res = await fetch(`https://api2.onlineartfestival.com/users/${product.vendor_id}/policies`);
+        const res = await fetch(`users/${product.vendor_id}/policies`);
         
         if (!res.ok) {
           throw new Error('Failed to fetch policies');

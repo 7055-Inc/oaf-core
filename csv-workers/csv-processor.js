@@ -13,7 +13,7 @@ require('dotenv').config({ path: path.join(__dirname, '../api-service/.env') });
 const db = require('../api-service/config/db');
 
 // API configuration
-const API_BASE_URL = 'https://api2.onlineartfestival.com';
+const API_BASE_URL = 'https://api.beemeeart.com';
 
 // Initialize Redis queue
 const csvQueue = new Queue('CSV processing', {

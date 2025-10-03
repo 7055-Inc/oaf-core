@@ -1,0 +1,1200 @@
+openapi: 3.0.0
+info:
+  title: Event Management API
+  description: Comprehensive event management with artist coordination, ticket sales, and payment processing
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/api/events
+    description: Production server
+
+paths:
+  /:
+    get:
+      summary: List events
+      description: Get list of events with optional filtering
+      parameters:
+        - name: promoter_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by promoter ID
+        - name: event_status
+          in: query
+          schema:
+            type: string
+          description: Filter by event status (comma-separated)
+        - name: allow_applications
+          in: query
+          schema:
+            type: string
+            enum: ['0', '1']
+          description: Filter by application acceptance
+        - name: application_status
+          in: query
+          schema:
+            type: string
+          description: Filter by application status
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventSummary'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      summary: Create event
+      description: Create a new event (requires authentication and events permission)
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventCreateResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /types:
+    get:
+      summary: Get event types
+      description: Get list of available event types
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventType'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /my-events:
+    get:
+      summary: Get my custom events
+      description: Get custom events for authenticated artist
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CustomEvent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /{id}:
+    get:
+      summary: Get event details
+      description: Get detailed information for specific event
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Event ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventDetail'
+        '404':
+          $ref: '#/components/responses/EventNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      summary: Update event
+      description: Update existing event (requires authentication and events permission)
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Event ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventUpdate'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/EventNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      summary: Archive event
+      description: Archive event (soft delete, requires authentication and events permission)
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Event ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /{id}/renew:
+    post:
+      summary: Renew event
+      description: Create new event for next year based on existing event
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Event ID to renew
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/EventNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /{id}/artists:
+    get:
+      summary: Get event artists
+      description: Get list of artists participating in event (accepted/confirmed only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Event ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventArtistsResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /{id}/tickets:
+    get:
+      summary: Get event tickets
+      description: Get available tickets for event
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Event ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventTicketsResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      summary: Create ticket type
+      description: Create new ticket type for event (requires authentication, ownership, and tickets permission)
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Event ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketCreateResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /{id}/tickets/{ticketId}/purchase:
+    post:
+      summary: Purchase tickets
+      description: Purchase tickets for event with Stripe payment integration
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Event ID
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Ticket ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketPurchase'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketPurchaseResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/TicketNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /custom:
+    post:
+      summary: Create custom event
+      description: Create personal event for authenticated artist
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomEventCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomEventResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /custom/{id}:
+    put:
+      summary: Update custom event
+      description: Update personal event (requires ownership)
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Custom event ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomEventUpdate'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomEventResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/CustomEventNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      summary: Delete custom event
+      description: Delete personal event (requires ownership)
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Custom event ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/CustomEventNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Bearer token authentication
+
+  schemas:
+    EventStatus:
+      type: string
+      enum: [active, draft, archived]
+      description: Event status
+
+    ApplicationStatus:
+      type: string
+      enum: [not_accepting, accepting, closed]
+      description: Application acceptance status
+
+    AgeRestrictions:
+      type: string
+      enum: [all_ages, 18_plus, 21_plus]
+      description: Age restriction policy
+
+    EventType:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Event type ID
+        name:
+          type: string
+          description: Event type name
+        description:
+          type: string
+          description: Event type description
+        is_active:
+          type: boolean
+          description: Active status
+
+    EventSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Event ID
+        promoter_id:
+          type: integer
+          description: Promoter user ID
+        event_type_id:
+          type: integer
+          description: Event type ID
+        title:
+          type: string
+          description: Event title
+        description:
+          type: string
+          description: Event description
+        short_description:
+          type: string
+          nullable: true
+          description: Short description
+        event_status:
+          $ref: '#/components/schemas/EventStatus'
+        application_status:
+          $ref: '#/components/schemas/ApplicationStatus'
+        allow_applications:
+          type: boolean
+          description: Allow applications flag
+        start_date:
+          type: string
+          format: date-time
+          description: Event start date
+        end_date:
+          type: string
+          format: date-time
+          description: Event end date
+        venue_name:
+          type: string
+          description: Venue name
+        venue_city:
+          type: string
+          description: Venue city
+        venue_state:
+          type: string
+          description: Venue state
+        latitude:
+          type: number
+          format: float
+          nullable: true
+          description: Venue latitude
+        longitude:
+          type: number
+          format: float
+          nullable: true
+          description: Venue longitude
+        event_type_name:
+          type: string
+          description: Event type name
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+
+    EventDetail:
+      allOf:
+        - $ref: '#/components/schemas/EventSummary'
+        - type: object
+          properties:
+            application_deadline:
+              type: string
+              format: date-time
+              nullable: true
+              description: Application deadline
+            jury_date:
+              type: string
+              format: date-time
+              nullable: true
+              description: Jury review date
+            notification_date:
+              type: string
+              format: date-time
+              nullable: true
+              description: Notification date
+            venue_address:
+              type: string
+              nullable: true
+              description: Venue address
+            venue_zip:
+              type: string
+              nullable: true
+              description: Venue ZIP code
+            venue_capacity:
+              type: integer
+              nullable: true
+              description: Venue capacity
+            age_restrictions:
+              $ref: '#/components/schemas/AgeRestrictions'
+            admission_fee:
+              type: number
+              format: float
+              nullable: true
+              description: Admission fee
+            application_fee:
+              type: number
+              format: float
+              nullable: true
+              description: Application fee
+            booth_fee:
+              type: number
+              format: float
+              nullable: true
+              description: Booth fee
+            max_applications:
+              type: integer
+              nullable: true
+              description: Maximum applications
+            event_type_description:
+              type: string
+              nullable: true
+              description: Event type description
+            updated_at:
+              type: string
+              format: date-time
+              description: Last update timestamp
+
+    EventCreate:
+      type: object
+      required:
+        - event_type_id
+        - title
+        - start_date
+        - end_date
+        - venue_name
+        - venue_city
+        - venue_state
+      properties:
+        event_type_id:
+          type: integer
+          description: Event type ID
+        title:
+          type: string
+          description: Event title
+        description:
+          type: string
+          description: Event description
+        short_description:
+          type: string
+          description: Short description
+        start_date:
+          type: string
+          format: date-time
+          description: Event start date
+        end_date:
+          type: string
+          format: date-time
+          description: Event end date
+        venue_name:
+          type: string
+          description: Venue name
+        venue_address:
+          type: string
+          description: Venue address
+        venue_city:
+          type: string
+          description: Venue city
+        venue_state:
+          type: string
+          description: Venue state
+        venue_zip:
+          type: string
+          description: Venue ZIP code
+        venue_capacity:
+          type: integer
+          minimum: 1
+          description: Venue capacity
+        allow_applications:
+          type: boolean
+          description: Allow applications
+        application_status:
+          $ref: '#/components/schemas/ApplicationStatus'
+        application_deadline:
+          type: string
+          format: date-time
+          description: Application deadline
+        application_fee:
+          type: number
+          format: float
+          minimum: 0
+          description: Application fee
+        booth_fee:
+          type: number
+          format: float
+          minimum: 0
+          description: Booth fee
+        max_applications:
+          type: integer
+          minimum: 1
+          description: Maximum applications
+        age_restrictions:
+          $ref: '#/components/schemas/AgeRestrictions'
+        admission_fee:
+          type: number
+          format: float
+          minimum: 0
+          description: Admission fee
+        seo_title:
+          type: string
+          description: SEO title
+        meta_description:
+          type: string
+          description: Meta description
+        images:
+          type: array
+          items:
+            type: string
+          description: Array of image URLs
+
+    EventUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Event title
+        description:
+          type: string
+          description: Event description
+        start_date:
+          type: string
+          format: date-time
+          description: Event start date
+        end_date:
+          type: string
+          format: date-time
+          description: Event end date
+        venue_name:
+          type: string
+          description: Venue name
+        venue_capacity:
+          type: integer
+          minimum: 1
+          description: Venue capacity
+        event_status:
+          $ref: '#/components/schemas/EventStatus'
+        application_fee:
+          type: number
+          format: float
+          minimum: 0
+          description: Application fee
+
+    EventCreateResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Created event ID
+        title:
+          type: string
+          description: Event title
+        description:
+          type: string
+          description: Event description
+        event_type_name:
+          type: string
+          description: Event type name
+        event_status:
+          $ref: '#/components/schemas/EventStatus'
+        start_date:
+          type: string
+          format: date-time
+          description: Event start date
+        end_date:
+          type: string
+          format: date-time
+          description: Event end date
+        venue_name:
+          type: string
+          description: Venue name
+        venue_city:
+          type: string
+          description: Venue city
+        venue_state:
+          type: string
+          description: Venue state
+        latitude:
+          type: number
+          format: float
+          description: Venue latitude
+        longitude:
+          type: number
+          format: float
+          description: Venue longitude
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+
+    CustomEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Custom event ID
+        artist_id:
+          type: integer
+          description: Artist user ID
+        title:
+          type: string
+          description: Event title
+        description:
+          type: string
+          nullable: true
+          description: Event description
+        event_date:
+          type: string
+          format: date-time
+          description: Event date
+        location:
+          type: string
+          nullable: true
+          description: Event location
+        event_type:
+          type: string
+          description: Event type
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    CustomEventCreate:
+      type: object
+      required:
+        - title
+        - event_date
+      properties:
+        title:
+          type: string
+          description: Event title
+        description:
+          type: string
+          description: Event description
+        event_date:
+          type: string
+          format: date-time
+          description: Event date
+        location:
+          type: string
+          description: Event location
+        event_type:
+          type: string
+          description: Event type
+
+    CustomEventUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Event title
+        description:
+          type: string
+          description: Event description
+        event_date:
+          type: string
+          format: date-time
+          description: Event date
+        location:
+          type: string
+          description: Event location
+        event_type:
+          type: string
+          description: Event type
+
+    CustomEventResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Success message
+        event:
+          $ref: '#/components/schemas/CustomEvent'
+
+    Artist:
+      type: object
+      properties:
+        artist_id:
+          type: integer
+          description: Artist user ID
+        name:
+          type: string
+          description: Artist or business name
+        display_name:
+          type: string
+          description: Display name
+        bio:
+          type: string
+          nullable: true
+          description: Artist biography
+        location:
+          type: string
+          nullable: true
+          description: Artist location
+        profile_image:
+          type: string
+          nullable: true
+          description: Profile image URL
+        portfolio_url:
+          type: string
+          nullable: true
+          description: Portfolio URL
+        website:
+          type: string
+          nullable: true
+          description: Business website
+        social_instagram:
+          type: string
+          nullable: true
+          description: Instagram handle
+        social_facebook:
+          type: string
+          nullable: true
+          description: Facebook page
+        art_categories:
+          type: string
+          nullable: true
+          description: Art categories
+        art_mediums:
+          type: string
+          nullable: true
+          description: Art mediums
+        status_label:
+          type: string
+          description: Display status
+        application_status:
+          type: string
+          description: Application status
+
+    EventArtistsResponse:
+      type: object
+      properties:
+        artists:
+          type: array
+          items:
+            $ref: '#/components/schemas/Artist'
+        total:
+          type: integer
+          description: Total number of artists
+        event_id:
+          type: integer
+          description: Event ID
+
+    Ticket:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Ticket ID
+        ticket_type:
+          type: string
+          description: Ticket type name
+        price:
+          type: number
+          format: float
+          description: Ticket price
+        quantity_available:
+          type: integer
+          nullable: true
+          description: Available quantity
+        quantity_sold:
+          type: integer
+          description: Sold quantity
+        description:
+          type: string
+          nullable: true
+          description: Ticket description
+
+    EventTicketsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        tickets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ticket'
+        event_id:
+          type: integer
+          description: Event ID
+
+    TicketCreate:
+      type: object
+      required:
+        - ticket_type
+        - price
+        - quantity_available
+      properties:
+        ticket_type:
+          type: string
+          description: Ticket type name
+        price:
+          type: number
+          format: float
+          minimum: 0
+          description: Ticket price
+        quantity_available:
+          type: integer
+          minimum: 1
+          description: Available quantity
+        description:
+          type: string
+          description: Ticket description
+
+    TicketCreateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        ticket:
+          allOf:
+            - $ref: '#/components/schemas/Ticket'
+            - type: object
+              properties:
+                event_id:
+                  type: integer
+                  description: Event ID
+
+    TicketPurchase:
+      type: object
+      required:
+        - buyer_email
+        - quantity
+      properties:
+        buyer_email:
+          type: string
+          format: email
+          description: Buyer email address
+        buyer_name:
+          type: string
+          description: Buyer name
+        quantity:
+          type: integer
+          minimum: 1
+          description: Number of tickets
+
+    TicketPurchaseResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        payment_intent:
+          type: object
+          properties:
+            id:
+              type: string
+              description: Payment intent ID
+            client_secret:
+              type: string
+              description: Client secret for payment
+            amount:
+              type: integer
+              description: Payment amount in cents
+        ticket_info:
+          type: object
+          properties:
+            event_title:
+              type: string
+              description: Event title
+            ticket_type:
+              type: string
+              description: Ticket type
+            quantity:
+              type: integer
+              description: Quantity purchased
+            unit_price:
+              type: number
+              format: float
+              description: Unit price
+            total_price:
+              type: number
+              format: float
+              description: Total price
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Response message
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: string
+          description: Error details
+
+  responses:
+    Unauthorized:
+      description: Unauthorized - invalid or missing API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Authentication required"
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            events_permission:
+              summary: Events permission required
+              value:
+                error: "Access denied - events permission required"
+            not_your_event:
+              summary: Event ownership required
+              value:
+                error: "Access denied - not your event"
+            tickets_permission:
+              summary: Tickets permission required
+              value:
+                error: "Access denied - tickets permission required"
+
+    EventNotFound:
+      description: Event not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Event not found"
+
+    CustomEventNotFound:
+      description: Custom event not found or access denied
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Custom event not found or access denied"
+
+    TicketNotFound:
+      description: Ticket not found or not available
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Ticket not found or not available"
+
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missing_fields:
+              summary: Missing required fields
+              value:
+                error: "Missing required fields"
+            invalid_dates:
+              summary: Invalid date range
+              value:
+                error: "End date must be after start date"
+            invalid_email:
+              summary: Invalid email
+              value:
+                error: "Valid buyer email and quantity required"
+            insufficient_tickets:
+              summary: Not enough tickets
+              value:
+                error: "Not enough tickets available"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            create_event_error:
+              summary: Event creation error
+              value:
+                error: "Failed to create event"
+                details: "Database connection error"
+            purchase_error:
+              summary: Purchase processing error
+              value:
+                error: "Failed to process purchase"
+                details: "Payment processing error"
+            general_error:
+              summary: General server error
+              value:
+                error: "Internal server error"
+
+tags:
+  - name: Event Management
+    description: Event CRUD operations and lifecycle management
+
+  - name: Artist Management
+    description: Artist coordination and profile management
+
+  - name: Custom Events
+    description: Personal artist event management
+
+  - name: Ticket Sales
+    description: Ticket management and sales processing
+
+  - name: Event Configuration
+    description: Event setup and configuration options
+
+externalDocs:
+  description: Event Management API Documentation
+  url: https://docs.beemeeart.com/api/events

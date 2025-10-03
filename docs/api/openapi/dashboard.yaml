@@ -1,0 +1,534 @@
+openapi: 3.0.0
+info:
+  title: Beemeeart Dashboard Management API
+  description: Unified dashboard interface with role-based access control and permission-specific data views
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/dashboard
+    description: Production server
+  - url: https://test.beemeeart.com/dashboard
+    description: Testing server
+
+paths:
+  /overview:
+    get:
+      summary: Get dashboard overview
+      description: Get comprehensive dashboard overview with dynamically generated sections based on user permissions
+      operationId: getDashboardOverview
+      tags:
+        - Dashboard Overview
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Dashboard overview retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardOverviewResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /vendor/overview:
+    get:
+      summary: Get vendor dashboard overview
+      description: Get vendor financial dashboard with sales analytics and e-commerce metrics
+      operationId: getVendorDashboard
+      tags:
+        - Vendor Dashboard
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Vendor dashboard retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorDashboardResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /vendor/products:
+    get:
+      summary: Get vendor products dashboard
+      description: Get vendor product management dashboard with analytics and inventory insights
+      operationId: getVendorProductsDashboard
+      tags:
+        - Vendor Dashboard
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Vendor products dashboard retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorProductsDashboardResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /sites/my:
+    get:
+      summary: Get user's sites dashboard
+      description: Get current user's sites with dashboard-specific metadata and analytics
+      operationId: getUserSitesDashboard
+      tags:
+        - Sites Dashboard
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sites dashboard retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SiteDashboardItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /content/articles:
+    get:
+      summary: Get content articles dashboard
+      description: Get content creator's articles dashboard with analytics and management tools
+      operationId: getContentArticlesDashboard
+      tags:
+        - Content Dashboard
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Content articles dashboard retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentArticlesDashboardResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /system/users:
+    get:
+      summary: Get system users
+      description: Get all system users for administrative management (admin only)
+      operationId: getSystemUsers
+      tags:
+        - System Administration
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: System users retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SystemUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create system user
+      description: Create new user account (admin only)
+      operationId: createSystemUser
+      tags:
+        - System Administration
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateUserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /permissions/my:
+    get:
+      summary: Get user permissions
+      description: Get current user's effective permissions with detailed descriptions
+      operationId: getUserPermissions
+      tags:
+        - Permission Management
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User permissions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPermissionsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    DashboardOverviewResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/DashboardUser'
+        userType:
+          type: string
+          enum: [admin, artist, promoter, community]
+          description: Primary user type
+        permissions:
+          type: array
+          items:
+            type: string
+          description: User's effective permissions
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardSection'
+          description: Available dashboard sections based on permissions
+
+    DashboardUser:
+      type: object
+      properties:
+        username:
+          type: string
+          description: User's username
+        user_type:
+          type: string
+          description: User account type
+        display_name:
+          type: string
+          description: User's display name
+
+    DashboardSection:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Section identifier
+        title:
+          type: string
+          description: Section display title
+        description:
+          type: string
+          description: Section description
+        endpoints:
+          type: array
+          items:
+            type: string
+          description: Available endpoints for this section
+
+    VendorDashboardResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Implementation status message
+        userId:
+          type: integer
+          description: Current user ID
+        permissions:
+          type: array
+          items:
+            type: string
+          description: User's effective permissions
+        todo:
+          type: string
+          description: Implementation notes
+
+    VendorProductsDashboardResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Implementation status message
+        note:
+          type: string
+          description: Feature description
+
+    SiteDashboardItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Site ID
+        user_id:
+          type: integer
+          description: Site owner ID
+        site_name:
+          type: string
+          description: Site name
+        subdomain:
+          type: string
+          description: Site subdomain
+        site_title:
+          type: string
+          description: Site title
+        site_description:
+          type: string
+          description: Site description
+        theme_name:
+          type: string
+          description: Applied theme
+        status:
+          type: string
+          enum: [draft, active, inactive, deleted]
+          description: Site status
+        custom_domain:
+          type: string
+          nullable: true
+          description: Custom domain if configured
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        dashboardUrl:
+          type: string
+          description: Dashboard management URL
+        publicUrl:
+          type: string
+          description: Public site URL
+
+    ContentArticlesDashboardResponse:
+      type: object
+      properties:
+        articles:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArticleDashboardItem'
+          description: User's articles
+        canAccessAll:
+          type: boolean
+          description: Whether user can access all articles
+        stats:
+          $ref: '#/components/schemas/ArticleStats'
+          description: Article statistics
+
+    ArticleDashboardItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Article ID
+        title:
+          type: string
+          description: Article title
+        slug:
+          type: string
+          description: Article URL slug
+        status:
+          type: string
+          enum: [draft, published, archived]
+          description: Article status
+        author_id:
+          type: integer
+          description: Author user ID
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Publication timestamp
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+
+    ArticleStats:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total number of articles
+        published:
+          type: integer
+          description: Number of published articles
+        draft:
+          type: integer
+          description: Number of draft articles
+
+    SystemUser:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: User ID
+        username:
+          type: string
+          description: Username
+        status:
+          type: string
+          enum: [active, inactive, suspended]
+          description: User status
+        user_type:
+          type: string
+          enum: [admin, artist, promoter, community]
+          description: User type
+
+    CreateUserRequest:
+      type: object
+      required:
+        - username
+        - email
+        - user_type
+      properties:
+        username:
+          type: string
+          description: Desired username
+        email:
+          type: string
+          format: email
+          description: User email address
+        user_type:
+          type: string
+          enum: [admin, artist, promoter, community]
+          description: User account type
+        status:
+          type: string
+          enum: [active, inactive]
+          default: active
+          description: Initial user status
+
+    CreateUserResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Implementation status message
+        note:
+          type: string
+          description: Implementation notes
+
+    UserPermissionsResponse:
+      type: object
+      properties:
+        userType:
+          type: string
+          enum: [admin, artist, promoter, community]
+          description: Primary user type
+        permissions:
+          type: array
+          items:
+            type: string
+          description: User's effective permissions
+        permissionDetails:
+          type: array
+          items:
+            $ref: '#/components/schemas/PermissionDetail'
+          description: Detailed permission information
+        canAccessAll:
+          type: boolean
+          description: Whether user has admin-level access
+        isAdmin:
+          type: boolean
+          description: Whether user has admin role
+
+    PermissionDetail:
+      type: object
+      properties:
+        permission_name:
+          type: string
+          description: Permission identifier
+        description:
+          type: string
+          description: Human-readable permission description
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+
+  responses:
+    BadRequest:
+      description: Bad request - validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Unauthorized:
+      description: Unauthorized - authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+tags:
+  - name: Dashboard Overview
+    description: Main dashboard overview and navigation
+  - name: Vendor Dashboard
+    description: E-commerce and sales dashboard functionality
+  - name: Sites Dashboard
+    description: Website management dashboard
+  - name: Content Dashboard
+    description: Content creation and management dashboard
+  - name: System Administration
+    description: System administration dashboard (admin only)
+  - name: Permission Management
+    description: User permission information and management

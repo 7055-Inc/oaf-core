@@ -1,0 +1,765 @@
+openapi: 3.0.0
+info:
+  title: Category Management API
+  description: Comprehensive category management system with hierarchical organization, content management, and SEO optimization
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/api
+    description: Production server
+
+paths:
+  /categories:
+    get:
+      summary: Get all categories
+      description: Get all categories in both hierarchical tree and flat array formats
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoriesResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      summary: Create category
+      description: Create a new category with validation and logging
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryCreateResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /categories/{id}:
+    get:
+      summary: Get single category
+      description: Get detailed information for specific category including children and breadcrumb
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryDetailResponse'
+        '404':
+          $ref: '#/components/responses/CategoryNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      summary: Update category
+      description: Update existing category with comprehensive validation
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpdate'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryUpdateResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/CategoryNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      summary: Delete category
+      description: Delete category with constraint validation
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/ConstraintError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/CategoryNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /categories/change-log:
+    get:
+      summary: Get category change log (admin)
+      description: Get audit trail of all category changes
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+          description: Number of records to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Number of records to skip
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeLogResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/InsufficientPermissions'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /categories/content/{category_id}:
+    get:
+      summary: Get category content
+      description: Get category content including hero images, descriptions, and featured items
+      parameters:
+        - name: category_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryContentResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      summary: Create/update category content (admin)
+      description: Create or update category content with change tracking
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: category_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryContentUpdate'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/InsufficientPermissions'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /categories/seo/{category_id}:
+    get:
+      summary: Get category SEO data
+      description: Get category SEO metadata and structured data
+      parameters:
+        - name: category_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategorySEOResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      summary: Create/update category SEO data (admin)
+      description: Create or update category SEO data with change tracking
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: category_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategorySEOUpdate'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/InsufficientPermissions'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Bearer token authentication
+
+  schemas:
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Category ID
+        name:
+          type: string
+          description: Category name
+        parent_id:
+          type: integer
+          nullable: true
+          description: Parent category ID
+        description:
+          type: string
+          nullable: true
+          description: Category description
+        parent_name:
+          type: string
+          nullable: true
+          description: Parent category name
+        child_count:
+          type: integer
+          description: Number of child categories
+        product_count:
+          type: integer
+          description: Number of associated products
+
+    CategoryHierarchical:
+      allOf:
+        - $ref: '#/components/schemas/Category'
+        - type: object
+          properties:
+            children:
+              type: array
+              items:
+                $ref: '#/components/schemas/CategoryHierarchical'
+              description: Child categories
+
+    CategoryDetail:
+      allOf:
+        - $ref: '#/components/schemas/Category'
+        - type: object
+          properties:
+            children:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  description:
+                    type: string
+              description: Direct child categories
+            breadcrumb:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+              description: Parent chain for navigation
+
+    CategoryCreate:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Category name (must be unique)
+          example: "Digital Art"
+        parent_id:
+          type: integer
+          nullable: true
+          description: Parent category ID
+          example: 1
+        description:
+          type: string
+          nullable: true
+          description: Category description
+          example: "Digital artwork and computer-generated art"
+
+    CategoryUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Category name
+        parent_id:
+          type: integer
+          nullable: true
+          description: Parent category ID
+        description:
+          type: string
+          nullable: true
+          description: Category description
+
+    CategoryContent:
+      type: object
+      properties:
+        category_id:
+          type: integer
+          description: Category ID
+        hero_image:
+          type: string
+          nullable: true
+          description: Hero image URL
+        description:
+          type: string
+          nullable: true
+          description: Rich content description
+        banner:
+          type: string
+          nullable: true
+          description: Banner content
+        featured_products:
+          type: string
+          nullable: true
+          description: Featured products JSON
+        featured_artists:
+          type: string
+          nullable: true
+          description: Featured artists JSON
+        updated_by:
+          type: integer
+          description: User ID who last updated
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    CategoryContentUpdate:
+      type: object
+      properties:
+        hero_image:
+          type: string
+          nullable: true
+          description: Hero image URL
+        description:
+          type: string
+          nullable: true
+          description: Rich content description
+        banner:
+          type: string
+          nullable: true
+          description: Banner content
+        featured_products:
+          type: string
+          nullable: true
+          description: Featured products JSON
+        featured_artists:
+          type: string
+          nullable: true
+          description: Featured artists JSON
+
+    CategorySEO:
+      type: object
+      properties:
+        category_id:
+          type: integer
+          description: Category ID
+        meta_title:
+          type: string
+          nullable: true
+          description: SEO title
+        meta_description:
+          type: string
+          nullable: true
+          description: SEO description
+        meta_keywords:
+          type: string
+          nullable: true
+          description: SEO keywords
+        canonical_url:
+          type: string
+          nullable: true
+          description: Canonical URL
+        json_ld:
+          type: string
+          nullable: true
+          description: JSON-LD structured data
+        updated_by:
+          type: integer
+          description: User ID who last updated
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    CategorySEOUpdate:
+      type: object
+      properties:
+        meta_title:
+          type: string
+          nullable: true
+          description: SEO title
+        meta_description:
+          type: string
+          nullable: true
+          description: SEO description
+        meta_keywords:
+          type: string
+          nullable: true
+          description: SEO keywords
+        canonical_url:
+          type: string
+          nullable: true
+          description: Canonical URL
+        json_ld:
+          type: string
+          nullable: true
+          description: JSON-LD structured data
+
+    ChangeLogEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Log entry ID
+        category_id:
+          type: integer
+          description: Category ID
+        action:
+          type: string
+          enum: [create, update, delete]
+          description: Action type
+        old_values:
+          type: object
+          nullable: true
+          description: Previous values
+        new_values:
+          type: object
+          nullable: true
+          description: New values
+        admin_id:
+          type: integer
+          description: Admin user ID
+        admin_username:
+          type: string
+          description: Admin username
+        category_name:
+          type: string
+          nullable: true
+          description: Category name
+        created_at:
+          type: string
+          format: date-time
+          description: Change timestamp
+
+    CategoriesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryHierarchical'
+          description: Hierarchical category tree
+        flat_categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+          description: Flat array of all categories
+
+    CategoryDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        category:
+          $ref: '#/components/schemas/CategoryDetail'
+
+    CategoryCreateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+          example: "Category created successfully"
+        category:
+          $ref: '#/components/schemas/Category'
+
+    CategoryUpdateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+          example: "Category updated successfully"
+        category:
+          $ref: '#/components/schemas/Category'
+
+    CategoryContentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        content:
+          $ref: '#/components/schemas/CategoryContent'
+          nullable: true
+
+    CategorySEOResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        seo:
+          $ref: '#/components/schemas/CategorySEO'
+          nullable: true
+
+    ChangeLogResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChangeLogEntry'
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: string
+          description: Additional error details
+
+  responses:
+    Unauthorized:
+      description: Unauthorized - invalid or missing API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Unauthorized access"
+
+    InsufficientPermissions:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Insufficient permissions for this operation"
+
+    CategoryNotFound:
+      description: Category not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Category not found"
+
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            name_exists:
+              summary: Category name already exists
+              value:
+                error: "Category name already exists"
+            parent_not_found:
+              summary: Parent category not found
+              value:
+                error: "Parent category not found"
+            circular_reference:
+              summary: Circular reference prevention
+              value:
+                error: "Cannot create circular reference in category hierarchy"
+            self_parent:
+              summary: Self-parent prevention
+              value:
+                error: "Category cannot be its own parent"
+            name_required:
+              summary: Name is required
+              value:
+                error: "Category name is required"
+
+    ConstraintError:
+      description: Constraint violation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            has_children:
+              summary: Category has children
+              value:
+                error: "Cannot delete category with subcategories. Please move or delete subcategories first."
+            has_products:
+              summary: Category has products
+              value:
+                error: "Cannot delete category with products. Please reassign or delete products first."
+            primary_category:
+              summary: Used as primary category
+              value:
+                error: "Cannot delete category that is used as primary category for products. Please reassign products first."
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            fetch_error:
+              summary: Fetch categories error
+              value:
+                error: "Failed to fetch categories"
+            create_error:
+              summary: Create category error
+              value:
+                error: "Failed to create category"
+            update_error:
+              summary: Update category error
+              value:
+                error: "Failed to update category"
+            delete_error:
+              summary: Delete category error
+              value:
+                error: "Failed to delete category"
+            content_error:
+              summary: Content operation error
+              value:
+                error: "Failed to save category content"
+            seo_error:
+              summary: SEO operation error
+              value:
+                error: "Failed to save category SEO"
+            change_log_error:
+              summary: Change log error
+              value:
+                error: "Failed to fetch category change log"
+
+tags:
+  - name: Category Management
+    description: Core category CRUD operations
+
+  - name: Category Content
+    description: Category content and display management
+
+  - name: Category SEO
+    description: SEO optimization and structured data
+
+  - name: Category Administration
+    description: Administrative functions and audit trails

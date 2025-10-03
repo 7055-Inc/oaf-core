@@ -2,6 +2,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import { getApiUrl, getFrontendUrl } from '../../../lib/config';
 import Header from '../../../components/Header';
 import styles from '../styles/ArticleArchive.module.css';
 
@@ -19,8 +20,8 @@ export default function AuthorArchivePage() {
     if (!username) return;
     setLoading(true);
     Promise.all([
-      fetch(`https://api2.onlineartfestival.com/users/profile/${username}`).then(res => res.json()),
-      fetch(`https://api2.onlineartfestival.com/api/articles?author=${username}&limit=${pagination.limit}&page=${pagination.page}`).then(res => res.json())
+      fetch(getApiUrl(`users/profile/${username}`)).then(res => res.json()),
+      fetch(`api/articles?author=${username}&limit=${pagination.limit}&page=${pagination.page}`).then(res => res.json())
     ])
       .then(([profileData, articlesData]) => {
         setAuthor(profileData.user || null);
@@ -69,7 +70,7 @@ export default function AuthorArchivePage() {
     if (imagePath.startsWith('/static_media/')) {
       return imagePath;
     }
-    return `https://onlineartfestival.com${imagePath}`;
+    return getFrontendUrl(imagePath);
   };
 
   if (loading) return (
@@ -99,7 +100,7 @@ export default function AuthorArchivePage() {
   const metaDescription = authorProfile?.artist_biography 
     ? `Read articles by ${authorDisplayName}. ${authorProfile.artist_biography.substring(0, 120)}...`
     : `Explore articles written by ${authorDisplayName} on Online Art Festival`;
-  const canonicalUrl = `https://onlineartfestival.com/articles/author/${username}`;
+  const canonicalUrl = getFrontendUrl(`/articles/author/${username}`);
 
   // Generate JSON-LD structured data
   const generateAuthorSchema = () => {
@@ -139,7 +140,7 @@ export default function AuthorArchivePage() {
           "@type": "Article",
           "position": index + 1,
           "name": article.title,
-          "url": `https://onlineartfestival.com/articles/${article.slug}`,
+          "url": `/articles/${article.slug}`,
           "author": {
             "@type": "Person",
             "name": authorDisplayName

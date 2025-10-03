@@ -1,0 +1,397 @@
+/* Site Unavailable Page Styles */
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.backgroundPattern {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0.05;
+  pointer-events: none;
+}
+
+.artElement1 {
+  position: absolute;
+  top: 15%;
+  left: 10%;
+  font-size: 3rem;
+  animation: float 8s ease-in-out infinite;
+}
+
+.artElement2 {
+  position: absolute;
+  top: 25%;
+  right: 15%;
+  font-size: 2.5rem;
+  animation: float 10s ease-in-out infinite reverse;
+}
+
+.artElement3 {
+  position: absolute;
+  bottom: 25%;
+  left: 20%;
+  font-size: 2rem;
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-15px) rotate(3deg); }
+}
+
+.mainContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.statusCard {
+  background: white;
+  border-radius: 16px;
+  padding: 3rem;
+  max-width: 600px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  margin-bottom: 3rem;
+}
+
+.statusIcon {
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+  display: block;
+}
+
+.title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 1rem;
+  line-height: 1.2;
+}
+
+.siteInfo {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #f9fafb;
+  border-radius: 12px;
+  border-left: 4px solid #6366f1;
+}
+
+.siteName {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 0.5rem 0;
+}
+
+.subdomain {
+  font-size: 1rem;
+  color: #6b7280;
+  margin: 0;
+  font-family: 'Monaco', 'Menlo', monospace;
+  background: #e5e7eb;
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.message {
+  font-size: 1.125rem;
+  color: #4b5563;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.draftInfo {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #fef3c7;
+  border-radius: 12px;
+  border-left: 4px solid #f59e0b;
+}
+
+.progressBar {
+  width: 100%;
+  height: 8px;
+  background: #fde68a;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progressText {
+  font-size: 0.875rem;
+  color: #92400e;
+  font-weight: 600;
+  margin: 0;
+}
+
+.actionButtons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: #6366f1;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.875rem;
+}
+
+.button:hover {
+  background: #5b21b6;
+  transform: translateY(-1px);
+}
+
+.secondaryButton {
+  background: #6b7280;
+}
+
+.secondaryButton:hover {
+  background: #4b5563;
+}
+
+.contactSection {
+  padding: 1.5rem;
+  background: #f0f9ff;
+  border-radius: 12px;
+  border-left: 4px solid #0ea5e9;
+  margin-bottom: 1rem;
+}
+
+.contactText {
+  color: #0c4a6e;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.contactLink {
+  color: #0284c7;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.contactLink:hover {
+  text-decoration: underline;
+}
+
+.ownerInfo {
+  padding: 1.5rem;
+  background: #ecfdf5;
+  border-radius: 12px;
+  border-left: 4px solid #10b981;
+}
+
+.ownerText {
+  color: #065f46;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.dashboardLink {
+  color: #059669;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.dashboardLink:hover {
+  text-decoration: underline;
+}
+
+.suggestedActions {
+  width: 100%;
+  max-width: 900px;
+}
+
+.suggestionsTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1f2937;
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.suggestions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.suggestionCard {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.suggestionCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+}
+
+.suggestionIcon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.suggestionContent h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 0.25rem 0;
+}
+
+.suggestionContent p {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.footer {
+  text-align: center;
+  padding: 2rem;
+  color: #6b7280;
+  font-size: 0.875rem;
+  border-top: 1px solid #e5e7eb;
+  background: white;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .mainContent {
+    padding: 1rem;
+  }
+
+  .statusCard {
+    padding: 2rem;
+    margin: 0 0 2rem 0;
+  }
+
+  .title {
+    font-size: 1.875rem;
+  }
+
+  .siteName {
+    font-size: 1.25rem;
+  }
+
+  .actionButtons {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .button {
+    width: 100%;
+    max-width: 250px;
+    justify-content: center;
+  }
+
+  .suggestions {
+    grid-template-columns: 1fr;
+  }
+
+  .suggestionCard {
+    padding: 1rem;
+  }
+
+  .artElement1,
+  .artElement2,
+  .artElement3 {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .statusCard {
+    padding: 1.5rem;
+  }
+
+  .title {
+    font-size: 1.5rem;
+  }
+
+  .message {
+    font-size: 1rem;
+  }
+
+  .statusIcon {
+    font-size: 3rem;
+  }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  .artElement1,
+  .artElement2,
+  .artElement3 {
+    animation: none;
+  }
+  
+  .button:hover,
+  .suggestionCard:hover {
+    transform: none;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .container {
+    background: #fff;
+  }
+  
+  .statusCard {
+    border: 2px solid #000;
+  }
+  
+  .title {
+    color: #000;
+  }
+  
+  .message {
+    color: #333;
+  }
+}

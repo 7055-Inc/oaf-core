@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest, handleCsrfError, refreshAuthToken } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
+import { getApiUrl, getFrontendUrl } from '../../../../lib/config';
 import slideInStyles from '../../SlideIn.module.css';
 import ShipSubscriptions from '../../my-subscriptions/components/ShipSubscriptions';
 
@@ -72,7 +74,7 @@ export default function ManageOrders({ userData }) {
     setLoading(true);
     try {
       const statusParam = returnStatusFilter !== 'all' ? `?status=${returnStatusFilter}` : '';
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/returns/vendor/my${statusParam}`);
+      const response = await authApiRequest(`api/returns/vendor/my${statusParam}`);
       
       if (response.ok) {
         const data = await response.json();
@@ -94,7 +96,7 @@ export default function ManageOrders({ userData }) {
     try {
       const status = tab === 'unshipped' ? 'unshipped' : 'shipped';
       const token = localStorage.getItem('token'); // Get auth token (common in your app)
-      const response = await fetch(`https://api2.onlineartfestival.com/vendor/orders/my?status=${status}`, {
+      const response = await fetch(getApiUrl(`vendor/orders/my?status=${status}`), {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -115,7 +117,7 @@ export default function ManageOrders({ userData }) {
   const fetchLabels = async () => {
     setLoading(true);
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/shipping/my-labels', {
+      const response = await authApiRequest('api/shipping/my-labels', {
         method: 'GET'
       });
 
@@ -135,7 +137,7 @@ export default function ManageOrders({ userData }) {
 
   const fetchStandaloneLabels = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/shipping/standalone-labels', {
+      const response = await authApiRequest('api/subscriptions/shipping/standalone-labels', {
         method: 'GET'
       });
 
@@ -181,7 +183,7 @@ export default function ManageOrders({ userData }) {
     }
 
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/shipping/cancel-label', {
+      const response = await authApiRequest('api/shipping/cancel-label', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -215,7 +217,7 @@ export default function ManageOrders({ userData }) {
     }
 
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/shipping/batch-labels', {
+      const response = await authApiRequest('api/shipping/batch-labels', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -227,7 +229,7 @@ export default function ManageOrders({ userData }) {
       
       if (data.downloadUrl) {
         // Open the batch PDF in a new tab
-        window.open(`https://api2.onlineartfestival.com${data.downloadUrl}`, '_blank');
+        window.open(getApiUrl(data.downloadUrl), '_blank');
       } else {
         alert(data.message || 'Batch processing completed');
       }
@@ -342,12 +344,10 @@ export default function ManageOrders({ userData }) {
     const form = getFormData(id, isGroup);
     const itemId = isGroup ? mergedGroups[id][0] : id; // Use first item in group for API
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`https://api2.onlineartfestival.com/api/shipping/get-label-rates`, {
+      const response = await authApiRequest('api/shipping/get-label-rates', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ item_id: itemId, packages: form.packages })
       });
@@ -418,7 +418,7 @@ export default function ManageOrders({ userData }) {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('https://api2.onlineartfestival.com/api/shipping/process-batch', {
+      const response = await fetch('api/shipping/process-batch', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -453,7 +453,7 @@ export default function ManageOrders({ userData }) {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('https://api2.onlineartfestival.com/api/shipping/cancel-label', {
+      const response = await fetch('api/shipping/cancel-label', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1439,8 +1439,8 @@ export default function ManageOrders({ userData }) {
                           ) : (
                             <a 
                               href={label.label_file_path.includes('/user_') 
-                                ? `https://api2.onlineartfestival.com/api/shipping/labels/${encodeURIComponent(label.label_file_path.split('/').pop())}`
-                                : `https://main.onlineartfestival.com${label.label_file_path}`}
+                                ? `api/shipping/labels/${encodeURIComponent(label.label_file_path.split('/').pop())}`
+                                : `${label.label_file_path}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               style={{ color: '#007bff', textDecoration: 'none' }}
@@ -1584,8 +1584,8 @@ export default function ManageOrders({ userData }) {
                             ) : (
                               <a 
                                 href={label.label_file_path.includes('/user_') 
-                                  ? `https://api2.onlineartfestival.com/api/shipping/labels/${encodeURIComponent(label.label_file_path.split('/').pop())}`
-                                  : `https://main.onlineartfestival.com${label.label_file_path}`}
+                                  ? `api/shipping/labels/${encodeURIComponent(label.label_file_path.split('/').pop())}`
+                                  : `${label.label_file_path}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 style={{ color: '#007bff', textDecoration: 'none' }}
@@ -2197,7 +2197,7 @@ export default function ManageOrders({ userData }) {
                         <button 
                           className="secondary"
                           style={{ fontSize: '14px' }}
-                          onClick={() => window.open(`https://api2.onlineartfestival.com/api/returns/${returnItem.id}/label`, '_blank')}
+                          onClick={() => window.open(`api/returns/${returnItem.id}/label`, '_blank')}
                         >
                           View Label
                         </button>

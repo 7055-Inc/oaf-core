@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
+import { getSmartMediaUrl } from '../../../../lib/config';
 import styles from '../../../../pages/dashboard/Dashboard.module.css';
 
 export default function MyProducts({ userData }) {
@@ -26,7 +28,7 @@ export default function MyProducts({ userData }) {
 
   const fetchCurrentUser = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/users/me', {
+      const response = await authApiRequest('users/me', {
         method: 'GET'
       });
 
@@ -42,10 +44,10 @@ export default function MyProducts({ userData }) {
   const fetchProducts = async () => {
     try {
       const endpoint = showAllProducts && isAdmin 
-        ? 'https://api2.onlineartfestival.com/products/all?include=inventory,images,vendor'
-        : 'https://api2.onlineartfestival.com/products/my/?include=inventory,images';
+        ? 'products/all?include=inventory,images,vendor'
+        : 'products/my?include=inventory,images';
         
-      const response = await authenticatedApiRequest(endpoint, {
+      const response = await authApiRequest(endpoint, {
         method: 'GET'
       });
 
@@ -100,7 +102,7 @@ export default function MyProducts({ userData }) {
       if (imageUrl.startsWith('http')) {
         return imageUrl;
       }
-      return `https://api2.onlineartfestival.com${imageUrl}`;
+      return getSmartMediaUrl(imageUrl);
     }
     return null;
   };
@@ -116,7 +118,7 @@ export default function MyProducts({ userData }) {
   const handleBulkDelete = async () => {
     setDeleting(true);
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/products/bulk-delete', {
+      const response = await authenticatedApiRequest('products/bulk-delete', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

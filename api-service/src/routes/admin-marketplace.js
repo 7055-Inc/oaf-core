@@ -1,3 +1,10 @@
+/**
+ * Admin Marketplace Management Routes
+ * Comprehensive administrative controls for marketplace management
+ * Handles product curation, application approval, statistics, and vendor oversight
+ * All routes require admin-level permissions for marketplace administration
+ */
+
 const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
@@ -6,11 +13,16 @@ const { requirePermission } = require('../middleware/permissions');
 const { secureLogger } = require('../middleware/secureLogger');
 
 /**
- * Admin Marketplace Management Routes
- * All routes require admin permissions
+ * GET /admin/marketplace/stats
+ * Get comprehensive marketplace curation statistics and metrics
+ * Provides overview of marketplace health, categorization status, and user permissions
+ * 
+ * @route GET /admin/marketplace/stats
+ * @middleware verifyToken - Requires user authentication
+ * @middleware requirePermission('admin') - Requires admin permissions
+ * @returns {Object} Marketplace statistics including product counts by category and user permission status
+ * @note Admin-only endpoint for marketplace oversight and management
  */
-
-// GET /admin/marketplace/stats - Get marketplace curation statistics
 router.get('/stats', verifyToken, requirePermission('admin'), async (req, res) => {
   try {
     // Get overall marketplace product counts
@@ -50,7 +62,21 @@ router.get('/stats', verifyToken, requirePermission('admin'), async (req, res) =
   }
 });
 
-// GET /admin/marketplace/products - Get products by category for curation
+/**
+ * GET /admin/marketplace/products
+ * Get marketplace products by category for admin curation and management
+ * Supports filtering by category with optional includes for detailed product information
+ * 
+ * @route GET /admin/marketplace/products
+ * @middleware verifyToken - Requires user authentication
+ * @middleware requirePermission('admin') - Requires admin permissions
+ * @param {string} [category=unsorted] - Product category ('unsorted', 'art', 'crafts')
+ * @param {string} [include] - Comma-separated includes ('images', 'vendor')
+ * @param {number} [limit=50] - Number of products to return
+ * @param {number} [offset=0] - Pagination offset
+ * @returns {Object} Paginated list of marketplace products with vendor information
+ * @note Admin-only endpoint for product curation workflow
+ */
 router.get('/products', verifyToken, requirePermission('admin'), async (req, res) => {
   try {
     const { category = 'unsorted', include, limit = 50, offset = 0 } = req.query;
@@ -143,7 +169,21 @@ router.get('/products', verifyToken, requirePermission('admin'), async (req, res
   }
 });
 
-// PUT /admin/marketplace/products/:id/categorize - Move product to different category
+/**
+ * PUT /admin/marketplace/products/:id/categorize
+ * Move individual product to different marketplace category
+ * Updates product category and logs curation action for audit trail
+ * 
+ * @route PUT /admin/marketplace/products/:id/categorize
+ * @middleware verifyToken - Requires user authentication
+ * @middleware requirePermission('admin') - Requires admin permissions
+ * @param {string} id - Product ID to categorize
+ * @param {Object} req.body - Categorization data
+ * @param {string} req.body.category - Target category ('unsorted', 'art', 'crafts')
+ * @param {string} [req.body.reason] - Optional reason for categorization
+ * @returns {Object} Categorization confirmation with previous and new category
+ * @note Creates audit log entry for curation tracking
+ */
 router.put('/products/:id/categorize', verifyToken, requirePermission('admin'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -201,7 +241,21 @@ router.put('/products/:id/categorize', verifyToken, requirePermission('admin'), 
   }
 });
 
-// PUT /admin/marketplace/products/bulk-categorize - Bulk move products to different category
+/**
+ * PUT /admin/marketplace/products/bulk-categorize
+ * Bulk move multiple products to different marketplace category
+ * Performs transactional bulk update with comprehensive audit logging
+ * 
+ * @route PUT /admin/marketplace/products/bulk-categorize
+ * @middleware verifyToken - Requires user authentication
+ * @middleware requirePermission('admin') - Requires admin permissions
+ * @param {Object} req.body - Bulk categorization data
+ * @param {Array<number>} req.body.product_ids - Array of product IDs to categorize
+ * @param {string} req.body.category - Target category ('unsorted', 'art', 'crafts')
+ * @param {string} [req.body.reason] - Optional reason for bulk categorization
+ * @returns {Object} Bulk categorization confirmation with update count
+ * @note Uses database transactions for data consistency and creates audit logs for all products
+ */
 router.put('/products/bulk-categorize', verifyToken, requirePermission('admin'), async (req, res) => {
   try {
     const { product_ids, category, reason } = req.body;
@@ -283,7 +337,19 @@ router.put('/products/bulk-categorize', verifyToken, requirePermission('admin'),
   }
 });
 
-// GET /admin/marketplace/curation-log - Get curation history
+/**
+ * GET /admin/marketplace/curation-log
+ * Get comprehensive curation history and audit trail
+ * Provides detailed log of all marketplace curation actions with curator information
+ * 
+ * @route GET /admin/marketplace/curation-log
+ * @middleware verifyToken - Requires user authentication
+ * @middleware requirePermission('admin') - Requires admin permissions
+ * @param {number} [limit=50] - Number of log entries to return
+ * @param {number} [offset=0] - Pagination offset
+ * @returns {Object} Paginated curation log with product and curator details
+ * @note Essential for marketplace audit trail and curation oversight
+ */
 router.get('/curation-log', verifyToken, requirePermission('admin'), async (req, res) => {
   try {
     const { limit = 50, offset = 0 } = req.query;
@@ -321,7 +387,20 @@ router.get('/curation-log', verifyToken, requirePermission('admin'), async (req,
   }
 });
 
-// GET /admin/marketplace/applications - Get marketplace applications by status
+/**
+ * GET /admin/marketplace/applications
+ * Get marketplace applications by status for admin review
+ * Provides comprehensive application data including media URLs and user information
+ * 
+ * @route GET /admin/marketplace/applications
+ * @middleware verifyToken - Requires user authentication
+ * @middleware requirePermission('manage_system') - Requires system management permissions
+ * @param {string} [status=pending] - Application status ('pending', 'approved', 'denied')
+ * @param {number} [limit=50] - Number of applications to return
+ * @param {number} [offset=0] - Pagination offset
+ * @returns {Object} List of marketplace applications with media URLs and user details
+ * @note Processes media URLs for application review workflow
+ */
 router.get('/applications', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { status = 'pending', limit = 50, offset = 0 } = req.query;
@@ -399,7 +478,7 @@ router.get('/applications', verifyToken, requirePermission('manage_system'), asy
         const mediaMapping = {};
         mediaUrls.forEach(media => {
           if (media.permanent_url) {
-            mediaMapping[media.id] = `https://api2.onlineartfestival.com/api/images/${media.permanent_url}`;
+            mediaMapping[media.id] = `${process.env.SMART_MEDIA_BASE_URL || 'https://api.beemeeart.com/api/images'}/${media.permanent_url}`;
           }
         });
 
@@ -436,7 +515,20 @@ router.get('/applications', verifyToken, requirePermission('manage_system'), asy
   }
 });
 
-// PUT /admin/marketplace/applications/:id/approve - Approve marketplace application
+/**
+ * PUT /admin/marketplace/applications/:id/approve
+ * Approve marketplace application and grant user marketplace permissions
+ * Updates application status and automatically grants marketplace access to user
+ * 
+ * @route PUT /admin/marketplace/applications/:id/approve
+ * @middleware verifyToken - Requires user authentication
+ * @middleware requirePermission('manage_system') - Requires system management permissions
+ * @param {string} id - Application ID to approve
+ * @param {Object} req.body - Approval data
+ * @param {string} [req.body.admin_notes] - Optional admin notes for approval
+ * @returns {Object} Approval confirmation with application ID
+ * @note Automatically grants marketplace permissions to approved user
+ */
 router.put('/applications/:id/approve', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -490,7 +582,21 @@ router.put('/applications/:id/approve', verifyToken, requirePermission('manage_s
   }
 });
 
-// PUT /admin/marketplace/applications/:id/deny - Deny marketplace application
+/**
+ * PUT /admin/marketplace/applications/:id/deny
+ * Deny marketplace application with required denial reason
+ * Updates application status and ensures user does not have marketplace permissions
+ * 
+ * @route PUT /admin/marketplace/applications/:id/deny
+ * @middleware verifyToken - Requires user authentication
+ * @middleware requirePermission('manage_system') - Requires system management permissions
+ * @param {string} id - Application ID to deny
+ * @param {Object} req.body - Denial data
+ * @param {string} req.body.denial_reason - Required reason for denial
+ * @param {string} [req.body.admin_notes] - Optional admin notes for denial
+ * @returns {Object} Denial confirmation with application ID
+ * @note Ensures user marketplace permissions are revoked and requires denial reason
+ */
 router.put('/applications/:id/deny', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { id } = req.params;

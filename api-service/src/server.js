@@ -37,27 +37,38 @@ const app = express();
 // Trust proxy for rate limiting and IP detection
 app.set('trust proxy', 1);
 
-// Log startup information (no sensitive data)
+/**
+ * Log startup information (no sensitive data)
+ * Environment validation and startup diagnostics
+ */
 secureLogger.info('API Gateway starting', {
-  port: process.env.API_GATEWAY_PORT,
-  version: process.env.API_VERSION,
-  instance: process.env.API_INSTANCE
+  port: process.env.API_GATEWAY_PORT || 3001,
+  version: process.env.API_VERSION || '1.0.0',
+  instance: process.env.API_INSTANCE || '0',
+  corsOrigins: process.env.CORS_ALLOWED_ORIGINS ? 'configured' : 'missing',
+  apiBaseUrl: process.env.API_BASE_URL ? 'configured' : 'missing',
+  frontendUrl: process.env.FRONTEND_URL ? 'configured' : 'missing'
 });
 
-// Manual CORS middleware - moved to top
+/**
+ * CORS Middleware - Dynamic origin validation for multitenant platform
+ * Supports: Static origins, subdomains, and verified custom domains
+ */
 app.use(async (req, res, next) => {
+  // Get allowed origins from environment variables
+  const corsOrigins = process.env.CORS_ALLOWED_ORIGINS ? 
+    process.env.CORS_ALLOWED_ORIGINS.split(',') : [];
+  
   const staticAllowedOrigins = [
-    'https://main.onlineartfestival.com',
-    'https://api2.onlineartfestival.com',
-    'https://mobile.onlineartfestival.com',
+    ...corsOrigins,
     'http://localhost:8081'  // Mobile app development
   ];
   
   const origin = req.headers.origin;
   let isAllowed = staticAllowedOrigins.includes(origin);
   
-  // Check if origin is a subdomain of onlineartfestival.com
-  if (!isAllowed && origin && origin.match(/^https:\/\/[a-zA-Z0-9-]+\.onlineartfestival\.com$/)) {
+  // Check if origin is a subdomain of beemeeart.com
+  if (!isAllowed && origin && origin.match(/^https:\/\/[a-zA-Z0-9-]+\.beemeeart\.com$/)) {
     isAllowed = true;
   }
   
@@ -65,7 +76,7 @@ app.use(async (req, res, next) => {
   if (!isAllowed && origin && origin.startsWith('https://')) {
     try {
       const domain = origin.replace('https://', '');
-      const [sites] = await db.execute(
+      const [sites] = await db.query(
         'SELECT id FROM sites WHERE custom_domain = ? AND domain_validation_status = "verified" AND custom_domain_active = 1',
         [domain]
       );
@@ -230,7 +241,7 @@ try {
   app.use('/search', require('./routes/search'));
   
   // Shipping services
-  app.use('/api/shipping', require('./routes/shipping'));
+  app.use('/api/shipping', csrfProtection(), require('./routes/shipping'));
   
   // Shipping subscription services
   app.use('/api/subscriptions/shipping', require('./routes/subscriptions/shipping'));
@@ -315,13 +326,37 @@ try {
   process.exit(1);
 }
 
+/**
+ * Health Check Endpoint
+ * Provides system status and configuration validation
+ * Used by load balancers and monitoring systems
+ */
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    version: process.env.API_VERSION || '1.0.0', 
+  const healthStatus = {
+    status: 'ok',
+    version: process.env.API_VERSION || '1.0.0',
     instance: process.env.API_INSTANCE || '0',
-    timestamp: new Date().toISOString()
-  });
+    timestamp: new Date().toISOString(),
+    environment: {
+      corsConfigured: !!process.env.CORS_ALLOWED_ORIGINS,
+      apiBaseConfigured: !!process.env.API_BASE_URL,
+      frontendConfigured: !!process.env.FRONTEND_URL,
+      cookieDomainConfigured: !!process.env.COOKIE_DOMAIN
+    }
+  };
+  
+  // Return 503 if critical environment variables are missing
+  const criticalEnvMissing = !process.env.CORS_ALLOWED_ORIGINS || 
+                            !process.env.API_BASE_URL || 
+                            !process.env.FRONTEND_URL;
+  
+  if (criticalEnvMissing) {
+    healthStatus.status = 'degraded';
+    healthStatus.warnings = ['Critical environment variables missing'];
+    return res.status(503).json(healthStatus);
+  }
+  
+  res.json(healthStatus);
 });
 
 const port = process.env.API_GATEWAY_PORT || 3001;

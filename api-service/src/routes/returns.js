@@ -7,7 +7,40 @@ const { secureLogger } = require('../middleware/secureLogger');
 const path = require('path');
 const fs = require('fs').promises;
 
-// POST /api/returns/create - Create a new return request
+/**
+ * @fileoverview Return management routes
+ * 
+ * Handles comprehensive return processing including:
+ * - Return request creation with multiple flow types (A, B, C)
+ * - Automatic and manual return label generation
+ * - Return case messaging system for customer-vendor communication
+ * - Return status tracking and updates
+ * - Vendor return management and processing
+ * - Admin return oversight and management
+ * - Return label PDF generation and delivery
+ * 
+ * @author Beemeeart Development Team
+ * @version 1.0.0
+ */
+
+/**
+ * Create a new return request with flow-specific processing
+ * @route POST /api/returns/create
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {number} req.body.order_id - Order ID for the return
+ * @param {number} req.body.order_item_id - Specific order item to return
+ * @param {number} req.body.product_id - Product ID being returned
+ * @param {number} req.body.vendor_id - Vendor ID for the return
+ * @param {string} req.body.return_reason - Reason for return
+ * @param {string} req.body.return_message - Customer message
+ * @param {Object} req.body.package_dimensions - Package size information
+ * @param {Object} req.body.customer_address - Return shipping address
+ * @param {string} req.body.flow_type - Return flow type (A, B, or C)
+ * @param {string} req.body.label_preference - Label preference for flow B
+ * @param {Object} res - Express response object
+ * @returns {Object} Return request details and next steps
+ */
 router.post('/create', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
@@ -112,7 +145,7 @@ router.post('/create', verifyToken, async (req, res) => {
       order_item_id,
       userId,
       vendor_id,
-      'oaf', // marketplace_source
+      'beemeeart', // marketplace_source
       return_reason,
       return_message,
       JSON.stringify(customer_address),
@@ -210,7 +243,15 @@ router.post('/create', verifyToken, async (req, res) => {
   }
 });
 
-// GET /api/returns/my - Get user's return requests
+/**
+ * Get user's return requests with optional status filtering
+ * @route GET /api/returns/my
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.query.status - Optional status filter
+ * @param {Object} res - Express response object
+ * @returns {Object} Array of user's return requests
+ */
 router.get('/my', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
@@ -253,7 +294,16 @@ router.get('/my', verifyToken, async (req, res) => {
   }
 });
 
-// POST /api/returns/:id/message - Add message to return case (for Flow C)
+/**
+ * Add message to return case (for Flow C communication)
+ * @route POST /api/returns/:id/message
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Return ID
+ * @param {string} req.body.message - Message to add to case
+ * @param {Object} res - Express response object
+ * @returns {Object} Success confirmation and updated status
+ */
 router.post('/:id/message', verifyToken, async (req, res) => {
   try {
     const returnId = req.params.id;
@@ -309,7 +359,15 @@ router.post('/:id/message', verifyToken, async (req, res) => {
   }
 });
 
-// GET /api/returns/:id/label - Get return label PDF
+/**
+ * Get return label PDF file
+ * @route GET /api/returns/:id/label
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Return ID
+ * @param {Object} res - Express response object
+ * @returns {File} PDF file of the return shipping label
+ */
 router.get('/:id/label', verifyToken, async (req, res) => {
   try {
     const returnId = req.params.id;
@@ -356,7 +414,14 @@ router.get('/:id/label', verifyToken, async (req, res) => {
   }
 });
 
-// Helper function to create return labels
+/**
+ * Create return shipping label using shipping service
+ * @param {number} returnId - Return request ID
+ * @param {number} vendorId - Vendor ID for return address
+ * @param {Object} customerAddress - Customer shipping address
+ * @param {Object} packageDimensions - Package size and weight information
+ * @returns {Promise<Object>} Label creation result with URL and tracking
+ */
 async function createReturnLabel(returnId, vendorId, customerAddress, packageDimensions) {
   try {
     const ShippingService = require('../services/shippingService');
@@ -460,7 +525,15 @@ async function createReturnLabel(returnId, vendorId, customerAddress, packageDim
   }
 }
 
-// GET /api/returns/vendor/my - Get vendor's returns with optional status filter
+/**
+ * Get vendor's return requests with optional status filtering
+ * @route GET /api/returns/vendor/my
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.query.status - Optional status filter
+ * @param {Object} res - Express response object
+ * @returns {Object} Array of vendor's return requests
+ */
 router.get('/vendor/my', verifyToken, async (req, res) => {
   try {
     const vendorId = req.userId;
@@ -480,7 +553,7 @@ router.get('/vendor/my', verifyToken, async (req, res) => {
     const [returns] = await db.query(`
       SELECT 
         r.*,
-        o.order_number,
+        o.id as order_number,
         oi.product_name,
         oi.price as item_price,
         u.username as customer_username,
@@ -506,7 +579,16 @@ router.get('/vendor/my', verifyToken, async (req, res) => {
   }
 });
 
-// POST /api/returns/:id/vendor-message - Vendor adds message to return case
+/**
+ * Vendor adds message to return case
+ * @route POST /api/returns/:id/vendor-message
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Return ID
+ * @param {string} req.body.message - Vendor message to add
+ * @param {Object} res - Express response object
+ * @returns {Object} Success confirmation
+ */
 router.post('/:id/vendor-message', verifyToken, async (req, res) => {
   try {
     const returnId = req.params.id;
@@ -556,7 +638,15 @@ router.post('/:id/vendor-message', verifyToken, async (req, res) => {
   }
 });
 
-// POST /api/returns/:id/mark-received - Vendor marks return as received
+/**
+ * Vendor marks return as received and triggers refund processing
+ * @route POST /api/returns/:id/mark-received
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Return ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Success confirmation and refund processing status
+ */
 router.post('/:id/mark-received', verifyToken, async (req, res) => {
   try {
     const returnId = req.params.id;
@@ -597,7 +687,17 @@ router.post('/:id/mark-received', verifyToken, async (req, res) => {
 });
 
 // Admin endpoints
-// GET /api/returns/admin/all - Get all returns with search and filter
+
+/**
+ * Get all returns with search and filter capabilities (Admin only)
+ * @route GET /api/returns/admin/all
+ * @access Admin
+ * @param {Object} req - Express request object
+ * @param {string} req.query.search - Search term for return ID, order number, or username
+ * @param {string} req.query.vendor - Vendor username filter
+ * @param {Object} res - Express response object
+ * @returns {Object} Array of all return requests with search/filter applied
+ */
 router.get('/admin/all', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { search, vendor } = req.query;
@@ -606,7 +706,7 @@ router.get('/admin/all', verifyToken, requirePermission('manage_system'), async 
     let params = [];
 
     if (search) {
-      whereClause += ' AND (r.id = ? OR o.order_number LIKE ? OR u.username LIKE ?)';
+      whereClause += ' AND (r.id = ? OR o.id LIKE ? OR u.username LIKE ?)';
       params.push(search, `%${search}%`, `%${search}%`);
     }
 
@@ -618,7 +718,7 @@ router.get('/admin/all', verifyToken, requirePermission('manage_system'), async 
     const [returns] = await db.query(`
       SELECT 
         r.*,
-        o.order_number,
+        o.id as order_number,
         oi.product_name,
         oi.price as item_price,
         u.username as customer_username,
@@ -647,7 +747,15 @@ router.get('/admin/all', verifyToken, requirePermission('manage_system'), async 
   }
 });
 
-// GET /api/returns/admin/by-status/:status - Get returns by specific status
+/**
+ * Get returns by specific status (Admin only)
+ * @route GET /api/returns/admin/by-status/:status
+ * @access Admin
+ * @param {Object} req - Express request object
+ * @param {string} req.params.status - Return status to filter by
+ * @param {Object} res - Express response object
+ * @returns {Object} Array of returns with specified status
+ */
 router.get('/admin/by-status/:status', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { status } = req.params;
@@ -655,7 +763,7 @@ router.get('/admin/by-status/:status', verifyToken, requirePermission('manage_sy
     const [returns] = await db.query(`
       SELECT 
         r.*,
-        o.order_number,
+        o.id as order_number,
         oi.product_name,
         oi.price as item_price,
         u.username as customer_username,
@@ -684,7 +792,16 @@ router.get('/admin/by-status/:status', verifyToken, requirePermission('manage_sy
   }
 });
 
-// POST /api/returns/:id/admin-message - Admin adds message to return case
+/**
+ * Admin adds message to return case
+ * @route POST /api/returns/:id/admin-message
+ * @access Admin
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Return ID
+ * @param {string} req.body.message - Admin message to add
+ * @param {Object} res - Express response object
+ * @returns {Object} Success confirmation
+ */
 router.post('/:id/admin-message', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const returnId = req.params.id;

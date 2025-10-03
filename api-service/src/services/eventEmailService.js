@@ -1,13 +1,33 @@
+/**
+ * Event Email Service
+ * Specialized email service for event-related communications in the Beemeeart platform
+ * Handles booth fee invoices, reminders, confirmations, and automated event email workflows
+ */
+
 const EmailService = require('./emailService');
 const db = require('../../config/db');
 
+/**
+ * EventEmailService Class
+ * Extends EmailService to provide event-specific email functionality including
+ * booth fee management, payment reminders, and automated event communication workflows
+ */
 class EventEmailService extends EmailService {
+  /**
+   * Initialize EventEmailService
+   * Inherits SMTP configuration from parent EmailService
+   */
   constructor() {
     super();
   }
 
   /**
    * Send booth fee invoice email when application is accepted
+   * Creates payment URL and sends invoice with event and payment details
+   * 
+   * @param {number} applicationId - Event application ID
+   * @returns {Promise<Object>} Email send result with success status
+   * @throws {Error} If application not found or email sending fails
    */
   async sendBoothFeeInvoice(applicationId) {
     try {
@@ -48,8 +68,8 @@ class EventEmailService extends EmailService {
       const dueDate = this.formatDate(app.booth_fee_due_date);
       const boothFeeAmount = this.formatCurrency(app.booth_fee_amount);
 
-      // Build payment URL
-      const paymentUrl = `https://onlineartfestival.com/event-payment/${app.payment_intent_id}`;
+      // Build payment URL using environment variable
+      const paymentUrl = `${process.env.FRONTEND_URL}/event-payment/${app.payment_intent_id}`;
 
       // Prepare template data
       const templateData = {
@@ -60,7 +80,7 @@ class EventEmailService extends EmailService {
         booth_fee_amount: boothFeeAmount,
         due_date: dueDate,
         payment_url: paymentUrl,
-        contact_email: 'support@onlineartfestival.com'
+        contact_email: 'support@beemeeart.com'
       };
 
       // Send email
@@ -78,7 +98,13 @@ class EventEmailService extends EmailService {
   }
 
   /**
-   * Send booth fee reminder email
+   * Send booth fee reminder email with payment deadline information
+   * Supports different reminder types: standard, due_soon, overdue, final
+   * 
+   * @param {number} applicationId - Event application ID
+   * @param {string} reminderType - Type of reminder (standard, due_soon, overdue, final)
+   * @returns {Promise<Object>} Email send result with success status
+   * @throws {Error} If application not found or email sending fails
    */
   async sendBoothFeeReminder(applicationId, reminderType = 'standard') {
     try {
@@ -120,8 +146,8 @@ class EventEmailService extends EmailService {
         event_title: app.event_title,
         booth_fee_amount: this.formatCurrency(app.booth_fee_amount),
         due_date: this.formatDate(app.booth_fee_due_date),
-        payment_url: `https://onlineartfestival.com/event-payment/${app.payment_intent_id}`,
-        contact_email: 'support@onlineartfestival.com'
+        payment_url: `${process.env.FRONTEND_URL}/event-payment/${app.payment_intent_id}`,
+        contact_email: 'support@beemeeart.com'
       };
 
       if (daysDiff < 0) {
@@ -149,7 +175,13 @@ class EventEmailService extends EmailService {
   }
 
   /**
-   * Send booth fee payment confirmation email
+   * Send booth fee payment confirmation email after successful payment
+   * Includes transaction details and payment confirmation information
+   * 
+   * @param {number} applicationId - Event application ID
+   * @param {string} paymentIntentId - Stripe payment intent ID
+   * @returns {Promise<Object>} Email send result with success status
+   * @throws {Error} If application or payment not found
    */
   async sendBoothFeeConfirmation(applicationId, paymentIntentId) {
     try {
@@ -186,7 +218,7 @@ class EventEmailService extends EmailService {
         amount_paid: this.formatCurrency(app.amount_paid || app.booth_fee_amount),
         transaction_id: app.stripe_payment_intent_id,
         payment_date: this.formatDate(app.payment_date || new Date()),
-        contact_email: 'support@onlineartfestival.com'
+        contact_email: 'support@beemeeart.com'
       };
 
       // Send email
@@ -205,6 +237,13 @@ class EventEmailService extends EmailService {
 
   /**
    * Send bulk reminder emails for an event
+   * Processes multiple applications for batch reminder sending
+   * 
+   * @param {number} eventId - Event ID for bulk processing
+   * @param {Array} applicationIds - Specific application IDs (optional)
+   * @param {string} reminderType - Type of reminder to send
+   * @returns {Promise<Object>} Bulk processing results with success/failure counts
+   * @throws {Error} If bulk processing fails
    */
   async sendBulkReminders(eventId, applicationIds = [], reminderType = 'standard') {
     try {
@@ -253,7 +292,11 @@ class EventEmailService extends EmailService {
   }
 
   /**
-   * Process automated reminders (for cron job)
+   * Process automated reminders based on payment due dates (for cron job)
+   * Handles due_soon (3 days), overdue (1 day), and final notice (7 days) reminders
+   * 
+   * @returns {Promise<Object>} Processing results for all reminder types
+   * @throws {Error} If automated processing fails
    */
   async processAutomatedReminders() {
     try {
@@ -351,7 +394,11 @@ class EventEmailService extends EmailService {
   }
 
   /**
-   * Auto-decline applications that are overdue beyond grace period
+   * Auto-decline applications that are overdue beyond grace period (14 days)
+   * Automatically declines applications and cancels payment intents
+   * 
+   * @returns {Promise<Object>} Auto-decline processing results
+   * @throws {Error} If auto-decline processing fails
    */
   async processAutoDecline() {
     try {
@@ -415,7 +462,12 @@ class EventEmailService extends EmailService {
   // ===== UTILITY METHODS =====
 
   /**
-   * Format date range for display
+   * Format date range for display in email templates
+   * Handles single day and multi-day events
+   * 
+   * @param {Date|string} startDate - Event start date
+   * @param {Date|string} endDate - Event end date
+   * @returns {string} Formatted date range string
    */
   formatDateRange(startDate, endDate) {
     const start = new Date(startDate);
@@ -436,7 +488,10 @@ class EventEmailService extends EmailService {
   }
 
   /**
-   * Format single date for display
+   * Format single date for display in email templates
+   * 
+   * @param {Date|string} date - Date to format
+   * @returns {string} Formatted date string
    */
   formatDate(date) {
     return new Date(date).toLocaleDateString('en-US', {
@@ -448,7 +503,10 @@ class EventEmailService extends EmailService {
   }
 
   /**
-   * Format currency for display
+   * Format currency amount for display in email templates
+   * 
+   * @param {number} amount - Amount to format
+   * @returns {string} Formatted currency string (USD)
    */
   formatCurrency(amount) {
     return new Intl.NumberFormat('en-US', {
@@ -458,7 +516,11 @@ class EventEmailService extends EmailService {
   }
 
   /**
-   * Log email activity for application
+   * Log email activity for application tracking and audit trail
+   * 
+   * @param {number} applicationId - Event application ID
+   * @param {string} emailType - Type of email sent
+   * @param {boolean} success - Whether email was sent successfully
    */
   async logApplicationEmail(applicationId, emailType, success) {
     try {

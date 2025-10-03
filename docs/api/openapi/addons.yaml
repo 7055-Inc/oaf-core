@@ -1,0 +1,336 @@
+openapi: 3.0.0
+info:
+  title: Beemeeart Addons API
+  description: Extensible addon system for site-specific functionality including contact forms, email collection, and social media integration
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/addons
+    description: Production server
+  - url: https://test.beemeeart.com/addons
+    description: Testing server
+
+paths:
+  /sites/{id}/addons:
+    get:
+      summary: Get site addons
+      description: Get all active addons for a specific site with configuration and pricing information
+      operationId: getSiteAddons
+      tags:
+        - Addon Discovery
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Site ID to get addons for
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Addons retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SiteAddon'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contact/submit:
+    post:
+      summary: Submit contact form
+      description: Submit a contact form message through the site addon system with validation and email notification
+      operationId: submitContactForm
+      tags:
+        - Contact Form
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactFormSubmission'
+      responses:
+        '200':
+          description: Contact form submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactFormResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /email-collection/subscribe:
+    post:
+      summary: Subscribe to newsletter
+      description: Subscribe to newsletter and email marketing lists (Future Implementation)
+      operationId: subscribeNewsletter
+      tags:
+        - Email Collection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailSubscription'
+      responses:
+        '501':
+          description: Not implemented - future functionality
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /social-posting/connect:
+    post:
+      summary: Connect social media account
+      description: Connect social media accounts for automated posting (Future Implementation)
+      operationId: connectSocialAccount
+      tags:
+        - Social Posting
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SocialConnection'
+      responses:
+        '501':
+          description: Not implemented - future functionality
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    SiteAddon:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Site addon configuration ID
+        site_id:
+          type: integer
+          description: Site ID
+        addon_id:
+          type: integer
+          description: Master addon ID
+        is_active:
+          type: integer
+          enum: [0, 1]
+          description: Whether addon is active (1) or inactive (0)
+        configuration:
+          type: string
+          description: JSON configuration string for addon
+        created_at:
+          type: string
+          format: date-time
+          description: When addon was enabled for site
+        addon_name:
+          type: string
+          description: Human-readable addon name
+        addon_slug:
+          type: string
+          description: Unique addon identifier
+        addon_script_path:
+          type: string
+          description: Path to addon JavaScript file
+        tier_required:
+          type: string
+          description: Subscription tier required for addon
+        monthly_price:
+          type: number
+          format: float
+          description: Monthly price for addon
+
+    ContactFormSubmission:
+      type: object
+      required:
+        - siteId
+        - name
+        - email
+        - message
+      properties:
+        siteId:
+          type: integer
+          description: Site ID for the contact form
+        name:
+          type: string
+          maxLength: 100
+          description: Sender's name
+        email:
+          type: string
+          format: email
+          description: Sender's email address
+        phone:
+          type: string
+          maxLength: 20
+          description: Sender's phone number (optional)
+        message:
+          type: string
+          minLength: 10
+          maxLength: 2000
+          description: Message content
+
+    ContactFormResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Whether submission was successful
+        message:
+          type: string
+          description: Success message
+
+    EmailSubscription:
+      type: object
+      required:
+        - siteId
+        - email
+      properties:
+        siteId:
+          type: integer
+          description: Site ID for the subscription
+        email:
+          type: string
+          format: email
+          description: Subscriber email address
+        name:
+          type: string
+          description: Subscriber name (optional)
+        interests:
+          type: array
+          items:
+            type: string
+          description: Subscriber interests
+        source:
+          type: string
+          description: Subscription source
+
+    SocialConnection:
+      type: object
+      required:
+        - siteId
+        - platform
+        - accessToken
+      properties:
+        siteId:
+          type: integer
+          description: Site ID for the connection
+        platform:
+          type: string
+          enum: [facebook, instagram, twitter, linkedin, pinterest]
+          description: Social media platform
+        accessToken:
+          type: string
+          description: Platform access token
+        accountId:
+          type: string
+          description: Platform account ID
+        permissions:
+          type: array
+          items:
+            type: string
+          description: Granted permissions
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input or missing required fields
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missing_fields:
+              summary: Missing required fields
+              value:
+                error: "Missing required fields: name, email, message, siteId"
+            invalid_email:
+              summary: Invalid email format
+              value:
+                error: "Please provide a valid email address"
+            message_too_short:
+              summary: Message too short
+              value:
+                error: "Message must be between 10 and 2000 characters"
+
+    Forbidden:
+      description: Forbidden - addon not enabled for site
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Contact form not available for this site"
+
+    NotFound:
+      description: Not found - site not found or inactive
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Site not found"
+
+    TooManyRequests:
+      description: Too many requests - rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Too many addon requests, please try again later."
+      headers:
+        X-RateLimit-Limit:
+          description: Request limit per time window
+          schema:
+            type: integer
+        X-RateLimit-Remaining:
+          description: Remaining requests in current window
+          schema:
+            type: integer
+        X-RateLimit-Reset:
+          description: Time when rate limit resets
+          schema:
+            type: integer
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Failed to submit contact form"
+
+tags:
+  - name: Addon Discovery
+    description: Discover and configure available addons for sites
+  - name: Contact Form
+    description: Contact form functionality and submission handling
+  - name: Email Collection
+    description: Newsletter and email marketing subscription (Future)
+  - name: Social Posting
+    description: Social media integration and automated posting (Future)

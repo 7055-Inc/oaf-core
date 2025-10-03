@@ -3,6 +3,8 @@
  * Adds a secure contact form with spam protection to artist websites
  */
 
+import { getApiUrl } from '../../lib/config';
+
 class ContactFormAddon {
   constructor(siteConfig) {
     this.siteConfig = siteConfig;
@@ -345,7 +347,7 @@ class ContactFormAddon {
         }
         
         // Submit to backend
-        const response = await fetch('https://api2.onlineartfestival.com/api/addons/contact/submit', {
+        const response = await fetch(getApiUrl('api/addons/contact/submit'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

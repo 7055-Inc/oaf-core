@@ -10,9 +10,11 @@ export default function ManageSystemMenu({
 }) {
   if (!userData) return null;
   
-  // Only show to admins or users with system management permissions
-  const canManageSystem = userData.user_type === 'admin' || userData.permissions?.includes('manage_system');
-  if (!canManageSystem) return null;
+  // Check if user has admin privileges (either admin user type OR manage_system permission)
+  const isAdmin = userData.user_type === 'admin';
+  const hasManageSystem = userData.permissions?.includes('manage_system');
+  
+  if (!isAdmin && !hasManageSystem) return null;
   
   return (
     <div className={styles.sidebarSection}>
@@ -72,6 +74,14 @@ export default function ManageSystemMenu({
               onClick={() => openSlideIn('manage-custom-policies', { title: 'Custom Policies' })}
             >
               Custom Policies
+            </button>
+          </li>
+          <li>
+            <button 
+              className={styles.sidebarLink}
+              onClick={() => openSlideIn('maintenance-control', { title: 'Maintenance Control' })}
+            >
+              Maintenance Control
             </button>
           </li>
         </ul>

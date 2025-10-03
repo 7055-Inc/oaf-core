@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Header from '../../components/Header';
 import { authenticatedApiRequest } from '../../lib/csrf';
+import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
 import CouponEntry from '../../components/coupons/CouponEntry';
 import DiscountSummary from '../../components/coupons/DiscountSummary';
 import { useCoupons } from '../../hooks/useCoupons';
@@ -83,7 +84,7 @@ export default function UnifiedCart() {
         return;
       }
 
-      const response = await fetch('https://api2.onlineartfestival.com/cart/unified', {
+      const response = await fetch(getApiUrl('cart/unified'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -124,7 +125,7 @@ export default function UnifiedCart() {
     if (newQuantity < 1) return;
     
     try {
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/cart/${cartId}/items/${itemId}`, {
+      const response = await authenticatedApiRequest(`cart/${cartId}/items/${itemId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -146,7 +147,7 @@ export default function UnifiedCart() {
 
   const removeItem = async (cartId, itemId) => {
     try {
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/cart/${cartId}/items/${itemId}`, {
+      const response = await authenticatedApiRequest(`cart/${cartId}/items/${itemId}`, {
         method: 'DELETE'
       });
 
@@ -315,7 +316,7 @@ export default function UnifiedCart() {
                                       <div className={styles.itemImage}>
                                         {item.image_path ? (
                                           <img 
-                                            src={`https://api2.onlineartfestival.com${item.image_path}`}
+                                            src={getSmartMediaUrl(item.image_path)}
                                             alt={item.product_name}
                                           />
                                         ) : (

@@ -1,3 +1,9 @@
+/**
+ * Authentication Routes
+ * Handles user authentication, token exchange, refresh tokens, and cookie consent
+ * Supports Google OAuth, email authentication, and JWT token management
+ */
+
 const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
@@ -6,6 +12,17 @@ const { secureLogger } = require('../middleware/secureLogger');
 const crypto = require('crypto');
 const verifyToken = require('../middleware/jwt');
 
+/**
+ * POST /auth/exchange
+ * Exchange OAuth tokens or validate existing JWT tokens
+ * Supports Google OAuth, email authentication, and token validation
+ * 
+ * @route POST /auth/exchange
+ * @param {string} provider - Authentication provider ('google', 'email', 'validate')
+ * @param {string} token - OAuth token or JWT token to exchange/validate
+ * @param {string} [email] - Email address (required for email provider)
+ * @returns {Object} Access token, refresh token, and user ID
+ */
 router.post('/exchange', async (req, res) => {
   try {
     secureLogger.info('Starting /auth/exchange route');
@@ -120,13 +137,13 @@ router.post('/exchange', async (req, res) => {
         userId = userCheck[0].id;
         try {
           secureLogger.info('Creating user login record', { userId, provider });
-          await db.query('INSERT INTO user_logins (user_id, provider, provider_id, provider_token, api_prefix) VALUES (?, ?, ?, ?, ?)', [userId, provider, providerId, providerToken, 'OAF-']);
+          await db.query('INSERT INTO user_logins (user_id, provider, provider_id, provider_token, api_prefix) VALUES (?, ?, ?, ?, ?)', [userId, provider, providerId, providerToken, 'BEE-']);
           await db.query('UPDATE users SET email_verified = ?, status = ? WHERE id = ?', [emailVerified, emailVerified === 'yes' ? 'active' : 'draft', userId]);
         } catch (dbError) {
           throw new Error('Database insert failed for user_logins: ' + dbError.message);
         }
       } else {
-        const apiId = `OAF-${Math.random().toString(36).slice(2, 10)}`;
+        const apiId = `BEE-${Math.random().toString(36).slice(2, 10)}`;
         let result;
         try {
           [result] = await db.query('INSERT INTO users (username, email_verified, status, user_type) VALUES (?, ?, ?, ?)', [email, emailVerified, emailVerified === 'yes' ? 'active' : 'draft', 'Draft']);
@@ -139,7 +156,7 @@ router.post('/exchange', async (req, res) => {
         userId = result.insertId;
         try {
           secureLogger.info('Creating new user with profiles', { userId, provider });
-          await db.query('INSERT INTO user_logins (user_id, provider, provider_id, provider_token, api_prefix) VALUES (?, ?, ?, ?, ?)', [userId, provider, providerId, providerToken, 'OAF-']);
+          await db.query('INSERT INTO user_logins (user_id, provider, provider_id, provider_token, api_prefix) VALUES (?, ?, ?, ?, ?)', [userId, provider, providerId, providerToken, 'BEE-']);
           await db.query('INSERT INTO user_profiles (user_id) VALUES (?)', [userId]);
           await db.query('INSERT INTO artist_profiles (user_id) VALUES (?)', [userId]);
           await db.query('INSERT INTO promoter_profiles (user_id) VALUES (?)', [userId]);
@@ -255,6 +272,15 @@ router.post('/exchange', async (req, res) => {
   }
 });
 
+/**
+ * POST /auth/refresh
+ * Refresh access token using refresh token
+ * Implements token rotation for enhanced security
+ * 
+ * @route POST /auth/refresh
+ * @param {string} refreshToken - Valid refresh token
+ * @returns {Object} New access token, new refresh token, and user ID
+ */
 router.post('/refresh', async (req, res) => {
   try {
     secureLogger.info('Starting /auth/refresh route');
@@ -376,7 +402,17 @@ router.post('/refresh', async (req, res) => {
   }
 });
 
-// Anonymous cookie consent logging (for audit trail before login)
+/**
+ * POST /auth/cookie-consent/anonymous
+ * Log anonymous cookie consent for audit trail before user login
+ * Provides GDPR compliance for anonymous users
+ * 
+ * @route POST /auth/cookie-consent/anonymous
+ * @param {string} consent - Consent value ('yes' or 'no')
+ * @param {string} sessionId - Anonymous session identifier
+ * @param {string} [timestamp] - Consent timestamp
+ * @returns {Object} Success confirmation
+ */
 router.post('/cookie-consent/anonymous', async (req, res) => {
   try {
     const { consent, sessionId, timestamp } = req.body;
@@ -422,7 +458,17 @@ router.post('/cookie-consent/anonymous', async (req, res) => {
   }
 });
 
-// Update user cookie consent (when user logs in after localStorage consent)
+/**
+ * POST /auth/cookie-consent/user
+ * Update authenticated user's cookie consent preference
+ * Stores consent in user database record for GDPR compliance
+ * 
+ * @route POST /auth/cookie-consent/user
+ * @middleware verifyToken - Requires valid JWT token
+ * @param {string} consent - Consent value ('yes' or 'no')
+ * @param {string} [timestamp] - Consent timestamp
+ * @returns {Object} Updated consent status and date
+ */
 router.post('/cookie-consent/user', verifyToken, async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -476,7 +522,15 @@ router.post('/cookie-consent/user', verifyToken, async (req, res) => {
   }
 });
 
-// Get user's current cookie consent status
+/**
+ * GET /auth/cookie-consent/status
+ * Retrieve authenticated user's current cookie consent status
+ * Returns consent preference and date for GDPR compliance
+ * 
+ * @route GET /auth/cookie-consent/status
+ * @middleware verifyToken - Requires valid JWT token
+ * @returns {Object} Current consent status and consent date
+ */
 router.get('/cookie-consent/status', verifyToken, async (req, res) => {
   try {
     const userId = req.user.userId;

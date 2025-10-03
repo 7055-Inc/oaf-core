@@ -15,7 +15,7 @@ export function useCoupons() {
       throw new Error('Authentication required');
     }
 
-    const response = await fetch(`https://api2.onlineartfestival.com${endpoint}`, {
+    const response = await fetch(`https://api.beemeeart.com${endpoint}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',

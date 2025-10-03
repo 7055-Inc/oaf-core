@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../lib/csrf';
+import { getSmartMediaUrl, getApiUrl } from '../lib/config';
 import styles from './VariationBulkEditor.module.css';
 
 const VariationBulkEditor = ({ 
@@ -82,7 +83,7 @@ const VariationBulkEditor = ({
         images: [...(draftProduct.images || [])].map(img => {
           if (typeof img === 'string') {
             return {
-              url: img.startsWith('http') ? img : `https://api2.onlineartfestival.com${img}`,
+              url: img.startsWith('http') ? img : getSmartMediaUrl(img),
               alt_text: '',
               friendly_name: '',
               is_primary: false,
@@ -91,7 +92,7 @@ const VariationBulkEditor = ({
           }
           return {
             ...img,
-            url: img.url?.startsWith('http') ? img.url : `https://api2.onlineartfestival.com${img.url || img}`
+            url: img.url?.startsWith('http') ? img.url : getSmartMediaUrl(img.url || img)
           };
         })
       };
@@ -140,7 +141,7 @@ const VariationBulkEditor = ({
 
       // Use parentProductData.id as the product_id for consistent naming
       const productId = parentProductData?.id || 'new';
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/products/upload?product_id=${productId}`, {
+      const response = await authenticatedApiRequest(getApiUrl(`products/upload?product_id=${productId}`), {
         method: 'POST',
         body: uploadFormData
       });
@@ -149,7 +150,7 @@ const VariationBulkEditor = ({
       
       const data = await response.json();
       const newImages = (data.urls || []).map(url => ({
-        url: url.startsWith('http') ? url : `https://api2.onlineartfestival.com${url}`,
+        url: url.startsWith('http') ? url : getSmartMediaUrl(url),
         alt_text: '',
         friendly_name: '',
         is_primary: false,

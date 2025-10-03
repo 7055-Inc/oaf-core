@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import { getApiUrl } from '../../lib/config';
 import Header from '../../components/Header';
 import ProfileDisplay from '../../components/shared/ProfileDisplay';
 import { authenticatedApiRequest } from '../../lib/csrf';
@@ -23,7 +24,7 @@ export default function ProfileView() {
           return;
         }
         
-        const response = await fetch('https://api2.onlineartfestival.com/users/me', {
+        const response = await fetch(getApiUrl('users/me'), {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -44,7 +45,7 @@ export default function ProfileView() {
 
     const fetchProfile = async () => {
       try {
-        const res = await fetch(`https://api2.onlineartfestival.com/users/profile/by-id/${id}`, {
+        const res = await fetch(`users/profile/by-id/${id}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json'

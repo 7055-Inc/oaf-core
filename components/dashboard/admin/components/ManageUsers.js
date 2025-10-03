@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { getAuthToken } from '../../../../lib/csrf';
+import { getAuthToken, authenticatedApiRequest } from '../../../../lib/csrf';
+import { getApiUrl } from '../../../../lib/config';
 import styles from '../../SlideIn.module.css';
 
 export default function ManageUsers() {
@@ -8,6 +9,7 @@ export default function ManageUsers() {
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [hasPermission, setHasPermission] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState('created_at');
   const [sortDirection, setSortDirection] = useState('desc');
@@ -133,8 +135,40 @@ export default function ManageUsers() {
   });
 
   useEffect(() => {
-    fetchUsers();
+    checkPermissions();
   }, []);
+
+  const checkPermissions = async () => {
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        setError('Please log in to access user management');
+        setLoading(false);
+        return;
+      }
+
+      // Check if user has manage_system permission
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const permissions = payload.permissions || [];
+      const roles = payload.roles || [];
+      
+      // Admin users automatically get all permissions, or check for specific permission
+      const canManageSystem = roles.includes('admin') || permissions.includes('manage_system');
+      
+      if (!canManageSystem) {
+        setHasPermission(false);
+        setError('Access denied. You need "manage_system" permission to manage users.');
+        setLoading(false);
+        return;
+      }
+      
+      setHasPermission(true);
+      fetchUsers();
+    } catch (err) {
+      setError('Authentication error: ' + err.message);
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     filterAndSortUsers();
@@ -142,14 +176,9 @@ export default function ManageUsers() {
 
   const fetchUsers = async () => {
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        throw new Error('Please log in to manage users');
-      }
-      
-      const response = await fetch('https://api2.onlineartfestival.com/admin/users', {
+      const response = await authenticatedApiRequest(getApiUrl('admin/users'), {
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -220,15 +249,9 @@ export default function ManageUsers() {
 
   const confirmDelete = async () => {
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        throw new Error('Please log in to delete users');
-      }
-      
-      const response = await fetch(`https://api2.onlineartfestival.com/admin/users/${userToDelete.id}`, {
+      const response = await authenticatedApiRequest(getApiUrl(`admin/users/${userToDelete.id}`), {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -247,20 +270,14 @@ export default function ManageUsers() {
 
   const saveUser = async (userData) => {
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        throw new Error('Please log in to save users');
-      }
-      
       const method = userData.id ? 'PUT' : 'POST';
       const url = userData.id 
-        ? `https://api2.onlineartfestival.com/admin/users/${userData.id}`
-        : 'https://api2.onlineartfestival.com/admin/users';
+        ? getApiUrl(`admin/users/${userData.id}`)
+        : getApiUrl('admin/users');
 
-      const response = await fetch(url, {
+      const response = await authenticatedApiRequest(url, {
         method,
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(userData)

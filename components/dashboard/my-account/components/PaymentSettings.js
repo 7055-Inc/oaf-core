@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
 
 const PaymentSettings = ({ userData }) => {
   const [loading, setLoading] = useState(true);
@@ -17,7 +18,7 @@ const PaymentSettings = ({ userData }) => {
       setLoading(true);
       setError(null);
       
-      const res = await authenticatedApiRequest('https://api2.onlineartfestival.com/vendor/settings', {
+      const res = await authApiRequest('vendor/settings', {
         method: 'GET'
       });
       
@@ -39,7 +40,7 @@ const PaymentSettings = ({ userData }) => {
       setActionLoading(true);
       setError(null);
       
-      const res = await authenticatedApiRequest('https://api2.onlineartfestival.com/vendor/stripe-account', {
+      const res = await authenticatedApiRequest('vendor/stripe-account', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -65,7 +66,7 @@ const PaymentSettings = ({ userData }) => {
       setActionLoading(true);
       setError(null);
       
-      const res = await authenticatedApiRequest('https://api2.onlineartfestival.com/vendor/stripe-onboarding', {
+      const res = await authenticatedApiRequest('vendor/stripe-onboarding', {
         method: 'GET'
       });
       
@@ -88,7 +89,7 @@ const PaymentSettings = ({ userData }) => {
       setUpdatingPreferences(true);
       setError(null);
       
-      const res = await authenticatedApiRequest('https://api2.onlineartfestival.com/vendor/subscription-preferences', {
+      const res = await authenticatedApiRequest('vendor/subscription-preferences', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

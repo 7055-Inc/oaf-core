@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getAuthToken } from '../../../../../lib/csrf';
+import { getApiUrl } from '../../../../../lib/config';
 import styles from '../../../SlideIn.module.css';
 
 export default function ViewAPIKeys({ userData, refreshTrigger }) {
@@ -20,7 +21,7 @@ export default function ViewAPIKeys({ userData, refreshTrigger }) {
         throw new Error('Please log in to view API keys');
       }
 
-      const response = await fetch('https://api2.onlineartfestival.com/api-keys', {
+      const response = await fetch(getApiUrl('api-keys'), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -44,7 +45,7 @@ export default function ViewAPIKeys({ userData, refreshTrigger }) {
   const toggleKeyStatus = async (publicKey, currentStatus) => {
     try {
       const token = getAuthToken();
-      const response = await fetch(`https://api2.onlineartfestival.com/api-keys/${publicKey}/toggle`, {
+      const response = await fetch(getApiUrl(`api-keys/${publicKey}/toggle`), {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -69,7 +70,7 @@ export default function ViewAPIKeys({ userData, refreshTrigger }) {
 
     try {
       const token = getAuthToken();
-      const response = await fetch(`https://api2.onlineartfestival.com/api-keys/${publicKey}`, {
+      const response = await fetch(getApiUrl(`api-keys/${publicKey}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
+import { getApiUrl } from '../../lib/config';
 import styles from './ArtistStorefront.module.css';
 
 const ArtistAbout = () => {
@@ -25,8 +26,8 @@ const ArtistAbout = () => {
       
       // Fetch site data and about article
       const [siteResponse, articlesResponse] = await Promise.all([
-        fetch(`https://api2.onlineartfestival.com/api/sites/resolve/${subdomain}`),
-        fetch(`https://api2.onlineartfestival.com/api/sites/resolve/${subdomain}/articles?type=pages`)
+        fetch(getApiUrl(`api/sites/resolve/${subdomain}`)),
+        fetch(`api/sites/resolve/${subdomain}/articles?type=pages`)
       ]);
 
       if (siteResponse.ok) {
@@ -67,7 +68,7 @@ const ArtistAbout = () => {
       <div className={styles.error}>
         <h1>Page Not Found</h1>
         <p>Sorry, this page is not available.</p>
-        <Link href={`https://${subdomain}.onlineartfestival.com`}>
+        <Link href={`https://${subdomain}.beemeeart.com`}>
           <a className={styles.homeLink}>← Back to Gallery</a>
         </Link>
       </div>
@@ -91,13 +92,13 @@ const ArtistAbout = () => {
             <div className={styles.artistInfo}>
               {siteData.profile_image_path && (
                 <img 
-                  src={`https://api2.onlineartfestival.com${siteData.profile_image_path}`}
+                  src={`https://api2.beemeeart.com${siteData.profile_image_path}`}
                   alt={`${siteData.first_name} ${siteData.last_name}`}
                   className={styles.artistAvatar}
                 />
               )}
               <div className={styles.artistDetails}>
-                <Link href={`https://${subdomain}.onlineartfestival.com`}>
+                <Link href={`https://${subdomain}.beemeeart.com`}>
                   <a className={styles.artistName}>
                     {siteData.first_name} {siteData.last_name}
                   </a>
@@ -107,13 +108,13 @@ const ArtistAbout = () => {
             </div>
 
             <nav className={styles.navigation}>
-              <Link href={`https://${subdomain}.onlineartfestival.com`}>
+              <Link href={`https://${subdomain}.beemeeart.com`}>
                 <a className={styles.navLink}>Gallery</a>
               </Link>
-              <Link href={`https://${subdomain}.onlineartfestival.com/about`}>
+              <Link href={`https://${subdomain}.beemeeart.com/about`}>
                 <a className={`${styles.navLink} ${styles.active}`}>About</a>
               </Link>
-              <Link href="https://main.onlineartfestival.com">
+              <Link href="https://main.beemeeart.com">
                 <a className={styles.navLink}>Main Site</a>
               </Link>
             </nav>
@@ -130,7 +131,7 @@ const ArtistAbout = () => {
                 <div className={styles.profileImage}>
                   {siteData.profile_image_path ? (
                     <img 
-                      src={`https://api2.onlineartfestival.com${siteData.profile_image_path}`}
+                      src={`https://api2.beemeeart.com${siteData.profile_image_path}`}
                       alt={`${siteData.first_name} ${siteData.last_name}`}
                     />
                   ) : (
@@ -250,10 +251,10 @@ const ArtistAbout = () => {
                 <h2>Interested in my work?</h2>
                 <p>Browse my gallery or get in touch to discuss custom pieces</p>
                 <div className={styles.ctaButtons}>
-                  <Link href={`https://${subdomain}.onlineartfestival.com`}>
+                  <Link href={`https://${subdomain}.beemeeart.com`}>
                     <a className={styles.ctaPrimary}>View Gallery</a>
                   </Link>
-                  <Link href={`https://${subdomain}.onlineartfestival.com/contact`}>
+                  <Link href={`https://${subdomain}.beemeeart.com/contact`}>
                     <a className={styles.ctaSecondary}>Contact Me</a>
                   </Link>
                 </div>
@@ -275,7 +276,7 @@ const ArtistAbout = () => {
               <div className={styles.footerSection}>
                 <h4>Platform</h4>
                 <p>
-                  <Link href="https://main.onlineartfestival.com">
+                  <Link href="https://main.beemeeart.com">
                     <a>Online Art Festival</a>
                   </Link>
                 </p>

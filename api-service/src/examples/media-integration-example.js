@@ -13,7 +13,7 @@ const { enhanceProductWithMedia, enhanceEventWithMedia, enhanceUserProfileWithMe
  * GET /api/products/:id - Get single product with processed media
  * 
  * Before: Returns temp image URLs like "/temp_images/products/123-456-timestamp.jpg"
- * After: Returns proxy URLs like "https://api2.onlineartfestival.com/api/media/serve/user_123/product/img/processed.jpg"
+ * After: Returns proxy URLs like "https://api.beemeeart.com/api/media/serve/user_123/product/img/processed.jpg"
  */
 async function getProductById(req, res) {
   try {
@@ -145,12 +145,12 @@ async function getUserProfile(req, res) {
  * {
  *   "id": 123,
  *   "name": "Cool Product",
- *   "image_url": "https://api2.onlineartfestival.com/api/media/serve/user_123/product/img/processed.jpg",
- *   "thumbnail_url": "https://api2.onlineartfestival.com/api/media/serve/user_123/product/img/thumb.jpg",
+ *   "image_url": "https://api.beemeeart.com/api/media/serve/user_123/product/img/processed.jpg",
+ *   "thumbnail_url": "https://api.beemeeart.com/api/media/serve/user_123/product/img/thumb.jpg",
  *   "images": [
  *     {
- *       "image_url": "https://api2.onlineartfestival.com/api/media/serve/user_123/product/img/processed.jpg",
- *       "thumbnail_url": "https://api2.onlineartfestival.com/api/media/serve/user_123/product/img/thumb.jpg",
+ *       "image_url": "https://api.beemeeart.com/api/media/serve/user_123/product/img/processed.jpg",
+ *       "thumbnail_url": "https://api.beemeeart.com/api/media/serve/user_123/product/img/thumb.jpg",
  *       "source": "processed"
  *     }
  *   ]
@@ -160,11 +160,11 @@ async function getUserProfile(req, res) {
  * {
  *   "id": 123,
  *   "name": "Cool Product", 
- *   "image_url": "https://api2.onlineartfestival.com/temp_images/products/123-456-timestamp.jpg",
+ *   "image_url": "https://api.beemeeart.com/temp_images/products/123-456-timestamp.jpg",
  *   "thumbnail_url": null,
  *   "images": [
  *     {
- *       "image_url": "https://api2.onlineartfestival.com/temp_images/products/123-456-timestamp.jpg",
+ *       "image_url": "https://api.beemeeart.com/temp_images/products/123-456-timestamp.jpg",
  *       "thumbnail_url": null,
  *       "source": "temp"
  *     }

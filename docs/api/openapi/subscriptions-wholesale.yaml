@@ -1,0 +1,607 @@
+openapi: 3.0.0
+info:
+  title: Wholesale Subscriptions API
+  description: Wholesale buyer application and management system with admin controls
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/api
+    description: Production server
+
+paths:
+  /subscriptions/wholesale/terms-check:
+    get:
+      summary: Check terms acceptance
+      description: Check if user has accepted the latest wholesale terms
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TermsCheckResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/wholesale/terms-accept:
+    post:
+      summary: Accept terms
+      description: Record user acceptance of wholesale terms
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptTermsRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptTermsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/wholesale/apply:
+    post:
+      summary: Submit application
+      description: Submit wholesale buyer application with complete business information
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/wholesale/admin/applications:
+    get:
+      summary: Get applications
+      description: Get wholesale applications filtered by status (Admin only)
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, denied, under_review]
+          description: Filter applications by status
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/wholesale/admin/applications/{id}/approve:
+    put:
+      summary: Approve application
+      description: Approve wholesale application and grant wholesale access (Admin only)
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Application ID to approve
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApproveRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApproveResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/wholesale/admin/applications/{id}/deny:
+    put:
+      summary: Deny application
+      description: Deny wholesale application with reason (Admin only)
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Application ID to deny
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DenyRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DenyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/wholesale/admin/stats:
+    get:
+      summary: Get statistics
+      description: Get wholesale application statistics (Admin only)
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Bearer token authentication
+
+  schemas:
+    Terms:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Terms version ID
+        title:
+          type: string
+          description: Terms title
+        content:
+          type: string
+          description: Terms content
+        version:
+          type: string
+          description: Terms version number
+        created_at:
+          type: string
+          format: date-time
+          description: Terms creation timestamp
+
+    Application:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Application ID
+        user_id:
+          type: integer
+          description: User ID of applicant
+        business_name:
+          type: string
+          description: Business name
+        business_type:
+          type: string
+          description: Type of business
+        tax_id:
+          type: string
+          description: Business tax ID
+        business_address:
+          type: string
+          description: Business street address
+        business_city:
+          type: string
+          description: Business city
+        business_state:
+          type: string
+          description: Business state
+        business_zip:
+          type: string
+          description: Business ZIP code
+        business_phone:
+          type: string
+          description: Business phone number
+        business_email:
+          type: string
+          format: email
+          description: Business email address
+        contact_name:
+          type: string
+          description: Primary contact name
+        contact_title:
+          type: string
+          description: Contact title/position
+        years_in_business:
+          type: integer
+          description: Years in business
+        business_description:
+          type: string
+          description: Business description
+        product_categories:
+          type: string
+          description: Product categories of interest
+        expected_order_volume:
+          type: string
+          description: Expected order volume
+        website_url:
+          type: string
+          format: uri
+          description: Business website URL
+        resale_certificate:
+          type: string
+          description: Resale certificate info
+        additional_info:
+          type: string
+          description: Additional information
+        status:
+          type: string
+          enum: [pending, approved, denied, under_review]
+          description: Application status
+        created_at:
+          type: string
+          format: date-time
+          description: Application submission date
+        reviewed_by:
+          type: integer
+          description: Admin user ID who reviewed
+        review_date:
+          type: string
+          format: date-time
+          description: Review completion date
+        admin_notes:
+          type: string
+          description: Admin notes
+        denial_reason:
+          type: string
+          description: Reason for denial
+        username:
+          type: string
+          description: Applicant username
+        user_full_name:
+          type: string
+          description: Applicant full name
+
+    ApplicationStats:
+      type: object
+      properties:
+        total_applications:
+          type: integer
+          description: Total number of applications
+        pending_count:
+          type: integer
+          description: Number of pending applications
+        approved_count:
+          type: integer
+          description: Number of approved applications
+        denied_count:
+          type: integer
+          description: Number of denied applications
+        under_review_count:
+          type: integer
+          description: Number of applications under review
+
+    TermsCheckResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        termsAccepted:
+          type: boolean
+          description: Whether user has accepted latest terms
+        latestTerms:
+          $ref: '#/components/schemas/Terms'
+
+    AcceptTermsRequest:
+      type: object
+      required:
+        - terms_version_id
+      properties:
+        terms_version_id:
+          type: integer
+          description: ID of the terms version to accept
+
+    AcceptTermsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+          description: Confirmation message
+
+    ApplicationRequest:
+      type: object
+      required:
+        - business_name
+        - business_type
+        - tax_id
+        - business_address
+        - business_city
+        - business_state
+        - business_zip
+        - business_phone
+        - business_email
+        - contact_name
+        - years_in_business
+        - business_description
+        - product_categories
+        - expected_order_volume
+      properties:
+        business_name:
+          type: string
+          description: Business name
+        business_type:
+          type: string
+          description: Type of business
+        tax_id:
+          type: string
+          description: Business tax ID
+        business_address:
+          type: string
+          description: Business street address
+        business_city:
+          type: string
+          description: Business city
+        business_state:
+          type: string
+          description: Business state
+        business_zip:
+          type: string
+          description: Business ZIP code
+        business_phone:
+          type: string
+          description: Business phone number
+        business_email:
+          type: string
+          format: email
+          description: Business email address
+        contact_name:
+          type: string
+          description: Primary contact name
+        contact_title:
+          type: string
+          description: Contact title/position
+        years_in_business:
+          type: integer
+          minimum: 0
+          description: Years in business
+        business_description:
+          type: string
+          description: Business description
+        product_categories:
+          type: string
+          description: Product categories of interest
+        expected_order_volume:
+          type: string
+          description: Expected order volume
+        website_url:
+          type: string
+          format: uri
+          description: Business website URL
+        resale_certificate:
+          type: string
+          description: Resale certificate info
+        additional_info:
+          type: string
+          description: Additional information
+
+    ApplicationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+          description: Success message
+        application_id:
+          type: integer
+          description: Created application ID
+
+    ApplicationsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        applications:
+          type: array
+          items:
+            $ref: '#/components/schemas/Application'
+
+    ApproveRequest:
+      type: object
+      properties:
+        admin_notes:
+          type: string
+          description: Admin notes for approval
+
+    ApproveResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+          description: Approval confirmation message
+
+    DenyRequest:
+      type: object
+      required:
+        - denial_reason
+      properties:
+        denial_reason:
+          type: string
+          description: Reason for denial (required)
+        admin_notes:
+          type: string
+          description: Admin notes for denial
+
+    DenyResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+          description: Denial confirmation message
+
+    StatsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        stats:
+          $ref: '#/components/schemas/ApplicationStats'
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: string
+          description: Additional error details
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missing_field:
+              summary: Missing required field
+              value:
+                error: "business_name is required"
+            existing_application:
+              summary: User already has application
+              value:
+                error: "You already have a pending wholesale application"
+            missing_denial_reason:
+              summary: Missing denial reason
+              value:
+                error: "Denial reason is required"
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Unauthorized access"
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Insufficient permissions for admin operations"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            no_terms:
+              summary: No terms found
+              value:
+                error: "No wholesale terms found"
+            invalid_terms:
+              summary: Invalid terms version
+              value:
+                error: "Invalid terms version"
+            application_not_found:
+              summary: Application not found
+              value:
+                error: "Application not found"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            database_error:
+              summary: Database error
+              value:
+                error: "Failed to check terms acceptance"
+            processing_error:
+              summary: Processing error
+              value:
+                error: "Failed to submit application"
+
+tags:
+  - name: Wholesale Subscriptions
+    description: Wholesale buyer application and management system

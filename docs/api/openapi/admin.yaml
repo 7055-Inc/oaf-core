@@ -1,0 +1,927 @@
+openapi: 3.0.0
+info:
+  title: Admin Management API
+  description: Comprehensive administrative management system with user management, policies, email administration, and promotion systems
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/api
+    description: Production server
+
+paths:
+  /admin/users:
+    get:
+      summary: List users
+      description: Get a list of all users in the system
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      summary: Create user
+      description: Create a new user with all profile types
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/users/{id}:
+    put:
+      summary: Update user
+      description: Update an existing user's information
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: User ID to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      summary: Delete user
+      description: Delete a user from the system
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: User ID to delete
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/users/{id}/permissions:
+    get:
+      summary: Get user permissions
+      description: Get a user's permission settings
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: User ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPermissions'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      summary: Update user permissions
+      description: Update a user's permission settings
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: User ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePermissionsRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/default-policies:
+    get:
+      summary: Get default shipping policy
+      description: Get the current default shipping policy
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      summary: Update default shipping policy
+      description: Update the default shipping policy
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePolicyRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyUpdateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/email-stats:
+    get:
+      summary: Get email statistics
+      description: Get comprehensive email system statistics
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailStatsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/email-test:
+    post:
+      summary: Send test email
+      description: Send a test email using system templates
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestEmailRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestEmailResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/promotions/all:
+    get:
+      summary: Get all promotions
+      description: Get a list of all promotions
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromotionsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/promotions/create:
+    post:
+      summary: Create promotion
+      description: Create a new promotion campaign
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePromotionRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatePromotionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/coupons/all:
+    get:
+      summary: Get all admin coupons
+      description: Get a list of all admin-created coupons
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CouponsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/coupons:
+    post:
+      summary: Create admin coupon
+      description: Create a new admin coupon
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCouponRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateCouponResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Bearer token authentication (requires manage_system permission)
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: User ID
+        username:
+          type: string
+          description: Username (email)
+        status:
+          type: string
+          description: User status
+        user_type:
+          type: string
+          description: User type
+
+    UserPermissions:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          description: User ID
+        vendor:
+          type: boolean
+          description: Vendor permission
+        events:
+          type: boolean
+          description: Events permission
+        stripe_connect:
+          type: boolean
+          description: Stripe Connect permission
+        manage_sites:
+          type: boolean
+          description: Site management permission
+        manage_content:
+          type: boolean
+          description: Content management permission
+        manage_system:
+          type: boolean
+          description: System management permission
+
+    Policy:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Policy ID
+        policy_text:
+          type: string
+          description: Policy text content
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Update timestamp
+        created_by_username:
+          type: string
+          description: Creator username
+
+    Promotion:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Promotion ID
+        name:
+          type: string
+          description: Promotion name
+        status:
+          type: string
+          enum: [draft, inviting_vendors, active, paused, ended]
+          description: Promotion status
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+
+    Coupon:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Coupon ID
+        code:
+          type: string
+          description: Coupon code
+        name:
+          type: string
+          description: Coupon name
+        discount_type:
+          type: string
+          enum: [percentage, fixed_amount]
+          description: Discount type
+        discount_value:
+          type: number
+          description: Discount value
+        is_active:
+          type: boolean
+          description: Active status
+        vendor_id:
+          type: integer
+          description: Vendor ID (for vendor-specific coupons)
+        is_vendor_specific:
+          type: boolean
+          description: Whether coupon is vendor-specific
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+
+    CreateUserRequest:
+      type: object
+      required:
+        - username
+        - status
+        - user_type
+      properties:
+        username:
+          type: string
+          description: Username (email)
+        status:
+          type: string
+          description: User status
+        user_type:
+          type: string
+          description: User type
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          description: Updated username
+        status:
+          type: string
+          description: Updated status
+        user_type:
+          type: string
+          description: Updated user type
+
+    UpdatePermissionsRequest:
+      type: object
+      properties:
+        vendor:
+          type: boolean
+          description: Vendor permission
+        events:
+          type: boolean
+          description: Events permission
+        stripe_connect:
+          type: boolean
+          description: Stripe Connect permission
+        manage_sites:
+          type: boolean
+          description: Site management permission
+        manage_content:
+          type: boolean
+          description: Content management permission
+        manage_system:
+          type: boolean
+          description: System management permission
+
+    UpdatePolicyRequest:
+      type: object
+      required:
+        - policy_text
+      properties:
+        policy_text:
+          type: string
+          description: Policy text content
+
+    TestEmailRequest:
+      type: object
+      required:
+        - recipient
+        - templateKey
+      properties:
+        recipient:
+          type: string
+          description: Email recipient (user ID or email)
+        templateKey:
+          type: string
+          description: Email template key
+        testData:
+          type: object
+          description: Test data for email template
+
+    CreatePromotionRequest:
+      type: object
+      required:
+        - name
+        - admin_discount_percentage
+        - suggested_vendor_discount
+        - application_type
+        - valid_from
+      properties:
+        name:
+          type: string
+          description: Promotion name
+        description:
+          type: string
+          description: Promotion description
+        admin_discount_percentage:
+          type: number
+          minimum: 0
+          description: Admin discount percentage
+        suggested_vendor_discount:
+          type: number
+          minimum: 0
+          description: Suggested vendor discount
+        application_type:
+          type: string
+          enum: [auto_apply, coupon_code]
+          description: Application type
+        coupon_code:
+          type: string
+          description: Coupon code (required if application_type is coupon_code)
+        min_order_amount:
+          type: number
+          minimum: 0
+          default: 0
+          description: Minimum order amount
+        usage_limit_per_user:
+          type: integer
+          minimum: 1
+          default: 1
+          description: Usage limit per user
+        total_usage_limit:
+          type: integer
+          minimum: 1
+          description: Total usage limit
+        valid_from:
+          type: string
+          format: date-time
+          description: Valid from date
+        valid_until:
+          type: string
+          format: date-time
+          description: Valid until date
+
+    CreateCouponRequest:
+      type: object
+      required:
+        - code
+        - name
+        - discount_type
+        - discount_value
+        - application_type
+        - valid_from
+      properties:
+        code:
+          type: string
+          description: Coupon code
+        name:
+          type: string
+          description: Coupon name
+        description:
+          type: string
+          description: Coupon description
+        discount_type:
+          type: string
+          enum: [percentage, fixed_amount]
+          description: Discount type
+        discount_value:
+          type: number
+          minimum: 0
+          description: Discount value
+        application_type:
+          type: string
+          enum: [auto_apply, coupon_code]
+          description: Application type
+        min_order_amount:
+          type: number
+          minimum: 0
+          default: 0
+          description: Minimum order amount
+        usage_limit_per_user:
+          type: integer
+          minimum: 1
+          default: 1
+          description: Usage limit per user
+        total_usage_limit:
+          type: integer
+          minimum: 1
+          description: Total usage limit
+        valid_from:
+          type: string
+          format: date-time
+          description: Valid from date
+        valid_until:
+          type: string
+          format: date-time
+          description: Valid until date
+        vendor_id:
+          type: integer
+          description: Vendor ID for vendor-specific coupons
+        product_ids:
+          type: array
+          items:
+            type: integer
+          description: Product IDs for product-specific coupons
+        max_discount_amount:
+          type: number
+          minimum: 0
+          description: Maximum discount amount
+
+    PolicyResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        policy:
+          $ref: '#/components/schemas/Policy'
+
+    PolicyUpdateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
+    EmailStatsResponse:
+      type: object
+      properties:
+        queue:
+          type: array
+          items:
+            type: object
+            properties:
+              status:
+                type: string
+              count:
+                type: integer
+        emails:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              status:
+                type: string
+              count:
+                type: integer
+        templates:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              template_key:
+                type: string
+              sent_count:
+                type: integer
+        bounces:
+          type: array
+          items:
+            type: object
+            properties:
+              domain:
+                type: string
+              hard_bounces:
+                type: integer
+              soft_bounces:
+                type: integer
+              blacklisted_count:
+                type: integer
+              last_bounce_at:
+                type: string
+                format: date-time
+        preferences:
+          type: array
+          items:
+            type: object
+            properties:
+              frequency:
+                type: string
+              is_enabled:
+                type: boolean
+              count:
+                type: integer
+
+    TestEmailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        emailId:
+          type: integer
+
+    PromotionsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        promotions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Promotion'
+
+    CreatePromotionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        promotion_id:
+          type: integer
+        message:
+          type: string
+
+    CouponsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        coupons:
+          type: array
+          items:
+            $ref: '#/components/schemas/Coupon'
+
+    CreateCouponResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        coupon:
+          type: object
+          properties:
+            id:
+              type: integer
+            code:
+              type: string
+            name:
+              type: string
+            discount_type:
+              type: string
+            discount_value:
+              type: number
+            vendor_specific:
+              type: boolean
+            product_count:
+              type: integer
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: string
+          description: Additional error details
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missing_field:
+              summary: Missing required field
+              value:
+                error: "Missing required fields: username, status, user_type"
+            invalid_value:
+              summary: Invalid parameter value
+              value:
+                error: "Invalid discount type. Must be percentage or fixed_amount"
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Unauthorized access"
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Insufficient permissions - requires manage_system"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            user_not_found:
+              summary: User not found
+              value:
+                error: "User not found"
+            policy_not_found:
+              summary: Policy not found
+              value:
+                error: "Policy not found"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            database_error:
+              summary: Database error
+              value:
+                error: "Failed to fetch users"
+            processing_error:
+              summary: Processing error
+              value:
+                error: "Failed to create promotion"
+
+tags:
+  - name: Admin Management
+    description: Comprehensive administrative management system

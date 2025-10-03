@@ -1,0 +1,672 @@
+openapi: 3.0.0
+info:
+  title: Shipping API
+  description: Comprehensive shipping management with rate calculations, label generation, and multi-carrier support
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/api
+    description: Production server
+
+paths:
+  /shipping/calculate-rates:
+    post:
+      summary: Calculate product shipping rates
+      description: Calculate shipping rates for a single product
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalculateRatesRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculateRatesResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /shipping/calculate-cart-shipping:
+    post:
+      summary: Calculate cart shipping rates
+      description: Calculate shipping rates for multiple products in a cart
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalculateCartShippingRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculateCartShippingResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /shipping/services/{product_id}:
+    get:
+      summary: Get product shipping services
+      description: Get available shipping services for a product
+      parameters:
+        - name: product_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Product ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShippingServicesResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /shipping/get-label-rates:
+    post:
+      summary: Get live label rates
+      description: Get live shipping rates for label generation
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetLabelRatesRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetLabelRatesResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /shipping/process-batch:
+    post:
+      summary: Process batch operations
+      description: Process batch operations for shipping (tracking updates and label creation)
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessBatchRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessBatchResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /shipping/cancel-label:
+    post:
+      summary: Cancel shipping label
+      description: Cancel a shipping label and process refund
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelLabelRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelLabelResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /shipping/my-labels:
+    get:
+      summary: Get my labels
+      description: Get vendor's shipping label library
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyLabelsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /shipping/labels/{filename}:
+    get:
+      summary: Download label PDF
+      description: Download individual shipping label PDF file
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Label filename
+      responses:
+        '200':
+          description: PDF file
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /shipping/batch-labels:
+    post:
+      summary: Batch labels
+      description: Batch merge selected labels for printing
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchLabelsRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchLabelsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Bearer token authentication
+
+  schemas:
+    Address:
+      type: object
+      required:
+        - name
+        - street
+        - city
+        - state
+        - zip
+      properties:
+        name:
+          type: string
+        street:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zip:
+          type: string
+        country:
+          type: string
+          default: US
+
+    CartItem:
+      type: object
+      required:
+        - product_id
+        - quantity
+      properties:
+        product_id:
+          type: integer
+        quantity:
+          type: integer
+          minimum: 1
+
+    Package:
+      type: object
+      required:
+        - length
+        - width
+        - height
+        - weight
+      properties:
+        length:
+          type: number
+          format: decimal
+        width:
+          type: number
+          format: decimal
+        height:
+          type: number
+          format: decimal
+        weight:
+          type: number
+          format: decimal
+        dimension_unit:
+          type: string
+          enum: [in, cm]
+          default: in
+        weight_unit:
+          type: string
+          enum: [lbs, kg]
+          default: lbs
+
+    ShippingRate:
+      type: object
+      properties:
+        carrier:
+          type: string
+          enum: [ups, fedex, usps]
+        service:
+          type: string
+        service_name:
+          type: string
+        cost:
+          type: number
+          format: decimal
+        estimated_delivery:
+          type: string
+
+    CalculateRatesRequest:
+      type: object
+      required:
+        - product_id
+        - recipient_address
+      properties:
+        product_id:
+          type: integer
+        recipient_address:
+          $ref: '#/components/schemas/Address'
+
+    CalculateRatesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        product_id:
+          type: integer
+        rates:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShippingRate'
+
+    CalculateCartShippingRequest:
+      type: object
+      required:
+        - cart_items
+        - recipient_address
+      properties:
+        cart_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+        recipient_address:
+          $ref: '#/components/schemas/Address'
+        test_packages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Package'
+
+    ShippingResult:
+      type: object
+      properties:
+        product_id:
+          type: integer
+        ship_method:
+          type: string
+          enum: [free, flat_rate, calculated]
+        cost:
+          type: number
+          format: decimal
+        available_rates:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShippingRate'
+        selected_rate:
+          $ref: '#/components/schemas/ShippingRate'
+        error:
+          type: string
+
+    CalculateCartShippingResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        shipping_results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShippingResult'
+        total_shipping:
+          type: number
+          format: decimal
+
+    ShippingService:
+      type: object
+      properties:
+        name:
+          type: string
+        cost:
+          oneOf:
+            - type: number
+              format: decimal
+            - type: string
+        estimated_delivery:
+          type: string
+
+    ShippingServicesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        product_id:
+          type: integer
+        ship_method:
+          type: string
+        services:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShippingService'
+        shipping_services_text:
+          type: string
+
+    GetLabelRatesRequest:
+      type: object
+      required:
+        - item_id
+      properties:
+        item_id:
+          type: integer
+        packages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Package'
+
+    GetLabelRatesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        rates:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShippingRate'
+
+    BatchOperation:
+      type: object
+      required:
+        - id
+        - isGroup
+        - type
+        - data
+      properties:
+        id:
+          type: integer
+        isGroup:
+          type: boolean
+        type:
+          type: string
+          enum: [tracking, label]
+        data:
+          type: object
+
+    ProcessBatchRequest:
+      type: object
+      required:
+        - batch
+      properties:
+        batch:
+          type: array
+          items:
+            $ref: '#/components/schemas/BatchOperation'
+
+    BatchResult:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+        tracking:
+          type: string
+        labelUrl:
+          type: string
+        payment_method:
+          type: string
+        amount:
+          type: number
+          format: decimal
+
+    ProcessBatchResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/BatchResult'
+
+    CancelLabelRequest:
+      type: object
+      required:
+        - trackingNumber
+      properties:
+        trackingNumber:
+          type: string
+        carrier:
+          type: string
+          enum: [ups, fedex, usps]
+        labelId:
+          type: integer
+
+    CancelLabelResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        trackingNumber:
+          type: string
+        carrier:
+          type: string
+        result:
+          type: object
+          properties:
+            refund_amount:
+              type: number
+              format: decimal
+            refund_status:
+              type: string
+
+    ShippingLabel:
+      type: object
+      properties:
+        id:
+          type: integer
+        order_id:
+          type: integer
+        order_item_id:
+          type: integer
+        tracking_number:
+          type: string
+        label_file_path:
+          type: string
+        service_name:
+          type: string
+        cost:
+          type: number
+          format: decimal
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        customer_name:
+          type: string
+        product_name:
+          type: string
+        quantity:
+          type: integer
+
+    MyLabelsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        labels:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShippingLabel'
+
+    BatchLabelsRequest:
+      type: object
+      required:
+        - labelIds
+      properties:
+        labelIds:
+          type: array
+          items:
+            type: integer
+
+    BatchLabelsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        downloadUrl:
+          type: string
+        note:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input data
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Missing required fields"
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing API key
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Invalid or missing API key"
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Insufficient permissions"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Product not found"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Internal server error"

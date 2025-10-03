@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import { getApiUrl, getFrontendUrl } from '../../lib/config';
 import Header from '../../components/Header';
 import styles from './styles/ArticlesList.module.css';
 
@@ -41,7 +42,7 @@ export default function ArticlesPage() {
         queryParams.append('search', filters.search);
       }
       
-      const response = await fetch(`https://api2.onlineartfestival.com/api/articles?${queryParams}`);
+      const response = await fetch(getApiUrl(`api/articles?${queryParams}`));
       const data = await response.json();
       
       if (data.articles) {
@@ -60,7 +61,7 @@ export default function ArticlesPage() {
 
   const fetchTopics = async () => {
     try {
-      const response = await fetch('https://api2.onlineartfestival.com/api/articles/topics');
+      const response = await fetch('api/articles/topics');
       const data = await response.json();
       setTopics(data.topics || []);
     } catch (err) {
@@ -104,12 +105,12 @@ export default function ArticlesPage() {
         <title>Art & Culture Articles - Online Art Festival</title>
         <meta name="description" content="Explore our collection of art and culture articles, tutorials, and insights. Stay updated with the latest trends, techniques, and stories from the art world." />
                   <meta name="keywords" content="art articles, culture articles, art tutorials, artist stories, art techniques, creative insights, art news" />
-        <link rel="canonical" href="https://onlineartfestival.com/articles" />
+        <link rel="canonical" href={getFrontendUrl('/articles')} />
         
         <meta property="og:title" content="Art & Culture Articles - Online Art Festival" />
         <meta property="og:description" content="Explore our collection of art and culture articles, tutorials, and insights from the art world." />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://onlineartfestival.com/articles" />
+        <meta property="og:url" content={getFrontendUrl('/articles')} />
         
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Art & Culture Articles - Online Art Festival" />

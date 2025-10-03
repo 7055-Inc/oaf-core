@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { getAuthToken } from '../../../../../lib/csrf';
+import { getApiUrl } from '../../../../../lib/config';
 
 export default function GenerateAPIKey({ userData, onKeyGenerated }) {
   const [newKeyName, setNewKeyName] = useState('');
@@ -22,7 +23,7 @@ export default function GenerateAPIKey({ userData, onKeyGenerated }) {
         throw new Error('Please log in to generate API keys');
       }
 
-      const response = await fetch('https://api2.onlineartfestival.com/api-keys', {
+      const response = await fetch(getApiUrl('api-keys'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

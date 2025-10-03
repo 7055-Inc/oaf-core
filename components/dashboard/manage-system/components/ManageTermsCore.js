@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import WYSIWYGEditor from '../../../WYSIWYGEditor';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
 import styles from '../../SlideIn.module.css';
 
 const ManageTermsCore = () => {
@@ -28,7 +29,7 @@ const ManageTermsCore = () => {
   // Load terms versions from API
   const loadTermsVersions = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/terms/all');
+      const response = await authApiRequest('api/terms/all');
       if (!response.ok) {
         throw new Error(`Failed to load terms versions: ${response.status} ${response.statusText}`);
       }
@@ -74,7 +75,7 @@ const ManageTermsCore = () => {
     }
 
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/terms/create', {
+      const response = await authenticatedApiRequest('api/terms/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -105,7 +106,7 @@ const ManageTermsCore = () => {
     setSuccess(null);
     
     try {
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/terms/${selectedTerms.id}`, {
+      const response = await authenticatedApiRequest(`api/terms/${selectedTerms.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -138,7 +139,7 @@ const ManageTermsCore = () => {
       setError(null);
       setSuccess(null);
       
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/terms/${termsId}/set-current`, {
+      const response = await authenticatedApiRequest(`api/terms/${termsId}/set-current`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -168,7 +169,7 @@ const ManageTermsCore = () => {
       setError(null);
       setSuccess(null);
       
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/terms/${termsId}`, {
+      const response = await authenticatedApiRequest(`api/terms/${termsId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'

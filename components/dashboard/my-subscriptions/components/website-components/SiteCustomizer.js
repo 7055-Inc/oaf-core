@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../../lib/csrf';
+import { authApiRequest } from '../../../../../lib/apiUtils';
 
 export default function SiteCustomizer({ site, userData, onUpdate }) {
   const [customizations, setCustomizations] = useState({
@@ -22,7 +23,7 @@ export default function SiteCustomizer({ site, userData, onUpdate }) {
 
   const loadSiteCustomizations = async () => {
     try {
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/sites/${site.id}/customizations`);
+      const response = await authApiRequest(`api/sites/${site.id}/customizations`);
       const data = await response.json();
       if (data.success) {
         setCustomizations({
@@ -49,7 +50,7 @@ export default function SiteCustomizer({ site, userData, onUpdate }) {
       setProcessing(true);
       setError(null);
 
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/sites/${site.id}/customizations`, {
+      const response = await authenticatedApiRequest(`api/sites/${site.id}/customizations`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -359,7 +360,7 @@ export default function SiteCustomizer({ site, userData, onUpdate }) {
         {/* Preview Site Button */}
         <button
           onClick={() => {
-            window.open(`https://${site.domain || `${site.subdomain}.onlineartfestival.com`}`, '_blank');
+            window.open(`https://${site.domain || `${site.subdomain}.beemeeart.com`}`, '_blank');
           }}
           style={{
             padding: '8px 16px',

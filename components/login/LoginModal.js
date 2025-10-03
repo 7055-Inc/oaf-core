@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword } from 'firebase/auth';
 import firebaseApp from '../../lib/firebase';
 import { clearAuthTokens } from '../../lib/csrf';
+import { apiPost, API_ENDPOINTS } from '../../lib/apiUtils';
+import { getApiUrl, getCookieConfig } from '../../lib/config';
 
 
 export default function LoginModal() {
@@ -53,7 +55,7 @@ export default function LoginModal() {
       // Clear any existing tokens first
       clearAuthTokens();
       
-      const response = await fetch('https://api2.onlineartfestival.com/auth/exchange', {
+      const response = await fetch(getApiUrl(API_ENDPOINTS.AUTH_EXCHANGE), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -75,8 +77,8 @@ export default function LoginModal() {
         localStorage.setItem('refreshToken', data.refreshToken);
         
         // Set secure cookies for middleware
-        document.cookie = `token=${data.token}; path=/; domain=.onlineartfestival.com; secure; samesite=lax; max-age=3600`;
-        document.cookie = `refreshToken=${data.refreshToken}; path=/; domain=.onlineartfestival.com; secure; samesite=lax; max-age=604800`;
+        document.cookie = `token=${data.token}; ${getCookieConfig()}; max-age=3600`;
+        document.cookie = `refreshToken=${data.refreshToken}; ${getCookieConfig()}; max-age=604800`;
         
         console.log('Authentication successful, tokens set');
         

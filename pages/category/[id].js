@@ -4,6 +4,7 @@ import Head from 'next/head';
 import WholesalePricing from '../../components/WholesalePricing';
 import { isWholesaleCustomer } from '../../lib/userUtils';
 import { getAuthToken } from '../../lib/csrf';
+import { getApiUrl, getFrontendUrl } from '../../lib/config';
 
 export default function CategoryLandingPage() {
   const router = useRouter();
@@ -33,11 +34,11 @@ export default function CategoryLandingPage() {
     if (!id) return;
     setLoading(true);
     Promise.all([
-      fetch(`https://api2.onlineartfestival.com/categories/${id}`).then(res => res.json()),
-      fetch(`https://api2.onlineartfestival.com/categories/content/${id}`).then(res => res.json()),
-      fetch(`https://api2.onlineartfestival.com/categories/seo/${id}`).then(res => res.json()),
+      fetch(getApiUrl(`categories/${id}`)).then(res => res.json()),
+      fetch(`categories/content/${id}`).then(res => res.json()),
+      fetch(`categories/seo/${id}`).then(res => res.json()),
       // Use curated art marketplace API with category filter and images
-      fetch(`https://api2.onlineartfestival.com/curated/art/products/all?category_id=${id}&include=images`).then(res => res.json())
+      fetch(`curated/art/products/all?category_id=${id}&include=images`).then(res => res.json())
     ])
       .then(([catData, contentData, seoData, prodData]) => {
         setCategory(catData.category || null);
@@ -69,14 +70,14 @@ export default function CategoryLandingPage() {
       return imagePath;
     }
     // Otherwise, assume it's a relative path and prepend the base URL
-    return `https://onlineartfestival.com${imagePath}`;
+    return getFrontendUrl(imagePath);
   };
 
   // SEO meta tags
   const metaTitle = categorySEO?.meta_title || `${category.name} - Online Art Festival`;
   const metaDescription = categorySEO?.meta_description || categoryContent?.description || category.description || `Explore ${category.name} artwork and products on Online Art Festival`;
   const metaKeywords = categorySEO?.meta_keywords || `${category.name}, art, artwork, online art festival`;
-  const canonicalUrl = categorySEO?.canonical_url || `https://onlineartfestival.com/category/${id}`;
+  const canonicalUrl = categorySEO?.canonical_url || getFrontendUrl(`/category/${id}`);
 
   return (
     <>

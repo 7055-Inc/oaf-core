@@ -1,0 +1,1381 @@
+openapi: 3.0.0
+info:
+  title: Beemeeart Article Management API
+  description: Comprehensive content management system with articles, tags, topics, series, and access control
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/articles
+    description: Production server
+  - url: https://test.beemeeart.com/articles
+    description: Testing server
+
+paths:
+  /:
+    get:
+      summary: List articles
+      description: Get paginated list of articles with optional filtering
+      operationId: listArticles
+      tags:
+        - Articles
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          description: Number of articles per page
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Articles retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArticleListResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create article
+      description: Create new article with comprehensive metadata
+      operationId: createArticle
+      tags:
+        - Articles
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArticleCreateRequest'
+      responses:
+        '201':
+          description: Article created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArticleCreateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /{id}:
+    put:
+      summary: Update article
+      description: Update existing article with comprehensive permission checking
+      operationId: updateArticle
+      tags:
+        - Articles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Article ID to update
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArticleUpdateRequest'
+      responses:
+        '200':
+          description: Article updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: Delete article
+      description: Delete article with permission validation
+      operationId: deleteArticle
+      tags:
+        - Articles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Article ID to delete
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Article deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /{id}/view:
+    post:
+      summary: Track article view
+      description: Update view count for article analytics
+      operationId: trackArticleView
+      tags:
+        - Articles
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Article ID to track view for
+          schema:
+            type: string
+      responses:
+        '200':
+          description: View tracked successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /{slug}:
+    get:
+      summary: Get single article
+      description: Get complete article data with metadata and navigation
+      operationId: getArticle
+      tags:
+        - Articles
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          description: Article URL slug
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Article retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArticleDetailResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tags:
+    get:
+      summary: List tags
+      description: Get all article tags with article counts
+      operationId: listTags
+      tags:
+        - Tags
+      responses:
+        '200':
+          description: Tags retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tag'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create tag
+      description: Create new article tag
+      operationId: createTag
+      tags:
+        - Tags
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TagCreateRequest'
+      responses:
+        '201':
+          description: Tag created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tag'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tags/{id}:
+    put:
+      summary: Update tag
+      description: Update existing article tag
+      operationId: updateTag
+      tags:
+        - Tags
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Tag ID to update
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TagUpdateRequest'
+      responses:
+        '200':
+          description: Tag updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tag'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: Delete tag
+      description: Delete article tag and all relationships
+      operationId: deleteTag
+      tags:
+        - Tags
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Tag ID to delete
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tag deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tags/{slug}:
+    get:
+      summary: Get tag with articles
+      description: Get single tag with associated articles
+      operationId: getTagWithArticles
+      tags:
+        - Tags
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          description: Tag slug identifier
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: Page number for article pagination
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          description: Number of articles per page
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Tag with articles retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TagWithArticlesResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /series:
+    get:
+      summary: List series
+      description: Get all article series with pagination
+      operationId: listSeries
+      tags:
+        - Series
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          description: Number of series per page
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Series retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeriesListResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /series/{slug}:
+    get:
+      summary: Get series with articles
+      description: Get single series with all articles in order
+      operationId: getSeriesWithArticles
+      tags:
+        - Series
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          description: Series slug identifier
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Series with articles retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeriesWithArticlesResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /topics:
+    get:
+      summary: List topics
+      description: Get topics with hierarchical structure and access control
+      operationId: listTopics
+      tags:
+        - Topics
+      parameters:
+        - name: parent_id
+          in: query
+          description: Filter by parent topic ID for hierarchical browsing
+          schema:
+            type: integer
+        - name: include_articles
+          in: query
+          description: Include article counts for each topic
+          schema:
+            type: string
+            enum: ['true', 'false']
+            default: 'false'
+      responses:
+        '200':
+          description: Topics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicListResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create topic
+      description: Create new topic with hierarchical support and access restrictions
+      operationId: createTopic
+      tags:
+        - Topics
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TopicCreateRequest'
+      responses:
+        '201':
+          description: Topic created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicCreateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /topics/{id}:
+    put:
+      summary: Update topic
+      description: Update existing topic with full metadata support
+      operationId: updateTopic
+      tags:
+        - Topics
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Topic ID to update
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TopicUpdateRequest'
+      responses:
+        '200':
+          description: Topic updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: Delete topic
+      description: Delete topic with validation for articles and child topics
+      operationId: deleteTopic
+      tags:
+        - Topics
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Topic ID to delete
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Topic deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /topics/{slug}:
+    get:
+      summary: Get single topic
+      description: Get topic with comprehensive details and access control
+      operationId: getTopic
+      tags:
+        - Topics
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          description: Topic slug identifier
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Topic retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicDetailResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /topics/{id}/articles:
+    get:
+      summary: Get topic articles
+      description: Get paginated list of articles in specific topic
+      operationId: getTopicArticles
+      tags:
+        - Topics
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Topic ID
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          description: Number of articles per page
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+        - name: status
+          in: query
+          description: Article status filter
+          schema:
+            type: string
+            enum: [published, draft]
+            default: published
+      responses:
+        '200':
+          description: Topic articles retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicArticlesResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Article:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Article ID
+        title:
+          type: string
+          description: Article title
+        content:
+          type: string
+          description: Full article content
+        excerpt:
+          type: string
+          description: Article excerpt
+        author_id:
+          type: integer
+          description: Author user ID
+        published_at:
+          type: string
+          format: date-time
+          description: Publication timestamp
+        status:
+          type: string
+          enum: [draft, published]
+          description: Article status
+        slug:
+          type: string
+          description: URL-friendly slug
+        page_type:
+          type: string
+          description: Page type
+        featured_image_id:
+          type: integer
+          description: Featured image ID
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        author_username:
+          type: string
+          description: Author username
+
+    ArticleDetail:
+      allOf:
+        - $ref: '#/components/schemas/Article'
+        - type: object
+          properties:
+            author_display_name:
+              type: string
+              description: Author display name
+            meta_title:
+              type: string
+              description: SEO meta title
+            meta_description:
+              type: string
+              description: SEO meta description
+            meta_keywords:
+              type: string
+              description: SEO meta keywords
+            og_title:
+              type: string
+              description: Open Graph title
+            og_description:
+              type: string
+              description: Open Graph description
+            twitter_card_type:
+              type: string
+              description: Twitter card type
+            view_count:
+              type: integer
+              description: View count
+            reading_time_minutes:
+              type: integer
+              description: Estimated reading time
+            topics:
+              type: array
+              items:
+                $ref: '#/components/schemas/TopicReference'
+              description: Associated topics
+            tags:
+              type: array
+              items:
+                $ref: '#/components/schemas/TagReference'
+              description: Associated tags
+            series:
+              $ref: '#/components/schemas/SeriesNavigation'
+              description: Series navigation
+            connections:
+              type: array
+              items:
+                $ref: '#/components/schemas/ArticleConnection'
+              description: Related content connections
+
+    ArticleListResponse:
+      type: object
+      properties:
+        articles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Article'
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+
+    ArticleDetailResponse:
+      type: object
+      properties:
+        article:
+          $ref: '#/components/schemas/ArticleDetail'
+
+    ArticleCreateRequest:
+      type: object
+      required:
+        - title
+        - content
+      properties:
+        title:
+          type: string
+          description: Article title
+        content:
+          type: string
+          description: Article content
+        excerpt:
+          type: string
+          description: Article excerpt
+        status:
+          type: string
+          enum: [draft, published]
+          default: draft
+          description: Article status
+        topics:
+          type: array
+          items:
+            type: integer
+          description: Topic IDs array
+        tags:
+          type: array
+          items:
+            type: integer
+          description: Tag IDs array
+        series_id:
+          type: integer
+          description: Series ID if part of series
+        position_in_series:
+          type: integer
+          description: Position in series
+        connections:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArticleConnectionInput'
+          description: Related content connections
+        seo:
+          $ref: '#/components/schemas/SEOData'
+          description: SEO metadata
+        social:
+          $ref: '#/components/schemas/SocialData'
+          description: Social media metadata
+
+    ArticleUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Article title
+        content:
+          type: string
+          description: Article content
+        excerpt:
+          type: string
+          description: Article excerpt
+        status:
+          type: string
+          enum: [draft, published]
+          description: Article status
+        topics:
+          type: array
+          items:
+            type: integer
+          description: Topic IDs array
+        tags:
+          type: array
+          items:
+            type: integer
+          description: Tag IDs array
+        series_id:
+          type: integer
+          description: Series ID if part of series
+        position_in_series:
+          type: integer
+          description: Position in series
+        connections:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArticleConnectionInput'
+          description: Related content connections
+        seo:
+          $ref: '#/components/schemas/SEOData'
+          description: SEO metadata
+        social:
+          $ref: '#/components/schemas/SocialData'
+          description: Social media metadata
+
+    ArticleCreateResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Success message
+        article:
+          type: object
+          properties:
+            id:
+              type: integer
+              description: Article ID
+            slug:
+              type: string
+              description: Article slug
+            title:
+              type: string
+              description: Article title
+            status:
+              type: string
+              description: Article status
+
+    Tag:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Tag ID
+        name:
+          type: string
+          description: Tag name
+        slug:
+          type: string
+          description: URL-friendly slug
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        article_count:
+          type: integer
+          description: Number of articles with this tag
+
+    TagReference:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Tag ID
+        name:
+          type: string
+          description: Tag name
+        slug:
+          type: string
+          description: URL-friendly slug
+
+    TagCreateRequest:
+      type: object
+      required:
+        - tag_name
+      properties:
+        tag_name:
+          type: string
+          description: Tag name
+        description:
+          type: string
+          description: Tag description
+
+    TagUpdateRequest:
+      type: object
+      required:
+        - tag_name
+      properties:
+        tag_name:
+          type: string
+          description: Updated tag name
+        description:
+          type: string
+          description: Updated tag description
+
+    TagWithArticlesResponse:
+      type: object
+      properties:
+        tag:
+          $ref: '#/components/schemas/TagReference'
+        articles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Article'
+
+    Series:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Series ID
+        series_name:
+          type: string
+          description: Series name
+        slug:
+          type: string
+          description: URL-friendly slug
+        description:
+          type: string
+          description: Series description
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        article_count:
+          type: integer
+          description: Number of articles in series
+
+    SeriesListResponse:
+      type: object
+      properties:
+        series:
+          type: array
+          items:
+            $ref: '#/components/schemas/Series'
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+
+    SeriesWithArticlesResponse:
+      type: object
+      properties:
+        series:
+          type: object
+          properties:
+            id:
+              type: integer
+            series_name:
+              type: string
+            slug:
+              type: string
+            description:
+              type: string
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+        articles:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/Article'
+              - type: object
+                properties:
+                  position_in_series:
+                    type: integer
+                    description: Position in series
+
+    SeriesNavigation:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Series ID
+        series_name:
+          type: string
+          description: Series name
+        slug:
+          type: string
+          description: Series slug
+        position_in_series:
+          type: integer
+          description: Current article position
+        total_articles:
+          type: integer
+          description: Total articles in series
+        prev_article:
+          $ref: '#/components/schemas/ArticleReference'
+          description: Previous article
+        next_article:
+          $ref: '#/components/schemas/ArticleReference'
+          description: Next article
+
+    Topic:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Topic ID
+        name:
+          type: string
+          description: Topic name
+        slug:
+          type: string
+          description: URL-friendly slug
+        description:
+          type: string
+          description: Topic description
+        parent_id:
+          type: integer
+          description: Parent topic ID
+        product_category_id:
+          type: integer
+          description: Related product category ID
+        meta_title:
+          type: string
+          description: SEO meta title
+        meta_description:
+          type: string
+          description: SEO meta description
+        sort_order:
+          type: integer
+          description: Display sort order
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        parent_name:
+          type: string
+          description: Parent topic name
+        article_count:
+          type: integer
+          description: Number of articles in topic
+
+    TopicReference:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Topic ID
+        name:
+          type: string
+          description: Topic name
+        slug:
+          type: string
+          description: URL-friendly slug
+
+    TopicListResponse:
+      type: object
+      properties:
+        topics:
+          type: array
+          items:
+            $ref: '#/components/schemas/Topic'
+
+    TopicDetailResponse:
+      type: object
+      properties:
+        topic:
+          allOf:
+            - $ref: '#/components/schemas/Topic'
+            - type: object
+              properties:
+                parent_slug:
+                  type: string
+                  description: Parent topic slug
+                child_topics:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/TopicReference'
+                  description: Child topics
+                recent_articles:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Article'
+                  description: Recent articles in topic
+
+    TopicCreateRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Topic name
+        description:
+          type: string
+          description: Topic description
+        parent_id:
+          type: integer
+          description: Parent topic ID for hierarchy
+        product_category_id:
+          type: integer
+          description: Related product category
+        meta_title:
+          type: string
+          description: SEO meta title
+        meta_description:
+          type: string
+          description: SEO meta description
+        sort_order:
+          type: integer
+          default: 0
+          description: Display sort order
+        restrictions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccessRestriction'
+          description: Access restriction rules
+
+    TopicUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Topic name
+        description:
+          type: string
+          description: Topic description
+        parent_id:
+          type: integer
+          description: Parent topic ID for hierarchy
+        product_category_id:
+          type: integer
+          description: Related product category
+        meta_title:
+          type: string
+          description: SEO meta title
+        meta_description:
+          type: string
+          description: SEO meta description
+        sort_order:
+          type: integer
+          description: Display sort order
+        restrictions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccessRestriction'
+          description: Access restriction rules
+
+    TopicCreateResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Success message
+        topic:
+          type: object
+          properties:
+            id:
+              type: integer
+              description: Topic ID
+            name:
+              type: string
+              description: Topic name
+            slug:
+              type: string
+              description: Topic slug
+
+    TopicArticlesResponse:
+      type: object
+      properties:
+        articles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Article'
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+
+    ArticleReference:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Article ID
+        title:
+          type: string
+          description: Article title
+        slug:
+          type: string
+          description: Article slug
+
+    ArticleConnection:
+      type: object
+      properties:
+        connection_type:
+          type: string
+          description: Connection type
+        connection_id:
+          type: integer
+          description: Connected item ID
+
+    ArticleConnectionInput:
+      type: object
+      properties:
+        type:
+          type: string
+          description: Connection type
+        id:
+          type: integer
+          description: Connected item ID
+
+    AccessRestriction:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [user_type, permission, specific_user]
+          description: Restriction type
+        value:
+          type: string
+          description: Restriction value
+        logic_operator:
+          type: string
+          enum: [any_of, all_of]
+          default: any_of
+          description: Logic operator
+
+    SEOData:
+      type: object
+      properties:
+        meta_title:
+          type: string
+          description: SEO meta title
+        meta_description:
+          type: string
+          description: SEO meta description
+        meta_keywords:
+          type: string
+          description: SEO meta keywords
+        focus_keyword:
+          type: string
+          description: Focus keyword
+
+    SocialData:
+      type: object
+      properties:
+        og_title:
+          type: string
+          description: Open Graph title
+        og_description:
+          type: string
+          description: Open Graph description
+        twitter_card_type:
+          type: string
+          enum: [summary, summary_large_image]
+          default: summary
+          description: Twitter card type
+
+    PaginationInfo:
+      type: object
+      properties:
+        currentPage:
+          type: integer
+          description: Current page number
+        totalPages:
+          type: integer
+          description: Total number of pages
+        totalItems:
+          type: integer
+          description: Total number of items
+        itemsPerPage:
+          type: integer
+          description: Items per page
+        hasNext:
+          type: boolean
+          description: Whether there are more pages
+        hasPrev:
+          type: boolean
+          description: Whether there are previous pages
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Response message
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Success status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: string
+          description: Additional error details
+
+  responses:
+    BadRequest:
+      description: Bad request - validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Unauthorized:
+      description: Unauthorized - missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Forbidden:
+      description: Forbidden - insufficient permissions or access denied
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+tags:
+  - name: Articles
+    description: Article management operations
+  - name: Tags
+    description: Tag management operations
+  - name: Series
+    description: Series management operations
+  - name: Topics
+    description: Topic management operations

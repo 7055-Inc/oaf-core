@@ -1,0 +1,177 @@
+openapi: 3.0.0
+info:
+  title: Beemeeart System API
+  version: 1.0.0
+  description: System health and CSRF token endpoints for the Beemeeart platform
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+servers:
+  - url: https://api.beemeeart.com
+    description: Production server
+  - url: https://test.beemeeart.com
+    description: Staging server
+
+paths:
+  /health:
+    get:
+      summary: System Health Check
+      description: Returns the current system status and configuration validation
+      operationId: getHealth
+      tags:
+        - System
+      responses:
+        '200':
+          description: System is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: System has configuration issues
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthDegradedResponse'
+
+  /csrf-token:
+    get:
+      summary: Get CSRF Token
+      description: Retrieves a CSRF token for authenticated requests
+      operationId: getCsrfToken
+      tags:
+        - Security
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: CSRF token retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfTokenResponse'
+        '401':
+          description: Unauthorized - Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too Many Requests - Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: 'Use "Bearer {your_api_key}"'
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok]
+          example: ok
+        version:
+          type: string
+          example: "1.0.0"
+        instance:
+          type: string
+          example: "0"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-09-17T19:30:00Z"
+        environment:
+          type: object
+          properties:
+            corsConfigured:
+              type: boolean
+              example: true
+            apiBaseConfigured:
+              type: boolean
+              example: true
+            frontendConfigured:
+              type: boolean
+              example: true
+            cookieDomainConfigured:
+              type: boolean
+              example: true
+      required:
+        - status
+        - version
+        - instance
+        - timestamp
+        - environment
+
+    HealthDegradedResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [degraded]
+          example: degraded
+        version:
+          type: string
+          example: "1.0.0"
+        instance:
+          type: string
+          example: "0"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-09-17T19:30:00Z"
+        environment:
+          type: object
+          properties:
+            corsConfigured:
+              type: boolean
+            apiBaseConfigured:
+              type: boolean
+            frontendConfigured:
+              type: boolean
+            cookieDomainConfigured:
+              type: boolean
+        warnings:
+          type: array
+          items:
+            type: string
+          example: ["Critical environment variables missing"]
+      required:
+        - status
+        - version
+        - instance
+        - timestamp
+        - environment
+        - warnings
+
+    CsrfTokenResponse:
+      type: object
+      properties:
+        csrfToken:
+          type: string
+          example: "abc123def456..."
+      required:
+        - csrfToken
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Invalid or missing API key"
+      required:
+        - error
+
+tags:
+  - name: System
+    description: System health and monitoring endpoints
+  - name: Security
+    description: Security and authentication related endpoints

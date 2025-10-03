@@ -1,0 +1,481 @@
+openapi: 3.0.0
+info:
+  title: Financial Operations API
+  description: Commission rate management, fee structure administration, and vendor earnings tracking for the multi-vendor marketplace platform
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/api
+    description: Production server
+
+paths:
+  /finance/commission-rates:
+    get:
+      summary: Get commission rates
+      description: Get comprehensive commission rate data for administrative management
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommissionRatesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /finance/commission-rates/bulk:
+    put:
+      summary: Bulk update commission rates
+      description: Update multiple commission rates simultaneously for administrative efficiency
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkUpdateRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkUpdateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /finance/commission-rates/{id}:
+    put:
+      summary: Update single commission rate
+      description: Update a single commission rate setting with validation and audit trail
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Financial setting ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCommissionRateRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateCommissionRateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /finance/vendor-earnings:
+    get:
+      summary: Get vendor earnings
+      description: Get earnings data for the authenticated vendor (placeholder implementation)
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorEarningsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Bearer token authentication with appropriate permissions
+
+  schemas:
+    CommissionRateSetting:
+      type: object
+      properties:
+        setting_id:
+          type: integer
+          description: Unique setting ID
+        user_id:
+          type: integer
+          description: User ID (artist or promoter)
+        user_type:
+          type: string
+          enum: [artist, promoter]
+          description: Type of user
+        fee_structure:
+          type: string
+          enum: [commission, passthrough]
+          description: Fee structure type
+        commission_rate:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 100
+          description: Commission rate percentage (0-100)
+        notes:
+          type: string
+          description: Administrative notes
+          nullable: true
+        is_active:
+          type: boolean
+          description: Active status
+        effective_date:
+          type: string
+          format: date
+          description: When setting becomes effective
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        email:
+          type: string
+          format: email
+          description: User email
+        display_name:
+          type: string
+          description: User display name
+          nullable: true
+        first_name:
+          type: string
+          description: User first name
+          nullable: true
+        last_name:
+          type: string
+          description: User last name
+          nullable: true
+        business_name:
+          type: string
+          description: Business name (artist or promoter)
+          nullable: true
+        stripe_account_id:
+          type: string
+          description: Stripe account ID
+          nullable: true
+        stripe_account_verified:
+          type: boolean
+          description: Stripe verification status
+          nullable: true
+
+    CommissionRatesSummary:
+      type: object
+      properties:
+        artists:
+          type: integer
+          description: Number of artists
+        promoters:
+          type: integer
+          description: Number of promoters
+        commission_users:
+          type: integer
+          description: Number of users with commission structure
+        passthrough_users:
+          type: integer
+          description: Number of users with passthrough structure
+
+    UpdateCommissionRate:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Financial setting ID
+        commission_rate:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 100
+          description: Commission rate percentage (0-100)
+        fee_structure:
+          type: string
+          enum: [commission, passthrough]
+          description: Fee structure type
+        notes:
+          type: string
+          description: Administrative notes
+
+    BulkUpdateResult:
+      type: object
+      properties:
+        success:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                description: Setting ID
+              message:
+                type: string
+                description: Success message
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                description: Setting ID
+              error:
+                type: string
+                description: Error message
+
+    BulkUpdateSummary:
+      type: object
+      properties:
+        total_updates:
+          type: integer
+          description: Total update attempts
+        successful:
+          type: integer
+          description: Number of successful updates
+        failed:
+          type: integer
+          description: Number of failed updates
+
+    UpdatedFields:
+      type: object
+      properties:
+        commission_rate:
+          oneOf:
+            - type: number
+            - type: string
+              enum: [unchanged]
+          description: Updated commission rate or 'unchanged'
+        fee_structure:
+          oneOf:
+            - type: string
+              enum: [commission, passthrough]
+            - type: string
+              enum: [unchanged]
+          description: Updated fee structure or 'unchanged'
+        notes:
+          oneOf:
+            - type: string
+            - type: string
+              enum: [unchanged]
+          description: Updated notes or 'unchanged'
+
+    UpdateCommissionRateRequest:
+      type: object
+      properties:
+        commission_rate:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 100
+          description: Commission rate percentage (0-100)
+        fee_structure:
+          type: string
+          enum: [commission, passthrough]
+          description: Fee structure type
+        notes:
+          type: string
+          description: Administrative notes
+
+    BulkUpdateRequest:
+      type: object
+      required:
+        - updates
+      properties:
+        updates:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/UpdateCommissionRate'
+          description: Array of commission rate updates
+
+    CommissionRatesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        commission_rates:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommissionRateSetting'
+        count:
+          type: integer
+          description: Total number of commission rate settings
+        summary:
+          $ref: '#/components/schemas/CommissionRatesSummary'
+
+    BulkUpdateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        results:
+          $ref: '#/components/schemas/BulkUpdateResult'
+        summary:
+          $ref: '#/components/schemas/BulkUpdateSummary'
+
+    UpdateCommissionRateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+          description: Success message
+        updated_fields:
+          $ref: '#/components/schemas/UpdatedFields'
+
+    VendorEarningsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+          description: Status message (placeholder implementation)
+        vendor_id:
+          type: integer
+          description: Authenticated vendor ID
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Error message
+        details:
+          type: string
+          description: Additional error details
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            invalid_commission_rate:
+              summary: Invalid commission rate
+              value:
+                success: false
+                error: "Commission rate must be between 0 and 100"
+            invalid_fee_structure:
+              summary: Invalid fee structure
+              value:
+                success: false
+                error: "Invalid fee structure. Must be \"commission\" or \"passthrough\""
+            empty_updates:
+              summary: Empty updates array
+              value:
+                success: false
+                error: "Updates array is required and must not be empty"
+            missing_id:
+              summary: Missing ID in update
+              value:
+                success: false
+                error: "ID is required"
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: "Unauthorized access"
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            manage_system_required:
+              summary: Commission management requires manage_system permission
+              value:
+                success: false
+                error: "Insufficient permissions - requires manage_system"
+            vendor_required:
+              summary: Vendor earnings requires vendor permission
+              value:
+                success: false
+                error: "Insufficient permissions - requires vendor"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            setting_not_found:
+              summary: Commission rate setting not found
+              value:
+                success: false
+                error: "Commission rate setting not found or inactive"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            database_error:
+              summary: Database error
+              value:
+                success: false
+                error: "Failed to fetch commission rates"
+            update_error:
+              summary: Update processing error
+              value:
+                success: false
+                error: "Failed to update commission rate"
+            bulk_update_error:
+              summary: Bulk update processing error
+              value:
+                success: false
+                error: "Failed to process bulk update"
+
+tags:
+  - name: Financial Operations
+    description: Commission rate management and vendor earnings tracking

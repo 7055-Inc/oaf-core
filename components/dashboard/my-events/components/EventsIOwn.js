@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { getAuthToken } from '../../../../lib/csrf';
+import { getApiUrl } from '../../../../lib/config';
 import styles from '../../SlideIn.module.css';
 
 export default function EventsIOwn({ userData }) {
@@ -21,7 +22,7 @@ export default function EventsIOwn({ userData }) {
       const token = getAuthToken();
       
       // Fetch current events (draft and active)
-      const currentResponse = await fetch(`https://api2.onlineartfestival.com/api/events?promoter_id=${userData.id}&event_status=draft,active`, {
+      const currentResponse = await fetch(getApiUrl(`api/events?promoter_id=${userData.id}&event_status=draft,active`), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -29,7 +30,7 @@ export default function EventsIOwn({ userData }) {
       });
 
       // Fetch archived events
-      const archivedResponse = await fetch(`https://api2.onlineartfestival.com/api/events?promoter_id=${userData.id}&event_status=archived`, {
+      const archivedResponse = await fetch(getApiUrl(`api/events?promoter_id=${userData.id}&event_status=archived`), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

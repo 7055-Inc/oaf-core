@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { authenticatedApiRequest } from '../lib/csrf';
+import { authApiRequest } from '../lib/apiUtils';
 import styles from '../styles/ProfileCompletion.module.css';
 
 export default function ProfileCompletion() {
@@ -18,7 +19,7 @@ export default function ProfileCompletion() {
   useEffect(() => {
     const fetchProfileStatus = async () => {
       try {
-        const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/users/profile-completion-status');
+        const response = await authApiRequest('users/profile-completion-status');
         if (!response.ok) {
           throw new Error('Failed to fetch profile status');
         }
@@ -61,7 +62,7 @@ export default function ProfileCompletion() {
     setError(null);
 
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/users/complete-profile', {
+      const response = await authenticatedApiRequest('users/complete-profile', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
@@ -170,7 +171,7 @@ export default function ProfileCompletion() {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       try {
-        const checkResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/users/profile-completion-status');
+        const checkResponse = await authenticatedApiRequest('users/profile-completion-status');
         if (checkResponse.ok) {
           const checkData = await checkResponse.json();
           if (!checkData.requiresCompletion) {

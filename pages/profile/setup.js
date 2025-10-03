@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { getApiUrl } from '../../lib/config';
 import Header from '../../components/Header';
 
 export default function ProfileSetup() {
@@ -47,7 +48,7 @@ export default function ProfileSetup() {
 
     const fetchUser = async () => {
       try {
-        const res = await fetch('https://api2.onlineartfestival.com/users/me', {
+        const res = await fetch(getApiUrl('users/me'), {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -158,7 +159,7 @@ export default function ProfileSetup() {
         body.upcoming_events = formData.upcoming_events ? JSON.parse(formData.upcoming_events) : [];
         body.is_non_profit = formData.is_non_profit;
       }
-      const res = await fetch('https://api2.onlineartfestival.com/users/me', {
+      const res = await fetch('users/me', {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,

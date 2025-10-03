@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import WYSIWYGEditor from '../../../components/WYSIWYGEditor';
-import { authenticatedApiRequest, secureApiRequest } from '../../../lib/csrf';
+import { authApiRequest } from '../../../lib/apiUtils';
+import { getApiUrl } from '../../../lib/config';
 import styles from './ArticleManagement.module.css';
 
 const ArticleManagement = () => {
@@ -77,7 +78,7 @@ const ArticleManagement = () => {
       const userPermissions = payload.permissions || [];
       
       // Fetch user data from API to get user_type
-      const response = await fetch('https://api2.onlineartfestival.com/users/me', {
+      const response = await fetch(getApiUrl('users/me'), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -107,7 +108,7 @@ const ArticleManagement = () => {
   // Load articles from API
   const loadArticles = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/articles', {
+      const response = await authApiRequest('api/articles', {
         headers: {
           'Content-Type': 'application/json'
         }
@@ -133,7 +134,7 @@ const ArticleManagement = () => {
   // Load topics from API
   const loadTopics = async () => {
     try {
-      const response = await secureApiRequest('https://api2.onlineartfestival.com/api/articles/topics');
+      const response = await authApiRequest('api/articles/topics');
       if (!response.ok) {
         throw new Error(`Failed to load topics: ${response.status} ${response.statusText}`);
       }
@@ -155,7 +156,7 @@ const ArticleManagement = () => {
   // Load tags from API
   const loadTags = async () => {
     try {
-      const response = await secureApiRequest('https://api2.onlineartfestival.com/api/articles/tags');
+      const response = await authApiRequest('api/articles/tags');
       if (!response.ok) {
         throw new Error(`Failed to load tags: ${response.status} ${response.statusText}`);
       }
@@ -171,7 +172,7 @@ const ArticleManagement = () => {
   // Load series from API
   const loadSeries = async () => {
     try {
-      const response = await secureApiRequest('https://api2.onlineartfestival.com/api/articles/series');
+      const response = await authApiRequest('api/articles/series');
       if (!response.ok) {
         throw new Error(`Failed to load series: ${response.status} ${response.statusText}`);
       }
@@ -239,7 +240,7 @@ const ArticleManagement = () => {
     if (!newTopicName.trim()) return;
 
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/articles/topics', {
+      const response = await authApiRequest('api/articles/topics', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -274,7 +275,7 @@ const ArticleManagement = () => {
     if (!newTagName.trim()) return;
 
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/articles/tags', {
+      const response = await authApiRequest('api/articles/tags', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -309,7 +310,7 @@ const ArticleManagement = () => {
 
     try {
       // Note: This endpoint might need to be created if it doesn't exist
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/articles/series', {
+      const response = await authApiRequest('api/articles/series', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -376,7 +377,7 @@ const ArticleManagement = () => {
     e.preventDefault();
     
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/articles', {
+      const response = await authApiRequest('api/articles', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -403,7 +404,7 @@ const ArticleManagement = () => {
     e.preventDefault();
     
     try {
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/articles/${selectedArticle.id}`, {
+      const response = await authApiRequest(`api/articles/${selectedArticle.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -434,7 +435,7 @@ const ArticleManagement = () => {
     }
 
     try {
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/articles/${articleId}`, {
+      const response = await authApiRequest(`api/articles/${articleId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'

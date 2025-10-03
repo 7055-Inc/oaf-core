@@ -1,0 +1,799 @@
+openapi: 3.0.0
+info:
+  title: Admin Financial Management API
+  description: Comprehensive financial administration system with platform overview, payout management, vendor settings, and tax reporting
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/api
+    description: Production server
+
+paths:
+  /admin/financial-overview:
+    get:
+      summary: Get platform financial overview
+      description: Get comprehensive platform financial metrics and overview
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancialOverviewResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/payout-calculations:
+    get:
+      summary: Get payout calculations
+      description: Get detailed payout calculations for all vendors
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayoutCalculationsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/manual-adjustment:
+    post:
+      summary: Create manual adjustment
+      description: Create a manual financial adjustment for a vendor account
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAdjustmentRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateAdjustmentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/manual-adjustments:
+    get:
+      summary: Get manual adjustments
+      description: Get all manual adjustments with optional filtering
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: vendor_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by vendor ID
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+          description: Number of results to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Offset for pagination
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdjustmentsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/vendor-settings:
+    get:
+      summary: Get vendor settings
+      description: Get vendor financial settings
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: vendor_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by vendor ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorSettingsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      summary: Update vendor settings
+      description: Update financial settings for a vendor
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVendorSettingsRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/vendor-details/{vendor_id}:
+    get:
+      summary: Get vendor details
+      description: Get comprehensive vendor information for admin review
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: vendor_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Vendor ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorDetailsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/financials/all-vendor-tax-summaries/{period}:
+    get:
+      summary: Get vendor tax summaries
+      description: Get tax summaries for all vendors in a specific period
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: period
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+          description: Report period in YYYY-MM format
+          example: "2025-09"
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorTaxSummariesResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/financials/all-state-compliance/{period}:
+    get:
+      summary: Get state compliance overview
+      description: Get state-by-state tax compliance overview
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: period
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+          description: Report period in YYYY-MM format
+          example: "2025-09"
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StateComplianceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/financials/all-transactions:
+    get:
+      summary: Get all transactions
+      description: Get all transactions across all vendors with filtering and pagination
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+          description: Items per page
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [sale, commission, payout, refund, adjustment, subscription_charge]
+          description: Filter by transaction type
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, completed, failed, cancelled]
+          description: Filter by transaction status
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Bearer token authentication (requires manage_system permission)
+
+  schemas:
+    FinancialOverview:
+      type: object
+      properties:
+        total_commission_earned:
+          type: number
+          format: decimal
+          description: Total commission earned by platform
+        total_vendor_sales:
+          type: number
+          format: decimal
+          description: Total sales by all vendors
+        pending_payouts:
+          type: number
+          format: decimal
+          description: Total pending payouts to vendors
+        total_paid_out:
+          type: number
+          format: decimal
+          description: Total amount paid out to vendors
+        total_orders:
+          type: integer
+          description: Total number of orders
+        active_vendors:
+          type: integer
+          description: Number of active vendors
+        total_adjustments:
+          type: number
+          format: decimal
+          description: Total manual adjustments
+        adjustment_count:
+          type: integer
+          description: Number of adjustments
+        platform_balance:
+          type: number
+          format: decimal
+          description: Current platform balance
+
+    PayoutCalculations:
+      type: object
+      properties:
+        current_payouts_owed:
+          type: number
+          format: decimal
+          description: Current payouts owed to vendors
+        future_payouts:
+          type: number
+          format: decimal
+          description: Future payouts not yet due
+        total_vendor_balances:
+          type: number
+          format: decimal
+          description: Total vendor balances
+        available_to_withdraw:
+          type: number
+          format: decimal
+          description: Amount available for platform withdrawal
+        break_even_point:
+          type: number
+          format: decimal
+          description: Break-even point for platform
+
+    ManualAdjustment:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Adjustment ID
+        vendor_id:
+          type: integer
+          description: Vendor ID
+        admin_id:
+          type: integer
+          description: Admin user ID who created adjustment
+        amount:
+          type: number
+          format: decimal
+          description: Adjustment amount
+        description:
+          type: string
+          description: Adjustment description
+        type:
+          type: string
+          enum: [credit, debit]
+          description: Adjustment type
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        vendor_username:
+          type: string
+          description: Vendor username
+        admin_username:
+          type: string
+          description: Admin username
+
+    VendorSettings:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Settings ID
+        vendor_id:
+          type: integer
+          description: Vendor ID
+        commission_rate:
+          type: number
+          format: decimal
+          description: Commission rate (0-1)
+        minimum_payout:
+          type: number
+          format: decimal
+          description: Minimum payout amount
+        payment_schedule:
+          type: string
+          enum: [daily, weekly, monthly, manual]
+          description: Payment schedule
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Update timestamp
+        vendor_username:
+          type: string
+          description: Vendor username
+
+    VendorTaxSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Summary ID
+        vendor_id:
+          type: integer
+          description: Vendor ID
+        report_period:
+          type: string
+          description: Report period (YYYY-MM)
+        total_sales:
+          type: number
+          format: decimal
+          description: Total sales for period
+        total_tax_collected:
+          type: number
+          format: decimal
+          description: Total tax collected
+        taxable_amount:
+          type: number
+          format: decimal
+          description: Total taxable amount
+        vendor_name:
+          type: string
+          description: Vendor name
+
+    StateCompliance:
+      type: object
+      properties:
+        customer_state:
+          type: string
+          description: Customer state code
+        total_orders:
+          type: integer
+          description: Total orders in state
+        active_vendors:
+          type: integer
+          description: Active vendors in state
+        total_sales:
+          type: number
+          format: decimal
+          description: Total sales in state
+        total_tax_collected:
+          type: number
+          format: decimal
+          description: Total tax collected in state
+        avg_tax_rate:
+          type: number
+          format: decimal
+          description: Average tax rate in state
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Transaction ID
+        vendor_id:
+          type: integer
+          description: Vendor ID
+        order_id:
+          type: integer
+          description: Order ID
+        transaction_type:
+          type: string
+          enum: [sale, commission, payout, refund, adjustment, subscription_charge]
+          description: Transaction type
+        amount:
+          type: number
+          format: decimal
+          description: Transaction amount
+        commission_amount:
+          type: number
+          format: decimal
+          description: Commission amount
+        status:
+          type: string
+          enum: [pending, completed, failed, cancelled]
+          description: Transaction status
+        payout_date:
+          type: string
+          format: date
+          description: Scheduled payout date
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        order_number:
+          type: integer
+          description: Order number
+        order_total:
+          type: number
+          format: decimal
+          description: Total order amount
+        vendor_name:
+          type: string
+          description: Vendor name
+        type_display:
+          type: string
+          description: Human-readable transaction type
+
+    CreateAdjustmentRequest:
+      type: object
+      required:
+        - vendor_id
+        - amount
+        - description
+        - type
+      properties:
+        vendor_id:
+          type: integer
+          description: Vendor ID for the adjustment
+        amount:
+          type: number
+          format: decimal
+          description: Adjustment amount
+        description:
+          type: string
+          description: Description of the adjustment
+        type:
+          type: string
+          enum: [credit, debit]
+          description: Adjustment type
+
+    UpdateVendorSettingsRequest:
+      type: object
+      required:
+        - vendor_id
+      properties:
+        vendor_id:
+          type: integer
+          description: Vendor ID
+        commission_rate:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 1
+          description: Commission rate (0-1)
+        minimum_payout:
+          type: number
+          format: decimal
+          minimum: 0
+          description: Minimum payout amount
+        payment_schedule:
+          type: string
+          enum: [daily, weekly, monthly, manual]
+          description: Payment schedule
+
+    FinancialOverviewResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        overview:
+          $ref: '#/components/schemas/FinancialOverview'
+
+    PayoutCalculationsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        calculations:
+          $ref: '#/components/schemas/PayoutCalculations'
+
+    CreateAdjustmentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        adjustment:
+          $ref: '#/components/schemas/ManualAdjustment'
+
+    AdjustmentsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        adjustments:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManualAdjustment'
+
+    VendorSettingsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        settings:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendorSettings'
+
+    VendorDetailsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        vendor:
+          type: object
+          description: Comprehensive vendor information
+
+    VendorTaxSummariesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        report_period:
+          type: string
+          description: Report period
+        vendors:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendorTaxSummary'
+        total_vendors:
+          type: integer
+          description: Total number of vendors
+        total_tax_collected:
+          type: number
+          format: decimal
+          description: Total tax collected across all vendors
+
+    StateComplianceResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        report_period:
+          type: string
+          description: Report period
+        state_compliance:
+          type: array
+          items:
+            $ref: '#/components/schemas/StateCompliance'
+        total_states:
+          type: integer
+          description: Total number of states
+        total_platform_tax:
+          type: number
+          format: decimal
+          description: Total platform tax collected
+
+    TransactionsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+            pages:
+              type: integer
+
+    MessageResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: string
+          description: Additional error details
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missing_field:
+              summary: Missing required field
+              value:
+                error: "Missing required fields"
+            invalid_period:
+              summary: Invalid period format
+              value:
+                error: "Invalid period format. Use YYYY-MM"
+            invalid_commission:
+              summary: Invalid commission rate
+              value:
+                error: "commission_rate must be between 0 and 1"
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Unauthorized access"
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Insufficient permissions - requires manage_system"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            vendor_not_found:
+              summary: Vendor not found
+              value:
+                error: "Vendor not found"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            database_error:
+              summary: Database error
+              value:
+                error: "Failed to get financial overview"
+            processing_error:
+              summary: Processing error
+              value:
+                error: "Failed to create manual adjustment"
+
+tags:
+  - name: Admin Financial Management
+    description: Comprehensive financial administration system

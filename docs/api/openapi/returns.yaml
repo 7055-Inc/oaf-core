@@ -1,0 +1,645 @@
+openapi: 3.0.0
+info:
+  title: Returns API
+  description: Comprehensive return management system with multiple flow types, label generation, and case messaging
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/api
+    description: Production server
+
+paths:
+  /returns/create:
+    post:
+      summary: Create return request
+      description: Create a new return request with flow-specific processing
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReturnRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateReturnResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /returns/my:
+    get:
+      summary: Get my returns
+      description: Retrieve user's return requests with optional status filtering
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, label_created, shipped, received, processed, refunded, denied, assistance, assistance_vendor, all]
+          description: Filter by return status
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyReturnsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /returns/{id}/message:
+    post:
+      summary: Add message to return case
+      description: Add message to return case for Flow C communication
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Return ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  description: Message to add to the return case
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  new_status:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /returns/{id}/label:
+    get:
+      summary: Download return label
+      description: Download return shipping label PDF
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Return ID
+      responses:
+        '200':
+          description: PDF file
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /returns/vendor/my:
+    get:
+      summary: Get vendor returns
+      description: Get vendor's return requests with optional status filtering
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, label_created, shipped, received, processed, refunded, denied, assistance, assistance_vendor, all]
+          description: Filter by return status
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorReturnsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /returns/{id}/vendor-message:
+    post:
+      summary: Add vendor message
+      description: Vendor adds message to return case
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Return ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  description: Vendor message to add
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /returns/{id}/mark-received:
+    post:
+      summary: Mark return as received
+      description: Vendor confirms return receipt and triggers refund processing
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Return ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /returns/admin/all:
+    get:
+      summary: Get all returns (Admin)
+      description: Get all returns with search and filter capabilities
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by return ID, order number, or username
+        - name: vendor
+          in: query
+          schema:
+            type: string
+          description: Filter by vendor username
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminReturnsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /returns/admin/by-status/{status}:
+    get:
+      summary: Get returns by status (Admin)
+      description: Get returns filtered by specific status
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: status
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [pending, label_created, shipped, received, processed, refunded, denied, assistance, assistance_vendor]
+          description: Return status to filter by
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminReturnsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /returns/{id}/admin-message:
+    post:
+      summary: Add admin message
+      description: Admin adds message to return case
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Return ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  description: Admin message to add
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Bearer token authentication
+
+  schemas:
+    Address:
+      type: object
+      required:
+        - name
+        - street
+        - city
+        - state
+        - zip
+      properties:
+        name:
+          type: string
+        company:
+          type: string
+        street:
+          type: string
+        street2:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zip:
+          type: string
+        country:
+          type: string
+          default: US
+        phone:
+          type: string
+
+    PackageDimensions:
+      type: object
+      required:
+        - length
+        - width
+        - height
+        - weight
+      properties:
+        length:
+          type: number
+          format: decimal
+        width:
+          type: number
+          format: decimal
+        height:
+          type: number
+          format: decimal
+        weight:
+          type: number
+          format: decimal
+        dimension_unit:
+          type: string
+          enum: [in, cm]
+          default: in
+        weight_unit:
+          type: string
+          enum: [lbs, kg]
+          default: lbs
+
+    CreateReturnRequest:
+      type: object
+      required:
+        - order_id
+        - order_item_id
+        - vendor_id
+        - return_reason
+        - flow_type
+      properties:
+        order_id:
+          type: integer
+        order_item_id:
+          type: integer
+        product_id:
+          type: integer
+        vendor_id:
+          type: integer
+        return_reason:
+          type: string
+          enum: [defective, wrong_item, not_as_described, changed_mind, size_issue, quality_issue, other]
+        return_message:
+          type: string
+        package_dimensions:
+          $ref: '#/components/schemas/PackageDimensions'
+        customer_address:
+          $ref: '#/components/schemas/Address'
+        flow_type:
+          type: string
+          enum: [A, B, C]
+          description: A=Auto prepaid label, B=Customer choice, C=Admin/vendor case
+        label_preference:
+          type: string
+          enum: [purchase_label, self_ship]
+          description: Required for flow_type B
+
+    CreateReturnResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        return_id:
+          type: integer
+        status:
+          type: string
+        message:
+          type: string
+        label_url:
+          type: string
+        next_step:
+          type: string
+          enum: [label_ready, label_purchase, self_ship, case_review, manual_processing]
+
+    ReturnItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        order_id:
+          type: integer
+        order_item_id:
+          type: integer
+        return_reason:
+          type: string
+        return_message:
+          type: string
+        return_status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        order_total:
+          type: number
+          format: decimal
+        product_id:
+          type: integer
+        product_name:
+          type: string
+        quantity:
+          type: integer
+        item_price:
+          type: number
+          format: decimal
+        vendor_name:
+          type: string
+
+    VendorReturnItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        order_id:
+          type: integer
+        return_reason:
+          type: string
+        return_status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        order_number:
+          type: string
+        product_name:
+          type: string
+        item_price:
+          type: number
+          format: decimal
+        customer_username:
+          type: string
+        tracking_number:
+          type: string
+        label_file_path:
+          type: string
+
+    AdminReturnItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        order_id:
+          type: integer
+        return_reason:
+          type: string
+        return_status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        order_number:
+          type: string
+        product_name:
+          type: string
+        item_price:
+          type: number
+          format: decimal
+        customer_username:
+          type: string
+        vendor_username:
+          type: string
+        tracking_number:
+          type: string
+        label_file_path:
+          type: string
+
+    MyReturnsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        returns:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReturnItem'
+
+    VendorReturnsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        returns:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendorReturnItem'
+
+    AdminReturnsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        returns:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminReturnItem'
+
+    MessageResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input data
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Missing required fields"
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing API key
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Invalid or missing API key"
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Insufficient permissions"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Return not found or access denied"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Internal server error"

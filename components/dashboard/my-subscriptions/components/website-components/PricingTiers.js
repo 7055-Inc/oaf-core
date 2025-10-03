@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest, refreshAuthToken } from '../../../../../lib/csrf';
+import { authApiRequest } from '../../../../../lib/apiUtils';
 import StripeCardSetup from '../../../../stripe/StripeCardSetup';
 
 export default function PricingTiers({ userData, onSubscriptionSuccess }) {
@@ -105,7 +106,7 @@ export default function PricingTiers({ userData, onSubscriptionSuccess }) {
 
   const fetchAvailableAddons = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/sites/addons');
+      const response = await authApiRequest('api/sites/addons');
       const data = await response.json();
       
       if (data.success) {
@@ -184,7 +185,7 @@ export default function PricingTiers({ userData, onSubscriptionSuccess }) {
       // Calculate pricing with auto-applied discounts
       const pricing = calculateTotalPrice();
       
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/sites/signup', {
+      const response = await authenticatedApiRequest('api/subscriptions/sites/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

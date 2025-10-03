@@ -3,7 +3,7 @@ const db = require('../../config/db');
 /**
  * Base URL for smart media serving endpoint
  */
-const SMART_MEDIA_BASE_URL = process.env.SMART_MEDIA_BASE_URL || 'https://api2.onlineartfestival.com/api/images';
+const SMART_MEDIA_BASE_URL = process.env.SMART_MEDIA_BASE_URL || 'https://api.beemeeart.com/api/images';
 
 /**
  * Get best available media URLs for a specific image path with smart fallback
@@ -39,7 +39,7 @@ async function getProcessedMediaUrls(tempImagePath, size = 'detail') {
     // Fallback: serve temp image directly for pending/failed processing
     if (tempImagePath) {
       return {
-        image_url: `https://api2.onlineartfestival.com${tempImagePath}`,
+        image_url: `https://api.beemeeart.com${tempImagePath}`,
         thumbnail_url: null, // No thumbnail for temp images
         source: 'temp'
       };
@@ -53,7 +53,7 @@ async function getProcessedMediaUrls(tempImagePath, size = 'detail') {
     // Fallback to temp image
     if (tempImagePath) {
       return {
-        image_url: `https://api2.onlineartfestival.com${tempImagePath}`,
+        image_url: `https://api.beemeeart.com${tempImagePath}`,
         thumbnail_url: null,
         source: 'fallback'
       };
@@ -101,7 +101,7 @@ async function getBatchProcessedMediaUrls(tempImagePaths, size = 'detail') {
       } else {
         // Fallback to temp image served directly
         urlMap[image_path] = {
-          image_url: `https://api2.onlineartfestival.com${image_path}`,
+          image_url: `https://api.beemeeart.com${image_path}`,
           thumbnail_url: null,
           source: 'temp'
         };
@@ -112,7 +112,7 @@ async function getBatchProcessedMediaUrls(tempImagePaths, size = 'detail') {
     for (const tempPath of tempImagePaths) {
       if (!urlMap[tempPath]) {
         urlMap[tempPath] = {
-          image_url: `https://api2.onlineartfestival.com${tempPath}`,
+          image_url: `https://api.beemeeart.com${tempPath}`,
           thumbnail_url: null,
           source: 'direct'
         };
@@ -128,7 +128,7 @@ async function getBatchProcessedMediaUrls(tempImagePaths, size = 'detail') {
     const fallbackMap = {};
     for (const tempPath of tempImagePaths) {
       fallbackMap[tempPath] = {
-        image_url: `https://api2.onlineartfestival.com${tempPath}`,
+        image_url: `https://api.beemeeart.com${tempPath}`,
         thumbnail_url: null,
         source: 'fallback'
       };

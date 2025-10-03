@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Header from '../../../components/Header';
 import { authenticatedApiRequest, getAuthToken } from '../../../lib/csrf';
+import { authApiRequest } from '../../../lib/apiUtils';
 import styles from '../../../styles/ProfileCompletion.module.css';
 export default function StripeOnboardingComplete() {
   const [loading, setLoading] = useState(true);
@@ -47,7 +48,7 @@ export default function StripeOnboardingComplete() {
 
   const checkAccountStatus = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/vendor/settings');
+      const response = await authApiRequest('vendor/settings');
       if (!response.ok) {
         throw new Error('Failed to fetch account status');
       }
@@ -68,7 +69,7 @@ export default function StripeOnboardingComplete() {
     try {
       setSavingPreferences(true);
       
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/vendor/subscription-preferences', {
+      const response = await authenticatedApiRequest('vendor/subscription-preferences', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

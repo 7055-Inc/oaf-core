@@ -1,0 +1,1012 @@
+openapi: 3.0.0
+info:
+  title: Beemeeart Application Management API
+  description: Event application lifecycle management, bulk operations, and payment processing
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/applications
+    description: Production server
+  - url: https://test.beemeeart.com/applications
+    description: Testing server
+
+paths:
+  /:
+    get:
+      summary: Get user applications
+      description: Retrieve all applications for the authenticated user
+      operationId: getUserApplications
+      tags:
+        - Applications
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by application status
+          schema:
+            type: string
+            enum: [draft, submitted, under_review, accepted, rejected, waitlisted, confirmed]
+        - name: limit
+          in: query
+          description: Limit number of results
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          description: Pagination offset
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Applications retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /{id}:
+    get:
+      summary: Get application details
+      description: Retrieve detailed information for a specific application
+      operationId: getApplicationById
+      tags:
+        - Applications
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Application ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Application details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationDetailsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      summary: Update application
+      description: Update application details (draft status only)
+      operationId: updateApplication
+      tags:
+        - Applications
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Application ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationUpdateRequest'
+      responses:
+        '200':
+          description: Application updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationUpdateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: Delete application
+      description: Delete application (draft status only)
+      operationId: deleteApplication
+      tags:
+        - Applications
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Application ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Application deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /events/{eventId}/apply:
+    post:
+      summary: Submit application
+      description: Submit a new application to an event
+      operationId: submitApplication
+      tags:
+        - Applications
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          description: Event ID to apply to
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationSubmissionRequest'
+      responses:
+        '200':
+          description: Application submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationSubmissionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /apply-with-packet:
+    post:
+      summary: Apply with jury packet
+      description: Submit application using a pre-created jury packet
+      operationId: applyWithPacket
+      tags:
+        - Applications
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PacketApplicationRequest'
+      responses:
+        '200':
+          description: Application submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PacketApplicationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /events/{eventId}/applications:
+    get:
+      summary: Get event applications
+      description: Get all applications for a specific event (promoter access)
+      operationId: getEventApplications
+      tags:
+        - Event Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          description: Event ID
+          schema:
+            type: integer
+        - name: status
+          in: query
+          description: Filter by application status
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Event applications retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventApplicationsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /{id}/status:
+    put:
+      summary: Update application status
+      description: Update application status with jury review (promoter access)
+      operationId: updateApplicationStatus
+      tags:
+        - Event Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Application ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusUpdateRequest'
+      responses:
+        '200':
+          description: Application status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusUpdateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /events/{eventId}/stats:
+    get:
+      summary: Get event statistics
+      description: Get public application statistics for an event
+      operationId: getEventStats
+      tags:
+        - Public Data
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          description: Event ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Event statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventStatsResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /bulk-accept:
+    post:
+      summary: Bulk accept applications
+      description: Accept multiple applications with booth fee configuration
+      operationId: bulkAcceptApplications
+      tags:
+        - Bulk Operations
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkAcceptRequest'
+      responses:
+        '200':
+          description: Bulk acceptance completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkOperationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /bulk-payment-intents:
+    post:
+      summary: Create payment intents
+      description: Create Stripe payment intents for accepted applications
+      operationId: createPaymentIntents
+      tags:
+        - Payment Management
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentIntentsRequest'
+      responses:
+        '200':
+          description: Payment intents created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentIntentsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /payment-dashboard/{eventId}:
+    get:
+      summary: Get payment dashboard
+      description: Get comprehensive payment status dashboard for an event
+      operationId: getPaymentDashboard
+      tags:
+        - Payment Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          description: Event ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Payment dashboard retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentDashboardResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /payment-intent/{payment_intent_id}:
+    get:
+      summary: Get payment intent details
+      description: Get payment intent details for artist payment page
+      operationId: getPaymentIntentDetails
+      tags:
+        - Payment Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: payment_intent_id
+          in: path
+          required: true
+          description: Stripe payment intent ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payment intent details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentIntentDetailsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /send-payment-reminders:
+    post:
+      summary: Send payment reminders
+      description: Send payment reminder emails to selected applications
+      operationId: sendPaymentReminders
+      tags:
+        - Email Management
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRemindersRequest'
+      responses:
+        '200':
+          description: Payment reminders sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailOperationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Application:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Application ID
+        event_id:
+          type: integer
+          description: Event ID
+        artist_id:
+          type: integer
+          description: Artist user ID
+        status:
+          type: string
+          enum: [draft, submitted, under_review, accepted, rejected, waitlisted, confirmed]
+          description: Application status
+        artist_statement:
+          type: string
+          description: Artist statement
+        portfolio_url:
+          type: string
+          format: uri
+          description: Portfolio URL
+        additional_info:
+          type: string
+          description: Additional information
+        submitted_at:
+          type: string
+          format: date-time
+          description: Submission timestamp
+        booth_fee_amount:
+          type: number
+          format: float
+          description: Booth fee amount
+        booth_fee_paid:
+          type: boolean
+          description: Whether booth fee is paid
+        booth_fee_due_date:
+          type: string
+          format: date
+          description: Booth fee due date
+
+    ApplicationsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Operation success
+        applications:
+          type: array
+          items:
+            $ref: '#/components/schemas/Application'
+        total:
+          type: integer
+          description: Total number of applications
+        message:
+          type: string
+          nullable: true
+          description: Optional message
+
+    ApplicationDetailsResponse:
+      type: object
+      properties:
+        application:
+          allOf:
+            - $ref: '#/components/schemas/Application'
+            - type: object
+              properties:
+                event_title:
+                  type: string
+                  description: Event title
+                artist_first_name:
+                  type: string
+                  description: Artist first name
+                artist_last_name:
+                  type: string
+                  description: Artist last name
+                artist_email:
+                  type: string
+                  format: email
+                  description: Artist email
+                jury_comments:
+                  type: string
+                  nullable: true
+                  description: Jury review comments
+
+    ApplicationUpdateRequest:
+      type: object
+      properties:
+        artist_statement:
+          type: string
+          description: Updated artist statement
+        portfolio_url:
+          type: string
+          format: uri
+          description: Updated portfolio URL
+        booth_preferences:
+          type: object
+          description: Booth preferences JSON
+        additional_info:
+          type: string
+          description: Updated additional information
+
+    ApplicationUpdateResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Success message
+        application:
+          $ref: '#/components/schemas/Application'
+
+    ApplicationSubmissionRequest:
+      type: object
+      properties:
+        artist_statement:
+          type: string
+          description: Artist statement
+        portfolio_url:
+          type: string
+          format: uri
+          description: Portfolio URL
+        additional_info:
+          type: string
+          description: Additional information
+        additional_notes:
+          type: string
+          description: Additional notes
+        persona_id:
+          type: integer
+          nullable: true
+          description: Artist persona ID
+
+    ApplicationSubmissionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Submission success
+        application:
+          type: object
+          properties:
+            id:
+              type: integer
+              description: Application ID
+            event_id:
+              type: integer
+              description: Event ID
+            status:
+              type: string
+              description: Application status
+            submitted_at:
+              type: string
+              format: date-time
+              description: Submission timestamp
+        message:
+          type: string
+          description: Success message
+
+    PacketApplicationRequest:
+      type: object
+      required:
+        - event_id
+        - packet_id
+      properties:
+        event_id:
+          type: integer
+          description: Event ID to apply to
+        packet_id:
+          type: integer
+          description: Jury packet ID to use
+        additional_info:
+          type: string
+          description: Additional information
+        additional_notes:
+          type: string
+          description: Additional notes
+
+    PacketApplicationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Submission success
+        application_id:
+          type: integer
+          description: Created application ID
+        message:
+          type: string
+          description: Success message
+        packet_used:
+          type: string
+          description: Name of packet used
+
+    EventApplicationsResponse:
+      type: object
+      properties:
+        applications:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/Application'
+              - type: object
+                properties:
+                  artist_first_name:
+                    type: string
+                  artist_last_name:
+                    type: string
+                  artist_email:
+                    type: string
+                  artist_business_name:
+                    type: string
+                  art_categories:
+                    type: string
+                  art_mediums:
+                    type: string
+        total:
+          type: integer
+          description: Total applications
+
+    StatusUpdateRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [under_review, accepted, rejected, waitlisted]
+          description: New application status
+        jury_comments:
+          type: string
+          description: Jury review comments
+
+    StatusUpdateResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Success message
+        application:
+          $ref: '#/components/schemas/Application'
+
+    EventStatsResponse:
+      type: object
+      properties:
+        stats:
+          type: object
+          properties:
+            total_applications:
+              type: integer
+            submitted:
+              type: integer
+            under_review:
+              type: integer
+            accepted:
+              type: integer
+            rejected:
+              type: integer
+            waitlisted:
+              type: integer
+            confirmed:
+              type: integer
+
+    BulkAcceptRequest:
+      type: object
+      required:
+        - applications
+      properties:
+        applications:
+          type: array
+          items:
+            type: object
+            required:
+              - application_id
+              - booth_fee_amount
+              - due_date
+            properties:
+              application_id:
+                type: integer
+              booth_fee_amount:
+                type: number
+                format: float
+              due_date:
+                type: string
+                format: date
+              due_date_timezone:
+                type: string
+              add_ons:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                    description:
+                      type: string
+                    amount:
+                      type: number
+                      format: float
+                    selected:
+                      type: boolean
+
+    BulkOperationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        processed:
+          type: integer
+        errors:
+          type: integer
+        results:
+          type: array
+          items:
+            type: object
+        errors:
+          type: array
+          items:
+            type: object
+
+    PaymentIntentsRequest:
+      type: object
+      required:
+        - application_ids
+      properties:
+        application_ids:
+          type: array
+          items:
+            type: integer
+
+    PaymentIntentsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        created:
+          type: integer
+        errors:
+          type: integer
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              application_id:
+                type: integer
+              payment_intent_id:
+                type: string
+              client_secret:
+                type: string
+              amount:
+                type: number
+                format: float
+              due_date:
+                type: string
+                format: date
+              expires_at:
+                type: integer
+        errors:
+          type: array
+          items:
+            type: object
+
+    PaymentDashboardResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        event_id:
+          type: integer
+        summary:
+          type: object
+          properties:
+            total_accepted:
+              type: integer
+            paid_count:
+              type: integer
+            pending_count:
+              type: integer
+            overdue_count:
+              type: integer
+            total_collected:
+              type: number
+              format: float
+            total_outstanding:
+              type: number
+              format: float
+        applications:
+          type: array
+          items:
+            type: object
+
+    PaymentIntentDetailsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        application_id:
+          type: integer
+        event_id:
+          type: integer
+        event_title:
+          type: string
+        artist_first_name:
+          type: string
+        artist_last_name:
+          type: string
+        booth_fee_amount:
+          type: number
+          format: float
+        addons_total:
+          type: number
+          format: float
+        total_amount:
+          type: number
+          format: float
+        due_date:
+          type: string
+          format: date
+        payment_intent_id:
+          type: string
+        client_secret:
+          type: string
+        payment_status:
+          type: string
+
+    PaymentRemindersRequest:
+      type: object
+      required:
+        - application_ids
+      properties:
+        application_ids:
+          type: array
+          items:
+            type: integer
+        reminder_type:
+          type: string
+          enum: [manual, due_soon, overdue]
+          default: manual
+        custom_message:
+          type: string
+
+    EmailOperationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        sent:
+          type: integer
+        errors:
+          type: integer
+        results:
+          type: array
+          items:
+            type: object
+        errors:
+          type: array
+          items:
+            type: object
+
+    SuccessResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Success message
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: string
+          description: Additional error details
+
+  responses:
+    BadRequest:
+      description: Bad request - validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Unauthorized:
+      description: Unauthorized - authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+tags:
+  - name: Applications
+    description: Individual application management
+  - name: Event Management
+    description: Event-level application management
+  - name: Public Data
+    description: Public application statistics
+  - name: Bulk Operations
+    description: Bulk application processing
+  - name: Payment Management
+    description: Payment processing and tracking
+  - name: Email Management
+    description: Email communications

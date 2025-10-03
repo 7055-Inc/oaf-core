@@ -1,0 +1,804 @@
+openapi: 3.0.0
+info:
+  title: Event Series Management API
+  description: Comprehensive event series management with recurrence patterns, templates, and automation
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/api
+    description: Production server
+
+paths:
+  /series:
+    get:
+      summary: Get all event series
+      description: Get all event series for authenticated promoter with statistics
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeriesListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      summary: Create event series
+      description: Create new event series with recurrence pattern and automation settings
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeriesCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeriesCreateResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /series/{id}:
+    get:
+      summary: Get single event series
+      description: Get detailed information for specific event series including events and automation rules
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Series ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeriesDetailResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/SeriesNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      summary: Update event series
+      description: Update existing event series configuration
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Series ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeriesUpdate'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/SeriesNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /series/{id}/generate:
+    post:
+      summary: Generate next event in series
+      description: Manually generate next event in series based on recurrence pattern
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Series ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateEventResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/SeriesNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /series/templates/my:
+    get:
+      summary: Get available templates
+      description: Get event templates available to authenticated promoter
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplatesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /series/templates/from-event/{eventId}:
+    post:
+      summary: Create template from event
+      description: Create reusable template from existing event
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Event ID to create template from
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateCreateResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/EventNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /series/{id}/automation:
+    get:
+      summary: Get automation rules
+      description: Get email automation rules for specific series
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Series ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationRulesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/SeriesNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      summary: Create automation rule
+      description: Create email automation rule for series
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Series ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AutomationRuleCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationRuleCreateResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/SeriesNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Bearer token authentication
+
+  schemas:
+    RecurrencePattern:
+      type: string
+      enum: [yearly, quarterly, monthly]
+      description: Recurrence pattern for series
+
+    SeriesStatus:
+      type: string
+      enum: [active, paused, completed]
+      description: Series status
+
+    EventSeries:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Series ID
+        series_name:
+          type: string
+          description: Series name
+        series_description:
+          type: string
+          nullable: true
+          description: Series description
+        promoter_id:
+          type: integer
+          description: Promoter user ID
+        recurrence_pattern:
+          $ref: '#/components/schemas/RecurrencePattern'
+        recurrence_interval:
+          type: integer
+          description: Recurrence interval
+        series_start_date:
+          type: string
+          format: date
+          description: Series start date
+        series_end_date:
+          type: string
+          format: date
+          nullable: true
+          description: Series end date
+        template_event_id:
+          type: integer
+          nullable: true
+          description: Template event ID
+        auto_generate:
+          type: boolean
+          description: Auto-generate events flag
+        generate_months_ahead:
+          type: integer
+          description: Months ahead to generate
+        next_generation_date:
+          type: string
+          format: date
+          description: Next generation date
+        series_status:
+          $ref: '#/components/schemas/SeriesStatus'
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    SeriesWithStats:
+      allOf:
+        - $ref: '#/components/schemas/EventSeries'
+        - type: object
+          properties:
+            events_count:
+              type: integer
+              description: Number of events in series
+            latest_event_date:
+              type: string
+              format: date
+              nullable: true
+              description: Latest event date
+            earliest_event_date:
+              type: string
+              format: date
+              nullable: true
+              description: Earliest event date
+
+    SeriesWithDetails:
+      allOf:
+        - $ref: '#/components/schemas/EventSeries'
+        - type: object
+          properties:
+            template_name:
+              type: string
+              nullable: true
+              description: Template name
+            template_event_title:
+              type: string
+              nullable: true
+              description: Template event title
+
+    SeriesEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Event ID
+        title:
+          type: string
+          description: Event title
+        start_date:
+          type: string
+          format: date
+          description: Event start date
+        end_date:
+          type: string
+          format: date
+          description: Event end date
+        event_status:
+          type: string
+          description: Event status
+        sequence_number:
+          type: integer
+          description: Sequence number in series
+        generated_date:
+          type: string
+          format: date-time
+          description: Generation timestamp
+        generation_method:
+          type: string
+          enum: [manual, automatic]
+          description: Generation method
+
+    EventTemplate:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Template ID
+        template_name:
+          type: string
+          description: Template name
+        promoter_id:
+          type: integer
+          description: Template owner ID
+        template_config:
+          type: string
+          description: Template configuration JSON
+        description:
+          type: string
+          nullable: true
+          description: Template description
+        is_public:
+          type: boolean
+          description: Public template flag
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        usage_count:
+          type: integer
+          description: Usage count
+
+    AutomationRule:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Rule ID
+        series_id:
+          type: integer
+          description: Series ID
+        trigger_type:
+          type: string
+          description: Trigger type
+        trigger_offset_days:
+          type: integer
+          description: Days offset for trigger
+        target_audience:
+          type: string
+          description: Target audience
+        template_id:
+          type: integer
+          nullable: true
+          description: Email template ID
+        is_active:
+          type: boolean
+          description: Active status
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    SeriesCreate:
+      type: object
+      required:
+        - series_name
+        - recurrence_pattern
+        - recurrence_interval
+        - series_start_date
+      properties:
+        series_name:
+          type: string
+          description: Series name
+          example: "Monthly Workshop Series"
+        series_description:
+          type: string
+          description: Series description
+          example: "Monthly educational workshops for artists"
+        recurrence_pattern:
+          $ref: '#/components/schemas/RecurrencePattern'
+          example: "monthly"
+        recurrence_interval:
+          type: integer
+          minimum: 1
+          description: Recurrence interval
+          example: 1
+        series_start_date:
+          type: string
+          format: date
+          description: Series start date
+          example: "2025-10-01"
+        series_end_date:
+          type: string
+          format: date
+          nullable: true
+          description: Series end date
+          example: "2026-09-30"
+        template_event_id:
+          type: integer
+          nullable: true
+          description: Template event ID
+          example: 789
+        auto_generate:
+          type: boolean
+          description: Auto-generate events flag
+          default: true
+          example: true
+        generate_months_ahead:
+          type: integer
+          minimum: 1
+          description: Months ahead to generate
+          default: 12
+          example: 6
+
+    SeriesUpdate:
+      type: object
+      properties:
+        series_name:
+          type: string
+          description: Series name
+        series_description:
+          type: string
+          description: Series description
+        recurrence_pattern:
+          $ref: '#/components/schemas/RecurrencePattern'
+        recurrence_interval:
+          type: integer
+          minimum: 1
+          description: Recurrence interval
+        series_status:
+          $ref: '#/components/schemas/SeriesStatus'
+        auto_generate:
+          type: boolean
+          description: Auto-generate events flag
+        generate_months_ahead:
+          type: integer
+          minimum: 1
+          description: Months ahead to generate
+        series_end_date:
+          type: string
+          format: date
+          nullable: true
+          description: Series end date
+
+    TemplateCreate:
+      type: object
+      required:
+        - template_name
+      properties:
+        template_name:
+          type: string
+          description: Template name
+          example: "Workshop Template"
+        description:
+          type: string
+          nullable: true
+          description: Template description
+          example: "Template for educational workshops"
+        is_public:
+          type: boolean
+          description: Public template flag
+          default: false
+          example: false
+
+    AutomationRuleCreate:
+      type: object
+      required:
+        - trigger_type
+      properties:
+        trigger_type:
+          type: string
+          description: Trigger type
+          example: "event_reminder"
+        trigger_offset_days:
+          type: integer
+          minimum: 0
+          description: Days offset for trigger
+          default: 0
+          example: 7
+        target_audience:
+          type: string
+          description: Target audience
+          default: "artists"
+          example: "artists"
+        template_id:
+          type: integer
+          nullable: true
+          description: Email template ID
+          example: 301
+
+    SeriesListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        series:
+          type: array
+          items:
+            $ref: '#/components/schemas/SeriesWithStats'
+
+    SeriesDetailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        series:
+          $ref: '#/components/schemas/SeriesWithDetails'
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/SeriesEvent'
+        automation_rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/AutomationRule'
+
+    SeriesCreateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        series_id:
+          type: integer
+          description: Created series ID
+        message:
+          type: string
+          example: "Event series created successfully"
+
+    GenerateEventResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        event_id:
+          type: integer
+          description: Generated event ID
+        message:
+          type: string
+          example: "Next event generated successfully"
+
+    TemplatesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        templates:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventTemplate'
+
+    TemplateCreateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        template_id:
+          type: integer
+          description: Created template ID
+        message:
+          type: string
+          example: "Template created from event"
+
+    AutomationRulesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        automation_rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/AutomationRule'
+
+    AutomationRuleCreateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        rule_id:
+          type: integer
+          description: Created rule ID
+        message:
+          type: string
+          example: "Automation rule created"
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+
+  responses:
+    Unauthorized:
+      description: Unauthorized - invalid or missing API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Unauthorized access"
+
+    SeriesNotFound:
+      description: Series not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Series not found"
+
+    EventNotFound:
+      description: Event not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Event not found"
+
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missing_fields:
+              summary: Missing required fields
+              value:
+                error: "Missing required fields"
+            invalid_pattern:
+              summary: Invalid recurrence pattern
+              value:
+                error: "Invalid recurrence pattern"
+            no_fields_to_update:
+              summary: No fields to update
+              value:
+                error: "No valid fields to update"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            fetch_series_error:
+              summary: Fetch series error
+              value:
+                error: "Failed to fetch series"
+            create_series_error:
+              summary: Create series error
+              value:
+                error: "Failed to create series"
+            update_series_error:
+              summary: Update series error
+              value:
+                error: "Failed to update series"
+            generate_event_error:
+              summary: Generate event error
+              value:
+                error: "Failed to generate next event"
+            fetch_templates_error:
+              summary: Fetch templates error
+              value:
+                error: "Failed to fetch templates"
+            create_template_error:
+              summary: Create template error
+              value:
+                error: "Failed to create template"
+            fetch_automation_error:
+              summary: Fetch automation rules error
+              value:
+                error: "Failed to fetch automation rules"
+            create_automation_error:
+              summary: Create automation rule error
+              value:
+                error: "Failed to create automation rule"
+
+tags:
+  - name: Event Series
+    description: Event series management and configuration
+
+  - name: Event Templates
+    description: Reusable event template management
+
+  - name: Automation Rules
+    description: Email automation rule configuration
+
+  - name: Event Generation
+    description: Automated and manual event generation

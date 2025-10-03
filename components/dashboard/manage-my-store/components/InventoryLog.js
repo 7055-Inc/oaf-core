@@ -1,33 +1,30 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
 import styles from '../../../../styles/InventoryLog.module.css';
 
-export default function InventoryLog({ productId }) {
+export default function InventoryLog() {
   const [inventoryHistory, setInventoryHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Fetch inventory history from the new product API
+  // Fetch all inventory history for the user
   useEffect(() => {
-    if (productId) {
-      fetchInventoryHistory();
-    }
-  }, [productId]);
+    fetchInventoryHistory();
+  }, []);
 
   const fetchInventoryHistory = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // Use the new product API to get inventory history
-      const response = await authenticatedApiRequest(
-        `https://api2.onlineartfestival.com/products/${productId}?include=inventory`
-      );
+      // Get all inventory history for the user across all products
+      const response = await authApiRequest('inventory/history');
       
       if (response.ok) {
         const data = await response.json();
-        setInventoryHistory(data.inventory?.history || []);
+        setInventoryHistory(data.history || []);
       } else {
         setError('Failed to load inventory history');
         setInventoryHistory([]);
@@ -83,7 +80,8 @@ export default function InventoryLog({ productId }) {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h3>Inventory History</h3>
+        <h3>All Inventory Changes</h3>
+        <p>Complete chronological log of all inventory updates across your products</p>
       </div>
 
       {error && <div className={styles.error}>{error}</div>}
@@ -98,16 +96,20 @@ export default function InventoryLog({ productId }) {
               <thead>
                 <tr>
                   <th>Date</th>
+                  <th>Product</th>
                   <th>Type</th>
+                  <th>Previous</th>
+                  <th>New</th>
                   <th>Change</th>
-                  <th>After</th>
                   <th>Reason</th>
+                  <th>User</th>
                 </tr>
               </thead>
               <tbody>
                 {inventoryHistory.map((entry, index) => (
                   <tr key={index}>
                     <td>{formatDate(entry.created_at)}</td>
+                    <td>{entry.product_name || `Product ${entry.product_id}`}</td>
                     <td>
                       <span 
                         className={`${styles.changeType} ${styles[getChangeTypeColor(entry.change_type)]}`}
@@ -115,11 +117,18 @@ export default function InventoryLog({ productId }) {
                         {getChangeTypeLabel(entry.change_type)}
                       </span>
                     </td>
+                    <td>{entry.previous_qty}</td>
+                    <td>{entry.new_qty}</td>
                     <td className={entry.quantity_change > 0 ? styles.positive : styles.negative}>
                       {entry.quantity_change > 0 ? '+' : ''}{entry.quantity_change}
                     </td>
-                    <td>{entry.quantity_after}</td>
-                    <td>{entry.reason}</td>
+                    <td>{entry.reason || '-'}</td>
+                    <td>
+                      {entry.first_name && entry.last_name ? 
+                        `${entry.first_name} ${entry.last_name}` : 
+                        entry.username || 'System'
+                      }
+                    </td>
                   </tr>
                 ))}
               </tbody>

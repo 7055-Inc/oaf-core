@@ -2,6 +2,7 @@
 // This file contains ONLY the menu building logic for My Subscriptions section
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../lib/csrf';
+import { authApiRequest } from '../../../lib/apiUtils';
 import styles from '../../../pages/dashboard/Dashboard.module.css';
 
 export default function MySubscriptionsMenu({ 
@@ -29,7 +30,7 @@ export default function MySubscriptionsMenu({
 
   const loadShortcuts = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/dashboard-widgets/widget-data/my_shortcuts');
+      const response = await authApiRequest('api/dashboard-widgets/widget-data/my_shortcuts');
       if (response.ok) {
         const result = await response.json();
         setShortcuts(result.data.shortcuts || []);
@@ -44,7 +45,7 @@ export default function MySubscriptionsMenu({
     
     setLoading(true);
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/dashboard-widgets/shortcuts/add', {
+      const response = await authApiRequest('api/dashboard-widgets/shortcuts/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ shortcut })
@@ -68,6 +69,10 @@ export default function MySubscriptionsMenu({
     return shortcuts.some(s => s.id === shortcutId);
   };
   if (!userData) return null;
+  
+  // Only show to artists, promoters, and admins
+  const canAccessSubscriptions = userData.user_type === 'admin' || userData.user_type === 'artist' || userData.user_type === 'promoter';
+  if (!canAccessSubscriptions) return null;
   
   return (
     <div className={styles.sidebarSection}>

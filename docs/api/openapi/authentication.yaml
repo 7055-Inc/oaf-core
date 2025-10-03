@@ -1,0 +1,398 @@
+openapi: 3.0.0
+info:
+  title: Beemeeart Authentication API
+  description: Authentication, token management, and cookie consent API for the Beemeeart platform
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/auth
+    description: Production server
+  - url: https://test.beemeeart.com/auth
+    description: Testing server
+
+paths:
+  /exchange:
+    post:
+      summary: Exchange authentication token
+      description: Exchange OAuth tokens for access tokens or validate existing JWT tokens
+      operationId: exchangeToken
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenExchangeRequest'
+            examples:
+              google_oauth:
+                summary: Google OAuth token exchange
+                value:
+                  provider: google
+                  token: eyJhbGciOiJSUzI1NiIsImtpZCI6IjE2NzAyN...
+              email_auth:
+                summary: Email authentication
+                value:
+                  provider: email
+                  token: email_verification_token
+                  email: user@example.com
+              token_validation:
+                summary: JWT token validation
+                value:
+                  provider: validate
+                  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+      responses:
+        '200':
+          description: Token exchange successful
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TokenResponse'
+                  - $ref: '#/components/schemas/ValidationResponse'
+              examples:
+                token_response:
+                  summary: New token issued
+                  value:
+                    token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                    refreshToken: a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6...
+                    userId: 12345
+                validation_response:
+                  summary: Token validation result
+                  value:
+                    roles: ["user", "vendor"]
+                    permissions: ["vendor", "shipping", "stripe_connect"]
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /refresh:
+    post:
+      summary: Refresh access token
+      description: Refresh an expired access token using a refresh token
+      operationId: refreshToken
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Token refresh successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /cookie-consent/anonymous:
+    post:
+      summary: Log anonymous cookie consent
+      description: Log cookie consent for anonymous users (GDPR compliance)
+      operationId: logAnonymousConsent
+      tags:
+        - Cookie Consent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnonymousConsentRequest'
+      responses:
+        '200':
+          description: Consent logged successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /cookie-consent/user:
+    post:
+      summary: Update user cookie consent
+      description: Update cookie consent for authenticated users
+      operationId: updateUserConsent
+      tags:
+        - Cookie Consent
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserConsentRequest'
+      responses:
+        '200':
+          description: Consent updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserConsentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /cookie-consent/status:
+    get:
+      summary: Get cookie consent status
+      description: Retrieve current cookie consent status for authenticated user
+      operationId: getConsentStatus
+      tags:
+        - Cookie Consent
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Consent status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsentStatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token for authenticated requests
+
+  schemas:
+    TokenExchangeRequest:
+      type: object
+      required:
+        - provider
+        - token
+      properties:
+        provider:
+          type: string
+          enum: [google, email, validate]
+          description: Authentication provider type
+        token:
+          type: string
+          description: OAuth token or JWT token to exchange/validate
+        email:
+          type: string
+          format: email
+          description: Email address (required for email provider)
+      example:
+        provider: google
+        token: eyJhbGciOiJSUzI1NiIsImtpZCI6IjE2NzAyN...
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          description: Valid refresh token
+      example:
+        refreshToken: a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6...
+
+    AnonymousConsentRequest:
+      type: object
+      required:
+        - consent
+        - sessionId
+      properties:
+        consent:
+          type: string
+          enum: [yes, no]
+          description: Cookie consent value
+        sessionId:
+          type: string
+          description: Anonymous session identifier
+        timestamp:
+          type: string
+          format: date-time
+          description: Consent timestamp
+      example:
+        consent: yes
+        sessionId: anonymous_session_12345
+        timestamp: 2024-01-01T12:00:00Z
+
+    UserConsentRequest:
+      type: object
+      required:
+        - consent
+      properties:
+        consent:
+          type: string
+          enum: [yes, no]
+          description: Cookie consent value
+        timestamp:
+          type: string
+          format: date-time
+          description: Consent timestamp
+      example:
+        consent: yes
+        timestamp: 2024-01-01T12:00:00Z
+
+    TokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT access token (1 hour expiration)
+        refreshToken:
+          type: string
+          description: Refresh token (7 day expiration)
+        userId:
+          type: integer
+          description: User ID
+      example:
+        token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        refreshToken: a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6...
+        userId: 12345
+
+    ValidationResponse:
+      type: object
+      properties:
+        roles:
+          type: array
+          items:
+            type: string
+          description: User roles
+        permissions:
+          type: array
+          items:
+            type: string
+          description: User permissions
+      example:
+        roles: ["user", "vendor"]
+        permissions: ["vendor", "shipping", "stripe_connect"]
+
+    ConsentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Operation success status
+        message:
+          type: string
+          description: Success message
+      example:
+        success: true
+        message: Cookie consent logged successfully
+
+    UserConsentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Operation success status
+        message:
+          type: string
+          description: Success message
+        consent:
+          type: boolean
+          description: Current consent status
+        consentDate:
+          type: string
+          format: date-time
+          description: Consent date
+      example:
+        success: true
+        message: Cookie consent updated successfully
+        consent: true
+        consentDate: 2024-01-01T12:00:00Z
+
+    ConsentStatusResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Operation success status
+        hasConsented:
+          type: boolean
+          description: Whether user has consented
+        consentDate:
+          type: string
+          format: date-time
+          nullable: true
+          description: Date of consent (null if no consent given)
+      example:
+        success: true
+        hasConsented: true
+        consentDate: 2024-01-01T12:00:00Z
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+      example:
+        error: Invalid token
+
+  responses:
+    BadRequest:
+      description: Bad request - validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: Missing required fields
+
+    Unauthorized:
+      description: Unauthorized - authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: Invalid or expired token
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: User not found
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: Authentication failed
+
+tags:
+  - name: Authentication
+    description: User authentication and token management
+  - name: Cookie Consent
+    description: GDPR-compliant cookie consent management

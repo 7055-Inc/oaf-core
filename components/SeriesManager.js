@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../lib/csrf';
+import { authApiRequest } from '../lib/apiUtils';
 import styles from './SeriesManager.module.css';
 
 export default function SeriesManager() {
@@ -28,7 +29,7 @@ export default function SeriesManager() {
   const fetchSeries = async () => {
     try {
       setLoading(true);
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/series');
+      const response = await authApiRequest('api/series');
       
       if (response.ok) {
         const data = await response.json();
@@ -48,7 +49,7 @@ export default function SeriesManager() {
     setLoading(true);
     
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/series', {
+      const response = await authApiRequest('api/series', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -80,7 +81,7 @@ export default function SeriesManager() {
 
   const handleGenerateNextEvent = async (seriesId) => {
     try {
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/series/${seriesId}/generate`, {
+      const response = await authenticatedApiRequest(`api/series/${seriesId}/generate`, {
         method: 'POST'
       });
 

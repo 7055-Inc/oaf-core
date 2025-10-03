@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Script from 'next/script';
 import Link from 'next/link';
+import { getFrontendUrl, getApiUrl, getSmartMediaUrl } from '../../lib/config';
 import Header from '../../components/Header';
 import ApplicationForm from '../../components/applications/ApplicationForm';
 import ApplicationStatus from '../../components/applications/ApplicationStatus';
@@ -101,7 +102,7 @@ const generateRichOffers = (event, ticketData, id) => {
       "inventoryLevel": ticket.quantity_available ? 
         Math.max(0, ticket.quantity_available - ticket.quantity_sold) : null,
       "category": "Event Ticket",
-      "url": `https://onlineartfestival.com/events/${id}#tickets`
+      "url": getFrontendUrl(`/events/${id}#tickets`)
     });
   });
 
@@ -113,7 +114,7 @@ const generateRichOffers = (event, ticketData, id) => {
       "price": 0,
       "priceCurrency": "USD",
       "availability": "https://schema.org/InStock",
-      "url": event.rsvp_url || `https://onlineartfestival.com/events/${id}`,
+      "url": event.rsvp_url || `/events/${id}`,
       "category": "Registration"
     });
   }
@@ -140,7 +141,7 @@ const generatePerformerSchema = (artists, event) => {
     "name": `${artist.first_name} ${artist.last_name}`,
     "jobTitle": "Artist",
     "description": artist.artist_statement || `Professional artist exhibiting at ${event.title}`,
-    "url": `https://onlineartfestival.com/artists/${artist.user_id}`,
+    "url": `/artists/${artist.user_id}`,
     "sameAs": artist.portfolio_url || null,
     "knowsAbout": artist.art_medium || "Visual Arts",
     "memberOf": {
@@ -234,7 +235,7 @@ const generateEventRating = (event) => {
 // Helper function: Generate social media links
 const generateSocialLinks = (event, id) => {
   const links = [
-    `https://onlineartfestival.com/events/${id}`,
+    `/events/${id}`,
     "https://facebook.com/onlineartfestival", // Update with actual social links
     "https://instagram.com/onlineartfestival"
   ];
@@ -301,7 +302,7 @@ const generateAdvancedEventSchema = async (event, id, exhibitingArtists, eventCa
   let ticketData = [];
   if (event.has_tickets) {
     try {
-      const ticketResponse = await fetch(`https://api2.onlineartfestival.com/api/events/${id}/tickets`);
+      const ticketResponse = await fetch(getApiUrl(`api/events/${id}/tickets`));
       if (ticketResponse.ok) {
         const tickets = await ticketResponse.json();
         ticketData = tickets.tickets || [];
@@ -315,7 +316,7 @@ const generateAdvancedEventSchema = async (event, id, exhibitingArtists, eventCa
   const schema = {
     "@context": "https://schema.org",
     "@type": "Festival", // More specific than Event for art festivals
-    "@id": `https://onlineartfestival.com/events/${id}`,
+    "@id": `/events/${id}`,
     "name": event.title,
     "alternateName": event.seo_title || event.title,
     "description": event.description || event.short_description,
@@ -336,11 +337,11 @@ const generateAdvancedEventSchema = async (event, id, exhibitingArtists, eventCa
     "organizer": {
       "@type": "Organization",
       "name": "Online Art Festival",
-      "url": "https://onlineartfestival.com",
+      "url": "",
       "contactPoint": {
         "@type": "ContactPoint",
         "contactType": "Event Information",
-        "url": `https://onlineartfestival.com/events/${id}`
+        "url": `/events/${id}`
       }
     },
     
@@ -372,7 +373,7 @@ const generateAdvancedEventSchema = async (event, id, exhibitingArtists, eventCa
     "isPartOf": {
       "@type": "EventSeries",
       "name": "Online Art Festival Events",
-      "url": "https://onlineartfestival.com/events"
+      "url": "/events"
     },
     
     // Social media and sharing
@@ -444,10 +445,10 @@ export default function EventPage() {
     setLoading(true);
     
     Promise.all([
-      fetch(`https://api2.onlineartfestival.com/api/events/${id}`).then(res => res.json()),
-      fetch(`https://api2.onlineartfestival.com/api/events/${id}/images`).then(res => res.json()),
-      fetch(`https://api2.onlineartfestival.com/api/events/${id}/categories`).then(res => res.json()),
-      fetch(`https://api2.onlineartfestival.com/api/events/${id}/artists`).then(res => res.json().catch(() => ({ artists: [] }))) // Handle artists fetch with fallback
+      fetch(getApiUrl(`api/events/${id}`)).then(res => res.json()),
+      fetch(`api/events/${id}/images`).then(res => res.json()),
+      fetch(`api/events/${id}/categories`).then(res => res.json()),
+      fetch(`api/events/${id}/artists`).then(res => res.json().catch(() => ({ artists: [] }))) // Handle artists fetch with fallback
     ])
       .then(async ([eventData, imagesData, categoriesData, artistsData]) => {
         setEvent(eventData || null);
@@ -474,7 +475,7 @@ export default function EventPage() {
                 if (imagePath.startsWith('/static_media/')) {
                   return imagePath;
                 }
-                return `https://api2.onlineartfestival.com${imagePath}`;
+                return getSmartMediaUrl(imagePath);
               }
             );
             setAdvancedSchema(schema);
@@ -495,7 +496,7 @@ export default function EventPage() {
     const token = localStorage.getItem('token');
     if (token) {
       // Fetch current user
-      fetch('https://api2.onlineartfestival.com/users/me', {
+      fetch('users/me', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -526,7 +527,7 @@ export default function EventPage() {
 
   const loadUserApplication = async (token) => {
     try {
-      const response = await fetch('https://api2.onlineartfestival.com/api/applications/', {
+      const response = await fetch('api/applications/', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -545,7 +546,7 @@ export default function EventPage() {
 
   const loadApplicationStats = async () => {
     try {
-      const response = await fetch(`https://api2.onlineartfestival.com/api/applications/events/${id}/stats`);
+      const response = await fetch(`api/applications/events/${id}/stats`);
       if (response.ok) {
         const stats = await response.json();
         setApplicationStats(stats);
@@ -637,7 +638,7 @@ export default function EventPage() {
     if (imagePath.startsWith('/static_media/')) {
       return imagePath;
     }
-    return `https://api2.onlineartfestival.com${imagePath}`;
+    return `${imagePath}`;
   };
 
   // Format date for display
@@ -741,7 +742,7 @@ export default function EventPage() {
   // SEO meta tags
   const metaTitle = event.seo_title || `${event.title} - Online Art Festival`;
   const metaDescription = event.meta_description || event.short_description || event.description?.substring(0, 160) || `Join us for ${event.title} in ${event.venue_city}, ${event.venue_state}`;
-  const canonicalUrl = `https://onlineartfestival.com/events/${id}`;
+  const canonicalUrl = `/events/${id}`;
   const eventImageUrl = eventImages.length > 0 ? getImageUrl(eventImages[0].image_url) : null;
 
   return (
@@ -1053,7 +1054,7 @@ export default function EventPage() {
                         <div className={styles.artistImage}>
                           {artist.profile_image ? (
                             <img 
-                              src={`https://api2.onlineartfestival.com${artist.profile_image}`}
+                              src={`${artist.profile_image}`}
                               alt={artist.name}
                               onError={(e) => {
                                 e.target.style.display = 'none';

@@ -1,0 +1,709 @@
+openapi: 3.0.0
+info:
+  title: Beemeeart Dashboard Widgets API
+  description: Comprehensive dashboard widget management system with customizable layouts, shortcuts, and admin controls
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/dashboard-widgets
+    description: Production server
+  - url: https://test.beemeeart.com/dashboard-widgets
+    description: Testing server
+
+paths:
+  /layout:
+    get:
+      summary: Get dashboard layout
+      description: Retrieves user's complete dashboard layout including user widgets and admin-locked widgets. Auto-creates essential widgets if they don't exist.
+      operationId: getDashboardLayout
+      tags:
+        - Widget Layout
+      security:
+        - JWTAuth: []
+      responses:
+        '200':
+          description: Dashboard layout retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardLayoutResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Save dashboard layout
+      description: Saves user's complete dashboard layout with grid positioning. Replaces entire user layout while preserving admin-locked widgets.
+      operationId: saveDashboardLayout
+      tags:
+        - Widget Layout
+      security:
+        - JWTAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveLayoutRequest'
+      responses:
+        '200':
+          description: Dashboard layout saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /widget-types:
+    get:
+      summary: Get available widget types
+      description: Retrieves available widget types for user based on permissions, organized by category
+      operationId: getWidgetTypes
+      tags:
+        - Widget Types
+      security:
+        - JWTAuth: []
+      responses:
+        '200':
+          description: Widget types retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WidgetTypesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /widget-data/{widgetType}:
+    get:
+      summary: Get widget data
+      description: Retrieves data for specific widget type with optional configuration
+      operationId: getWidgetData
+      tags:
+        - Widget Data
+      security:
+        - JWTAuth: []
+      parameters:
+        - name: widgetType
+          in: path
+          required: true
+          description: Widget type identifier
+          schema:
+            type: string
+        - name: config
+          in: query
+          required: false
+          description: JSON configuration string
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Widget data retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WidgetDataResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /shortcuts/add:
+    post:
+      summary: Add shortcut
+      description: Adds new shortcut to user's shortcuts widget with validation and duplicate prevention
+      operationId: addShortcut
+      tags:
+        - Shortcuts
+      security:
+        - JWTAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddShortcutRequest'
+      responses:
+        '200':
+          description: Shortcut added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShortcutsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /shortcuts/remove:
+    post:
+      summary: Remove shortcut
+      description: Removes shortcut from user's shortcuts widget by ID
+      operationId: removeShortcut
+      tags:
+        - Shortcuts
+      security:
+        - JWTAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemoveShortcutRequest'
+      responses:
+        '200':
+          description: Shortcut removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShortcutsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /add-widget:
+    post:
+      summary: Add single widget
+      description: Adds single widget to user's dashboard with grid positioning
+      operationId: addWidget
+      tags:
+        - Widget Management
+      security:
+        - JWTAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddWidgetRequest'
+      responses:
+        '200':
+          description: Widget added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /remove-widget:
+    post:
+      summary: Remove single widget
+      description: Removes single widget from user's dashboard. Only removes user widgets, preserves admin-locked widgets.
+      operationId: removeWidget
+      tags:
+        - Widget Management
+      security:
+        - JWTAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemoveWidgetRequest'
+      responses:
+        '200':
+          description: Widget removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/locked-widget:
+    post:
+      summary: Create admin locked widget
+      description: Admin only - Creates admin-locked widgets for users (announcements, system messages, etc.)
+      operationId: createLockedWidget
+      tags:
+        - Admin Management
+      security:
+        - JWTAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLockedWidgetRequest'
+      responses:
+        '200':
+          description: Locked widget created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LockedWidgetResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    JWTAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    DashboardLayoutResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        userLayout:
+          type: array
+          items:
+            $ref: '#/components/schemas/Widget'
+        adminLayout:
+          type: array
+          items:
+            $ref: '#/components/schemas/Widget'
+        totalWidgets:
+          type: integer
+          description: Total count of all widgets
+          example: 3
+
+    Widget:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Widget instance ID
+        user_id:
+          type: integer
+          description: User ID who owns the widget
+        widget_type:
+          type: string
+          description: Widget type identifier
+          example: "my_shortcuts"
+        grid_row:
+          type: integer
+          description: Grid row position
+          example: 0
+        grid_col:
+          type: integer
+          description: Grid column position
+          example: 0
+        widget_config:
+          type: string
+          description: JSON configuration string
+          example: "{\"shortcuts\": []}"
+        is_admin_locked:
+          type: integer
+          description: Whether widget is admin-locked (1) or user-controlled (0)
+          example: 0
+        display_name:
+          type: string
+          description: Human-readable widget name
+          example: "My Shortcuts"
+        category:
+          type: string
+          description: Widget category
+          example: "productivity"
+        default_config:
+          type: string
+          description: Default configuration JSON
+          example: "{\"shortcuts\": []}"
+
+    SaveLayoutRequest:
+      type: object
+      required:
+        - layout
+      properties:
+        layout:
+          type: array
+          items:
+            $ref: '#/components/schemas/LayoutWidget'
+
+    LayoutWidget:
+      type: object
+      required:
+        - widget_type
+        - grid_row
+        - grid_col
+      properties:
+        widget_type:
+          type: string
+          description: Widget type identifier
+          example: "my_shortcuts"
+        grid_row:
+          type: integer
+          description: Grid row position
+          example: 0
+        grid_col:
+          type: integer
+          description: Grid column position
+          example: 0
+        widget_config:
+          type: object
+          description: Optional widget configuration
+          example: {"shortcuts": []}
+
+    WidgetTypesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        widget_types:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/WidgetType'
+
+    WidgetType:
+      type: object
+      properties:
+        widget_type:
+          type: string
+          description: Widget type identifier
+          example: "my_shortcuts"
+        display_name:
+          type: string
+          description: Human-readable widget name
+          example: "My Shortcuts"
+        description:
+          type: string
+          description: Widget description
+          example: "Quick access shortcuts to frequently used menu items"
+        category:
+          type: string
+          description: Widget category
+          example: "productivity"
+        is_active:
+          type: integer
+          description: Whether widget type is active
+          example: 1
+        required_permission:
+          type: string
+          nullable: true
+          description: Required permission to use widget
+          example: null
+        default_config:
+          type: string
+          description: Default configuration JSON
+          example: "{\"shortcuts\": []}"
+
+    WidgetDataResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          description: Widget-specific data
+        widget_type:
+          type: string
+          description: Widget type identifier
+          example: "my_shortcuts"
+
+    ShortcutsData:
+      type: object
+      properties:
+        shortcuts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Shortcut'
+        maxShortcuts:
+          type: integer
+          description: Maximum allowed shortcuts
+          example: 10
+        canAddMore:
+          type: boolean
+          description: Whether user can add more shortcuts
+          example: true
+
+    Shortcut:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique shortcut identifier
+          example: "edit-profile"
+        label:
+          type: string
+          description: Display label for shortcut
+          example: "Edit Profile"
+        icon:
+          type: string
+          description: Font Awesome icon class
+          example: "fas fa-user-edit"
+        slideInType:
+          type: string
+          description: Slide-in panel type
+          example: "edit-profile"
+
+    AddShortcutRequest:
+      type: object
+      required:
+        - shortcut
+      properties:
+        shortcut:
+          $ref: '#/components/schemas/ShortcutInput'
+
+    ShortcutInput:
+      type: object
+      required:
+        - id
+        - label
+        - slideInType
+      properties:
+        id:
+          type: string
+          description: Unique shortcut identifier
+          example: "custom-reports"
+        label:
+          type: string
+          description: Display label for shortcut
+          example: "Custom Reports"
+        icon:
+          type: string
+          description: Font Awesome icon class (optional)
+          example: "fas fa-chart-bar"
+        slideInType:
+          type: string
+          description: Slide-in panel type
+          example: "custom-reports"
+
+    RemoveShortcutRequest:
+      type: object
+      required:
+        - shortcutId
+      properties:
+        shortcutId:
+          type: string
+          description: Shortcut ID to remove
+          example: "custom-reports"
+
+    ShortcutsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        shortcuts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Shortcut'
+        message:
+          type: string
+          description: Success message
+          example: "Shortcut added successfully"
+
+    AddWidgetRequest:
+      type: object
+      required:
+        - widgetType
+        - gridRow
+        - gridCol
+      properties:
+        widgetType:
+          type: string
+          description: Widget type to add
+          example: "my_products"
+        gridRow:
+          type: integer
+          description: Grid row position
+          example: 1
+        gridCol:
+          type: integer
+          description: Grid column position
+          example: 0
+
+    RemoveWidgetRequest:
+      type: object
+      required:
+        - widgetType
+      properties:
+        widgetType:
+          type: string
+          description: Widget type to remove
+          example: "my_products"
+
+    CreateLockedWidgetRequest:
+      type: object
+      required:
+        - widget_type
+        - grid_row
+        - grid_col
+      properties:
+        widget_type:
+          type: string
+          description: Widget type to create
+          example: "system_announcement"
+        grid_row:
+          type: integer
+          description: Grid row position
+          example: 0
+        grid_col:
+          type: integer
+          description: Grid column position
+          example: 2
+        widget_config:
+          type: object
+          description: Widget configuration
+          example: {"title": "System Maintenance", "message": "Scheduled maintenance"}
+        target_users:
+          type: array
+          items:
+            type: integer
+          description: Specific user IDs (optional, defaults to all users)
+          example: [123, 456, 789]
+
+    LockedWidgetResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          description: Success message
+          example: "Locked widget created for 3 users"
+        affected_users:
+          type: integer
+          description: Number of users who received the widget
+          example: 3
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          description: Success message
+          example: "Operation completed successfully"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input or missing required fields
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            invalid_layout:
+              summary: Invalid layout format
+              value:
+                error: "Layout must be an array"
+            missing_shortcut_data:
+              summary: Missing shortcut data
+              value:
+                error: "Invalid shortcut data"
+            shortcut_limit:
+              summary: Shortcuts limit reached
+              value:
+                error: "Maximum shortcuts limit reached"
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing JWT token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Invalid or missing authentication token"
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Insufficient permissions for this operation"
+
+    NotFound:
+      description: Not found - widget or shortcut not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            widget_not_found:
+              summary: Widget not found
+              value:
+                error: "Widget not found or cannot be removed"
+            shortcuts_widget_not_found:
+              summary: Shortcuts widget not found
+              value:
+                error: "Shortcuts widget not found"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            layout_error:
+              summary: Layout operation failed
+              value:
+                error: "Failed to fetch dashboard layout"
+            widget_error:
+              summary: Widget operation failed
+              value:
+                error: "Failed to add widget"
+
+tags:
+  - name: Widget Layout
+    description: Dashboard layout management and grid positioning
+  - name: Widget Types
+    description: Available widget types and categories
+  - name: Widget Data
+    description: Widget-specific data retrieval
+  - name: Shortcuts
+    description: Shortcuts widget management
+  - name: Widget Management
+    description: Individual widget addition and removal
+  - name: Admin Management
+    description: Admin-controlled widget management

@@ -1,0 +1,419 @@
+openapi: 3.0.0
+info:
+  title: Tax Reporting API
+  description: Comprehensive tax reporting system for vendor-specific reports, platform analytics, and compliance monitoring
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/api
+    description: Production server
+
+paths:
+  /tax-reports/vendor/{vendorId}/{period}:
+    get:
+      summary: Get vendor tax summary
+      description: Get comprehensive tax summary for a specific vendor and period
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: vendorId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Vendor ID
+          example: "123"
+        - name: period
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+          description: Report period in YYYY-MM format
+          example: "2025-09"
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorTaxSummaryResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /tax-reports/vendors/{period}:
+    get:
+      summary: Get all vendor tax summaries
+      description: Get tax summaries for all vendors in a specific period
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: period
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+          description: Report period in YYYY-MM format
+          example: "2025-09"
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AllVendorTaxSummariesResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /tax-reports/platform/{period}:
+    get:
+      summary: Get platform tax overview
+      description: Get platform-wide tax overview and analytics for a specific period
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: period
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+          description: Report period in YYYY-MM format
+          example: "2025-09"
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformTaxOverviewResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /tax-reports/backfill:
+    post:
+      summary: Backfill tax summaries
+      description: Process existing orders to generate missing tax summaries for historical data
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackfillResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Bearer token authentication
+
+  schemas:
+    TaxSummary:
+      type: object
+      properties:
+        total_sales:
+          type: number
+          format: decimal
+          description: Total sales amount for the period
+        total_tax_collected:
+          type: number
+          format: decimal
+          description: Total tax collected for the period
+        taxable_amount:
+          type: number
+          format: decimal
+          description: Total taxable amount
+        order_count:
+          type: integer
+          description: Number of orders in the period
+        states_with_sales:
+          type: integer
+          description: Number of different states with sales
+
+    StateBreakdown:
+      type: object
+      properties:
+        customer_state:
+          type: string
+          description: Two-letter state code
+          example: "CA"
+        total_taxable_amount:
+          type: number
+          format: decimal
+          description: Taxable amount for this state
+        total_tax_collected:
+          type: number
+          format: decimal
+          description: Tax collected for this state
+        order_count:
+          type: integer
+          description: Number of orders for this state
+        avg_tax_rate:
+          type: number
+          format: decimal
+          description: Average tax rate used for this state
+
+    VendorTaxInfo:
+      type: object
+      properties:
+        vendor_id:
+          type: integer
+          description: Vendor ID
+        vendor_name:
+          type: string
+          description: Vendor username/name
+        total_sales:
+          type: number
+          format: decimal
+          description: Vendor total sales
+        total_tax_collected:
+          type: number
+          format: decimal
+          description: Vendor tax collected
+        order_count:
+          type: integer
+          description: Vendor order count
+        report_period:
+          type: string
+          description: Report period
+
+    PlatformSummary:
+      type: object
+      properties:
+        total_orders:
+          type: integer
+          description: Total number of orders across platform
+        total_sales:
+          type: number
+          format: decimal
+          description: Total sales amount across platform
+        total_tax_collected:
+          type: number
+          format: decimal
+          description: Total tax collected across platform
+        states_with_sales:
+          type: integer
+          description: Number of states with sales activity
+        avg_tax_rate:
+          type: number
+          format: decimal
+          description: Average tax rate across all transactions
+
+    PlatformStateBreakdown:
+      type: object
+      properties:
+        customer_state:
+          type: string
+          description: Two-letter state code
+          example: "CA"
+        order_count:
+          type: integer
+          description: Orders in state
+        total_sales:
+          type: number
+          format: decimal
+          description: Sales in state
+        total_tax_collected:
+          type: number
+          format: decimal
+          description: Tax collected in state
+        avg_tax_rate:
+          type: number
+          format: decimal
+          description: Average tax rate in state
+
+    BackfillResult:
+      type: object
+      properties:
+        processed_orders:
+          type: integer
+          description: Number of orders processed
+        created_summaries:
+          type: integer
+          description: Number of summaries created
+        updated_summaries:
+          type: integer
+          description: Number of summaries updated
+        errors:
+          type: integer
+          description: Number of errors encountered
+        processing_time:
+          type: string
+          description: Total processing time
+
+    VendorTaxSummaryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        vendor_id:
+          type: string
+          description: Vendor ID
+        report_period:
+          type: string
+          description: Report period in YYYY-MM format
+        summary:
+          $ref: '#/components/schemas/TaxSummary'
+        state_breakdown:
+          type: array
+          items:
+            $ref: '#/components/schemas/StateBreakdown'
+
+    AllVendorTaxSummariesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        report_period:
+          type: string
+          description: Report period in YYYY-MM format
+        vendors:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendorTaxInfo'
+        total_vendors:
+          type: integer
+          description: Total number of vendors
+        total_tax_collected:
+          type: number
+          format: decimal
+          description: Platform total tax collected
+
+    PlatformTaxOverviewResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        report_period:
+          type: string
+          description: Report period in YYYY-MM format
+        platform_summary:
+          $ref: '#/components/schemas/PlatformSummary'
+        state_breakdown:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlatformStateBreakdown'
+
+    BackfillResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+          description: Operation completion message
+        result:
+          $ref: '#/components/schemas/BackfillResult'
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: string
+          description: Additional error details
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            invalid_period:
+              summary: Invalid period format
+              value:
+                error: "Invalid period format. Use YYYY-MM"
+            invalid_vendor:
+              summary: Invalid vendor ID
+              value:
+                error: "Invalid vendor ID format"
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Unauthorized access"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            vendor_not_found:
+              summary: Vendor not found
+              value:
+                error: "Vendor not found"
+            no_data:
+              summary: No data for period
+              value:
+                error: "No tax data found for specified period"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            tax_report_error:
+              summary: Tax report generation error
+              value:
+                error: "Failed to generate vendor tax report"
+            platform_report_error:
+              summary: Platform report error
+              value:
+                error: "Failed to get platform tax report"
+            backfill_error:
+              summary: Backfill operation error
+              value:
+                error: "Failed to backfill order tax summaries"
+
+tags:
+  - name: Tax Reporting
+    description: Comprehensive tax reporting system for compliance and analytics
+
+  - name: Vendor Reports
+    description: Vendor-specific tax reports and summaries
+
+  - name: Platform Analytics
+    description: Platform-wide tax analytics and reporting
+
+  - name: Data Management
+    description: Tax data processing and management operations

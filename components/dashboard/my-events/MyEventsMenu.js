@@ -10,9 +10,9 @@ export default function MyEventsMenu({
 }) {
   if (!userData) return null;
   
-  // Show to promoters and admins (users who can manage events)
-  const canManageEvents = userData.user_type === 'admin' || userData.user_type === 'promoter';
-  if (!canManageEvents) return null;
+  // Show to artists, promoters, and admins (users who can participate in events)
+  const canAccessEvents = userData.user_type === 'admin' || userData.user_type === 'promoter' || userData.user_type === 'artist';
+  if (!canAccessEvents) return null;
   
   return (
     <div className={styles.sidebarSection}>
@@ -26,54 +26,77 @@ export default function MyEventsMenu({
       </h3>
       {!collapsedSections['my-events'] && (
         <ul>
-          <li>
-            <button 
-              className={styles.sidebarLink}
-              onClick={() => openSlideIn('add-new', { title: 'Create New Event' })}
-            >
-              Add New
-            </button>
-          </li>
-          <li>
-            <button 
-              className={styles.sidebarLink}
-              onClick={() => openSlideIn('my-applications', { title: 'My Applications' })}
-            >
-              My Applications
-            </button>
-          </li>
-          <li>
-            <button 
-              className={styles.sidebarLink}
-              onClick={() => openSlideIn('find-new', { title: 'Find New Events' })}
-            >
-              Find New
-            </button>
-          </li>
-          <li>
-            <button 
-              className={styles.sidebarLink}
-              onClick={() => openSlideIn('my-calendar', { title: 'My Calendar' })}
-            >
-              My Calendar
-            </button>
-          </li>
-          <li>
-            <button 
-              className={styles.sidebarLink}
-              onClick={() => openSlideIn('events-i-own', { title: 'Events I Own' })}
-            >
-              Events I Own
-            </button>
-          </li>
-          <li>
-            <button 
-              className={styles.sidebarLink}
-              onClick={() => openSlideIn('applications-received', { title: 'Applications Received' })}
-            >
-              Applications Received
-            </button>
-          </li>
+          {/* Add New - promoter only */}
+          {(userData.user_type === 'promoter' || userData.user_type === 'admin') && (
+            <li>
+              <button 
+                className={styles.sidebarLink}
+                onClick={() => openSlideIn('add-new', { title: 'Create New Event' })}
+              >
+                Add New
+              </button>
+            </li>
+          )}
+          
+          {/* My Applications - artists only */}
+          {(userData.user_type === 'artist' || userData.user_type === 'admin') && (
+            <li>
+              <button 
+                className={styles.sidebarLink}
+                onClick={() => openSlideIn('my-applications', { title: 'My Applications' })}
+              >
+                My Applications
+              </button>
+            </li>
+          )}
+          
+          {/* Find New - artists only */}
+          {(userData.user_type === 'artist' || userData.user_type === 'admin') && (
+            <li>
+              <button 
+                className={styles.sidebarLink}
+                onClick={() => openSlideIn('find-new', { title: 'Find New Events' })}
+              >
+                Find New
+              </button>
+            </li>
+          )}
+          
+          {/* My Calendar - artists only */}
+          {(userData.user_type === 'artist' || userData.user_type === 'admin') && (
+            <li>
+              <button 
+                className={styles.sidebarLink}
+                onClick={() => openSlideIn('my-calendar', { title: 'My Calendar' })}
+              >
+                My Calendar
+              </button>
+            </li>
+          )}
+          
+          {/* Events I Own - promoters only */}
+          {(userData.user_type === 'promoter' || userData.user_type === 'admin') && (
+            <li>
+              <button 
+                className={styles.sidebarLink}
+                onClick={() => openSlideIn('events-i-own', { title: 'Events I Own' })}
+              >
+                Events I Own
+              </button>
+            </li>
+          )}
+          
+          {/* Applications Received - promoters only */}
+          {(userData.user_type === 'promoter' || userData.user_type === 'admin') && (
+            <li>
+              <button 
+                className={styles.sidebarLink}
+                onClick={() => openSlideIn('applications-received', { title: 'Applications Received' })}
+              >
+                Applications Received
+              </button>
+            </li>
+          )}
         </ul>
       )}
     </div>

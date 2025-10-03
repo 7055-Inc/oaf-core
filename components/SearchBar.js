@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { getApiUrl } from '../lib/config';
 
 const CATEGORY_OPTIONS = [
   { label: 'All', value: 'all' },
@@ -71,7 +72,7 @@ export default function SearchBar({
     try {
       setIsLoading(true);
       const response = await fetch(
-        `https://api2.onlineartfestival.com/search/autocomplete?q=${encodeURIComponent(searchQuery)}&limit=8`
+        getApiUrl(`search/autocomplete?q=${encodeURIComponent(searchQuery)}&limit=8`)
       );
       
       if (response.ok) {
@@ -121,7 +122,7 @@ export default function SearchBar({
         limit: 20
       });
       
-      const searchUrl = `https://api2.onlineartfestival.com/search?${params.toString()}`;
+      const searchUrl = getApiUrl(`search?${params.toString()}`);
       
       const response = await fetch(searchUrl);
       

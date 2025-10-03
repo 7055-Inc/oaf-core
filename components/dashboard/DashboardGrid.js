@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { authenticatedApiRequest } from '../../lib/csrf';
+import { authApiRequest, API_ENDPOINTS } from '../../lib/apiUtils';
 import WidgetRenderer from './WidgetRenderer';
 import styles from './DashboardGrid.module.css';
 
@@ -21,7 +22,7 @@ export default function DashboardGrid() {
 
   const loadDashboard = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/dashboard-widgets/layout');
+      const response = await authApiRequest('api/dashboard-widgets/layout');
       if (response.ok) {
         const data = await response.json();
         rebuildGridFromLayout([...data.userLayout, ...data.adminLayout]);
@@ -69,7 +70,7 @@ export default function DashboardGrid() {
         }
       }
 
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/dashboard-widgets/layout', {
+      const response = await authApiRequest(API_ENDPOINTS.DASHBOARD_WIDGETS_LAYOUT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ layout })

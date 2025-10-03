@@ -32,7 +32,7 @@ export async function checklist(req) {
 
   try {
     // Call API service to verify token
-    const response = await fetch('https://api2.onlineartfestival.com/auth/exchange', {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/exchange`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -61,7 +61,7 @@ export async function checklist(req) {
 
     // Check if user has accepted current terms
     try {
-    const termsResponse = await fetch(`https://api2.onlineartfestival.com/api/terms/check-acceptance?t=${Date.now()}`, {
+    const termsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/terms/check-acceptance?t=${Date.now()}`, {
       method: 'GET',
       headers: {
           'Authorization': `Bearer ${token}`,
@@ -107,7 +107,7 @@ export async function checklist(req) {
     // Skip profile completion check for cart and checkout pages
     if (!path.startsWith('/cart') && !path.startsWith('/checkout')) {
           // Check if user has completed required profile fields
-    const profileResponse = await fetch('https://api2.onlineartfestival.com/users/profile-completion-status', {
+    const profileResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users/profile-completion-status`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`
@@ -129,7 +129,7 @@ export async function checklist(req) {
     if (!path.startsWith('/cart') && !path.startsWith('/checkout')) {
       // Check if user has pending announcements to acknowledge with proper error handling
       try {
-      const announcementsResponse = await fetch('https://api2.onlineartfestival.com/api/announcements/check-pending', {
+      const announcementsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/announcements/check-pending`, {
         method: 'GET',
         headers: {
             'Authorization': `Bearer ${token}`,

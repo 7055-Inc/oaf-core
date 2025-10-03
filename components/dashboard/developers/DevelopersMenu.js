@@ -10,6 +10,9 @@ export default function DevelopersMenu({
 }) {
   if (!userData) return null;
   
+  // Only show to admin users
+  if (userData.user_type !== 'admin') return null;
+  
   return (
     <div className={styles.sidebarSection}>
       <h3 

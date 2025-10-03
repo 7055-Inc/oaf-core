@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import styles from './ArtistCarousel.module.css';
+import { getApiUrl, getSmartMediaUrl } from '../lib/config';
 
 export default function ArtistCarousel() {
   const [artists, setArtists] = useState([]);
@@ -13,7 +14,7 @@ export default function ArtistCarousel() {
   const loadArtists = async () => {
     try {
       // Get 50 random active artists for the carousel
-      const response = await fetch('https://api2.onlineartfestival.com/users/artists?limit=50&random=true');
+      const response = await fetch(getApiUrl('users/artists?limit=50&random=true'));
       if (response.ok) {
         const artistsData = await response.json();
         if (artistsData.length > 0) {
@@ -50,7 +51,7 @@ export default function ArtistCarousel() {
 
   const getArtistImage = (artist) => {
     if (artist.profile_image_path) {
-      return `https://api2.onlineartfestival.com${artist.profile_image_path}`;
+      return getSmartMediaUrl(artist.profile_image_path);
     }
     return null;
   };

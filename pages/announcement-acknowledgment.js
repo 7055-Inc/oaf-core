@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { authenticatedApiRequest } from '../lib/csrf';
+import { authApiRequest } from '../lib/apiUtils';
 import styles from '../styles/AnnouncementAcknowledgment.module.css';
 
 export default function AnnouncementAcknowledgment() {
@@ -16,7 +17,7 @@ export default function AnnouncementAcknowledgment() {
   useEffect(() => {
     const fetchPendingAnnouncements = async () => {
       try {
-        const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/announcements/pending');
+        const response = await authApiRequest('api/announcements/pending');
         if (!response.ok) {
           throw new Error('Failed to fetch pending announcements');
         }
@@ -53,7 +54,7 @@ export default function AnnouncementAcknowledgment() {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       try {
-        const checkResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/announcements/check-pending');
+        const checkResponse = await authenticatedApiRequest('api/announcements/check-pending');
         if (checkResponse.ok) {
           const checkData = await checkResponse.json();
           if (!checkData.requiresAcknowledgment) {
@@ -78,7 +79,7 @@ export default function AnnouncementAcknowledgment() {
     setError(null);
 
     try {
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/announcements/${currentAnnouncement.id}/acknowledge`, {
+      const response = await authenticatedApiRequest(`api/announcements/${currentAnnouncement.id}/acknowledge`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -120,7 +121,7 @@ export default function AnnouncementAcknowledgment() {
     setError(null);
 
     try {
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/announcements/${currentAnnouncement.id}/remind-later`, {
+      const response = await authenticatedApiRequest(`api/announcements/${currentAnnouncement.id}/remind-later`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

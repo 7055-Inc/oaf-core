@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import { getApiUrl, getFrontendUrl } from '../../lib/config';
 import Header from '../../components/Header';
 import styles from './styles/TopicsList.module.css';
 
@@ -16,7 +17,7 @@ export default function TopicsPage() {
   const fetchTopics = async () => {
     try {
       setLoading(true);
-      const response = await fetch('https://api2.onlineartfestival.com/api/articles/topics');
+      const response = await fetch(getApiUrl('api/articles/topics'));
       const data = await response.json();
       setTopics(data.topics || []);
     } catch (err) {
@@ -64,12 +65,12 @@ export default function TopicsPage() {
         <title>Article Topics - Online Art Festival</title>
         <meta name="description" content="Explore our article topics covering art techniques, tutorials, artist spotlights, platform updates, and community stories." />
         <meta name="keywords" content="art topics, article categories, art tutorials, artist spotlights, art techniques, art community" />
-        <link rel="canonical" href="https://onlineartfestival.com/topics" />
+        <link rel="canonical" href={getFrontendUrl('/topics')} />
         
         <meta property="og:title" content="Article Topics - Online Art Festival" />
         <meta property="og:description" content="Explore our article topics covering art techniques, tutorials, artist spotlights, and more." />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://onlineartfestival.com/topics" />
+        <meta property="og:url" content="/topics" />
         
         <meta name="twitter:card" content="summary" />
         <meta name="twitter:title" content="Article Topics - Online Art Festival" />

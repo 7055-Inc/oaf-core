@@ -1,9 +1,26 @@
+/**
+ * Application Management Routes
+ * Handles event application submissions, reviews, bulk operations, and payment processing
+ * Supports comprehensive application lifecycle from submission to payment completion
+ */
+
 const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
 
-// GET /applications - Get all applications for the authenticated user
+/**
+ * GET /applications
+ * Get all applications for the authenticated user
+ * Supports filtering by status and includes event details
+ * 
+ * @route GET /applications
+ * @middleware verifyToken - Requires valid JWT token
+ * @param {string} [status] - Filter applications by status
+ * @param {number} [limit] - Limit number of results
+ * @param {number} [offset] - Offset for pagination
+ * @returns {Object} Applications list with event details
+ */
 router.get('/', verifyToken, async (req, res) => {
     try {
         const artistId = req.userId;
@@ -46,7 +63,16 @@ router.get('/', verifyToken, async (req, res) => {
     }
 });
 
-// Get single application details
+/**
+ * GET /applications/:id
+ * Get single application details with comprehensive information
+ * Includes event details and artist information for authorized users
+ * 
+ * @route GET /applications/:id
+ * @middleware verifyToken - Requires valid JWT token
+ * @param {string} id - Application ID
+ * @returns {Object} Complete application details
+ */
 router.get('/:id', verifyToken, async (req, res) => {
     try {
         const { id } = req.params;
@@ -92,7 +118,17 @@ router.get('/:id', verifyToken, async (req, res) => {
     }
 });
 
-// Artist updates their own application (only if draft status)
+/**
+ * PUT /applications/:id
+ * Update application details (only allowed for draft status)
+ * Artists can only update their own applications before submission
+ * 
+ * @route PUT /applications/:id
+ * @middleware verifyToken - Requires valid JWT token
+ * @param {string} id - Application ID
+ * @param {Object} req.body - Application update data
+ * @returns {Object} Updated application details
+ */
 router.put('/:id', verifyToken, async (req, res) => {
     try {
         const { id } = req.params;
@@ -158,7 +194,16 @@ router.put('/:id', verifyToken, async (req, res) => {
     }
 });
 
-// Artist deletes their own application (only if draft status)
+/**
+ * DELETE /applications/:id
+ * Delete application (only allowed for draft status)
+ * Artists can only delete their own draft applications
+ * 
+ * @route DELETE /applications/:id
+ * @middleware verifyToken - Requires valid JWT token
+ * @param {string} id - Application ID
+ * @returns {Object} Deletion confirmation
+ */
 router.delete('/:id', verifyToken, async (req, res) => {
     try {
         const { id } = req.params;
@@ -190,7 +235,17 @@ router.delete('/:id', verifyToken, async (req, res) => {
     }
 });
 
-// Get all applications for a specific event (promoter only)
+/**
+ * GET /applications/events/:eventId/applications
+ * Get all applications for a specific event (promoter access only)
+ * Includes artist details and application information for event management
+ * 
+ * @route GET /applications/events/:eventId/applications
+ * @middleware verifyToken - Requires valid JWT token with promoter access
+ * @param {string} eventId - Event ID
+ * @param {string} [status] - Filter applications by status
+ * @returns {Object} Event applications with artist details
+ */
 router.get('/events/:eventId/applications', verifyToken, async (req, res) => {
     try {
         const { eventId } = req.params;
@@ -240,7 +295,18 @@ router.get('/events/:eventId/applications', verifyToken, async (req, res) => {
     }
 });
 
-// Promoter updates application status (accept/decline/waitlist)
+/**
+ * PUT /applications/:id/status
+ * Update application status (promoter access only)
+ * Allows promoters to accept, reject, or waitlist applications with jury comments
+ * 
+ * @route PUT /applications/:id/status
+ * @middleware verifyToken - Requires valid JWT token with promoter access
+ * @param {string} id - Application ID
+ * @param {string} status - New application status
+ * @param {string} [jury_comments] - Jury review comments
+ * @returns {Object} Updated application with status change
+ */
 router.put('/:id/status', verifyToken, async (req, res) => {
     try {
         const { id } = req.params;
@@ -305,7 +371,15 @@ router.put('/:id/status', verifyToken, async (req, res) => {
     }
 });
 
-// Get public application stats for an event (for event pages)
+/**
+ * GET /applications/events/:eventId/stats
+ * Get public application statistics for an event
+ * Provides application counts by status for event pages
+ * 
+ * @route GET /applications/events/:eventId/stats
+ * @param {string} eventId - Event ID
+ * @returns {Object} Application statistics by status
+ */
 router.get('/events/:eventId/stats', async (req, res) => {
     try {
         const { eventId } = req.params;
@@ -342,7 +416,14 @@ router.get('/events/:eventId/stats', async (req, res) => {
 
 /**
  * GET /applications/events/:eventId/bulk-management
- * Get applications for bulk acceptance interface
+ * Get applications for bulk management interface (promoter access only)
+ * Provides detailed application data for bulk acceptance workflows
+ * 
+ * @route GET /applications/events/:eventId/bulk-management
+ * @middleware verifyToken - Requires valid JWT token with promoter access
+ * @param {string} eventId - Event ID
+ * @param {string} [status] - Filter applications by status (default: 'submitted')
+ * @returns {Object} Applications with artist details for bulk management
  */
 router.get('/events/:eventId/bulk-management', verifyToken, async (req, res) => {
     try {
@@ -395,7 +476,13 @@ router.get('/events/:eventId/bulk-management', verifyToken, async (req, res) => 
 
 /**
  * POST /applications/bulk-accept
- * Accept multiple applications with booth fees
+ * Accept multiple applications with booth fee configuration
+ * Processes multiple applications simultaneously with fee and add-on setup
+ * 
+ * @route POST /applications/bulk-accept
+ * @middleware verifyToken - Requires valid JWT token with promoter access
+ * @param {Array} applications - Array of applications to accept with fee details
+ * @returns {Object} Bulk acceptance results with success/error counts
  */
 router.post('/bulk-accept', verifyToken, async (req, res) => {
     try {
@@ -500,7 +587,13 @@ router.post('/bulk-accept', verifyToken, async (req, res) => {
 
 /**
  * POST /applications/bulk-payment-intents
- * Create payment intents for accepted applications
+ * Create Stripe payment intents for accepted applications
+ * Generates payment links and sends invoice emails for booth fees
+ * 
+ * @route POST /applications/bulk-payment-intents
+ * @middleware verifyToken - Requires valid JWT token with promoter access
+ * @param {Array} application_ids - Array of application IDs to create payment intents for
+ * @returns {Object} Payment intent creation results with client secrets
  */
 router.post('/bulk-payment-intents', verifyToken, async (req, res) => {
     try {
@@ -617,7 +710,13 @@ router.post('/bulk-payment-intents', verifyToken, async (req, res) => {
 
 /**
  * GET /applications/payment-dashboard/:eventId
- * Get payment status dashboard for an event
+ * Get comprehensive payment status dashboard for an event
+ * Provides payment summary and detailed payment information for promoters
+ * 
+ * @route GET /applications/payment-dashboard/:eventId
+ * @middleware verifyToken - Requires valid JWT token with promoter access
+ * @param {string} eventId - Event ID
+ * @returns {Object} Payment dashboard with summary and detailed payment status
  */
 router.get('/payment-dashboard/:eventId', verifyToken, async (req, res) => {
     try {
@@ -695,6 +794,14 @@ router.get('/payment-dashboard/:eventId', verifyToken, async (req, res) => {
 /**
  * POST /applications/send-payment-reminders
  * Send manual payment reminders to selected applications
+ * Supports different reminder types with custom messaging and email tracking
+ * 
+ * @route POST /applications/send-payment-reminders
+ * @middleware verifyToken - Requires valid JWT token with promoter access
+ * @param {Array} application_ids - Array of application IDs to send reminders to
+ * @param {string} [reminder_type] - Type of reminder ('manual', 'due_soon', 'overdue')
+ * @param {string} [custom_message] - Custom message to include in reminder
+ * @returns {Object} Reminder sending results with success/error counts
  */
 router.post('/send-payment-reminders', verifyToken, async (req, res) => {
     try {
@@ -751,7 +858,7 @@ router.post('/send-payment-reminders', verifyToken, async (req, res) => {
                 const daysUntilDue = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
 
                 // Create payment link
-                const paymentLink = `https://onlineartfestival.com/event-payment/${app.payment_intent_id}`;
+                const paymentLink = `${process.env.FRONTEND_URL}/event-payment/${app.payment_intent_id}`;
 
                 // Prepare email template data
                 const templateData = {
@@ -821,6 +928,12 @@ router.post('/send-payment-reminders', verifyToken, async (req, res) => {
 /**
  * GET /applications/payment-intent/:payment_intent_id
  * Get payment intent details for event payment page
+ * Provides complete payment information for artists to complete booth fee payments
+ * 
+ * @route GET /applications/payment-intent/:payment_intent_id
+ * @middleware verifyToken - Requires valid JWT token (artist or admin access)
+ * @param {string} payment_intent_id - Stripe payment intent ID
+ * @returns {Object} Complete payment details with Stripe client secret
  */
 router.get('/payment-intent/:payment_intent_id', verifyToken, async (req, res) => {
     try {
@@ -907,6 +1020,15 @@ router.get('/payment-intent/:payment_intent_id', verifyToken, async (req, res) =
 /**
  * POST /applications/:application_id/addon-requests
  * Save add-on requests for an application
+ * Allows artists to request additional booth add-ons during application process
+ * 
+ * @route POST /applications/:application_id/addon-requests
+ * @middleware verifyToken - Requires valid JWT token (artist or admin access)
+ * @param {string} application_id - Application ID
+ * @param {number} available_addon_id - Available add-on ID to request
+ * @param {boolean} requested - Whether the add-on is requested
+ * @param {string} [notes] - Additional notes for the add-on request
+ * @returns {Object} Add-on request save confirmation
  */
 router.post('/:application_id/addon-requests', verifyToken, async (req, res) => {
     try {
@@ -953,6 +1075,12 @@ router.post('/:application_id/addon-requests', verifyToken, async (req, res) => 
 /**
  * GET /applications/:application_id/addon-requests
  * Get add-on requests for an application
+ * Retrieves all add-on requests with pricing and availability details
+ * 
+ * @route GET /applications/:application_id/addon-requests
+ * @middleware verifyToken - Requires valid JWT token (artist, promoter, or admin access)
+ * @param {string} application_id - Application ID
+ * @returns {Object} Add-on requests with details and pricing
  */
 router.get('/:application_id/addon-requests', verifyToken, async (req, res) => {
     try {
@@ -1008,6 +1136,14 @@ router.get('/:application_id/addon-requests', verifyToken, async (req, res) => {
 /**
  * POST /applications/send-manual-reminders
  * Send manual reminder emails to selected applications
+ * Uses event email service to send standardized reminder emails
+ * 
+ * @route POST /applications/send-manual-reminders
+ * @middleware verifyToken - Requires valid JWT token with promoter access
+ * @param {Array} application_ids - Array of application IDs to send reminders to
+ * @param {string} [reminder_type] - Type of reminder ('standard', etc.)
+ * @param {string} [custom_message] - Custom message to include
+ * @returns {Object} Manual reminder sending results
  */
 router.post('/send-manual-reminders', verifyToken, async (req, res) => {
     try {
@@ -1064,7 +1200,13 @@ router.post('/send-manual-reminders', verifyToken, async (req, res) => {
 
 /**
  * GET /applications/email-status/:applicationId
- * Get email status for an application
+ * Get email status and history for an application
+ * Provides email log with delivery status and error information
+ * 
+ * @route GET /applications/email-status/:applicationId
+ * @middleware verifyToken - Requires valid JWT token (artist or promoter access)
+ * @param {string} applicationId - Application ID
+ * @returns {Object} Email history and delivery status
  */
 router.get('/email-status/:applicationId', verifyToken, async (req, res) => {
     try {
@@ -1114,7 +1256,18 @@ router.get('/email-status/:applicationId', verifyToken, async (req, res) => {
 
 /**
  * POST /applications/events/:eventId/apply
- * Regular application submission to an event
+ * Submit a regular application to an event
+ * Creates new application with artist statement and portfolio information
+ * 
+ * @route POST /applications/events/:eventId/apply
+ * @middleware verifyToken - Requires valid JWT token (artist access)
+ * @param {string} eventId - Event ID to apply to
+ * @param {string} [artist_statement] - Artist statement for the application
+ * @param {string} [portfolio_url] - Portfolio URL
+ * @param {string} [additional_info] - Additional application information
+ * @param {string} [additional_notes] - Additional notes
+ * @param {number} [persona_id] - Artist persona ID (for multi-persona artists)
+ * @returns {Object} Application submission confirmation
  */
 router.post('/events/:eventId/apply', verifyToken, async (req, res) => {
     try {
@@ -1199,7 +1352,16 @@ router.post('/events/:eventId/apply', verifyToken, async (req, res) => {
 
 /**
  * POST /applications/apply-with-packet
- * Apply to an event using a jury packet (copies packet data to application)
+ * Apply to an event using a pre-created jury packet
+ * Copies jury packet data to create a new application with existing materials
+ * 
+ * @route POST /applications/apply-with-packet
+ * @middleware verifyToken - Requires valid JWT token (artist access)
+ * @param {number} event_id - Event ID to apply to
+ * @param {number} packet_id - Jury packet ID to use for application
+ * @param {string} [additional_info] - Additional application information
+ * @param {string} [additional_notes] - Additional notes
+ * @returns {Object} Application submission confirmation with packet details
  */
 router.post('/apply-with-packet', verifyToken, async (req, res) => {
     try {

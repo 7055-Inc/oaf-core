@@ -1,3 +1,10 @@
+/**
+ * Stripe Webhooks Routes
+ * Comprehensive webhook handling for Stripe payment events
+ * Handles payments, subscriptions, transfers, disputes, and account events
+ * Provides secure webhook signature verification and event processing
+ */
+
 const express = require('express');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const stripeService = require('../../services/stripeService');
@@ -15,7 +22,15 @@ const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 router.use(express.raw({ type: 'application/json' }));
 
 /**
- * Main Stripe webhook handler
+ * POST /api/webhooks/stripe
+ * Main Stripe webhook handler with signature verification
+ * Processes all Stripe webhook events including payments, subscriptions, and transfers
+ * 
+ * @route POST /api/webhooks/stripe
+ * @param {Object} req.body - Raw webhook payload from Stripe
+ * @param {string} req.headers['stripe-signature'] - Stripe webhook signature for verification
+ * @returns {Object} Confirmation of webhook receipt
+ * @note Requires valid Stripe webhook signature for security
  */
 router.post('/stripe', async (req, res) => {
   const sig = req.headers['stripe-signature'];
@@ -41,6 +56,11 @@ router.post('/stripe', async (req, res) => {
 
 /**
  * Route webhook events to appropriate handlers
+ * Distributes Stripe webhook events to specialized handler functions
+ * Supports comprehensive event types including payments, subscriptions, and disputes
+ * 
+ * @param {Object} event - Stripe webhook event object
+ * @returns {Promise<void>} Resolves when event is processed
  */
 async function handleWebhookEvent(event) {
   const handlers = {
@@ -90,7 +110,13 @@ async function handleWebhookEvent(event) {
 // ===== PAYMENT EVENT HANDLERS =====
 
 /**
- * Handle successful payment
+ * Handle successful payment intent completion
+ * Processes different payment types: booth fees, tickets, e-commerce, shipping labels
+ * Updates database records and triggers email notifications
+ * 
+ * @param {Object} paymentIntent - Stripe PaymentIntent object
+ * @param {Object} event - Full Stripe webhook event
+ * @returns {Promise<void>} Resolves when payment is processed
  */
 async function handlePaymentSuccess(paymentIntent, event) {
   try {
@@ -132,7 +158,13 @@ async function handlePaymentSuccess(paymentIntent, event) {
 }
 
 /**
- * Handle booth fee payment success
+ * Handle booth fee payment success for event applications
+ * Updates application status and records payment transaction
+ * Sends confirmation email to applicant
+ * 
+ * @param {Object} paymentIntent - Stripe PaymentIntent object
+ * @param {string} applicationId - Event application ID from metadata
+ * @returns {Promise<void>} Resolves when booth fee payment is processed
  */
 async function handleBoothFeePayment(paymentIntent, applicationId) {
   try {
@@ -175,7 +207,13 @@ async function handleBoothFeePayment(paymentIntent, applicationId) {
 }
 
 /**
- * Handle e-commerce payment success
+ * Handle e-commerce payment success for marketplace orders
+ * Updates order status, processes vendor transfers, and records platform commission
+ * Integrates with vendor payout system
+ * 
+ * @param {Object} paymentIntent - Stripe PaymentIntent object
+ * @param {string} orderId - Order ID from metadata
+ * @returns {Promise<void>} Resolves when e-commerce payment is processed
  */
 async function handleEcommercePayment(paymentIntent, orderId) {
   try {
@@ -195,7 +233,12 @@ async function handleEcommercePayment(paymentIntent, orderId) {
 }
 
 /**
- * Handle ticket purchase payment success
+ * Handle ticket purchase payment success for events
+ * Updates ticket purchase status, increments sold quantities, and sends confirmation
+ * Generates unique ticket codes for event access
+ * 
+ * @param {Object} paymentIntent - Stripe PaymentIntent object
+ * @returns {Promise<void>} Resolves when ticket payment is processed
  */
 async function handleTicketPayment(paymentIntent) {
   try {
@@ -233,6 +276,11 @@ async function handleTicketPayment(paymentIntent) {
 
 /**
  * Send ticket confirmation email with unique codes using the proper email service
+ * Retrieves ticket details, formats confirmation data, and queues transactional email
+ * Includes event details, ticket codes, and venue information
+ * 
+ * @param {Object} paymentIntent - Stripe PaymentIntent object with ticket metadata
+ * @returns {Promise<void>} Resolves when email is queued (does not throw on email errors)
  */
 async function sendTicketConfirmationEmail(paymentIntent) {
   try {
@@ -302,7 +350,7 @@ async function sendTicketConfirmationEmail(paymentIntent) {
       ticket_list: ticketList,
       ticket_count: tickets.length,
       total_amount: totalAmount.toFixed(2),
-      event_url: `https://onlineartfestival.com/events/${eventId}`,
+      event_url: `${process.env.FRONTEND_URL || 'https://beemeeart.com'}/events/${eventId}`,
       unique_codes: tickets.map(t => t.unique_code).join(', ')
     };
 
@@ -322,7 +370,13 @@ async function sendTicketConfirmationEmail(paymentIntent) {
 }
 
 /**
- * Handle failed payment
+ * Handle failed payment intent for various payment types
+ * Updates order/shipping label status and prepares customer notifications
+ * Handles different failure scenarios based on payment metadata
+ * 
+ * @param {Object} paymentIntent - Stripe PaymentIntent object
+ * @param {Object} event - Full Stripe webhook event
+ * @returns {Promise<void>} Resolves when payment failure is processed
  */
 async function handlePaymentFailure(paymentIntent, event) {
   try {
@@ -347,7 +401,13 @@ async function handlePaymentFailure(paymentIntent, event) {
 // ===== TRANSFER EVENT HANDLERS =====
 
 /**
- * Handle transfer creation
+ * Handle Stripe transfer creation for vendor payouts
+ * Updates transaction status when transfers are initiated to vendor accounts
+ * Tracks transfer processing for marketplace transactions
+ * 
+ * @param {Object} transfer - Stripe Transfer object
+ * @param {Object} event - Full Stripe webhook event
+ * @returns {Promise<void>} Resolves when transfer creation is processed
  */
 async function handleTransferCreated(transfer, event) {
   try {
@@ -364,7 +424,13 @@ async function handleTransferCreated(transfer, event) {
 }
 
 /**
- * Handle transfer reversal
+ * Handle Stripe transfer reversal for failed vendor payouts
+ * Updates transaction status and prepares admin notifications
+ * Handles refund scenarios and vendor account issues
+ * 
+ * @param {Object} transfer - Stripe Transfer object
+ * @param {Object} event - Full Stripe webhook event
+ * @returns {Promise<void>} Resolves when transfer reversal is processed
  */
 async function handleTransferReversed(transfer, event) {
   try {
@@ -382,7 +448,13 @@ async function handleTransferReversed(transfer, event) {
 }
 
 /**
- * Handle transfer updates
+ * Handle Stripe transfer status updates
+ * Updates transaction status based on transfer completion or failure
+ * Tracks vendor payout progress through Stripe's transfer lifecycle
+ * 
+ * @param {Object} transfer - Stripe Transfer object
+ * @param {Object} event - Full Stripe webhook event
+ * @returns {Promise<void>} Resolves when transfer update is processed
  */
 async function handleTransferUpdated(transfer, event) {
   try {
@@ -398,7 +470,13 @@ async function handleTransferUpdated(transfer, event) {
 // ===== PAYOUT EVENT HANDLERS =====
 
 /**
- * Handle completed payout
+ * Handle completed Stripe payout to vendor bank accounts
+ * Marks all associated transactions as paid out with arrival date
+ * Finalizes vendor payment processing cycle
+ * 
+ * @param {Object} payout - Stripe Payout object
+ * @param {Object} event - Full Stripe webhook event
+ * @returns {Promise<void>} Resolves when payout completion is processed
  */
 async function handlePayoutCompleted(payout, event) {
   try {
@@ -410,7 +488,13 @@ async function handlePayoutCompleted(payout, event) {
 }
 
 /**
- * Handle failed payout
+ * Handle failed Stripe payout to vendor bank accounts
+ * Prepares admin and vendor notifications for payout issues
+ * Tracks payout failures for vendor account management
+ * 
+ * @param {Object} payout - Stripe Payout object
+ * @param {Object} event - Full Stripe webhook event
+ * @returns {Promise<void>} Resolves when payout failure is processed
  */
 async function handlePayoutFailed(payout, event) {
   try {
@@ -447,7 +531,13 @@ async function handleSubscriptionPayment(invoice, event) {
 // ===== ACCOUNT EVENT HANDLERS =====
 
 /**
- * Handle account updates (verification status changes)
+ * Handle Stripe Connect account updates for vendor verification
+ * Updates vendor verification status based on account capabilities
+ * Tracks vendor onboarding progress and account status changes
+ * 
+ * @param {Object} account - Stripe Account object
+ * @param {Object} event - Full Stripe webhook event
+ * @returns {Promise<void>} Resolves when account update is processed
  */
 async function handleAccountUpdate(account, event) {
   try {
@@ -466,7 +556,13 @@ async function handleAccountUpdate(account, event) {
 // ===== DISPUTE EVENT HANDLERS =====
 
 /**
- * Handle dispute creation
+ * Handle Stripe dispute creation for chargebacks
+ * Records dispute details and prepares admin notifications
+ * Initiates dispute management workflow and vendor payout holds
+ * 
+ * @param {Object} dispute - Stripe Dispute object
+ * @param {Object} event - Full Stripe webhook event
+ * @returns {Promise<void>} Resolves when dispute creation is processed
  */
 async function handleDisputeCreated(dispute, event) {
   try {
@@ -482,7 +578,13 @@ async function handleDisputeCreated(dispute, event) {
 }
 
 /**
- * Handle dispute closure
+ * Handle Stripe dispute closure and resolution
+ * Updates dispute status and processes fund adjustments
+ * Handles dispute outcomes and vendor payout releases
+ * 
+ * @param {Object} dispute - Stripe Dispute object
+ * @param {Object} event - Full Stripe webhook event
+ * @returns {Promise<void>} Resolves when dispute closure is processed
  */
 async function handleDisputeClosed(dispute, event) {
   try {
@@ -500,7 +602,13 @@ async function handleDisputeClosed(dispute, event) {
 // ===== DATABASE HELPER FUNCTIONS =====
 
 /**
- * Update order status
+ * Update order status in database
+ * Updates order status and payment intent ID for e-commerce transactions
+ * 
+ * @param {string} orderId - Order ID to update
+ * @param {string} status - New order status ('paid', 'error', etc.)
+ * @param {string|null} paymentIntentId - Stripe PaymentIntent ID (optional)
+ * @returns {Promise<Object>} Database execution result
  */
 async function updateOrderStatus(orderId, status, paymentIntentId = null) {
   const query = `
@@ -513,7 +621,12 @@ async function updateOrderStatus(orderId, status, paymentIntentId = null) {
 }
 
 /**
- * Update transaction status
+ * Update vendor transaction status based on Stripe transfer
+ * Updates transaction status for vendor payout tracking
+ * 
+ * @param {string} stripeTransferId - Stripe Transfer ID
+ * @param {string} status - New transaction status ('processing', 'completed', 'failed')
+ * @returns {Promise<Object>} Database execution result
  */
 async function updateTransactionStatus(stripeTransferId, status) {
   const query = `
@@ -526,7 +639,12 @@ async function updateTransactionStatus(stripeTransferId, status) {
 }
 
 /**
- * Record platform commission
+ * Record platform commission from marketplace orders
+ * Calculates and records platform commission from order items
+ * 
+ * @param {string} orderId - Order ID to calculate commission for
+ * @param {string} paymentIntentId - Stripe PaymentIntent ID
+ * @returns {Promise<Object>} Database execution result
  */
 async function recordPlatformCommission(orderId, paymentIntentId) {
   const query = `
@@ -547,7 +665,12 @@ async function recordPlatformCommission(orderId, paymentIntentId) {
 }
 
 /**
- * Update vendor verification status
+ * Update vendor verification status based on Stripe account
+ * Updates vendor verification status when Stripe account capabilities change
+ * 
+ * @param {string} vendorId - Vendor ID to update
+ * @param {boolean} isVerified - Whether vendor account is verified
+ * @returns {Promise<Object>} Database execution result
  */
 async function updateVendorVerificationStatus(vendorId, isVerified) {
   const query = `
@@ -560,7 +683,12 @@ async function updateVendorVerificationStatus(vendorId, isVerified) {
 }
 
 /**
- * Update subscription status
+ * Update subscription status from Stripe webhook
+ * Updates subscription status based on Stripe subscription events
+ * 
+ * @param {string} stripeSubscriptionId - Stripe Subscription ID
+ * @param {string} status - New subscription status
+ * @returns {Promise<Object>} Database execution result
  */
 async function updateSubscriptionStatus(stripeSubscriptionId, status) {
   const query = `
@@ -573,7 +701,11 @@ async function updateSubscriptionStatus(stripeSubscriptionId, status) {
 }
 
 /**
- * Record subscription transaction
+ * Record subscription transaction from invoice payment
+ * Records subscription payment transaction for vendor billing
+ * 
+ * @param {Object} invoice - Stripe Invoice object
+ * @returns {Promise<Object>} Database execution result
  */
 async function recordSubscriptionTransaction(invoice) {
   // Find vendor by customer ID
@@ -598,7 +730,12 @@ async function recordSubscriptionTransaction(invoice) {
 }
 
 /**
- * Mark transactions as paid out
+ * Mark transactions as paid out after Stripe payout completion
+ * Updates transaction status when vendor payouts are completed
+ * 
+ * @param {string} payoutId - Stripe Payout ID
+ * @param {string} arrivalDate - Payout arrival date
+ * @returns {Promise<Object>} Database execution result
  */
 async function markTransactionsAsPaidOut(payoutId, arrivalDate) {
   // This would need more complex logic to match transactions to specific payouts
@@ -613,14 +750,25 @@ async function markTransactionsAsPaidOut(payoutId, arrivalDate) {
 }
 
 /**
- * Record dispute
+ * Record dispute details in database
+ * Records Stripe dispute information for tracking and management
+ * 
+ * @param {Object} dispute - Stripe Dispute object
+ * @returns {Promise<void>} Resolves when dispute is recorded
+ * @note TODO: Create disputes table and implement dispute recording
  */
 async function recordDispute(dispute) {
   // TODO: Create disputes table and record dispute details
 }
 
 /**
- * Update dispute status
+ * Update dispute status in database
+ * Updates dispute status when Stripe dispute is resolved
+ * 
+ * @param {string} disputeId - Stripe Dispute ID
+ * @param {string} status - New dispute status
+ * @returns {Promise<void>} Resolves when dispute status is updated
+ * @note TODO: Update dispute status in disputes table
  */
 async function updateDisputeStatus(disputeId, status) {
   // TODO: Update dispute status in disputes table
@@ -630,6 +778,12 @@ async function updateDisputeStatus(disputeId, status) {
 
 /**
  * Handle invoice created - Try Connect balance payment first
+ * Attempts to pay subscription invoices from vendor Connect balance
+ * Provides automatic payment processing for vendors with sufficient balance
+ * 
+ * @param {Object} invoice - Stripe Invoice object
+ * @param {Object} event - Full Stripe webhook event
+ * @returns {Promise<void>} Resolves when invoice processing is complete
  */
 async function handleInvoiceCreated(invoice, event) {
   try {
@@ -696,7 +850,13 @@ async function handleInvoiceCreated(invoice, event) {
 }
 
 /**
- * Handle subscription created
+ * Handle subscription created event from Stripe
+ * Updates database record with subscription details and billing periods
+ * Tracks subscription lifecycle from creation
+ * 
+ * @param {Object} subscription - Stripe Subscription object
+ * @param {Object} event - Full Stripe webhook event
+ * @returns {Promise<void>} Resolves when subscription creation is processed
  */
 async function handleSubscriptionCreated(subscription, event) {
   try {
@@ -727,7 +887,13 @@ async function handleSubscriptionCreated(subscription, event) {
 }
 
 /**
- * Handle subscription updated
+ * Handle subscription updated event from Stripe
+ * Updates database record with current subscription status and billing periods
+ * Tracks subscription changes and cancellation flags
+ * 
+ * @param {Object} subscription - Stripe Subscription object
+ * @param {Object} event - Full Stripe webhook event
+ * @returns {Promise<void>} Resolves when subscription update is processed
  */
 async function handleSubscriptionUpdated(subscription, event) {
   try {
@@ -755,7 +921,13 @@ async function handleSubscriptionUpdated(subscription, event) {
 }
 
 /**
- * Handle subscription deleted
+ * Handle subscription deleted event from Stripe
+ * Updates database record to mark subscription as canceled
+ * Finalizes subscription lifecycle when canceled
+ * 
+ * @param {Object} subscription - Stripe Subscription object
+ * @param {Object} event - Full Stripe webhook event
+ * @returns {Promise<void>} Resolves when subscription deletion is processed
  */
 async function handleSubscriptionDeleted(subscription, event) {
   try {
@@ -826,7 +998,13 @@ async function handleSubscriptionPaymentSucceeded(invoice, event) {
 }
 
 /**
- * Handle failed subscription payment
+ * Handle failed subscription payment from invoice
+ * Records failed payment attempt and prepares customer notifications
+ * Tracks subscription payment failures for account management
+ * 
+ * @param {Object} invoice - Stripe Invoice object
+ * @param {Object} event - Full Stripe webhook event
+ * @returns {Promise<void>} Resolves when subscription payment failure is recorded
  */
 async function handleSubscriptionPaymentFailed(invoice, event) {
   try {
@@ -872,6 +1050,12 @@ async function handleSubscriptionPaymentFailed(invoice, event) {
 
 /**
  * Handle shipping label payment success
+ * Updates shipping label purchase status when payment is completed
+ * Finalizes shipping label purchase workflow
+ * 
+ * @param {Object} paymentIntent - Stripe PaymentIntent object
+ * @param {string} shippingLabelId - Shipping label ID from metadata
+ * @returns {Promise<void>} Resolves when shipping label payment is processed
  */
 async function handleShippingLabelPayment(paymentIntent, shippingLabelId) {
   try {
@@ -890,6 +1074,12 @@ async function handleShippingLabelPayment(paymentIntent, shippingLabelId) {
 
 /**
  * Handle shipping label payment failure
+ * Updates shipping label purchase status with failure reason
+ * Records payment decline information for troubleshooting
+ * 
+ * @param {Object} paymentIntent - Stripe PaymentIntent object
+ * @param {string} shippingLabelId - Shipping label ID from metadata
+ * @returns {Promise<void>} Resolves when shipping label payment failure is processed
  */
 async function handleShippingLabelPaymentFailure(paymentIntent, shippingLabelId) {
   try {
@@ -913,7 +1103,13 @@ async function handleShippingLabelPaymentFailure(paymentIntent, shippingLabelId)
 // ===== SHIPPING SUBSCRIPTION EVENT HANDLERS =====
 
 /**
- * Handle successful setup intent (payment method setup for shipping)
+ * Handle successful setup intent for shipping subscription payment method
+ * Activates shipping subscription and grants shipping permissions
+ * Completes shipping subscription onboarding process
+ * 
+ * @param {Object} setupIntent - Stripe SetupIntent object
+ * @param {Object} event - Full Stripe webhook event
+ * @returns {Promise<void>} Resolves when setup intent success is processed
  */
 async function handleSetupIntentSucceeded(setupIntent, event) {
   try {
@@ -955,7 +1151,13 @@ async function handleSetupIntentSucceeded(setupIntent, event) {
 }
 
 /**
- * Handle failed setup intent (payment method setup failed)
+ * Handle failed setup intent for shipping subscription payment method
+ * Keeps subscription as incomplete and revokes shipping permissions
+ * Handles shipping subscription setup failures
+ * 
+ * @param {Object} setupIntent - Stripe SetupIntent object
+ * @param {Object} event - Full Stripe webhook event
+ * @returns {Promise<void>} Resolves when setup intent failure is processed
  */
 async function handleSetupIntentFailed(setupIntent, event) {
   try {
@@ -996,7 +1198,13 @@ async function handleSetupIntentFailed(setupIntent, event) {
 }
 
 /**
- * Handle expired payment source (card expired)
+ * Handle expired payment source for shipping subscriptions
+ * Deactivates shipping subscriptions and revokes permissions when payment method expires
+ * Handles payment method lifecycle management for shipping access
+ * 
+ * @param {Object} source - Stripe Source object
+ * @param {Object} event - Full Stripe webhook event
+ * @returns {Promise<void>} Resolves when source expiration is processed
  */
 async function handleSourceExpired(source, event) {
   try {

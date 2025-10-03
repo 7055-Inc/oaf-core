@@ -1,3 +1,10 @@
+/**
+ * Dashboard Widgets Routes
+ * Comprehensive dashboard widget management system for the Beemeeart platform
+ * Handles widget layouts, shortcuts, admin controls, and widget data endpoints
+ * Supports customizable dashboard experiences with drag-and-drop functionality
+ */
+
 const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
@@ -8,7 +15,18 @@ const { requirePermission } = require('../middleware/permissions');
 // WIDGET LAYOUT MANAGEMENT
 // ================================
 
-// Get user's dashboard layout
+/**
+ * GET /api/dashboard-widgets/layout
+ * Get user's dashboard layout with widgets and admin-locked widgets
+ * Auto-creates shortcuts widget if it doesn't exist for the user
+ * 
+ * @route GET /api/dashboard-widgets/layout
+ * @middleware verifyToken - Requires user authentication
+ * @returns {Object} Dashboard layout with user and admin widgets
+ * @returns {Array} userLayout - User's customizable widgets
+ * @returns {Array} adminLayout - Admin-locked system widgets
+ * @returns {number} totalWidgets - Total count of all widgets
+ */
 router.get('/layout', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
@@ -57,7 +75,21 @@ router.get('/layout', verifyToken, async (req, res) => {
   }
 });
 
-// Save user's dashboard layout (full grid scan)
+/**
+ * POST /api/dashboard-widgets/layout
+ * Save user's dashboard layout with full grid positioning
+ * Clears existing user layout and saves new configuration
+ * Preserves admin-locked widgets during layout updates
+ * 
+ * @route POST /api/dashboard-widgets/layout
+ * @middleware verifyToken - Requires user authentication
+ * @param {Array} req.body.layout - Array of widget configurations
+ * @param {string} req.body.layout[].widget_type - Widget type identifier
+ * @param {number} req.body.layout[].grid_row - Grid row position
+ * @param {number} req.body.layout[].grid_col - Grid column position
+ * @param {Object} [req.body.layout[].widget_config] - Optional widget configuration
+ * @returns {Object} Success confirmation with message
+ */
 router.post('/layout', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
@@ -67,40 +99,53 @@ router.post('/layout', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'Layout must be an array' });
     }
 
-    // Clear existing user layout (preserve admin-locked widgets)
-    await db.execute(
-      'DELETE FROM dashboard_layouts WHERE user_id = ? AND is_admin_locked = 0',
-      [userId]
-    );
+      // Clear existing user layout (preserve admin-locked widgets)
+      await db.execute(
+        'DELETE FROM dashboard_layouts WHERE user_id = ? AND is_admin_locked = 0',
+        [userId]
+      );
 
-    // Insert new layout
-    if (layout.length > 0) {
-      const values = layout.map(widget => [
-        userId,
-        widget.widget_type,
-        widget.grid_row,
-        widget.grid_col,
-        widget.widget_config ? JSON.stringify(widget.widget_config) : null,
-        0 // is_admin_locked
-      ]);
+      // Insert new layout
+      if (layout.length > 0) {
+        const values = layout.map(widget => [
+          userId,
+          widget.widget_type,
+          widget.grid_row,
+          widget.grid_col,
+          widget.widget_config ? JSON.stringify(widget.widget_config) : null,
+          0 // is_admin_locked
+        ]);
 
-      const placeholders = values.map(() => '(?, ?, ?, ?, ?, ?)').join(', ');
-      const flatValues = values.flat();
+        const placeholders = values.map(() => '(?, ?, ?, ?, ?, ?)').join(', ');
+        const flatValues = values.flat();
 
-      await db.execute(`
-        INSERT INTO dashboard_layouts (user_id, widget_type, grid_row, grid_col, widget_config, is_admin_locked)
-        VALUES ${placeholders}
-      `, flatValues);
-    }
+        await db.execute(`
+          INSERT INTO dashboard_layouts (user_id, widget_type, grid_row, grid_col, widget_config, is_admin_locked)
+          VALUES ${placeholders}
+          ON DUPLICATE KEY UPDATE
+            widget_type = VALUES(widget_type),
+            widget_config = VALUES(widget_config),
+            is_admin_locked = VALUES(is_admin_locked)
+        `, flatValues);
+      }
 
-    res.json({ success: true, message: 'Dashboard layout saved' });
+      res.json({ success: true, message: 'Dashboard layout saved' });
   } catch (err) {
     console.error('Error saving dashboard layout:', err);
     res.status(500).json({ error: 'Failed to save dashboard layout' });
   }
 });
 
-// Get available widget types for user
+/**
+ * GET /api/dashboard-widgets/widget-types
+ * Get available widget types for user based on permissions
+ * Returns widgets grouped by category for organized display
+ * 
+ * @route GET /api/dashboard-widgets/widget-types
+ * @middleware verifyToken - Requires user authentication
+ * @returns {Object} Available widget types grouped by category
+ * @returns {Object} widget_types - Widget types organized by category
+ */
 router.get('/widget-types', verifyToken, async (req, res) => {
   try {
     const userPermissions = req.user?.permissions || [];
@@ -132,7 +177,19 @@ router.get('/widget-types', verifyToken, async (req, res) => {
 // WIDGET DATA ENDPOINTS
 // ================================
 
-// Get data for specific widget
+/**
+ * GET /api/dashboard-widgets/widget-data/:widgetType
+ * Get data for specific widget type with optional configuration
+ * Routes to appropriate data fetcher based on widget type
+ * 
+ * @route GET /api/dashboard-widgets/widget-data/:widgetType
+ * @middleware verifyToken - Requires user authentication
+ * @param {string} widgetType - Widget type identifier
+ * @param {string} [config] - JSON configuration string (query parameter)
+ * @returns {Object} Widget-specific data and metadata
+ * @returns {Object} data - Widget data based on type
+ * @returns {string} widget_type - Confirmed widget type
+ */
 router.get('/widget-data/:widgetType', verifyToken, async (req, res) => {
   try {
     const { widgetType } = req.params;
@@ -174,8 +231,22 @@ router.get('/widget-data/:widgetType', verifyToken, async (req, res) => {
 // SHORTCUTS WIDGET MANAGEMENT
 // ================================
 
-// Add shortcut to user's shortcuts widget
-router.post('/shortcuts/add', verifyToken, async (req, res) => {
+/**
+ * POST /api/dashboard-widgets/shortcuts/add
+ * Add shortcut to user's shortcuts widget with validation
+ * Checks for duplicates and enforces maximum shortcuts limit
+ * 
+ * @route POST /api/dashboard-widgets/shortcuts/add
+ * @middleware verifyToken - Requires user authentication
+ * @param {Object} req.body.shortcut - Shortcut configuration
+ * @param {string} req.body.shortcut.id - Unique shortcut identifier
+ * @param {string} req.body.shortcut.label - Display label for shortcut
+ * @param {string} req.body.shortcut.icon - Font Awesome icon class
+ * @param {string} req.body.shortcut.slideInType - Slide-in panel type
+ * @returns {Object} Updated shortcuts list and success message
+ * @returns {Array} shortcuts - Updated shortcuts array
+ */
+router.post('/add', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
     const { shortcut } = req.body; // {id, label, icon, slideInType}
@@ -224,8 +295,18 @@ router.post('/shortcuts/add', verifyToken, async (req, res) => {
   }
 });
 
-// Remove shortcut from user's shortcuts widget
-router.post('/shortcuts/remove', verifyToken, async (req, res) => {
+/**
+ * POST /api/dashboard-widgets/shortcuts/remove
+ * Remove shortcut from user's shortcuts widget by ID
+ * Updates widget configuration with filtered shortcuts list
+ * 
+ * @route POST /api/dashboard-widgets/shortcuts/remove
+ * @middleware verifyToken - Requires user authentication
+ * @param {string} req.body.shortcutId - Shortcut ID to remove
+ * @returns {Object} Updated shortcuts list and success message
+ * @returns {Array} shortcuts - Updated shortcuts array after removal
+ */
+router.post('/remove', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
     const { shortcutId } = req.body;
@@ -268,7 +349,22 @@ router.post('/shortcuts/remove', verifyToken, async (req, res) => {
 // ADMIN WIDGET MANAGEMENT
 // ================================
 
-// Admin: Create locked widget for users (announcements, etc.)
+/**
+ * POST /api/dashboard-widgets/admin/locked-widget
+ * Admin: Create locked widget for users (announcements, system messages, etc.)
+ * Creates admin-controlled widgets that users cannot remove or modify
+ * 
+ * @route POST /api/dashboard-widgets/admin/locked-widget
+ * @middleware verifyToken - Requires user authentication
+ * @middleware requirePermission('manage_system') - Requires system management permission
+ * @param {string} req.body.widget_type - Widget type to create
+ * @param {number} req.body.grid_row - Grid row position
+ * @param {number} req.body.grid_col - Grid column position
+ * @param {Object} [req.body.widget_config] - Widget configuration object
+ * @param {Array} [req.body.target_users] - Specific user IDs (defaults to all users)
+ * @returns {Object} Creation confirmation with affected user count
+ * @returns {number} affected_users - Number of users who received the widget
+ */
 router.post('/admin/locked-widget', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     const { widget_type, grid_row, grid_col, widget_config, target_users } = req.body;
@@ -321,7 +417,13 @@ router.post('/admin/locked-widget', verifyToken, requirePermission('manage_syste
 // WIDGET DATA FETCHERS
 // ================================
 
-// Ensure shortcuts widget type exists in database
+/**
+ * Ensure shortcuts widget type exists in database
+ * Creates the shortcuts widget type if it doesn't exist
+ * Sets up default configuration and metadata
+ * 
+ * @returns {Promise<void>} Resolves when widget type is ensured
+ */
 async function ensureShortcutsWidgetType() {
   try {
     const [existing] = await db.execute(
@@ -347,7 +449,13 @@ async function ensureShortcutsWidgetType() {
   }
 }
 
-// Ensure products widget type exists in database
+/**
+ * Ensure products widget type exists in database
+ * Creates the products widget type if it doesn't exist
+ * Sets up default configuration for store management category
+ * 
+ * @returns {Promise<void>} Resolves when widget type is ensured
+ */
 async function ensureProductsWidgetType() {
   try {
     const [existing] = await db.execute(
@@ -373,7 +481,14 @@ async function ensureProductsWidgetType() {
   }
 }
 
-// Auto-create shortcuts widget for user if it doesn't exist
+/**
+ * Auto-create shortcuts widget for user if it doesn't exist
+ * Creates default shortcuts widget with 3 pre-configured shortcuts
+ * Ensures every user has access to basic dashboard functionality
+ * 
+ * @param {number} userId - User ID to create shortcuts widget for
+ * @returns {Promise<void>} Resolves when shortcuts widget is ensured
+ */
 async function ensureShortcutsWidget(userId) {
   try {
     console.log('Ensuring shortcuts widget for user:', userId);
@@ -431,7 +546,18 @@ async function ensureShortcutsWidget(userId) {
   }
 }
 
-// Get shortcuts widget data
+/**
+ * Get shortcuts widget data from database
+ * Fetches current shortcuts configuration and availability status
+ * Returns shortcuts with metadata about limits and capacity
+ * 
+ * @param {number} userId - User ID to fetch shortcuts for
+ * @param {Object} config - Widget configuration (not used, fetches fresh from DB)
+ * @returns {Promise<Object>} Shortcuts data with metadata
+ * @returns {Array} shortcuts - Current shortcuts array
+ * @returns {number} maxShortcuts - Maximum allowed shortcuts (10)
+ * @returns {boolean} canAddMore - Whether user can add more shortcuts
+ */
 async function getShortcutsData(userId, config) {
   try {
     // Fetch fresh data from database, not from config
@@ -458,7 +584,18 @@ async function getShortcutsData(userId, config) {
   }
 }
 
-// Add a single widget - simple INSERT
+/**
+ * POST /api/dashboard-widgets/add-widget
+ * Add a single widget to user's dashboard
+ * Simple widget addition with grid positioning
+ * 
+ * @route POST /api/dashboard-widgets/add-widget
+ * @middleware verifyToken - Requires user authentication
+ * @param {string} req.body.widgetType - Widget type to add
+ * @param {number} req.body.gridRow - Grid row position
+ * @param {number} req.body.gridCol - Grid column position
+ * @returns {Object} Success confirmation
+ */
 router.post('/add-widget', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
@@ -477,7 +614,16 @@ router.post('/add-widget', verifyToken, async (req, res) => {
   }
 });
 
-// Remove a single widget - simple DELETE
+/**
+ * POST /api/dashboard-widgets/remove-widget
+ * Remove a single widget from user's dashboard
+ * Only removes user widgets, preserves admin-locked widgets
+ * 
+ * @route POST /api/dashboard-widgets/remove-widget
+ * @middleware verifyToken - Requires user authentication
+ * @param {string} req.body.widgetType - Widget type to remove
+ * @returns {Object} Success confirmation with removal message
+ */
 router.post('/remove-widget', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;

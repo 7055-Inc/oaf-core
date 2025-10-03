@@ -3,13 +3,33 @@ const router = express.Router();
 const db = require('../../../config/db');
 const verifyToken = require('../../middleware/jwt');
 
+/**
+ * @fileoverview Marketplace subscription management routes
+ * 
+ * Handles marketplace subscription functionality including:
+ * - Terms and conditions acceptance tracking
+ * - Latest terms version retrieval
+ * - User terms acceptance verification
+ * - Terms acceptance recording with duplicate protection
+ * 
+ * @author Beemeeart Development Team
+ * @version 1.0.0
+ */
+
 // ============================================================================
 // MARKETPLACE SUBSCRIPTION ROUTES
 // ============================================================================
 // All routes for marketplace subscription management
 // Modular approach - all marketplace subscription logic contained here
 
-// GET /subscriptions/marketplace/terms-check - Check if user accepted latest marketplace terms
+/**
+ * Check if user has accepted the latest marketplace terms
+ * @route GET /api/subscriptions/marketplace/terms-check
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Terms acceptance status and latest terms details
+ */
 router.get('/terms-check', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
@@ -56,7 +76,15 @@ router.get('/terms-check', verifyToken, async (req, res) => {
   }
 });
 
-// POST /subscriptions/marketplace/terms-accept - Record terms acceptance
+/**
+ * Record user acceptance of marketplace terms
+ * @route POST /api/subscriptions/marketplace/terms-accept
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {number} req.body.terms_version_id - ID of the terms version being accepted
+ * @param {Object} res - Express response object
+ * @returns {Object} Confirmation of terms acceptance recording
+ */
 router.post('/terms-accept', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;

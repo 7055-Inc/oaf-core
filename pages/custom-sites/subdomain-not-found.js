@@ -52,7 +52,7 @@ const SubdomainNotFound = () => {
             marginBottom: '0.5rem',
             fontSize: '1.1rem'
           }}>
-            The gallery <strong>{subdomain}.onlineartfestival.com</strong> is not available.
+            The gallery <strong>{subdomain}.beemeeart.com</strong> is not available.
           </p>
           
           <p style={{
@@ -68,7 +68,7 @@ const SubdomainNotFound = () => {
             justifyContent: 'center',
             flexWrap: 'wrap'
           }}>
-            <Link href="https://main.onlineartfestival.com">
+            <Link href="https://main.beemeeart.com">
               <a style={{
                 background: '#667eea',
                 color: 'white',
@@ -82,7 +82,7 @@ const SubdomainNotFound = () => {
               </a>
             </Link>
             
-            <Link href="https://main.onlineartfestival.com/artists">
+            <Link href="https://main.beemeeart.com/artists">
               <a style={{
                 background: '#764ba2',
                 color: 'white',
@@ -109,7 +109,7 @@ const SubdomainNotFound = () => {
               <strong>Are you an artist?</strong>
             </p>
             <p style={{ margin: 0 }}>
-              <Link href="https://main.onlineartfestival.com/signup">
+              <Link href="https://main.beemeeart.com/signup">
                 <a style={{ color: '#667eea', textDecoration: 'none' }}>
                   Create your own gallery →
                 </a>

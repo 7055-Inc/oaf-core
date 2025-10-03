@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest, handleCsrfError } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
 import slideInStyles from '../../SlideIn.module.css';
 
 export default function MyPolicies({ userData }) {
@@ -34,7 +35,7 @@ export default function MyPolicies({ userData }) {
       setError(null);
       
       // Load shipping policy
-      const shippingResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/vendor/shipping-policy', {
+      const shippingResponse = await authApiRequest('vendor/shipping-policy', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -47,7 +48,7 @@ export default function MyPolicies({ userData }) {
       }
 
       // Load return policy
-      const returnResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/vendor/return-policy', {
+      const returnResponse = await authApiRequest('vendor/return-policy', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -60,7 +61,7 @@ export default function MyPolicies({ userData }) {
       }
 
       // Load shipping policy history
-      const shippingHistoryResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/vendor/shipping-policy/history', {
+      const shippingHistoryResponse = await authApiRequest('vendor/shipping-policy/history', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -73,7 +74,7 @@ export default function MyPolicies({ userData }) {
       }
 
       // Load return policy history
-      const returnHistoryResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/vendor/return-policy/history', {
+      const returnHistoryResponse = await authApiRequest('vendor/return-policy/history', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -106,7 +107,7 @@ export default function MyPolicies({ userData }) {
 
     try {
       const endpoint = policyType === 'return' ? 'return-policy' : 'shipping-policy';
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/vendor/${endpoint}`, {
+      const response = await authApiRequest(`vendor/${endpoint}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -158,7 +159,7 @@ export default function MyPolicies({ userData }) {
 
     try {
       const endpoint = policyType === 'return' ? 'return-policy' : 'shipping-policy';
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/vendor/${endpoint}`, {
+      const response = await authApiRequest(`vendor/${endpoint}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { getApiUrl } from '../lib/config';
 import Header from '../components/Header';
 
 export default function ApiKeys() {
@@ -22,7 +23,7 @@ export default function ApiKeys() {
 
   const fetchApiKeys = async (token) => {
     try {
-      const res = await fetch('https://api2.onlineartfestival.com/api-keys', {
+      const res = await fetch(getApiUrl('api-keys'), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -39,7 +40,7 @@ export default function ApiKeys() {
   const handleGenerateKey = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('https://api2.onlineartfestival.com/api-keys', {
+      const res = await fetch(getApiUrl('api-keys'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

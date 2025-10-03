@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import styles from './EventsCarousel.module.css';
+import { getApiUrl, getSmartMediaUrl } from '../lib/config';
 
 export default function EventsCarousel() {
   const [events, setEvents] = useState([]);
@@ -13,7 +14,7 @@ export default function EventsCarousel() {
 
   const loadUpcomingEvents = async () => {
     try {
-      const response = await fetch('https://api2.onlineartfestival.com/api/events?event_status=active&limit=10');
+      const response = await fetch(getApiUrl('api/events?event_status=active&limit=10'));
       if (response.ok) {
         const eventsData = await response.json();
         // Filter for upcoming events only
@@ -117,7 +118,7 @@ export default function EventsCarousel() {
                 <div className={styles.eventImage}>
                   {event.featured_image ? (
                     <img 
-                      src={`https://api2.onlineartfestival.com${event.featured_image}`} 
+                      src={getSmartMediaUrl(event.featured_image)} 
                       alt={event.title}
                     />
                   ) : (

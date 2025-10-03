@@ -2,6 +2,7 @@
 // This file contains ONLY the payouts and earnings content logic
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
 import styles from '../../../../pages/dashboard/Dashboard.module.css';
 
 export default function PayoutsEarnings({ userData }) {
@@ -24,10 +25,10 @@ export default function PayoutsEarnings({ userData }) {
     
           // Load balance, payouts, transactions, and settings in parallel
           const [balanceRes, payoutsRes, transactionsRes, settingsRes] = await Promise.all([
-            authenticatedApiRequest('https://api2.onlineartfestival.com/vendor/financials/my-balance'),
-            authenticatedApiRequest('https://api2.onlineartfestival.com/vendor/financials/my-payouts'),
-            authenticatedApiRequest('https://api2.onlineartfestival.com/vendor/financials/my-transactions?limit=1000'), // Get enough data for calculations
-            authenticatedApiRequest('https://api2.onlineartfestival.com/vendor/settings')
+            authApiRequest('api/vendor-financials/my-balance'),
+            authApiRequest('api/vendor-financials/my-payouts'),
+            authApiRequest('api/vendor-financials/my-transactions?limit=1000'), // Get enough data for calculations
+            authApiRequest('vendor/settings')
           ]);
     
           if (balanceRes.ok) {

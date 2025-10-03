@@ -2,7 +2,9 @@
 // Users complete requirements progressively: Card → Terms → Access
 
 import { useState, useEffect } from 'react';
-import { authenticatedApiRequest, refreshAuthToken } from '../../../../lib/csrf';
+import { refreshAuthToken } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
+import { getFrontendUrl } from '../../../../lib/config';
 import StripeCardSetup from '../../../stripe/StripeCardSetup';
 
 // Add spin animation for loading spinner
@@ -52,10 +54,10 @@ export default function ShipSubscriptions({ userData, onComplete }) {
       // Step 2: If user has permission, check subscription status and terms separately
       if (hasPermission) {
         // Check subscription status (card, etc.)
-        const subscriptionResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/shipping/my');
+        const subscriptionResponse = await authApiRequest('api/subscriptions/shipping/my');
         
         // Check terms acceptance separately
-        const termsResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/shipping/terms-check');
+        const termsResponse = await authApiRequest('api/subscriptions/shipping/terms-check');
         
         if (subscriptionResponse.ok && termsResponse.ok) {
           const subscriptionData = await subscriptionResponse.json();
@@ -71,7 +73,7 @@ export default function ShipSubscriptions({ userData, onComplete }) {
           
         } else {
           // User has permission but no active subscription yet
-          const termsResponse2 = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/shipping/terms-check');
+          const termsResponse2 = await authApiRequest('api/subscriptions/shipping/terms-check');
           const termsData = termsResponse2.ok ? await termsResponse2.json() : { termsAccepted: false };
           
           setRequirements({
@@ -276,7 +278,7 @@ function CardSetupStep({ userData, onComplete, isProcessing, setIsProcessing }) 
     setError(null);
 
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/shipping/signup', {
+      const response = await authApiRequest('api/subscriptions/shipping/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -308,7 +310,7 @@ function CardSetupStep({ userData, onComplete, isProcessing, setIsProcessing }) 
       setIsProcessing(true);
       
       // Activate the subscription with the successful setup intent
-      const activateResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/shipping/activate', {
+      const activateResponse = await authApiRequest('api/subscriptions/shipping/activate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -431,7 +433,7 @@ function TermsAcceptanceStep({ userData, onComplete, isProcessing, setIsProcessi
 
   const fetchTermsContent = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/shipping/terms');
+      const response = await authApiRequest('api/subscriptions/shipping/terms');
       
       if (response.ok) {
         const data = await response.json();
@@ -455,7 +457,7 @@ function TermsAcceptanceStep({ userData, onComplete, isProcessing, setIsProcessi
 
     try {
       // Use the new dedicated terms acceptance endpoint
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/shipping/accept-terms', {
+      const response = await authApiRequest('api/subscriptions/shipping/accept-terms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -570,7 +572,7 @@ function ShippingDashboard({ subscriptionData, userData, onUpdate, onComplete })
 
     setIsProcessing(true);
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/shipping/cancel', {
+      const response = await authApiRequest('api/subscriptions/shipping/cancel', {
         method: 'DELETE'
       });
 
@@ -593,7 +595,7 @@ function ShippingDashboard({ subscriptionData, userData, onUpdate, onComplete })
     try {
       const newPreference = !subscriptionData?.subscription?.preferConnectBalance;
       
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/shipping/preferences', {
+      const response = await authApiRequest('api/subscriptions/shipping/preferences', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -832,7 +834,7 @@ function StandaloneLabelCreator({ userData, onUpdate }) {
 
   const loadVendorAddress = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/shipping/vendor-address');
+      const response = await authApiRequest('api/subscriptions/shipping/vendor-address');
       
       if (response.ok) {
         const data = await response.json();
@@ -896,7 +898,7 @@ function StandaloneLabelCreator({ userData, onUpdate }) {
         throw new Error('Please fill in complete Ship To address');
       }
 
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/shipping/calculate-cart-shipping', {
+      const response = await authApiRequest('api/shipping/calculate-cart-shipping', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -940,7 +942,7 @@ function StandaloneLabelCreator({ userData, onUpdate }) {
 
     try {
       // First create the label via subscription payment system
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/shipping/create-standalone-label', {
+      const response = await authApiRequest('api/subscriptions/shipping/create-standalone-label', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1318,7 +1320,7 @@ function StandaloneLabelLibrary() {
       setLoading(true);
       setError(null);
 
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/shipping/standalone-labels', {
+      const response = await authApiRequest('api/subscriptions/shipping/standalone-labels', {
         method: 'GET'
       });
 
@@ -1493,8 +1495,8 @@ function StandaloneLabelLibrary() {
                 ) : (
                   <a 
                     href={label.label_file_path.includes('/user_') 
-                      ? `https://api2.onlineartfestival.com/api/shipping/labels/${encodeURIComponent(label.label_file_path.split('/').pop())}`
-                      : `https://main.onlineartfestival.com${label.label_file_path}`}
+                      ? `api/shipping/labels/${encodeURIComponent(label.label_file_path.split('/').pop())}`
+                      : getFrontendUrl(label.label_file_path)}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{ color: '#007bff', textDecoration: 'none' }}
@@ -1575,7 +1577,7 @@ function PaymentMethodUpdate({ onSuccess, onCancel }) {
 
   const createUpdateIntent = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/shipping/update-payment-method', {
+      const response = await authApiRequest('api/subscriptions/shipping/update-payment-method', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });

@@ -2,37 +2,111 @@ const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
+const jwt = require('jsonwebtoken');
+
+/**
+ * @fileoverview Shopping cart management routes
+ * 
+ * Handles comprehensive cart functionality including:
+ * - Multi-cart system with site-specific carts
+ * - Cart collections for organization
+ * - Guest and authenticated user support
+ * - Cart items management (add, update, remove)
+ * - Saved items for later (wishlist functionality)
+ * - Unified cart view across multiple sites
+ * 
+ * @author Beemeeart Development Team
+ * @version 1.0.0
+ */
 
 // --- Cart Collections ---
+
+/**
+ * Get all cart collections for authenticated user
+ * @route GET /api/carts/collections
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Array} Array of cart collections
+ */
 router.get('/collections', verifyToken, async (req, res) => {
   const [rows] = await db.query('SELECT * FROM cart_collections WHERE user_id = ?', [req.userId]);
   res.json(rows);
 });
 
+/**
+ * Create a new cart collection
+ * @route POST /api/carts/collections
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.body.name - Collection name
+ * @param {string} req.body.description - Collection description
+ * @param {boolean} req.body.is_public - Whether collection is public
+ * @param {Object} res - Express response object
+ * @returns {Object} Success confirmation
+ */
 router.post('/collections', verifyToken, async (req, res) => {
   const { name, description, is_public } = req.body;
   await db.query('INSERT INTO cart_collections (user_id, name, description, is_public) VALUES (?, ?, ?, ?)', [req.userId, name, description, !!is_public]);
   res.json({ success: true });
 });
 
+/**
+ * Update an existing cart collection
+ * @route PUT /api/carts/collections/:id
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Collection ID
+ * @param {string} req.body.name - Updated collection name
+ * @param {string} req.body.description - Updated collection description
+ * @param {boolean} req.body.is_public - Updated public status
+ * @param {Object} res - Express response object
+ * @returns {Object} Success confirmation
+ */
 router.put('/collections/:id', verifyToken, async (req, res) => {
   const { name, description, is_public } = req.body;
   await db.query('UPDATE cart_collections SET name = ?, description = ?, is_public = ? WHERE id = ? AND user_id = ?', [name, description, !!is_public, req.params.id, req.userId]);
   res.json({ success: true });
 });
 
+/**
+ * Delete a cart collection
+ * @route DELETE /api/carts/collections/:id
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Collection ID to delete
+ * @param {Object} res - Express response object
+ * @returns {Object} Success confirmation
+ */
 router.delete('/collections/:id', verifyToken, async (req, res) => {
   await db.query('DELETE FROM cart_collections WHERE id = ? AND user_id = ?', [req.params.id, req.userId]);
   res.json({ success: true });
 });
 
 // --- Carts ---
+
+/**
+ * Get all carts for authenticated user
+ * @route GET /api/carts
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Array} Array of user's carts
+ */
 router.get('/', verifyToken, async (req, res) => {
   const [rows] = await db.query('SELECT * FROM carts WHERE user_id = ?', [req.userId]);
   res.json(rows);
 });
 
-// GET /carts/unified - Get all carts for user with items (Multi-Cart Revolution!)
+/**
+ * Get unified view of all user carts with items and totals
+ * Multi-Cart Revolution: Groups carts by source site for better UX
+ * @route GET /api/carts/unified
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Comprehensive cart data grouped by source site
+ */
 router.get('/unified', verifyToken, async (req, res) => {
   try {
     // Get all carts for the user
@@ -96,6 +170,18 @@ router.get('/unified', verifyToken, async (req, res) => {
   }
 });
 
+/**
+ * Create a new cart (supports both authenticated and guest users)
+ * @route POST /api/carts
+ * @access Public
+ * @param {Object} req - Express request object
+ * @param {string} req.body.guest_token - Guest identifier (required for unauthenticated users)
+ * @param {string} req.body.status - Cart status (default: 'draft')
+ * @param {string} req.body.source_site_api_key - API key of originating site
+ * @param {string} req.body.source_site_name - Name of originating site
+ * @param {Object} res - Express response object
+ * @returns {Object} Created cart object
+ */
 router.post('/', async (req, res) => {
   try {
     // Check if user is authenticated
@@ -129,64 +215,185 @@ router.post('/', async (req, res) => {
   }
 });
 
+/**
+ * Update cart status
+ * @route PUT /api/carts/:id
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Cart ID
+ * @param {string} req.body.status - New cart status
+ * @param {Object} res - Express response object
+ * @returns {Object} Success confirmation
+ */
 router.put('/:id', verifyToken, async (req, res) => {
   const { status } = req.body;
   await db.query('UPDATE carts SET status = ? WHERE id = ? AND user_id = ?', [status, req.params.id, req.userId]);
   res.json({ success: true });
 });
 
+/**
+ * Delete a cart
+ * @route DELETE /api/carts/:id
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Cart ID to delete
+ * @param {Object} res - Express response object
+ * @returns {Object} Success confirmation
+ */
 router.delete('/:id', verifyToken, async (req, res) => {
   await db.query('DELETE FROM carts WHERE id = ? AND user_id = ?', [req.params.id, req.userId]);
   res.json({ success: true });
 });
 
 // --- Cart Items ---
+
+/**
+ * Get all items in a specific cart
+ * @route GET /api/carts/:cartId/items
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.params.cartId - Cart ID
+ * @param {Object} res - Express response object
+ * @returns {Array} Array of cart items
+ */
 router.get('/:cartId/items', verifyToken, async (req, res) => {
   const [rows] = await db.query('SELECT * FROM cart_items WHERE cart_id = ?', [req.params.cartId]);
   res.json(rows);
 });
 
+/**
+ * Add item to a specific cart
+ * @route POST /api/carts/:cartId/items
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.params.cartId - Cart ID
+ * @param {number} req.body.product_id - Product ID to add
+ * @param {number} req.body.vendor_id - Vendor ID
+ * @param {number} req.body.quantity - Item quantity
+ * @param {number} req.body.price - Item price
+ * @param {Object} res - Express response object
+ * @returns {Object} Success confirmation
+ */
 router.post('/:cartId/items', verifyToken, async (req, res) => {
   const { product_id, vendor_id, quantity, price } = req.body;
   await db.query('INSERT INTO cart_items (cart_id, product_id, vendor_id, quantity, price) VALUES (?, ?, ?, ?, ?)', [req.params.cartId, product_id, vendor_id, quantity, price]);
   res.json({ success: true });
 });
 
+/**
+ * Update cart item quantity and price
+ * @route PUT /api/carts/:cartId/items/:itemId
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.params.cartId - Cart ID
+ * @param {string} req.params.itemId - Cart item ID
+ * @param {number} req.body.quantity - Updated quantity
+ * @param {number} req.body.price - Updated price
+ * @param {Object} res - Express response object
+ * @returns {Object} Success confirmation
+ */
 router.put('/:cartId/items/:itemId', verifyToken, async (req, res) => {
   const { quantity, price } = req.body;
   await db.query('UPDATE cart_items SET quantity = ?, price = ? WHERE id = ? AND cart_id = ?', [quantity, price, req.params.itemId, req.params.cartId]);
   res.json({ success: true });
 });
 
+/**
+ * Remove item from cart
+ * @route DELETE /api/carts/:cartId/items/:itemId
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.params.cartId - Cart ID
+ * @param {string} req.params.itemId - Cart item ID to remove
+ * @param {Object} res - Express response object
+ * @returns {Object} Success confirmation
+ */
 router.delete('/:cartId/items/:itemId', verifyToken, async (req, res) => {
   await db.query('DELETE FROM cart_items WHERE id = ? AND cart_id = ?', [req.params.itemId, req.params.cartId]);
   res.json({ success: true });
 });
 
-// --- Saved Items ---
+// --- Saved Items (Wishlist) ---
+
+/**
+ * Get all saved items for authenticated user (wishlist functionality)
+ * @route GET /api/carts/saved
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Array} Array of saved items
+ */
 router.get('/saved', verifyToken, async (req, res) => {
   const [rows] = await db.query('SELECT * FROM saved_items WHERE user_id = ?', [req.userId]);
   res.json(rows);
 });
 
+/**
+ * Save item for later (add to wishlist)
+ * @route POST /api/carts/saved
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {number} req.body.product_id - Product ID to save
+ * @param {number} req.body.quantity - Desired quantity
+ * @param {string} req.body.notes - Optional notes
+ * @param {string} req.body.collection_name - Collection to save to
+ * @param {Object} res - Express response object
+ * @returns {Object} Success confirmation
+ */
 router.post('/saved', verifyToken, async (req, res) => {
   const { product_id, quantity, notes, collection_name } = req.body;
   await db.query('INSERT INTO saved_items (user_id, product_id, quantity, notes, collection_name) VALUES (?, ?, ?, ?, ?)', [req.userId, product_id, quantity, notes, collection_name]);
   res.json({ success: true });
 });
 
+/**
+ * Update saved item details
+ * @route PUT /api/carts/saved/:id
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Saved item ID
+ * @param {number} req.body.quantity - Updated quantity
+ * @param {string} req.body.notes - Updated notes
+ * @param {string} req.body.collection_name - Updated collection name
+ * @param {Object} res - Express response object
+ * @returns {Object} Success confirmation
+ */
 router.put('/saved/:id', verifyToken, async (req, res) => {
   const { quantity, notes, collection_name } = req.body;
   await db.query('UPDATE saved_items SET quantity = ?, notes = ?, collection_name = ? WHERE id = ? AND user_id = ?', [quantity, notes, collection_name, req.params.id, req.userId]);
   res.json({ success: true });
 });
 
+/**
+ * Remove item from saved items (wishlist)
+ * @route DELETE /api/carts/saved/:id
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Saved item ID to remove
+ * @param {Object} res - Express response object
+ * @returns {Object} Success confirmation
+ */
 router.delete('/saved/:id', verifyToken, async (req, res) => {
   await db.query('DELETE FROM saved_items WHERE id = ? AND user_id = ?', [req.params.id, req.userId]);
   res.json({ success: true });
 });
 
-// POST /carts/add - Enhanced Add to Cart with Site Context (Multi-Cart Revolution!)
+/**
+ * Enhanced Add to Cart with Site Context (Multi-Cart Revolution!)
+ * Intelligently manages multi-site carts and guest/authenticated users
+ * @route POST /api/carts/add
+ * @access Public
+ * @param {Object} req - Express request object
+ * @param {number} req.body.product_id - Product ID to add
+ * @param {number} req.body.vendor_id - Vendor ID
+ * @param {number} req.body.quantity - Item quantity (default: 1)
+ * @param {number} req.body.price - Item price
+ * @param {string} req.body.guest_token - Guest identifier (required for unauthenticated users)
+ * @param {string} req.body.source_site_api_key - API key of originating site
+ * @param {string} req.body.source_site_name - Name of originating site
+ * @param {Object} res - Express response object
+ * @returns {Object} Cart information with added item details
+ */
 router.post('/add', async (req, res) => {
   try {
     // Check if user is authenticated or use guest token

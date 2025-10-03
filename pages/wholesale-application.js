@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { authenticatedApiRequest } from '../lib/csrf';
+import { getApiUrl } from '../lib/config';
 import styles from '../styles/WholesaleApplication.module.css';
 
 export default function WholesaleApplication() {
@@ -45,7 +46,7 @@ export default function WholesaleApplication() {
       setLoading(true);
 
       // Get user data
-      const userResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/users/me');
+      const userResponse = await authenticatedApiRequest(getApiUrl('api/users/me'));
       if (userResponse.ok) {
         const user = await userResponse.json();
         setUserData(user);
@@ -60,7 +61,7 @@ export default function WholesaleApplication() {
 
       // Check wholesale terms
       try {
-        const termsResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/wholesale/terms-check');
+        const termsResponse = await authenticatedApiRequest('api/subscriptions/wholesale/terms-check');
         if (termsResponse.ok) {
           const terms = await termsResponse.json();
           setTermsData(terms.latestTerms);
@@ -90,7 +91,7 @@ export default function WholesaleApplication() {
 
     try {
       setProcessing(true);
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/wholesale/terms-accept', {
+      const response = await authenticatedApiRequest('api/subscriptions/wholesale/terms-accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ terms_version_id: termsData.id })
@@ -123,7 +124,7 @@ export default function WholesaleApplication() {
     try {
       setProcessing(true);
 
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/wholesale/apply', {
+      const response = await authenticatedApiRequest('api/subscriptions/wholesale/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)

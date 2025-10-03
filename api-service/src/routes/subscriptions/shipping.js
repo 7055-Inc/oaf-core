@@ -5,20 +5,41 @@ const verifyToken = require('../../middleware/jwt');
 const { requirePermission } = require('../../middleware/permissions');
 const stripeService = require('../../services/stripeService');
 
+/**
+ * @fileoverview Shipping subscription management routes
+ * 
+ * Handles comprehensive shipping subscription functionality including:
+ * - Vendor address management for shipping labels
+ * - Terms and conditions acceptance tracking
+ * - Subscription lifecycle management (signup, activation, cancellation)
+ * - Payment method management and preferences
+ * - Shipping label purchase processing with dual payment methods
+ * - Label library management (order and standalone labels)
+ * - Purchase history and refund processing
+ * - Connect balance integration for vendor payments
+ * 
+ * @author Beemeeart Development Team
+ * @version 1.0.0
+ */
+
 // ============================================================================
 // SHIPPING SUBSCRIPTION MANAGEMENT
 // ============================================================================
 
 /**
  * Get vendor shipping settings for Ship From address prefill
- * GET /api/subscriptions/shipping/vendor-address
+ * @route GET /api/subscriptions/shipping/vendor-address
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Vendor shipping address details for label creation
  */
 router.get('/vendor-address', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
     
     // Check if user has vendor permission and shipping settings
-    const [vendorSettings] = await db.execute(`
+    const [vendorSettings] = await db.query(`
       SELECT 
         return_company_name as name,
         return_address_line_1 as street,
@@ -61,14 +82,18 @@ router.get('/vendor-address', verifyToken, async (req, res) => {
 
 /**
  * Check if user has accepted latest shipping terms
- * GET /api/subscriptions/shipping/terms-check
+ * @route GET /api/subscriptions/shipping/terms-check
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Terms acceptance status and latest terms details
  */
 router.get('/terms-check', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
     
     // Get latest shipping terms version
-    const [latestTerms] = await db.execute(`
+    const [latestTerms] = await db.query(`
       SELECT id, title, content, version, created_at
       FROM terms_versions 
       WHERE subscription_type = 'shipping_labels' AND is_current = 1
@@ -83,7 +108,7 @@ router.get('/terms-check', verifyToken, async (req, res) => {
     const terms = latestTerms[0];
 
     // Check if user has accepted these terms
-    const [acceptance] = await db.execute(`
+    const [acceptance] = await db.query(`
       SELECT id, accepted_at
       FROM user_terms_acceptance 
       WHERE user_id = ? AND subscription_type = 'shipping_labels' AND terms_version_id = ?
@@ -111,12 +136,16 @@ router.get('/terms-check', verifyToken, async (req, res) => {
 
 /**
  * Get current shipping terms content
- * GET /api/subscriptions/shipping/terms
+ * @route GET /api/subscriptions/shipping/terms
+ * @access Public
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Current shipping terms and conditions
  */
 router.get('/terms', async (req, res) => {
   try {
     // Get current shipping terms
-    const [terms] = await db.execute(`
+    const [terms] = await db.query(`
       SELECT id, version, title, content, created_at
       FROM terms_versions 
       WHERE is_current = TRUE AND subscription_type = 'shipping_labels'
@@ -140,14 +169,18 @@ router.get('/terms', async (req, res) => {
 
 /**
  * Get user's shipping subscription status
- * GET /api/subscriptions/shipping/my
+ * @route GET /api/subscriptions/shipping/my
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Complete shipping subscription details with purchase history
  */
 router.get('/my', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
     
     // Check if user has accepted shipping terms first
-    const [termsAcceptance] = await db.execute(`
+    const [termsAcceptance] = await db.query(`
       SELECT uta.id, uta.accepted_at
       FROM user_terms_acceptance uta
       JOIN terms_versions tv ON uta.terms_version_id = tv.id
@@ -159,7 +192,7 @@ router.get('/my', verifyToken, async (req, res) => {
     // Auto-grant permission logic: if user has card + terms, ensure they have permission
     if (hasAcceptedTerms) {
       // Check if user has any valid payment method (from any subscription)
-      const [anySubscription] = await db.execute(`
+      const [anySubscription] = await db.query(`
         SELECT stripe_customer_id FROM user_subscriptions 
         WHERE user_id = ? AND stripe_customer_id IS NOT NULL 
         LIMIT 1
@@ -167,14 +200,14 @@ router.get('/my', verifyToken, async (req, res) => {
 
       if (anySubscription.length > 0) {
         // User has card + terms - ensure permission AND active subscription
-        await db.execute(`
+        await db.query(`
           INSERT INTO user_permissions (user_id, shipping) 
           VALUES (?, 1) 
           ON DUPLICATE KEY UPDATE shipping = 1
         `, [userId]);
 
         // Also ensure they have an active shipping subscription
-        await db.execute(`
+        await db.query(`
           INSERT INTO user_subscriptions (
             user_id, stripe_customer_id, subscription_type, status, prefer_connect_balance
           ) VALUES (?, ?, 'shipping_labels', 'active', 0)
@@ -184,7 +217,7 @@ router.get('/my', verifyToken, async (req, res) => {
     }
 
     // NOW get user's shipping subscription (after ensuring it exists)
-    const [subscriptions] = await db.execute(`
+    const [subscriptions] = await db.query(`
       SELECT 
         us.*,
         up.shipping as has_permission
@@ -197,14 +230,14 @@ router.get('/my', verifyToken, async (req, res) => {
 
     if (subscriptions.length === 0) {
       // Check if user has permission but no active subscription
-      const [permissions] = await db.execute(
+      const [permissions] = await db.query(
         'SELECT shipping FROM user_permissions WHERE user_id = ?',
         [userId]
       );
 
       // Get card info even without active shipping subscription
       let cardLast4 = null;
-      const [anyCustomer] = await db.execute(`
+      const [anyCustomer] = await db.query(`
         SELECT stripe_customer_id FROM user_subscriptions 
         WHERE user_id = ? AND stripe_customer_id IS NOT NULL 
         LIMIT 1
@@ -255,7 +288,7 @@ router.get('/my', verifyToken, async (req, res) => {
     }
 
     // Get recent label purchases (last 10)
-    const [purchases] = await db.execute(`
+    const [purchases] = await db.query(`
       SELECT 
         slp.id,
         slp.amount,
@@ -272,7 +305,7 @@ router.get('/my', verifyToken, async (req, res) => {
     `, [subscription.id]);
 
     // Get Connect balance purchases from vendor_transactions
-    const [connectPurchasesRaw] = await db.execute(`
+    const [connectPurchasesRaw] = await db.query(`
       SELECT 
         vt.id,
         vt.amount,
@@ -353,7 +386,12 @@ router.get('/my', verifyToken, async (req, res) => {
 
 /**
  * Activate shipping subscription after payment setup
- * POST /api/subscriptions/shipping/activate
+ * @route POST /api/subscriptions/shipping/activate
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.body.setup_intent_id - Stripe setup intent ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Activation confirmation
  */
 router.post('/activate', verifyToken, async (req, res) => {
   try {
@@ -372,7 +410,7 @@ router.post('/activate', verifyToken, async (req, res) => {
     }
 
     // Check if user has accepted shipping terms
-    const [termsAcceptance] = await db.execute(`
+    const [termsAcceptance] = await db.query(`
       SELECT uta.id
       FROM user_terms_acceptance uta
       JOIN terms_versions tv ON uta.terms_version_id = tv.id
@@ -387,7 +425,7 @@ router.post('/activate', verifyToken, async (req, res) => {
     }
 
     // Find the subscription for this user
-    const [subscriptions] = await db.execute(
+    const [subscriptions] = await db.query(
       'SELECT id FROM user_subscriptions WHERE user_id = ? AND subscription_type = "shipping_labels" AND status = "incomplete"',
       [userId]
     );
@@ -397,13 +435,13 @@ router.post('/activate', verifyToken, async (req, res) => {
     }
 
     // Activate the subscription
-    await db.execute(
+    await db.query(
       'UPDATE user_subscriptions SET status = "active" WHERE id = ?',
       [subscriptions[0].id]
     );
 
     // Grant shipping permission
-    await db.execute(`
+    await db.query(`
       INSERT INTO user_permissions (user_id, shipping) 
       VALUES (?, 1) 
       ON DUPLICATE KEY UPDATE shipping = 1
@@ -422,7 +460,13 @@ router.post('/activate', verifyToken, async (req, res) => {
 
 /**
  * Check shipping subscription eligibility and setup
- * POST /api/subscriptions/shipping/signup
+ * @route POST /api/subscriptions/shipping/signup
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {boolean} req.body.preferConnectBalance - Prefer Connect balance for payments
+ * @param {boolean} req.body.acceptTerms - Accept shipping terms
+ * @param {Object} res - Express response object
+ * @returns {Object} Subscription setup details or activation confirmation
  */
 router.post('/signup', verifyToken, async (req, res) => {
   try {
@@ -430,7 +474,7 @@ router.post('/signup', verifyToken, async (req, res) => {
     const { preferConnectBalance = false, acceptTerms = false } = req.body;
 
     // Check if user already has an ACTIVE shipping subscription (ignore incomplete ones)
-    const [existing] = await db.execute(
+    const [existing] = await db.query(
       'SELECT id FROM user_subscriptions WHERE user_id = ? AND subscription_type = "shipping_labels" AND status = "active"',
       [userId]
     );
@@ -440,13 +484,13 @@ router.post('/signup', verifyToken, async (req, res) => {
     }
 
     // Clean up any incomplete shipping subscriptions for this user
-    await db.execute(
+    await db.query(
       'DELETE FROM user_subscriptions WHERE user_id = ? AND subscription_type = "shipping_labels" AND status = "incomplete"',
       [userId]
     );
 
     // Get user info
-    const [users] = await db.execute(
+    const [users] = await db.query(
       'SELECT username FROM users WHERE id = ?',
       [userId]
     );
@@ -463,7 +507,7 @@ router.post('/signup', verifyToken, async (req, res) => {
 
     try {
       // Look for existing Stripe customer from other subscriptions
-      const [existingCustomers] = await db.execute(
+      const [existingCustomers] = await db.query(
         'SELECT DISTINCT stripe_customer_id FROM user_subscriptions WHERE user_id = ? AND stripe_customer_id IS NOT NULL',
         [userId]
       );
@@ -488,7 +532,7 @@ router.post('/signup', verifyToken, async (req, res) => {
 
     if (hasValidPaymentMethod && acceptTerms) {
       // Record terms acceptance first
-      const [currentTerms] = await db.execute(`
+      const [currentTerms] = await db.query(`
         SELECT id FROM terms_versions 
         WHERE is_current = TRUE AND subscription_type = 'shipping_labels'
         ORDER BY created_at DESC LIMIT 1
@@ -496,13 +540,13 @@ router.post('/signup', verifyToken, async (req, res) => {
 
       if (currentTerms.length > 0) {
         // Check if not already accepted
-        const [existingAcceptance] = await db.execute(`
+        const [existingAcceptance] = await db.query(`
           SELECT id FROM user_terms_acceptance 
           WHERE user_id = ? AND subscription_type = 'shipping_labels' AND terms_version_id = ?
         `, [userId, currentTerms[0].id]);
 
         if (existingAcceptance.length === 0) {
-          await db.execute(`
+          await db.query(`
             INSERT INTO user_terms_acceptance (
               user_id, subscription_type, terms_version_id, accepted_at, ip_address, user_agent
             ) VALUES (?, 'shipping_labels', ?, CURRENT_TIMESTAMP, ?, ?)
@@ -511,14 +555,14 @@ router.post('/signup', verifyToken, async (req, res) => {
       }
 
       // User has card on file and accepted terms - activate immediately
-      const [result] = await db.execute(`
+      const [result] = await db.query(`
         INSERT INTO user_subscriptions (
           user_id, stripe_customer_id, subscription_type, status, prefer_connect_balance
         ) VALUES (?, ?, 'shipping_labels', 'active', ?)
       `, [userId, customer.id, preferConnectBalance ? 1 : 0]);
 
       // Grant shipping permission
-      await db.execute(`
+      await db.query(`
         INSERT INTO user_permissions (user_id, shipping) 
         VALUES (?, 1) 
         ON DUPLICATE KEY UPDATE shipping = 1
@@ -554,12 +598,12 @@ router.post('/signup', verifyToken, async (req, res) => {
         metadata: {
           user_id: userId.toString(),
           subscription_type: 'shipping_labels',
-          platform: 'oaf'
+          platform: 'beemeeart'
         }
       });
 
       // Create subscription record (status will be 'incomplete' until payment method is set up)
-      const [result] = await db.execute(`
+      const [result] = await db.query(`
         INSERT INTO user_subscriptions (
           user_id, stripe_customer_id, subscription_type, status, prefer_connect_balance
         ) VALUES (?, ?, 'shipping_labels', 'incomplete', ?)
@@ -588,7 +632,13 @@ router.post('/signup', verifyToken, async (req, res) => {
 
 /**
  * Accept shipping subscription terms
- * POST /api/subscriptions/shipping/accept-terms
+ * @route POST /api/subscriptions/shipping/accept-terms
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.body.ip_address - User's IP address for audit
+ * @param {string} req.body.user_agent - User's browser agent for audit
+ * @param {Object} res - Express response object
+ * @returns {Object} Terms acceptance confirmation
  */
 router.post('/accept-terms', verifyToken, async (req, res) => {
   try {
@@ -596,7 +646,7 @@ router.post('/accept-terms', verifyToken, async (req, res) => {
     const { ip_address, user_agent } = req.body;
 
     // Get current shipping terms version
-    const [currentTerms] = await db.execute(`
+    const [currentTerms] = await db.query(`
       SELECT id FROM terms_versions 
       WHERE is_current = TRUE AND subscription_type = 'shipping_labels'
       ORDER BY created_at DESC LIMIT 1
@@ -609,7 +659,7 @@ router.post('/accept-terms', verifyToken, async (req, res) => {
     const termsVersionId = currentTerms[0].id;
 
     // Check if user has already accepted these terms
-    const [existing] = await db.execute(`
+    const [existing] = await db.query(`
       SELECT id FROM user_terms_acceptance 
       WHERE user_id = ? AND subscription_type = 'shipping_labels' AND terms_version_id = ?
     `, [userId, termsVersionId]);
@@ -623,14 +673,14 @@ router.post('/accept-terms', verifyToken, async (req, res) => {
     }
 
     // Record terms acceptance
-    await db.execute(`
+    await db.query(`
       INSERT INTO user_terms_acceptance (
         user_id, subscription_type, terms_version_id, accepted_at, ip_address, user_agent
       ) VALUES (?, 'shipping_labels', ?, CURRENT_TIMESTAMP, ?, ?)
     `, [userId, termsVersionId, ip_address || null, user_agent || null]);
 
     // Check if user now meets all requirements for activation
-    const [subscriptions] = await db.execute(`
+    const [subscriptions] = await db.query(`
       SELECT id, stripe_customer_id FROM user_subscriptions 
       WHERE user_id = ? AND subscription_type = 'shipping_labels' AND status = 'incomplete'
     `, [userId]);
@@ -650,24 +700,24 @@ router.post('/accept-terms', verifyToken, async (req, res) => {
 
           if (paymentMethods.data.length > 0) {
             // User has both terms and payment method - activate subscription
-            await db.execute('START TRANSACTION');
+            await db.query('START TRANSACTION');
             
             try {
-              await db.execute(
+              await db.query(
                 'UPDATE user_subscriptions SET status = "active" WHERE id = ?',
                 [subscription.id]
               );
               
-              await db.execute(`
+              await db.query(`
                 INSERT INTO user_permissions (user_id, shipping) 
                 VALUES (?, 1) 
                 ON DUPLICATE KEY UPDATE shipping = 1
               `, [userId]);
               
-              await db.execute('COMMIT');
+              await db.query('COMMIT');
               activated = true;
             } catch (error) {
-              await db.execute('ROLLBACK');
+              await db.query('ROLLBACK');
               throw error;
             }
           }
@@ -692,7 +742,12 @@ router.post('/accept-terms', verifyToken, async (req, res) => {
 
 /**
  * Update payment method preferences
- * PUT /api/subscriptions/shipping/preferences
+ * @route PUT /api/subscriptions/shipping/preferences
+ * @access Private (requires shipping permission)
+ * @param {Object} req - Express request object
+ * @param {boolean} req.body.preferConnectBalance - Prefer Connect balance for payments
+ * @param {Object} res - Express response object
+ * @returns {Object} Updated preferences confirmation
  */
 router.put('/preferences', verifyToken, requirePermission('shipping'), async (req, res) => {
   try {
@@ -703,7 +758,7 @@ router.put('/preferences', verifyToken, requirePermission('shipping'), async (re
     const allowConnectBalance = req.permissions && req.permissions.includes('stripe_connect') 
       ? preferConnectBalance : false;
 
-    const [result] = await db.execute(`
+    const [result] = await db.query(`
       UPDATE user_subscriptions 
       SET prefer_connect_balance = ?, updated_at = CURRENT_TIMESTAMP
       WHERE user_id = ? AND subscription_type = 'shipping_labels'
@@ -727,14 +782,18 @@ router.put('/preferences', verifyToken, requirePermission('shipping'), async (re
 
 /**
  * Update payment method (create new setup intent)
- * POST /api/subscriptions/shipping/update-payment-method
+ * @route POST /api/subscriptions/shipping/update-payment-method
+ * @access Private (requires shipping permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Setup intent for payment method update
  */
 router.post('/update-payment-method', verifyToken, requirePermission('shipping'), async (req, res) => {
   try {
     const userId = req.userId;
 
     // Get user's subscription
-    const [subscriptions] = await db.execute(
+    const [subscriptions] = await db.query(
       'SELECT stripe_customer_id FROM user_subscriptions WHERE user_id = ? AND subscription_type = "shipping_labels" AND status = "active"',
       [userId]
     );
@@ -754,7 +813,7 @@ router.post('/update-payment-method', verifyToken, requirePermission('shipping')
         user_id: userId.toString(),
         subscription_type: 'shipping_labels',
         action: 'update_payment_method',
-        platform: 'oaf'
+        platform: 'beemeeart'
       }
     });
 
@@ -775,30 +834,34 @@ router.post('/update-payment-method', verifyToken, requirePermission('shipping')
 
 /**
  * Cancel shipping subscription
- * DELETE /api/subscriptions/shipping/cancel
+ * @route DELETE /api/subscriptions/shipping/cancel
+ * @access Private (requires shipping permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Cancellation confirmation
  */
 router.delete('/cancel', verifyToken, requirePermission('shipping'), async (req, res) => {
   try {
     const userId = req.userId;
 
     // Update subscription status and revoke permission
-    await db.execute('START TRANSACTION');
+    await db.query('START TRANSACTION');
 
     try {
       // Cancel subscription
-      await db.execute(`
+      await db.query(`
         UPDATE user_subscriptions 
         SET status = 'canceled', canceled_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
         WHERE user_id = ? AND subscription_type = 'shipping_labels'
       `, [userId]);
 
       // Revoke shipping permission
-      await db.execute(
+      await db.query(
         'UPDATE user_permissions SET shipping = 0 WHERE user_id = ?',
         [userId]
       );
 
-      await db.execute('COMMIT');
+      await db.query('COMMIT');
 
       res.json({
         success: true,
@@ -806,7 +869,7 @@ router.delete('/cancel', verifyToken, requirePermission('shipping'), async (req,
       });
 
     } catch (error) {
-      await db.execute('ROLLBACK');
+      await db.query('ROLLBACK');
       throw error;
     }
 
@@ -822,7 +885,13 @@ router.delete('/cancel', verifyToken, requirePermission('shipping'), async (req,
 
 /**
  * Process payment for shipping label
- * POST /api/subscriptions/shipping/purchase-label
+ * @route POST /api/subscriptions/shipping/purchase-label
+ * @access Private (requires shipping permission)
+ * @param {Object} req - Express request object
+ * @param {number} req.body.shippingLabelId - Shipping label ID to purchase
+ * @param {number} req.body.amount - Payment amount
+ * @param {Object} res - Express response object
+ * @returns {Object} Payment processing result
  */
 router.post('/purchase-label', verifyToken, requirePermission('shipping'), async (req, res) => {
   try {
@@ -834,7 +903,7 @@ router.post('/purchase-label', verifyToken, requirePermission('shipping'), async
     }
 
     // Get user's subscription
-    const [subscriptions] = await db.execute(`
+    const [subscriptions] = await db.query(`
       SELECT id, stripe_customer_id, prefer_connect_balance 
       FROM user_subscriptions 
       WHERE user_id = ? AND subscription_type = 'shipping_labels' AND status = 'active'
@@ -847,7 +916,7 @@ router.post('/purchase-label', verifyToken, requirePermission('shipping'), async
     const subscription = subscriptions[0];
 
     // Verify shipping label exists and belongs to user
-    const [labels] = await db.execute(
+    const [labels] = await db.query(
       'SELECT id, cost, vendor_id FROM shipping_labels WHERE id = ? AND vendor_id = ?',
       [shippingLabelId, userId]
     );
@@ -876,14 +945,14 @@ router.post('/purchase-label', verifyToken, requirePermission('shipping'), async
 
         if (paymentResult.success) {
           // Create vendor transaction record
-          const [vtResult] = await db.execute(`
+          const [vtResult] = await db.query(`
             INSERT INTO vendor_transactions (
               vendor_id, transaction_type, amount, status, created_at
             ) VALUES (?, 'shipping_charge', ?, 'completed', CURRENT_TIMESTAMP)
           `, [userId, amount]);
 
           // Link to shipping label
-          await db.execute(
+          await db.query(
             'UPDATE shipping_labels SET vendor_transaction_id = ? WHERE id = ?',
             [vtResult.insertId, shippingLabelId]
           );
@@ -914,12 +983,12 @@ router.post('/purchase-label', verifyToken, requirePermission('shipping'), async
         user_id: userId.toString(),
         shipping_label_id: shippingLabelId.toString(),
         subscription_id: subscription.id.toString(),
-        platform: 'oaf'
+        platform: 'beemeeart'
       }
     });
 
     // Create shipping label purchase record
-    const [purchaseResult] = await db.execute(`
+    const [purchaseResult] = await db.query(`
       INSERT INTO shipping_label_purchases (
         subscription_id, shipping_label_id, stripe_payment_intent_id, 
         amount, status, payment_method
@@ -928,7 +997,7 @@ router.post('/purchase-label', verifyToken, requirePermission('shipping'), async
 
     if (paymentIntent.status === 'succeeded') {
       // Update purchase status
-      await db.execute(
+      await db.query(
         'UPDATE shipping_label_purchases SET status = "succeeded" WHERE id = ?',
         [purchaseResult.insertId]
       );
@@ -974,14 +1043,18 @@ router.post('/purchase-label', verifyToken, requirePermission('shipping'), async
 
 /**
  * Get unified label library (both order and standalone labels)
- * GET /api/subscriptions/shipping/all-labels
+ * @route GET /api/subscriptions/shipping/all-labels
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Combined list of order and standalone shipping labels
  */
 router.get('/all-labels', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
 
     // Get all labels for this user (both order and standalone) - based on working /my-labels endpoint
-    const [allLabels] = await db.execute(`
+    const [allLabels] = await db.query(`
       (SELECT 
         sl.id as db_id,
         'order' as type,
@@ -1037,14 +1110,18 @@ router.get('/all-labels', verifyToken, async (req, res) => {
 
 /**
  * Get standalone label library
- * GET /api/subscriptions/shipping/standalone-labels
+ * @route GET /api/subscriptions/shipping/standalone-labels
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} List of standalone shipping labels
  */
 router.get('/standalone-labels', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
 
     // Get standalone labels for this user
-    const [standaloneLabels] = await db.execute(`
+    const [standaloneLabels] = await db.query(`
       SELECT 
         sl.id as db_id,
         'standalone' as type,
@@ -1076,7 +1153,13 @@ router.get('/standalone-labels', verifyToken, async (req, res) => {
 
 /**
  * Get shipping label purchase history
- * GET /api/subscriptions/shipping/purchases
+ * @route GET /api/subscriptions/shipping/purchases
+ * @access Private (requires shipping permission)
+ * @param {Object} req - Express request object
+ * @param {number} req.query.limit - Number of records to return (default: 50)
+ * @param {number} req.query.offset - Number of records to skip (default: 0)
+ * @param {Object} res - Express response object
+ * @returns {Object} Purchase history with card and Connect balance transactions
  */
 router.get('/purchases', verifyToken, requirePermission('shipping'), async (req, res) => {
   try {
@@ -1084,7 +1167,7 @@ router.get('/purchases', verifyToken, requirePermission('shipping'), async (req,
     const { limit = 50, offset = 0 } = req.query;
 
     // Get user's subscription
-    const [subscriptions] = await db.execute(
+    const [subscriptions] = await db.query(
       'SELECT id FROM user_subscriptions WHERE user_id = ? AND subscription_type = "shipping_labels" AND status = "active"',
       [userId]
     );
@@ -1096,7 +1179,7 @@ router.get('/purchases', verifyToken, requirePermission('shipping'), async (req,
     const subscriptionId = subscriptions[0].id;
 
     // Get card purchases
-    const [cardPurchases] = await db.execute(`
+    const [cardPurchases] = await db.query(`
       SELECT 
         slp.id,
         slp.amount,
@@ -1116,7 +1199,7 @@ router.get('/purchases', verifyToken, requirePermission('shipping'), async (req,
     `, [subscriptionId, parseInt(limit), parseInt(offset)]);
 
     // Get Connect balance purchases
-    const [connectPurchases] = await db.execute(`
+    const [connectPurchases] = await db.query(`
       SELECT 
         vt.id,
         vt.amount,
@@ -1176,7 +1259,14 @@ router.get('/purchases', verifyToken, requirePermission('shipping'), async (req,
 
 /**
  * Process refund for shipping label purchase
- * POST /api/subscriptions/shipping/refund
+ * @route POST /api/subscriptions/shipping/refund
+ * @access Private (requires shipping permission)
+ * @param {Object} req - Express request object
+ * @param {number} req.body.purchaseId - Purchase ID to refund
+ * @param {number} req.body.amount - Refund amount
+ * @param {string} req.body.reason - Refund reason
+ * @param {Object} res - Express response object
+ * @returns {Object} Refund processing result
  */
 router.post('/refund', verifyToken, requirePermission('shipping'), async (req, res) => {
   try {
@@ -1188,7 +1278,7 @@ router.post('/refund', verifyToken, requirePermission('shipping'), async (req, r
     }
 
     // Get purchase details
-    const [purchases] = await db.execute(`
+    const [purchases] = await db.query(`
       SELECT 
         slp.id, slp.stripe_payment_intent_id, slp.amount as total_amount,
         slp.status, slp.payment_method,
@@ -1216,7 +1306,7 @@ router.post('/refund', verifyToken, requirePermission('shipping'), async (req, r
 
     if (purchase.payment_method === 'connect_balance') {
       // For Connect balance, create reversing vendor_transaction
-      const [vtResult] = await db.execute(`
+      const [vtResult] = await db.query(`
         INSERT INTO vendor_transactions (
           vendor_id, transaction_type, amount, status, reference_id, created_at
         ) VALUES (?, 'shipping_refund', ?, 'completed', ?, CURRENT_TIMESTAMP)
@@ -1240,7 +1330,7 @@ router.post('/refund', verifyToken, requirePermission('shipping'), async (req, r
 
     // Update purchase status (if full refund)
     const newStatus = amount === purchase.total_amount ? 'refunded' : 'partially_refunded';
-    await db.execute(`
+    await db.query(`
       UPDATE shipping_label_purchases 
       SET status = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
@@ -1260,7 +1350,16 @@ router.post('/refund', verifyToken, requirePermission('shipping'), async (req, r
 
 /**
  * Create standalone shipping label (not attached to order)
- * POST /api/subscriptions/shipping/create-standalone-label
+ * @route POST /api/subscriptions/shipping/create-standalone-label
+ * @access Private (requires shipping permission)
+ * @param {Object} req - Express request object
+ * @param {Object} req.body.shipper_address - Sender address details
+ * @param {Object} req.body.recipient_address - Recipient address details
+ * @param {Array} req.body.packages - Package specifications
+ * @param {Object} req.body.selected_rate - Selected shipping rate
+ * @param {boolean} req.body.force_card_payment - Force card payment over Connect balance
+ * @param {Object} res - Express response object
+ * @returns {Object} Created label details and payment confirmation
  */
 router.post('/create-standalone-label', verifyToken, requirePermission('shipping'), async (req, res) => {
   try {
@@ -1272,7 +1371,7 @@ router.post('/create-standalone-label', verifyToken, requirePermission('shipping
     }
 
     // Get user's subscription
-    const [subscriptions] = await db.execute(`
+    const [subscriptions] = await db.query(`
       SELECT id, stripe_customer_id, prefer_connect_balance 
       FROM user_subscriptions 
       WHERE user_id = ? AND subscription_type = 'shipping_labels' AND status = 'active'
@@ -1341,7 +1440,7 @@ router.post('/create-standalone-label', verifyToken, requirePermission('shipping
           user_id: userId.toString(),
           subscription_id: subscription.id.toString(),
           label_type: 'standalone',
-          platform: 'oaf'
+          platform: 'beemeeart'
         }
       });
 
@@ -1373,14 +1472,14 @@ router.post('/create-standalone-label', verifyToken, requirePermission('shipping
     // Record payment in appropriate table
     if (paymentMethod === 'connect_balance') {
       // Create vendor transaction record (for standalone labels, this tracks the payment)
-      const [vtResult] = await db.execute(`
+      const [vtResult] = await db.query(`
         INSERT INTO vendor_transactions (
           vendor_id, transaction_type, amount, status, created_at
         ) VALUES (?, 'shipping_charge', ?, 'completed', CURRENT_TIMESTAMP)
       `, [userId, selected_rate.cost]);
 
       // For standalone labels, record the Connect balance payment
-      await db.execute(`
+      await db.query(`
         INSERT INTO shipping_label_purchases (
           subscription_id, shipping_label_id, stripe_payment_intent_id, 
           amount, status, payment_method
@@ -1388,7 +1487,7 @@ router.post('/create-standalone-label', verifyToken, requirePermission('shipping
       `, [subscription.id, labelData.labelId, selected_rate.cost]);
     } else {
       // Create shipping label purchase record for card payments
-      await db.execute(`
+      await db.query(`
         INSERT INTO shipping_label_purchases (
           subscription_id, shipping_label_id, stripe_payment_intent_id, 
           amount, status, payment_method

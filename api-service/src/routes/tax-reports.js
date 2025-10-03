@@ -5,8 +5,32 @@ const db = require('../../config/db');
 const router = express.Router();
 
 /**
+ * @fileoverview Tax reporting routes
+ * 
+ * Handles comprehensive tax reporting functionality including:
+ * - Vendor-specific tax summaries and state breakdowns
+ * - Platform-wide tax reporting and analytics
+ * - Multi-vendor tax report aggregation
+ * - Order tax summary backfill operations
+ * - State-by-state tax compliance reporting
+ * 
+ * All endpoints require authentication and provide detailed tax information
+ * for compliance, accounting, and business intelligence purposes.
+ * 
+ * @author Beemeeart Development Team
+ * @version 1.0.0
+ */
+
+/**
  * Get vendor tax summary for a specific period
- * GET /api/tax-reports/vendor/:vendorId/:period
+ * @route GET /api/tax-reports/vendor/:vendorId/:period
+ * @access Private (requires authentication)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.vendorId - Vendor ID
+ * @param {string} req.params.period - Report period in YYYY-MM format
+ * @param {Object} res - Express response object
+ * @returns {Object} Comprehensive vendor tax summary with state-by-state breakdown
+ * @description Generates detailed tax report for specific vendor including total sales, tax collected, and state breakdown
  */
 router.get('/vendor/:vendorId/:period', verifyToken, async (req, res) => {
   try {
@@ -39,7 +63,13 @@ router.get('/vendor/:vendorId/:period', verifyToken, async (req, res) => {
 
 /**
  * Get all vendor tax summaries for a period
- * GET /api/tax-reports/vendors/:period
+ * @route GET /api/tax-reports/vendors/:period
+ * @access Private (requires authentication)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.period - Report period in YYYY-MM format
+ * @param {Object} res - Express response object
+ * @returns {Object} Aggregated tax summaries for all vendors with platform totals
+ * @description Retrieves tax summaries for all vendors in specified period, ordered by tax collected
  */
 router.get('/vendors/:period', verifyToken, async (req, res) => {
   try {
@@ -79,7 +109,12 @@ router.get('/vendors/:period', verifyToken, async (req, res) => {
 
 /**
  * Backfill order tax summaries for existing orders
- * POST /api/tax-reports/backfill
+ * @route POST /api/tax-reports/backfill
+ * @access Private (requires authentication)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Backfill operation results and statistics
+ * @description Processes existing orders to generate missing tax summaries for historical data
  */
 router.post('/backfill', verifyToken, async (req, res) => {
   try {
@@ -99,7 +134,13 @@ router.post('/backfill', verifyToken, async (req, res) => {
 
 /**
  * Get platform tax overview for a period
- * GET /api/tax-reports/platform/:period
+ * @route GET /api/tax-reports/platform/:period
+ * @access Private (requires authentication)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.period - Report period in YYYY-MM format
+ * @param {Object} res - Express response object
+ * @returns {Object} Platform-wide tax summary with state breakdown and analytics
+ * @description Provides comprehensive platform tax overview including total sales, tax collected, and state-by-state analysis
  */
 router.get('/platform/:period', verifyToken, async (req, res) => {
   try {

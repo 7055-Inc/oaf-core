@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest, refreshAuthToken } from '../../../../../lib/csrf';
+import { authApiRequest } from '../../../../../lib/apiUtils';
 import StripeCardSetup from '../../../../stripe/StripeCardSetup';
 
 export default function MarketplacePricingTiers({ userData, onSubscriptionSuccess }) {
@@ -44,7 +45,7 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
       
       // Fetch marketplace subscription status
       const statusResponse = await authenticatedApiRequest(
-        'https://api2.onlineartfestival.com/api/subscriptions/marketplace/status'
+        'api/subscriptions/marketplace/status'
       );
       
       if (statusResponse.ok) {
@@ -54,7 +55,7 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
       
       // Fetch terms data
       const termsResponse = await authenticatedApiRequest(
-        'https://api2.onlineartfestival.com/api/subscriptions/marketplace/terms-check'
+        'api/subscriptions/marketplace/terms-check'
       );
       
       if (termsResponse.ok) {
@@ -76,7 +77,7 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
       setProcessing(true);
       
       const response = await authenticatedApiRequest(
-        'https://api2.onlineartfestival.com/api/subscriptions/marketplace/terms-accept',
+        'api/subscriptions/marketplace/terms-accept',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -109,7 +110,7 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
     
     // Load user profile data
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/users/me');
+      const response = await authenticatedApiRequest('users/me');
       if (response.ok) {
         const profileData = await response.json();
         setUserProfile(profileData);
@@ -163,7 +164,7 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
       }
 
       // Submit everything to the enhanced /users/me PATCH endpoint
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/users/me', {
+      const response = await authenticatedApiRequest('users/me', {
         method: 'PATCH',
         body: formData // multipart form data, no Content-Type header needed
       });

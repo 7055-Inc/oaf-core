@@ -1,7 +1,8 @@
 // Manage My Store Menu Component
 // This file contains ONLY the menu building logic for Manage My Store section
 import React, { useState, useEffect } from 'react';
-import { authenticatedApiRequest } from '../../../lib/csrf';
+import { authApiRequest, API_ENDPOINTS } from '../../../lib/apiUtils';
+import { hasPermission, hasAddon } from '../../../lib/userUtils';
 import styles from '../../../pages/dashboard/Dashboard.module.css';
 
 export default function ManageMyStoreMenu({ 
@@ -29,7 +30,7 @@ export default function ManageMyStoreMenu({
 
   const loadShortcuts = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/dashboard-widgets/widget-data/my_shortcuts');
+      const response = await authApiRequest(`${API_ENDPOINTS.DASHBOARD_WIDGETS_DATA}/my_shortcuts`);
       if (response.ok) {
         const result = await response.json();
         setShortcuts(result.data.shortcuts || []);
@@ -44,7 +45,7 @@ export default function ManageMyStoreMenu({
     
     setLoading(true);
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/dashboard-widgets/shortcuts/add', {
+      const response = await authApiRequest(API_ENDPOINTS.DASHBOARD_WIDGETS_SHORTCUT_ADD, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ shortcut })
@@ -74,7 +75,7 @@ export default function ManageMyStoreMenu({
     setLoading(true);
     try {
       // Get current layout to find next available position
-      const layoutResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/dashboard-widgets/layout');
+      const layoutResponse = await authApiRequest(API_ENDPOINTS.DASHBOARD_WIDGETS_LAYOUT);
       if (!layoutResponse.ok) throw new Error('Failed to get layout');
       
       const layoutData = await layoutResponse.json();
@@ -92,7 +93,7 @@ export default function ManageMyStoreMenu({
       const nextRow = maxRow + 1;
       
       // Simple INSERT - just add the new widget
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/dashboard-widgets/add-widget', {
+      const response = await authApiRequest(API_ENDPOINTS.DASHBOARD_WIDGETS_ADD, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -117,6 +118,10 @@ export default function ManageMyStoreMenu({
   };
   if (!userData) return null;
   
+  // Only show to users with vendor or sites permissions
+  const hasStoreAccess = hasPermission(userData, 'vendor') || hasPermission(userData, 'sites');
+  if (!hasStoreAccess) return null;
+  
   return (
     <div className={styles.sidebarSection}>
       <h3 
@@ -127,105 +132,140 @@ export default function ManageMyStoreMenu({
       </h3>
       {!collapsedSections['manage-my-store'] && (
         <ul>
-          <li>
-            <div className={styles.menuItemContent}>
-              <button 
-                className={styles.sidebarLink}
-                onClick={() => openSlideIn('my-products', { title: 'My Products' })}
-              >
-                My Products
-              </button>
-              <button
-                className={styles.addShortcutButton}
-                onClick={() => addWidget('my_products')}
-                disabled={loading}
-                title="Add My Products widget"
-              >
-                <i className="fas fa-plus"></i>
-              </button>
-            </div>
-          </li>
-          <li>
-            <div className={styles.menuItemContent}>
-              <button 
-                className={styles.sidebarLink}
-                onClick={() => openSlideIn('add-product', { title: 'Add New Product' })}
-              >
-                Add New Product
-              </button>
-              {!hasShortcut('add-product') && (
+          {/* My Products - vendor or sites permission */}
+          {(hasPermission(userData, 'vendor') || hasPermission(userData, 'sites')) && (
+            <li>
+              <div className={styles.menuItemContent}>
+                <button 
+                  className={styles.sidebarLink}
+                  onClick={() => openSlideIn('my-products', { title: 'My Products' })}
+                >
+                  My Products
+                </button>
                 <button
                   className={styles.addShortcutButton}
-                  onClick={() => addShortcut({
-                    id: 'add-product',
-                    label: 'Add New Product',
-                    icon: 'fas fa-plus-circle',
-                    slideInType: 'add-product'
-                  })}
+                  onClick={() => addWidget('my_products')}
                   disabled={loading}
-                  title="Add to shortcuts"
+                  title="Add My Products widget"
                 >
                   <i className="fas fa-plus"></i>
                 </button>
-              )}
-            </div>
-          </li>
-          <li>
-            <button 
-              className={styles.sidebarLink}
-              onClick={() => openSlideIn('my-policies', { title: 'My Policies' })}
-            >
-              My Policies
-            </button>
-          </li>
-          <li>
-            <button 
-              className={styles.sidebarLink}
-              onClick={() => openSlideIn('manage-inventory', { title: 'Manage Inventory' })}
-            >
-              Manage Inventory
-            </button>
-          </li>
-          <li>
-            <button 
-              className={`${styles.sidebarLink} ${styles.nestedMenuItem}`}
-              onClick={() => openSlideIn('inventory-log', { title: 'Inventory Log' })}
-            >
-              └── Inventory Log
-            </button>
-          </li>
-          <li>
-            <button 
-              className={styles.sidebarLink}
-              onClick={() => openSlideIn('manage-orders', { title: 'Manage Orders' })}
-            >
-              Manage Orders
-            </button>
-          </li>
-          <li>
-            <button 
-              className={styles.sidebarLink}
-              onClick={() => openSlideIn('tiktok-connector', { title: 'TikTok Connector' })}
-            >
-              TikTok Connector
-            </button>
-          </li>
-          <li>
-            <button 
-              className={styles.sidebarLink}
-              onClick={() => openSlideIn('my-articles', { title: 'Articles & Pages' })}
-            >
-              Articles & Pages
-            </button>
-          </li>
-          <li>
-            <button 
-              className={styles.sidebarLink}
-              onClick={() => openSlideIn('manage-promotions', { title: 'Promotions' })}
-            >
-              Promotions
-            </button>
-          </li>
+              </div>
+            </li>
+          )}
+          
+          {/* Add New Product - vendor or sites permission */}
+          {(hasPermission(userData, 'vendor') || hasPermission(userData, 'sites')) && (
+            <li>
+              <div className={styles.menuItemContent}>
+                <button 
+                  className={styles.sidebarLink}
+                  onClick={() => openSlideIn('add-product', { title: 'Add New Product' })}
+                >
+                  Add New Product
+                </button>
+                {!hasShortcut('add-product') && (
+                  <button
+                    className={styles.addShortcutButton}
+                    onClick={() => addShortcut({
+                      id: 'add-product',
+                      label: 'Add New Product',
+                      icon: 'fas fa-plus-circle',
+                      slideInType: 'add-product'
+                    })}
+                    disabled={loading}
+                    title="Add to shortcuts"
+                  >
+                    <i className="fas fa-plus"></i>
+                  </button>
+                )}
+              </div>
+            </li>
+          )}
+          
+          {/* My Policies - vendor or sites permission */}
+          {(hasPermission(userData, 'vendor') || hasPermission(userData, 'sites')) && (
+            <li>
+              <button 
+                className={styles.sidebarLink}
+                onClick={() => openSlideIn('my-policies', { title: 'My Policies' })}
+              >
+                My Policies
+              </button>
+            </li>
+          )}
+          
+          {/* Manage Inventory - vendor or sites permission */}
+          {(hasPermission(userData, 'vendor') || hasPermission(userData, 'sites')) && (
+            <li>
+              <button 
+                className={styles.sidebarLink}
+                onClick={() => openSlideIn('manage-inventory', { title: 'Manage Inventory' })}
+              >
+                Manage Inventory
+              </button>
+            </li>
+          )}
+          
+          {/* Inventory Log - vendor or sites permission */}
+          {(hasPermission(userData, 'vendor') || hasPermission(userData, 'sites')) && (
+            <li>
+              <button 
+                className={`${styles.sidebarLink} ${styles.nestedMenuItem}`}
+                onClick={() => openSlideIn('inventory-log', { title: 'Inventory Log' })}
+              >
+                └── Inventory Log
+              </button>
+            </li>
+          )}
+          
+          {/* Manage Orders - vendor or sites permission */}
+          {(hasPermission(userData, 'vendor') || hasPermission(userData, 'sites')) && (
+            <li>
+              <button 
+                className={styles.sidebarLink}
+                onClick={() => openSlideIn('manage-orders', { title: 'Manage Orders' })}
+              >
+                Manage Orders
+              </button>
+            </li>
+          )}
+          
+          {/* TikTok Connector - only show if user has purchased the tiktok-connector addon */}
+          {hasAddon(userData, 'tiktok-connector') && (
+            <li>
+              <button 
+                className={styles.sidebarLink}
+                onClick={() => openSlideIn('tiktok-connector', { title: 'TikTok Connector' })}
+              >
+                TikTok Connector
+              </button>
+            </li>
+          )}
+          
+          {/* Articles & Pages - sites permission only */}
+          {hasPermission(userData, 'sites') && (
+            <li>
+              <button 
+                className={styles.sidebarLink}
+                onClick={() => openSlideIn('my-articles', { title: 'Articles & Pages' })}
+              >
+                Articles & Pages
+              </button>
+            </li>
+          )}
+          
+          {/* Promotions - vendor permission only */}
+          {hasPermission(userData, 'vendor') && (
+            <li>
+              <button 
+                className={styles.sidebarLink}
+                onClick={() => openSlideIn('manage-promotions', { title: 'Promotions' })}
+              >
+                Promotions
+              </button>
+            </li>
+          )}
         </ul>
       )}
     </div>

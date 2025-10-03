@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import styles from './PersonaManager.module.css';
+import { getApiUrl } from '../lib/config';
 
 export default function PersonaManager() {
   const [personas, setPersonas] = useState([]);
@@ -29,7 +30,7 @@ export default function PersonaManager() {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      const response = await fetch('https://api2.onlineartfestival.com/api/personas', {
+      const response = await fetch('api/personas', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -71,8 +72,8 @@ export default function PersonaManager() {
 
       const token = localStorage.getItem('token');
       const url = editingPersona 
-        ? `https://api2.onlineartfestival.com/api/personas/${editingPersona.id}`
-        : 'https://api2.onlineartfestival.com/api/personas';
+        ? `api/personas/${editingPersona.id}`
+        : 'api/personas';
       
       const method = editingPersona ? 'PUT' : 'POST';
 
@@ -118,7 +119,7 @@ export default function PersonaManager() {
   const handleSetDefault = async (personaId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`https://api2.onlineartfestival.com/api/personas/${personaId}/set-default`, {
+      const response = await fetch(`api/personas/${personaId}/set-default`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -143,7 +144,7 @@ export default function PersonaManager() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`https://api2.onlineartfestival.com/api/personas/${personaId}`, {
+      const response = await fetch(`api/personas/${personaId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

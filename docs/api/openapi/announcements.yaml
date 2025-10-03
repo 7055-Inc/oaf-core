@@ -1,0 +1,592 @@
+openapi: 3.0.0
+info:
+  title: System Announcements API
+  description: Comprehensive system announcement management for platform-wide communications and user notifications
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/api
+    description: Production server
+
+paths:
+  /announcements/check-pending:
+    get:
+      summary: Check pending announcements
+      description: Check if authenticated user has unacknowledged announcements
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingCheckResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /announcements/pending:
+    get:
+      summary: Get pending announcements
+      description: Get all pending announcements for authenticated user based on user type
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Announcement'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /announcements:
+    get:
+      summary: Get all announcements (admin)
+      description: Get all announcements for administrative management
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AnnouncementWithCreator'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/InsufficientPermissions'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      summary: Create announcement (admin)
+      description: Create new system announcement
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnnouncementCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/InsufficientPermissions'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /announcements/{id}:
+    put:
+      summary: Update announcement (admin)
+      description: Update existing announcement
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Announcement ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnnouncementUpdate'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/InsufficientPermissions'
+        '404':
+          $ref: '#/components/responses/AnnouncementNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      summary: Delete announcement (admin)
+      description: Delete announcement and all related acknowledgments
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Announcement ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/InsufficientPermissions'
+        '404':
+          $ref: '#/components/responses/AnnouncementNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /announcements/{id}/stats:
+    get:
+      summary: Get announcement statistics (admin)
+      description: Get comprehensive statistics for announcement
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Announcement ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnnouncementStatsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/InsufficientPermissions'
+        '404':
+          $ref: '#/components/responses/AnnouncementNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /announcements/{id}/acknowledge:
+    post:
+      summary: Acknowledge announcement
+      description: Mark announcement as acknowledged by authenticated user
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Announcement ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/WrongUserType'
+        '404':
+          $ref: '#/components/responses/AnnouncementNotFoundOrExpired'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /announcements/{id}/remind-later:
+    post:
+      summary: Set reminder for announcement
+      description: Set reminder for announcement without acknowledging
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Announcement ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/WrongUserType'
+        '404':
+          $ref: '#/components/responses/AnnouncementNotFoundOrExpired'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Bearer token authentication
+
+  schemas:
+    UserType:
+      type: string
+      enum: [artist, promoter, community, admin]
+      description: Valid user types for targeting
+
+    Announcement:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Announcement ID
+        title:
+          type: string
+          description: Announcement title
+        content:
+          type: string
+          description: Announcement content/message
+        show_from:
+          type: string
+          format: date-time
+          description: Start date/time for display
+        expires_at:
+          type: string
+          format: date-time
+          description: Expiration date/time
+        target_user_types:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserType'
+          description: Target user types
+        is_active:
+          type: boolean
+          description: Active status
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    AnnouncementWithCreator:
+      allOf:
+        - $ref: '#/components/schemas/Announcement'
+        - type: object
+          properties:
+            created_by:
+              type: integer
+              description: Creator user ID
+            created_by_username:
+              type: string
+              description: Creator username
+
+    AnnouncementCreate:
+      type: object
+      required:
+        - title
+        - content
+        - show_from
+        - expires_at
+        - target_user_types
+      properties:
+        title:
+          type: string
+          description: Announcement title
+          example: "Platform Maintenance Notice"
+        content:
+          type: string
+          description: Announcement content/message
+          example: "We will be performing scheduled maintenance..."
+        show_from:
+          type: string
+          format: date-time
+          description: Start date/time for display
+          example: "2025-09-15T00:00:00Z"
+        expires_at:
+          type: string
+          format: date-time
+          description: Expiration date/time
+          example: "2025-09-20T23:59:59Z"
+        target_user_types:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserType'
+          minItems: 1
+          description: Target user types (non-empty array)
+          example: ["artist", "promoter"]
+        is_active:
+          type: boolean
+          description: Active status
+          default: true
+          example: true
+
+    AnnouncementUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Announcement title
+        content:
+          type: string
+          description: Announcement content/message
+        show_from:
+          type: string
+          format: date-time
+          description: Start date/time for display
+        expires_at:
+          type: string
+          format: date-time
+          description: Expiration date/time
+        target_user_types:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserType'
+          minItems: 1
+          description: Target user types (non-empty array)
+        is_active:
+          type: boolean
+          description: Active status
+
+    AnnouncementStats:
+      type: object
+      properties:
+        total_target_users:
+          type: integer
+          description: Total users in target types
+        acknowledged:
+          type: integer
+          description: Number of acknowledgments
+        remind_later:
+          type: integer
+          description: Number of reminders set
+        no_response:
+          type: integer
+          description: Users with no interaction
+        acknowledgment_rate:
+          type: string
+          description: Percentage acknowledgment rate
+          example: "78.4"
+
+    AnnouncementStatsResponse:
+      type: object
+      properties:
+        announcement:
+          $ref: '#/components/schemas/AnnouncementWithCreator'
+        stats:
+          $ref: '#/components/schemas/AnnouncementStats'
+
+    PendingCheckResponse:
+      type: object
+      properties:
+        hasPending:
+          type: boolean
+          description: Whether user has pending announcements
+        requiresAcknowledgment:
+          type: boolean
+          description: Whether acknowledgment is required
+        pendingCount:
+          type: integer
+          description: Number of pending announcements
+
+    CreateResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Created announcement ID
+        message:
+          type: string
+          description: Success message
+          example: "Announcement created successfully"
+
+    SuccessResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Success message
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: string
+          description: Additional error details
+
+  responses:
+    Unauthorized:
+      description: Unauthorized - invalid or missing API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Unauthorized access"
+
+    InsufficientPermissions:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Insufficient permissions for this operation"
+
+    UserNotFound:
+      description: User not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "User not found"
+
+    AnnouncementNotFound:
+      description: Announcement not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Announcement not found"
+
+    AnnouncementNotFoundOrExpired:
+      description: Announcement not found or expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Announcement not found or expired"
+
+    WrongUserType:
+      description: Announcement not for user's type
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "This announcement is not for your user type"
+
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missing_fields:
+              summary: Missing required fields
+              value:
+                error: "Missing required fields. Target user types must be a non-empty array."
+            invalid_user_types:
+              summary: Invalid user types
+              value:
+                error: "Invalid user types: invalid_type"
+            invalid_dates:
+              summary: Invalid date range
+              value:
+                error: "Show from date must be before expires at date"
+            no_fields_to_update:
+              summary: No fields to update
+              value:
+                error: "No fields to update"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            check_pending_error:
+              summary: Check pending error
+              value:
+                error: "Failed to check pending announcements"
+            get_pending_error:
+              summary: Get pending error
+              value:
+                error: "Failed to get pending announcements"
+            fetch_error:
+              summary: Fetch announcements error
+              value:
+                error: "Failed to fetch announcements"
+            create_error:
+              summary: Create announcement error
+              value:
+                error: "Failed to create announcement"
+            update_error:
+              summary: Update announcement error
+              value:
+                error: "Failed to update announcement"
+            delete_error:
+              summary: Delete announcement error
+              value:
+                error: "Failed to delete announcement"
+            stats_error:
+              summary: Get statistics error
+              value:
+                error: "Failed to get announcement statistics"
+            acknowledge_error:
+              summary: Acknowledge error
+              value:
+                error: "Failed to acknowledge announcement"
+            reminder_error:
+              summary: Set reminder error
+              value:
+                error: "Failed to set reminder"
+
+tags:
+  - name: User Announcements
+    description: User-facing announcement endpoints
+
+  - name: Admin Announcements
+    description: Administrative announcement management
+
+  - name: Announcement Interactions
+    description: User acknowledgment and reminder system
+
+  - name: Announcement Analytics
+    description: Announcement statistics and engagement metrics

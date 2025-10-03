@@ -54,7 +54,7 @@ export default function SignupScreen({ onLogin, onSwitchToLogin }) {
 
   const authenticateWithBackend = async (provider, token, email) => {
     try {
-      const response = await fetch('https://api2.onlineartfestival.com/auth/exchange', {
+      const response = await fetch('https://api.beemeeart.com/auth/exchange', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

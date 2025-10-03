@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import styles from './JuryPacketManager.module.css';
+import { getApiUrl } from '../lib/config';
 
 export default function JuryPacketManager() {
   const [packets, setPackets] = useState([]);
@@ -29,7 +30,7 @@ export default function JuryPacketManager() {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      const response = await fetch('https://api2.onlineartfestival.com/api/jury-packets', {
+      const response = await fetch('api/jury-packets', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -53,7 +54,7 @@ export default function JuryPacketManager() {
     try {
       const token = localStorage.getItem('token');
       
-      const response = await fetch('https://api2.onlineartfestival.com/api/personas', {
+      const response = await fetch('api/personas', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -99,8 +100,8 @@ export default function JuryPacketManager() {
 
       const token = localStorage.getItem('token');
       const url = editingPacket 
-        ? `https://api2.onlineartfestival.com/api/jury-packets/${editingPacket.id}`
-        : 'https://api2.onlineartfestival.com/api/jury-packets';
+        ? `api/jury-packets/${editingPacket.id}`
+        : 'api/jury-packets';
       
       const method = editingPacket ? 'PUT' : 'POST';
 
@@ -129,7 +130,7 @@ export default function JuryPacketManager() {
   const handleEdit = async (packet) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`https://api2.onlineartfestival.com/api/jury-packets/${packet.id}`, {
+      const response = await fetch(`api/jury-packets/${packet.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -168,7 +169,7 @@ export default function JuryPacketManager() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`https://api2.onlineartfestival.com/api/jury-packets/${packetId}`, {
+      const response = await fetch(`api/jury-packets/${packetId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -1,0 +1,759 @@
+openapi: 3.0.0
+info:
+  title: Shopping Cart API
+  description: Comprehensive shopping cart management with multi-site support, guest users, and wishlist functionality
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/api
+    description: Production server
+
+paths:
+  /carts/collections:
+    get:
+      summary: Get cart collections
+      description: Retrieve all cart collections for the authenticated user
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CartCollection'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Create cart collection
+      description: Create a new cart collection for organizing carts
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartCollectionCreate'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /carts/collections/{id}:
+    put:
+      summary: Update cart collection
+      description: Update an existing cart collection
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Cart collection ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartCollectionUpdate'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Delete cart collection
+      description: Delete a cart collection
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Cart collection ID
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /carts:
+    get:
+      summary: Get user carts
+      description: Retrieve all carts for the authenticated user
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Cart'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Create cart
+      description: Create a new cart (supports both authenticated and guest users)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartCreate'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  cart:
+                    $ref: '#/components/schemas/Cart'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /carts/unified:
+    get:
+      summary: Get unified cart view
+      description: Get comprehensive view of all user carts with items, totals, and site grouping
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnifiedCartView'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /carts/{id}:
+    put:
+      summary: Update cart status
+      description: Update cart status (draft, active, completed, etc.)
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Cart ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [draft, active, completed, abandoned]
+              required:
+                - status
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Delete cart
+      description: Delete a cart entirely
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Cart ID
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /carts/{cartId}/items:
+    get:
+      summary: Get cart items
+      description: Retrieve all items in a specific cart
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: cartId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Cart ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CartItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      summary: Add item to cart
+      description: Add an item to a specific cart
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: cartId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Cart ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartItemCreate'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /carts/{cartId}/items/{itemId}:
+    put:
+      summary: Update cart item
+      description: Update cart item quantity and price
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: cartId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Cart ID
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Cart item ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartItemUpdate'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Remove cart item
+      description: Remove an item from the cart
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: cartId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Cart ID
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Cart item ID
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /carts/saved:
+    get:
+      summary: Get saved items
+      description: Retrieve user's saved items (wishlist)
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SavedItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Save item for later
+      description: Save an item to wishlist for later purchase
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SavedItemCreate'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /carts/saved/{id}:
+    put:
+      summary: Update saved item
+      description: Update saved item details
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Saved item ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SavedItemUpdate'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Remove saved item
+      description: Remove item from saved items
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Saved item ID
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /carts/add:
+    post:
+      summary: Smart add to cart
+      description: Intelligent add-to-cart with multi-site support. Automatically finds or creates appropriate cart.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SmartAddToCart'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  cart:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      item_count:
+                        type: integer
+                      total_value:
+                        type: number
+                  added_item:
+                    type: object
+                    properties:
+                      product_id:
+                        type: integer
+                      vendor_id:
+                        type: integer
+                      quantity:
+                        type: integer
+                      price:
+                        type: number
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Bearer token authentication
+
+  schemas:
+    CartCollection:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        is_public:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    CartCollectionCreate:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        is_public:
+          type: boolean
+          default: false
+
+    CartCollectionUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        is_public:
+          type: boolean
+
+    Cart:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+          nullable: true
+        guest_token:
+          type: string
+          nullable: true
+        source_site_api_key:
+          type: string
+          nullable: true
+        source_site_name:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [draft, active, completed, abandoned]
+        created_at:
+          type: string
+          format: date-time
+
+    CartCreate:
+      type: object
+      properties:
+        guest_token:
+          type: string
+        status:
+          type: string
+          enum: [draft, active, completed, abandoned]
+          default: draft
+        source_site_api_key:
+          type: string
+        source_site_name:
+          type: string
+
+    CartItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        cart_id:
+          type: integer
+        product_id:
+          type: integer
+        vendor_id:
+          type: integer
+        quantity:
+          type: integer
+        price:
+          type: number
+          format: decimal
+        created_at:
+          type: string
+          format: date-time
+
+    CartItemCreate:
+      type: object
+      required:
+        - product_id
+        - vendor_id
+        - quantity
+        - price
+      properties:
+        product_id:
+          type: integer
+        vendor_id:
+          type: integer
+        quantity:
+          type: integer
+          minimum: 1
+        price:
+          type: number
+          format: decimal
+          minimum: 0
+
+    CartItemUpdate:
+      type: object
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+        price:
+          type: number
+          format: decimal
+          minimum: 0
+
+    SavedItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        product_id:
+          type: integer
+        quantity:
+          type: integer
+        notes:
+          type: string
+        collection_name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    SavedItemCreate:
+      type: object
+      required:
+        - product_id
+      properties:
+        product_id:
+          type: integer
+        quantity:
+          type: integer
+          default: 1
+        notes:
+          type: string
+        collection_name:
+          type: string
+
+    SavedItemUpdate:
+      type: object
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+        notes:
+          type: string
+        collection_name:
+          type: string
+
+    SmartAddToCart:
+      type: object
+      required:
+        - product_id
+        - vendor_id
+        - price
+      properties:
+        product_id:
+          type: integer
+        vendor_id:
+          type: integer
+        quantity:
+          type: integer
+          default: 1
+          minimum: 1
+        price:
+          type: number
+          format: decimal
+          minimum: 0
+        guest_token:
+          type: string
+          description: Required for unauthenticated users
+        source_site_api_key:
+          type: string
+        source_site_name:
+          type: string
+
+    UnifiedCartView:
+      type: object
+      properties:
+        user_id:
+          type: integer
+        total_carts:
+          type: integer
+        total_items:
+          type: integer
+        total_value:
+          type: number
+          format: decimal
+        grouped_by_source:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              source_name:
+                type: string
+              source_api_key:
+                type: string
+              carts:
+                type: array
+                items:
+                  type: object
+              total_items:
+                type: integer
+              total_value:
+                type: number
+                format: decimal
+        all_carts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Cart'
+
+  responses:
+    Success:
+      description: Operation successful
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: true
+
+    BadRequest:
+      description: Bad request - invalid input data
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Missing required fields"
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing API key
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Invalid or missing API key"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Cart not found"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Internal server error"

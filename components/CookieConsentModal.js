@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { getApiUrl } from '../lib/config';
 // Using global CSS classes only
 
 export default function CookieConsentModal({ onAccept, onDecline, isVisible = true }) {
@@ -24,7 +25,7 @@ export default function CookieConsentModal({ onAccept, onDecline, isVisible = tr
       
       // Log anonymous consent to backend for audit trail
       const sessionId = getOrCreateSessionId();
-      await fetch('https://api2.onlineartfestival.com/auth/cookie-consent/anonymous', {
+      await fetch(getApiUrl('auth/cookie-consent/anonymous'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

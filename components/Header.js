@@ -4,7 +4,8 @@ import Link from 'next/link';
 import SearchBar from './SearchBar';
 import CategoryMenu from './CategoryMenu';
 import { usePageType } from '../hooks/usePageType';
-import { getAuthToken, authenticatedApiRequest, clearAuthTokens } from '../lib/csrf';
+import { getAuthToken, clearAuthTokens } from '../lib/csrf';
+import { authApiRequest, apiGet, API_ENDPOINTS } from '../lib/apiUtils';
 import styles from './Header.module.css';
 
 export default function Header() {
@@ -23,7 +24,7 @@ export default function Header() {
     if (token) {
       setIsLoggedIn(true);
       // Fetch userId from /users/me
-      authenticatedApiRequest('https://api2.onlineartfestival.com/users/me', {
+      authApiRequest(API_ENDPOINTS.USERS_ME, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -94,7 +95,7 @@ export default function Header() {
   const fetchCartCount = async () => {
     try {
       // Get active cart
-      const cartRes = await authenticatedApiRequest('https://api2.onlineartfestival.com/cart', {
+      const cartRes = await authApiRequest(API_ENDPOINTS.CART, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -107,7 +108,7 @@ export default function Header() {
         
         if (activeCart) {
           // Get cart items
-          const itemsRes = await authenticatedApiRequest(`https://api2.onlineartfestival.com/cart/${activeCart.id}/items`, {
+          const itemsRes = await authApiRequest(`${API_ENDPOINTS.CART}/${activeCart.id}/items`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json'

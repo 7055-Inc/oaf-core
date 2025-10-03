@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
+import { getFrontendUrl } from '../../../../lib/config';
 
 // Marketplace Products Admin Component
 // Title is handled by slide-in header template in Dashboard
@@ -38,8 +40,8 @@ export default function MarketplaceProducts({ userData }) {
       const results = {};
 
       for (const cat of categories) {
-        const response = await authenticatedApiRequest(
-          `https://api2.onlineartfestival.com/api/admin/marketplace/products?category=${cat}&include=vendor,images`
+        const response = await authApiRequest(
+          `api/admin/marketplace/products?category=${cat}&include=vendor,images`
         );
         
         if (response.ok) {
@@ -62,7 +64,7 @@ export default function MarketplaceProducts({ userData }) {
   const fetchStats = async () => {
     try {
       const response = await authenticatedApiRequest(
-        'https://api2.onlineartfestival.com/api/admin/marketplace/stats'
+        'api/admin/marketplace/stats'
       );
       
       if (response.ok) {
@@ -79,7 +81,7 @@ export default function MarketplaceProducts({ userData }) {
       setProcessing(true);
       
       const response = await authenticatedApiRequest(
-        `https://api2.onlineartfestival.com/api/admin/marketplace/products/${productId}/categorize`,
+        `api/admin/marketplace/products/${productId}/categorize`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -121,12 +123,12 @@ export default function MarketplaceProducts({ userData }) {
   const getImageUrl = (product) => {
     if (product.image_url) {
       if (product.image_url.startsWith('http')) return product.image_url;
-      return `https://api2.onlineartfestival.com/api/media/serve/${product.image_url}`;
+      return `api/media/serve/${product.image_url}`;
     }
     if (product.images && product.images.length > 0) {
       const img = product.images[0];
       if (img.startsWith('http')) return img;
-      return `https://api2.onlineartfestival.com/api/media/serve/${img}`;
+      return `api/media/serve/${img}`;
     }
     return null;
   };
@@ -329,14 +331,14 @@ export default function MarketplaceProducts({ userData }) {
         </button>
         
         <button
-          onClick={() => window.open('https://main.onlineartfestival.com', '_blank')}
+          onClick={() => window.open(getFrontendUrl(''), '_blank')}
           className="secondary"
         >
           👁️ View Art Marketplace
         </button>
         
         <button
-          onClick={() => window.open('https://crafts.onlineartfestival.com', '_blank')}
+          onClick={() => window.open('https://crafts.beemeeart.com', '_blank')}
           className="secondary"
         >
           👁️ View Crafts Marketplace

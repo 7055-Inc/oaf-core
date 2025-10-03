@@ -6,8 +6,31 @@ const { requirePermission } = require('../middleware/permissions');
 const router = express.Router();
 
 /**
+ * @fileoverview Admin financial management routes
+ * 
+ * Handles comprehensive financial administration functionality including:
+ * - Platform financial overview and metrics
+ * - Payout calculations and vendor balance management
+ * - Manual adjustments for vendor accounts
+ * - Vendor settings management (commission rates, payment schedules)
+ * - Comprehensive tax reporting and compliance
+ * - Transaction monitoring and analysis
+ * - Multi-state tax compliance tracking
+ * - Vendor financial details and history
+ * 
+ * All endpoints require 'manage_system' permission for security.
+ * 
+ * @author Beemeeart Development Team
+ * @version 1.0.0
+ */
+
+/**
  * Get platform financial overview
- * GET /api/admin/financial-overview
+ * @route GET /api/admin/financial-overview
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Platform financial overview with revenue, payout, and volume metrics
  */
 router.get('/financial-overview', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -21,7 +44,11 @@ router.get('/financial-overview', verifyToken, requirePermission('manage_system'
 
 /**
  * Get detailed payout calculations for all vendors
- * GET /api/admin/payout-calculations
+ * @route GET /api/admin/payout-calculations
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Detailed payout calculations including current and future payouts
  */
 router.get('/payout-calculations', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -34,8 +61,16 @@ router.get('/payout-calculations', verifyToken, requirePermission('manage_system
 });
 
 /**
- * POST /api/admin/manual-adjustment
  * Create a manual adjustment for a vendor
+ * @route POST /api/admin/manual-adjustment
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {number} req.body.vendor_id - Vendor ID for the adjustment
+ * @param {number} req.body.amount - Adjustment amount
+ * @param {string} req.body.description - Description of the adjustment
+ * @param {string} req.body.type - Adjustment type ('credit' or 'debit')
+ * @param {Object} res - Express response object
+ * @returns {Object} Created adjustment information
  */
 router.post('/manual-adjustment', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -74,8 +109,15 @@ router.post('/manual-adjustment', verifyToken, requirePermission('manage_system'
 });
 
 /**
- * GET /api/admin/manual-adjustments
  * Get all manual adjustments with optional filters
+ * @route GET /api/admin/manual-adjustments
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {number} req.query.vendor_id - Filter by vendor ID (optional)
+ * @param {number} req.query.limit - Number of results to return (default: 100)
+ * @param {number} req.query.offset - Offset for pagination (default: 0)
+ * @param {Object} res - Express response object
+ * @returns {Object} List of manual adjustments with vendor and admin information
  */
 router.get('/manual-adjustments', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -111,8 +153,16 @@ router.get('/manual-adjustments', verifyToken, requirePermission('manage_system'
 });
 
 /**
- * POST /api/admin/vendor-settings
  * Update vendor settings (commission rates, etc.)
+ * @route POST /api/admin/vendor-settings
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {number} req.body.vendor_id - Vendor ID (required)
+ * @param {number} req.body.commission_rate - Commission rate (0-1, optional)
+ * @param {number} req.body.minimum_payout - Minimum payout amount (optional)
+ * @param {string} req.body.payment_schedule - Payment schedule (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} Update confirmation
  */
 router.post('/vendor-settings', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -183,8 +233,13 @@ router.post('/vendor-settings', verifyToken, requirePermission('manage_system'),
 });
 
 /**
- * GET /api/admin/vendor-settings
  * Get vendor settings for all vendors or specific vendor
+ * @route GET /api/admin/vendor-settings
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {number} req.query.vendor_id - Filter by vendor ID (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} Vendor settings with username information
  */
 router.get('/vendor-settings', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -217,8 +272,13 @@ router.get('/vendor-settings', verifyToken, requirePermission('manage_system'), 
 });
 
 /**
- * GET /api/admin/vendor-details/:vendor_id
  * Get comprehensive vendor information for admin review
+ * @route GET /api/admin/vendor-details/:vendor_id
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.vendor_id - Vendor ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Comprehensive vendor information
  */
 router.get('/vendor-details/:vendor_id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -241,6 +301,8 @@ router.get('/vendor-details/:vendor_id', verifyToken, requirePermission('manage_
 
 /**
  * Get platform financial overview
+ * @param {number} periodDays - Number of days to include in the overview (default: 30)
+ * @returns {Object} Platform financial metrics including revenue, payouts, and volume
  */
 async function getPlatformFinancialOverview(periodDays = 30) {
   const query = `
@@ -276,6 +338,7 @@ async function getPlatformFinancialOverview(periodDays = 30) {
 
 /**
  * Get real-time payout calculations
+ * @returns {Object} Current and future payout calculations with platform balance
  */
 async function getPayoutCalculations() {
   const query = `
@@ -330,6 +393,11 @@ async function getPayoutCalculations() {
 
 /**
  * Get manual adjustments with pagination
+ * @param {Object} options - Query options
+ * @param {number} options.page - Page number (default: 1)
+ * @param {number} options.limit - Items per page (default: 20)
+ * @param {number} options.vendor_id - Filter by vendor ID (optional)
+ * @returns {Object} Paginated manual adjustments with total count
  */
 async function getManualAdjustments(options = {}) {
   const { page = 1, limit = 20, vendor_id } = options;
@@ -378,6 +446,10 @@ async function getManualAdjustments(options = {}) {
 
 /**
  * Get all vendor settings
+ * @param {Object} options - Query options
+ * @param {number} options.page - Page number (default: 1)
+ * @param {number} options.limit - Items per page (default: 50)
+ * @returns {Object} Paginated vendor settings with total count
  */
 async function getAllVendorSettings(options = {}) {
   const { page = 1, limit = 50 } = options;
@@ -424,6 +496,8 @@ async function getAllVendorSettings(options = {}) {
 
 /**
  * Get vendor info
+ * @param {number} vendorId - Vendor ID
+ * @returns {Object|null} Vendor information or null if not found
  */
 async function getVendorInfo(vendorId) {
   const query = `
@@ -444,6 +518,8 @@ async function getVendorInfo(vendorId) {
 
 /**
  * Get vendor balance (reused from vendor routes)
+ * @param {number} vendorId - Vendor ID
+ * @returns {Object} Vendor balance information including available, pending, and total amounts
  */
 async function getVendorBalance(vendorId) {
   const query = `
@@ -485,6 +561,10 @@ async function getVendorBalance(vendorId) {
 
 /**
  * Get vendor transactions (reused from vendor routes)
+ * @param {number} vendorId - Vendor ID
+ * @param {Object} options - Query options
+ * @param {number} options.limit - Number of transactions to return (default: 20)
+ * @returns {Array} List of vendor transactions with order and display information
  */
 async function getVendorTransactions(vendorId, options = {}) {
   const { limit = 20 } = options;
@@ -517,7 +597,12 @@ async function getVendorTransactions(vendorId, options = {}) {
 
 /**
  * Get all vendor tax summaries for a period
- * GET /api/admin/financials/all-vendor-tax-summaries/:period
+ * @route GET /api/admin/financials/all-vendor-tax-summaries/:period
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.period - Report period in YYYY-MM format
+ * @param {Object} res - Express response object
+ * @returns {Object} All vendor tax summaries for the specified period
  */
 router.get('/all-vendor-tax-summaries/:period', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -557,7 +642,12 @@ router.get('/all-vendor-tax-summaries/:period', verifyToken, requirePermission('
 
 /**
  * Get all state compliance overview
- * GET /api/admin/financials/all-state-compliance/:period
+ * @route GET /api/admin/financials/all-state-compliance/:period
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.period - Report period in YYYY-MM format
+ * @param {Object} res - Express response object
+ * @returns {Object} State-by-state tax compliance overview
  */
 router.get('/all-state-compliance/:period', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -605,7 +695,12 @@ router.get('/all-state-compliance/:period', verifyToken, requirePermission('mana
 
 /**
  * Get platform tax overview
- * GET /api/admin/financials/all-tax-overview/:period
+ * @route GET /api/admin/financials/all-tax-overview/:period
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.period - Report period in YYYY-MM format
+ * @param {Object} res - Express response object
+ * @returns {Object} Platform-wide tax overview for the specified period
  */
 router.get('/all-tax-overview/:period', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -649,7 +744,12 @@ router.get('/all-tax-overview/:period', verifyToken, requirePermission('manage_s
 
 /**
  * Get all vendor tax compliance status
- * GET /api/admin/financials/all-vendor-compliance/:period
+ * @route GET /api/admin/financials/all-vendor-compliance/:period
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.period - Report period in YYYY-MM format
+ * @param {Object} res - Express response object
+ * @returns {Object} All vendor tax compliance status for the specified period
  */
 router.get('/all-vendor-compliance/:period', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -699,7 +799,15 @@ router.get('/all-vendor-compliance/:period', verifyToken, requirePermission('man
 
 /**
  * Get all transactions across all vendors
- * GET /api/admin/financials/all-transactions
+ * @route GET /api/admin/financials/all-transactions
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {number} req.query.page - Page number for pagination (default: 1)
+ * @param {number} req.query.limit - Items per page (default: 20)
+ * @param {string} req.query.type - Filter by transaction type (optional)
+ * @param {string} req.query.status - Filter by transaction status (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} Paginated list of all vendor transactions
  */
 router.get('/all-transactions', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {

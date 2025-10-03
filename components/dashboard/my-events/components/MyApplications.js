@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getAuthToken } from '../../../../lib/csrf';
+import { getApiUrl } from '../../../../lib/config';
 import styles from '../../SlideIn.module.css';
 
 export default function MyApplications({ userData }) {
@@ -19,7 +20,7 @@ export default function MyApplications({ userData }) {
         throw new Error('Please log in to view applications');
       }
 
-      const response = await fetch('https://api2.onlineartfestival.com/api/applications/', {
+      const response = await fetch(getApiUrl('api/applications/'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
+import { getApiUrl } from '../../../../lib/config';
 import slideInStyles from '../../SlideIn.module.css';
 import ReturnRequestModal from './myorders-components/ReturnRequestModal';
 
@@ -50,8 +52,8 @@ export default function MyOrders({ userData }) {
         const params = new URLSearchParams({ page: String(page) });
         if (status && status !== 'all') params.append('status', status);
 
-        const res = await authenticatedApiRequest(
-          `https://api2.onlineartfestival.com/checkout/orders/my?${params.toString()}`,
+        const res = await authApiRequest(
+          `checkout/orders/my?${params.toString()}`,
           { method: 'GET', signal: controller.signal }
         );
 
@@ -156,7 +158,7 @@ export default function MyOrders({ userData }) {
 
   const loadReturnStatuses = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/returns/my');
+      const response = await authenticatedApiRequest('api/returns/my');
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
@@ -180,7 +182,7 @@ export default function MyOrders({ userData }) {
   const handlePrintLabel = async (returnId) => {
     try {
       // Open the label PDF in a new window
-      const labelUrl = `https://api2.onlineartfestival.com/api/returns/${returnId}/label`;
+      const labelUrl = `api/returns/${returnId}/label`;
       window.open(labelUrl, '_blank');
     } catch (error) {
       console.error('Error opening label:', error);
@@ -209,7 +211,7 @@ export default function MyOrders({ userData }) {
 
   const getImageSrc = (url) => {
     if (!url) return '';
-    return url.startsWith('http') ? url : `https://api2.onlineartfestival.com${url}`;
+    return url.startsWith('http') ? url : getApiUrl(url);
   };
 
   const handleTrackingClick = (e, orderId, itemId) => {

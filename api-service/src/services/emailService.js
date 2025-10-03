@@ -1,7 +1,23 @@
+/**
+ * Email Service
+ * Comprehensive email management system for the Beemeeart platform
+ * Handles template rendering, user preferences, bounce management, and queue processing
+ */
+
 const nodemailer = require('nodemailer');
 const db = require('../../config/db');
 
+/**
+ * EmailService Class
+ * Provides enterprise-grade email functionality with template support,
+ * user preference management, bounce handling, and queue processing
+ */
 class EmailService {
+  /**
+   * Initialize EmailService with SMTP configuration
+   * Validates required environment variables and configures transport
+   * @throws {Error} If required SMTP environment variables are missing
+   */
   constructor() {
     // Check if required environment variables are set
     if (!process.env.SMTP_HOST || !process.env.SMTP_PORT || !process.env.SMTP_USERNAME || !process.env.SMTP_PASSWORD) {
@@ -29,7 +45,15 @@ class EmailService {
   // ===== CORE EMAIL SENDING =====
 
   /**
-   * Send email using template
+   * Send email using template system
+   * Handles user preferences, blacklist checking, template rendering, and delivery
+   * 
+   * @param {number} userId - Target user ID
+   * @param {string} templateKey - Email template identifier
+   * @param {Object} templateData - Data for template rendering
+   * @param {Object} options - Additional email options
+   * @returns {Promise<Object>} Send result with success status and message ID
+   * @throws {Error} If email sending fails
    */
   async sendEmail(userId, templateKey, templateData = {}, options = {}) {
     try {
@@ -106,7 +130,15 @@ class EmailService {
   }
 
   /**
-   * Queue email for later sending
+   * Queue email for later sending based on user preferences
+   * Handles priority scheduling and template validation
+   * 
+   * @param {number} userId - Target user ID
+   * @param {string} templateKey - Email template identifier
+   * @param {Object} templateData - Data for template rendering
+   * @param {Object} options - Queue options including priority
+   * @returns {Promise<Object>} Queue result with queue ID
+   * @throws {Error} If queueing fails
    */
   async queueEmail(userId, templateKey, templateData = {}, options = {}) {
     try {
@@ -136,7 +168,11 @@ class EmailService {
   // ===== TEMPLATE MANAGEMENT =====
 
   /**
-   * Get template by key
+   * Get email template by key from database
+   * 
+   * @param {string} templateKey - Template identifier
+   * @returns {Promise<Object|null>} Template object or null if not found
+   * @throws {Error} If database query fails
    */
   async getTemplate(templateKey) {
     try {
@@ -152,7 +188,12 @@ class EmailService {
   }
 
   /**
-   * Render template with data
+   * Render template with variable substitution
+   * Uses #{variable} syntax for template variables
+   * 
+   * @param {string} template - Template string with variables
+   * @param {Object} data - Data object for variable substitution
+   * @returns {string} Rendered template string
    */
   renderTemplate(template, data) {
     let rendered = template;
@@ -167,7 +208,14 @@ class EmailService {
   }
 
   /**
-   * Wrap content in email layout template from database
+   * Wrap content in email layout template with company and artist data
+   * Supports multiple layout types including artist site customization
+   * 
+   * @param {string} bodyContent - Rendered email body content
+   * @param {Object} templateData - Template data including siteId for artist layouts
+   * @param {Object} template - Template configuration object
+   * @returns {Promise<string>} Complete rendered email with layout
+   * @throws {Error} If layout rendering fails
    */
   async renderEmailWithLayout(bodyContent, templateData, template) {
     // Get the layout template from database
@@ -186,7 +234,7 @@ class EmailService {
     const allData = {
       ...templateData,
       email_content: bodyContent,
-      preferences_link: 'https://main.onlineartfestival.com/dashboard/email-preferences',
+      preferences_link: `${process.env.FRONTEND_URL}/dashboard/email-preferences`,
       company_name: companyData.company_name,
       company_contact_email: companyData.contact_email,
       company_address_city: companyData.address_city,
@@ -200,7 +248,10 @@ class EmailService {
   }
 
   /**
-   * Get company data from database
+   * Get company data from database for email templates
+   * Provides fallback data if database query fails
+   * 
+   * @returns {Promise<Object>} Company data object with contact and address info
    */
   async getCompanyData() {
     try {
@@ -231,8 +282,8 @@ class EmailService {
       console.error('Error fetching company data:', error);
       // Return defaults if company data fails
       return {
-        company_name: 'Online Art Festival',
-        contact_email: 'hello@onlineartfestival.com',
+        company_name: 'Beemeeart',
+        contact_email: 'hello@beemeeart.com',
         address_city: 'Harris',
         address_state: 'Iowa',
         address_postal_code: '51345'
@@ -243,7 +294,12 @@ class EmailService {
   // ===== USER PREFERENCES =====
 
   /**
-   * Check if user preferences allow this email
+   * Check if user preferences allow this email to be sent
+   * Validates user subscription status and category preferences
+   * 
+   * @param {number} userId - User ID to check preferences for
+   * @param {string} templateKey - Template key for categorization
+   * @returns {Promise<boolean>} True if email is allowed, false otherwise
    */
   async checkUserPreferences(userId, templateKey) {
     try {
@@ -341,7 +397,14 @@ class EmailService {
   }
 
   /**
-   * Handle email bounce
+   * Handle email bounce with automatic blacklisting
+   * Tracks bounce counts and blacklists addresses based on bounce type
+   * 
+   * @param {string} emailAddress - Email address that bounced
+   * @param {string} bounceType - Type of bounce ('hard' or 'soft')
+   * @param {string} error - Error message from bounce
+   * @returns {Promise<Object>} Bounce handling result with count and blacklist status
+   * @throws {Error} If bounce handling fails
    */
   async handleBounce(emailAddress, bounceType, error) {
     try {
@@ -462,7 +525,12 @@ class EmailService {
   // ===== QUEUE PROCESSING =====
 
   /**
-   * Process email queue (for cron job)
+   * Process email queue for batch sending (cron job)
+   * Processes pending emails in priority order with error handling
+   * 
+   * @param {number} batchSize - Maximum number of emails to process
+   * @returns {Promise<Array>} Array of processing results
+   * @throws {Error} If queue processing fails
    */
   async processQueue(batchSize = 10) {
     try {
@@ -597,15 +665,15 @@ class EmailService {
 
       const site = rows[0];
       
-      // Generate site URL
+      // Generate site URL using environment variables
       const siteUrl = site.custom_domain 
         ? `https://${site.custom_domain}` 
-        : `https://${site.subdomain}.onlineartfestival.com`;
+        : `https://${site.subdomain}.beemeeart.com`;
 
-      // Generate logo URL with fallback
+      // Generate logo URL with fallback using environment variables
       const logoUrl = site.logo_path 
-        ? `https://api2.onlineartfestival.com/api/media/images/${site.logo_path.replace(/^\/temp_images\//, '').replace(/^\//, '')}`
-        : 'https://main.onlineartfestival.com/static_media/logo.png'; // Fallback to OAF logo
+        ? `${process.env.SMART_MEDIA_BASE_URL}/${site.logo_path.replace(/^\/temp_images\//, '').replace(/^\//, '')}`
+        : `${process.env.FRONTEND_URL}/static_media/logo.png`; // Fallback to Beemeeart logo
 
       return {
         artist_business_name: site.business_name || `${site.first_name} ${site.last_name}` || 'Artist',

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
+import { getApiUrl } from '../../../../lib/config';
 import slideInStyles from '../../SlideIn.module.css';
 
 export default function AdminReturns({ userData }) {
@@ -28,7 +30,7 @@ export default function AdminReturns({ userData }) {
       }
 
       const queryString = params.toString();
-      const url = `https://api2.onlineartfestival.com${endpoint}${queryString ? `?${queryString}` : ''}`;
+      const url = getApiUrl(`${endpoint}${queryString ? `?${queryString}` : ''}`);
 
       const response = await authenticatedApiRequest(url);
       
@@ -49,7 +51,7 @@ export default function AdminReturns({ userData }) {
 
   const sendAdminMessage = async (returnId, message) => {
     try {
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/returns/${returnId}/admin-message`, {
+      const response = await authenticatedApiRequest(`/api/returns/${returnId}/admin-message`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -271,7 +273,7 @@ export default function AdminReturns({ userData }) {
                     <button 
                       className="secondary"
                       style={{ fontSize: '14px' }}
-                      onClick={() => window.open(`https://api2.onlineartfestival.com/api/returns/${returnItem.id}/label`, '_blank')}
+                      onClick={() => window.open(`/api/returns/${returnItem.id}/label`, '_blank')}
                     >
                       View Label
                     </button>

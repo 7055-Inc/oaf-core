@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../../lib/csrf';
+import { authApiRequest } from '../../../../../lib/apiUtils';
 
 export default function CustomDomainSection({ site }) {
   const [domainStatus, setDomainStatus] = useState(null);
@@ -22,8 +23,8 @@ export default function CustomDomainSection({ site }) {
   const fetchDomainStatus = async () => {
     try {
       setLoading(true);
-      const response = await authenticatedApiRequest(
-        `https://api2.onlineartfestival.com/api/domains/status/${site.id}`
+      const response = await authApiRequest(
+        `api/domains/status/${site.id}`
       );
       
       if (response.ok) {
@@ -53,7 +54,7 @@ export default function CustomDomainSection({ site }) {
 
     try {
       const response = await authenticatedApiRequest(
-        `https://api2.onlineartfestival.com/api/domains/check-availability?domain=${encodeURIComponent(domain)}`
+        `api/domains/check-availability?domain=${encodeURIComponent(domain)}`
       );
       
       if (response.ok) {
@@ -88,7 +89,7 @@ export default function CustomDomainSection({ site }) {
       setError(null);
       
       const response = await authenticatedApiRequest(
-        'https://api2.onlineartfestival.com/api/domains/start-validation',
+        'api/domains/start-validation',
         {
           method: 'POST',
           headers: {
@@ -130,7 +131,7 @@ export default function CustomDomainSection({ site }) {
       setError(null);
       
       const response = await authenticatedApiRequest(
-        `https://api2.onlineartfestival.com/api/domains/retry-validation/${site.id}`,
+        `api/domains/retry-validation/${site.id}`,
         {
           method: 'POST'
         }
@@ -164,7 +165,7 @@ export default function CustomDomainSection({ site }) {
       setError(null);
       
       const response = await authenticatedApiRequest(
-        `https://api2.onlineartfestival.com/api/domains/cancel-validation/${site.id}`,
+        `api/domains/cancel-validation/${site.id}`,
         {
           method: 'POST'
         }
@@ -194,7 +195,7 @@ export default function CustomDomainSection({ site }) {
       setError(null);
       
       const response = await authenticatedApiRequest(
-        `https://api2.onlineartfestival.com/api/domains/remove/${site.id}`,
+        `api/domains/remove/${site.id}`,
         {
           method: 'DELETE'
         }
@@ -717,7 +718,7 @@ export default function CustomDomainSection({ site }) {
               }}>
                 <h5 style={{ margin: '0 0 10px 0', color: '#2c3e50' }}>🎯 Benefits of a Custom Domain:</h5>
                 <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '14px', color: '#495057' }}>
-                  <li>✨ <strong>Professional Branding:</strong> yourname.art instead of yourname.onlineartfestival.com</li>
+                  <li>✨ <strong>Professional Branding:</strong> yourname.art instead of yourname.beemeeart.com</li>
                   <li>🔍 <strong>Better SEO:</strong> Your own domain ranks better in search results</li>
                   <li>💼 <strong>Business Credibility:</strong> Looks more professional to clients</li>
                   <li>🎨 <strong>Full Control:</strong> Your brand, your domain, your way</li>

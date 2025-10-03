@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Header from '../../components/Header';
 import { authenticatedApiRequest } from '../../lib/csrf';
+import { authApiRequest } from '../../lib/apiUtils';
 import styles from '../../styles/CheckoutSuccess.module.css';
 
 export default function CheckoutSuccess() {
@@ -26,7 +27,7 @@ export default function CheckoutSuccess() {
       }
 
       // Confirm the payment with our backend
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/checkout/confirm-payment', {
+      const response = await authApiRequest('checkout/confirm-payment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

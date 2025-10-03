@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { authenticatedApiRequest } from '../../../lib/csrf';
+import { authApiRequest, API_ENDPOINTS } from '../../../lib/apiUtils';
 import styles from './my-products/my-products.module.css';
 
 export default function MyProductsWidget({ config, onConfigChange }) {
@@ -20,8 +20,8 @@ export default function MyProductsWidget({ config, onConfigChange }) {
 
   const loadProductsData = async () => {
     try {
-      const response = await authenticatedApiRequest(
-        'https://api2.onlineartfestival.com/products/my?limit=5&include=images'
+      const response = await authApiRequest(
+        `${API_ENDPOINTS.PRODUCTS}/my?limit=5&include=images`
       );
 
       if (response.ok) {
@@ -57,7 +57,7 @@ export default function MyProductsWidget({ config, onConfigChange }) {
   const handleRemoveWidget = async () => {
     if (confirm('Are you sure you want to remove the My Products widget from your dashboard?')) {
       try {
-        const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/dashboard-widgets/remove-widget', {
+        const response = await authApiRequest(API_ENDPOINTS.DASHBOARD_WIDGETS_REMOVE, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ widgetType: 'my_products' })

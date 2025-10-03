@@ -2,8 +2,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Header from '../../../components/Header';
-import InventoryLog from '../../../components/dashboard/manage-my-store/components/InventoryLog';
 import { authenticatedApiRequest } from '../../../lib/csrf';
+import { authApiRequest } from '../../../lib/apiUtils';
+import { getSmartMediaUrl } from '../../../lib/config';
 import styles from '../../../pages/products/styles/ProductForm.module.css';
 
 export default function EditProduct() {
@@ -76,7 +77,7 @@ export default function EditProduct() {
 
   const fetchPackagesData = async (productId) => {
     try {
-      const res = await authenticatedApiRequest(`https://api2.onlineartfestival.com/products/${productId}/packages`, {
+      const res = await authApiRequest(`products/${productId}/packages`, {
         method: 'GET'
       });
       
@@ -95,7 +96,7 @@ export default function EditProduct() {
     setLoadingVendors(true);
     try {
       // Fetch all users with vendor permissions + admins
-      const res = await authenticatedApiRequest('https://api2.onlineartfestival.com/users?permissions=vendor,admin', {
+      const res = await authenticatedApiRequest('users?permissions=vendor,admin', {
         method: 'GET'
       });
       
@@ -114,7 +115,7 @@ export default function EditProduct() {
 
   const fetchCurrentUser = async () => {
     try {
-      const res = await authenticatedApiRequest('https://api2.onlineartfestival.com/users/me', {
+      const res = await authenticatedApiRequest('users/me', {
         method: 'GET'
       });
       
@@ -131,7 +132,7 @@ export default function EditProduct() {
     const fetchProduct = async () => {
       try {
         // Use the new flexible API with inventory included
-        const res = await authenticatedApiRequest(`https://api2.onlineartfestival.com/products/${params.id}?include=inventory,images,shipping,categories`, {
+        const res = await authApiRequest(`products/${params.id}?include=inventory,images,shipping,categories`, {
           method: 'GET'
         });
 
@@ -142,7 +143,7 @@ export default function EditProduct() {
         // Ensure image URLs are absolute
         const images = data.images?.map(img => {
           if (img.startsWith('http')) return img;
-          return `https://api2.onlineartfestival.com${img}`;
+          return getSmartMediaUrl(img);
         }) || [];
 
         setFormData({
@@ -273,7 +274,7 @@ export default function EditProduct() {
           updateData.qty_on_hand = newValue;
         } else if (field === 'reorder_qty') {
           // For reorder_qty, we need to update the existing record without changing qty_on_hand
-          const res = await authenticatedApiRequest(`https://api2.onlineartfestival.com/inventory/${params.id}`, {
+          const res = await authenticatedApiRequest(`inventory/${params.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -300,7 +301,7 @@ export default function EditProduct() {
         }
 
         // For qty_on_hand updates
-        const res = await authenticatedApiRequest(`https://api2.onlineartfestival.com/inventory/${params.id}`, {
+        const res = await authenticatedApiRequest(`inventory/${params.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updateData)
@@ -406,7 +407,7 @@ export default function EditProduct() {
       };
       
       const response = await authenticatedApiRequest(
-        'https://api2.onlineartfestival.com/api/shipping/calculate-cart-shipping',
+        'api/shipping/calculate-cart-shipping',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -493,7 +494,7 @@ export default function EditProduct() {
         throw new Error('Product ID is required for image upload');
       }
 
-      const res = await authenticatedApiRequest(`https://api2.onlineartfestival.com/products/upload?product_id=${params.id}`, {
+      const res = await authenticatedApiRequest(`products/upload?product_id=${params.id}`, {
         method: 'POST',
         body: formData
       });
@@ -514,10 +515,10 @@ export default function EditProduct() {
         if (url.startsWith('http')) return url;
         // If the URL starts with a slash, it's a relative path
         if (url.startsWith('/')) {
-          return `https://api2.onlineartfestival.com${url}`;
+          return getSmartMediaUrl(url);
         }
         // If it's a relative path without a leading slash
-        return `https://api2.onlineartfestival.com/${url}`;
+        return `${url}`;
       });
 
 
@@ -549,7 +550,7 @@ export default function EditProduct() {
         vendor_id: formData.vendor_id || null
       };
       
-      const res = await authenticatedApiRequest(`https://api2.onlineartfestival.com/products/${params.id}`, {
+      const res = await authenticatedApiRequest(`products/${params.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -577,7 +578,7 @@ export default function EditProduct() {
     
     setLoading(true);
     try {
-      const res = await authenticatedApiRequest(`https://api2.onlineartfestival.com/products/${params.id}`, {
+      const res = await authenticatedApiRequest(`products/${params.id}`, {
         method: 'DELETE'
       });
       if (!res.ok) {
@@ -1293,10 +1294,6 @@ export default function EditProduct() {
           </div>
         </form>
         
-        {/* Inventory History Log */}
-        <InventoryLog 
-          productId={params?.id}
-        />
       </div>
     </div>
   );

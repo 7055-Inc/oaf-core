@@ -1,0 +1,1487 @@
+openapi: 3.0.0
+info:
+  title: Beemeeart Site Management API
+  description: Comprehensive site and subdomain management with templates, addons, and customizations
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/sites
+    description: Production server
+  - url: https://test.beemeeart.com/sites
+    description: Testing server
+
+paths:
+  /me:
+    get:
+      summary: Get user's sites
+      description: Retrieve all sites belonging to the authenticated user
+      operationId: getUserSites
+      tags:
+        - Site Management
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User sites retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Site'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /:
+    post:
+      summary: Create site
+      description: Create a new site with subdomain for the authenticated user
+      operationId: createSite
+      tags:
+        - Site Management
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SiteCreateRequest'
+      responses:
+        '201':
+          description: Site created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Site'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /{id}:
+    put:
+      summary: Update site
+      description: Update an existing site's configuration
+      operationId: updateSite
+      tags:
+        - Site Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Site ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SiteUpdateRequest'
+      responses:
+        '200':
+          description: Site updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Site'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: Delete site
+      description: Delete a site (soft delete - preserves data)
+      operationId: deleteSite
+      tags:
+        - Site Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Site ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Site deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /templates:
+    get:
+      summary: Get available templates
+      description: Get all available website templates
+      operationId: getTemplates
+      tags:
+        - Templates
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Templates retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplatesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create template
+      description: Create a new website template (admin only)
+      operationId: createTemplate
+      tags:
+        - Templates
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateCreateRequest'
+      responses:
+        '201':
+          description: Template created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateCreateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /templates/{id}:
+    get:
+      summary: Get template details
+      description: Get detailed information for a specific template
+      operationId: getTemplateById
+      tags:
+        - Templates
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Template ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Template details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /template/{id}:
+    put:
+      summary: Apply template
+      description: Apply a template to the user's site
+      operationId: applyTemplate
+      tags:
+        - Templates
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Template ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Template applied successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateApplyResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /addons:
+    get:
+      summary: Get available addons
+      description: Get all available website addons with ownership status
+      operationId: getAddons
+      tags:
+        - Addons
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Addons retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddonsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create addon
+      description: Create a new website addon (admin only)
+      operationId: createAddon
+      tags:
+        - Addons
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddonCreateRequest'
+      responses:
+        '201':
+          description: Addon created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddonCreateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /my-addons:
+    get:
+      summary: Get user's active addons
+      description: Get addons currently active on the user's site
+      operationId: getUserAddons
+      tags:
+        - Addons
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User addons retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAddonsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /addons/{id}:
+    post:
+      summary: Activate site addon
+      description: Activate an addon for the user's site
+      operationId: activateSiteAddon
+      tags:
+        - Addons
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Addon ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Addon activated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddonActivateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: Deactivate site addon
+      description: Deactivate an addon from the user's site
+      operationId: deactivateSiteAddon
+      tags:
+        - Addons
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Addon ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Addon deactivated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /user-addons/{id}:
+    post:
+      summary: Activate user-level addon
+      description: Activate a user-level addon (applies to all user's sites)
+      operationId: activateUserAddon
+      tags:
+        - Addons
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User-level addon ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User addon activated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddonActivateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /{id}/customizations:
+    get:
+      summary: Get site customizations
+      description: Get current customization settings for a site
+      operationId: getSiteCustomizations
+      tags:
+        - Customization
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Site ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Customizations retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomizationsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      summary: Update site customizations
+      description: Update site customization settings with permission-based validation
+      operationId: updateSiteCustomizations
+      tags:
+        - Customization
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Site ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomizationsUpdateRequest'
+      responses:
+        '200':
+          description: Customizations updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomizationsUpdateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /categories:
+    get:
+      summary: Get user categories
+      description: Get the user's custom categories for content organization
+      operationId: getUserCategories
+      tags:
+        - Categories
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Categories retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create category
+      description: Create a new custom category
+      operationId: createCategory
+      tags:
+        - Categories
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryCreateRequest'
+      responses:
+        '201':
+          description: Category created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /categories/{id}:
+    put:
+      summary: Update category
+      description: Update an existing category
+      operationId: updateCategory
+      tags:
+        - Categories
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Category ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpdateRequest'
+      responses:
+        '200':
+          description: Category updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: Delete category
+      description: Delete a category (prevents deletion if it has subcategories)
+      operationId: deleteCategory
+      tags:
+        - Categories
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Category ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Category deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /resolve/{subdomain}:
+    get:
+      summary: Resolve subdomain
+      description: Get complete site information for a subdomain (public access)
+      operationId: resolveSubdomain
+      tags:
+        - Public Access
+      parameters:
+        - name: subdomain
+          in: path
+          required: true
+          description: Site subdomain
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Site resolved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicSiteData'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /resolve/{subdomain}/products:
+    get:
+      summary: Get site products
+      description: Get products for a public site storefront
+      operationId: getSiteProducts
+      tags:
+        - Public Access
+      parameters:
+        - name: subdomain
+          in: path
+          required: true
+          description: Site subdomain
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Number of products to return
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          description: Pagination offset
+          schema:
+            type: integer
+            default: 0
+        - name: category
+          in: query
+          description: Filter by category ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Products retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PublicProduct'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /resolve/{subdomain}/articles:
+    get:
+      summary: Get site articles
+      description: Get articles for a public site
+      operationId: getSiteArticles
+      tags:
+        - Public Access
+      parameters:
+        - name: subdomain
+          in: path
+          required: true
+          description: Site subdomain
+          schema:
+            type: string
+        - name: type
+          in: query
+          description: Article type filter
+          schema:
+            type: string
+            enum: [all, menu, blog, pages]
+            default: all
+        - name: limit
+          in: query
+          description: Number of articles to return
+          schema:
+            type: integer
+            default: 10
+        - name: offset
+          in: query
+          description: Pagination offset
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Articles retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PublicArticle'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /resolve/{subdomain}/categories:
+    get:
+      summary: Get site categories
+      description: Get categories for a public site
+      operationId: getSiteCategories
+      tags:
+        - Public Access
+      parameters:
+        - name: subdomain
+          in: path
+          required: true
+          description: Site subdomain
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Categories retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PublicCategory'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /check-subdomain/{subdomain}:
+    get:
+      summary: Check subdomain availability
+      description: Check if a subdomain is available for registration
+      operationId: checkSubdomainAvailability
+      tags:
+        - Utilities
+      parameters:
+        - name: subdomain
+          in: path
+          required: true
+          description: Subdomain to check
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Availability check completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubdomainAvailabilityResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /resolve-custom-domain/{domain}:
+    get:
+      summary: Resolve custom domain
+      description: Resolve a custom domain to site information
+      operationId: resolveCustomDomain
+      tags:
+        - Utilities
+      parameters:
+        - name: domain
+          in: path
+          required: true
+          description: Custom domain to resolve
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Custom domain resolved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomDomainResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /discounts/calculate:
+    get:
+      summary: Calculate discounts
+      description: Calculate applicable discounts for a user and subscription type
+      operationId: calculateDiscounts
+      tags:
+        - Discounts
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: subscription_type
+          in: query
+          required: true
+          description: Subscription type to calculate discounts for
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Discounts calculated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscountsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Site:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Site ID
+        user_id:
+          type: integer
+          description: Owner user ID
+        site_name:
+          type: string
+          description: Site name
+        subdomain:
+          type: string
+          description: Site subdomain
+        site_title:
+          type: string
+          description: Site title
+        site_description:
+          type: string
+          description: Site description
+        theme_name:
+          type: string
+          description: Applied theme name
+        status:
+          type: string
+          enum: [draft, active, inactive, deleted]
+          description: Site status
+        custom_domain:
+          type: string
+          nullable: true
+          description: Custom domain if configured
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    SiteCreateRequest:
+      type: object
+      required:
+        - site_name
+        - subdomain
+      properties:
+        site_name:
+          type: string
+          description: Site name
+        subdomain:
+          type: string
+          description: Desired subdomain (3-63 chars, alphanumeric + hyphens)
+        site_title:
+          type: string
+          description: Site title
+        site_description:
+          type: string
+          description: Site description
+        theme_name:
+          type: string
+          default: default
+          description: Theme to apply
+
+    SiteUpdateRequest:
+      type: object
+      properties:
+        site_name:
+          type: string
+        site_title:
+          type: string
+        site_description:
+          type: string
+        theme_name:
+          type: string
+        status:
+          type: string
+          enum: [draft, active, inactive]
+        custom_domain:
+          type: string
+
+    Template:
+      type: object
+      properties:
+        id:
+          type: integer
+        template_name:
+          type: string
+        template_slug:
+          type: string
+        description:
+          type: string
+        preview_image_url:
+          type: string
+        tier_required:
+          type: string
+        display_order:
+          type: integer
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    TemplatesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        templates:
+          type: array
+          items:
+            $ref: '#/components/schemas/Template'
+
+    TemplateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        template:
+          $ref: '#/components/schemas/Template'
+
+    TemplateCreateRequest:
+      type: object
+      required:
+        - template_name
+        - template_slug
+        - css_file_path
+      properties:
+        template_name:
+          type: string
+        template_slug:
+          type: string
+        description:
+          type: string
+        css_file_path:
+          type: string
+        preview_image_url:
+          type: string
+        tier_required:
+          type: string
+          default: free
+        display_order:
+          type: integer
+          default: 0
+
+    TemplateCreateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        template_id:
+          type: integer
+        message:
+          type: string
+
+    TemplateApplyResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        template_id:
+          type: integer
+
+    Addon:
+      type: object
+      properties:
+        id:
+          type: integer
+        addon_name:
+          type: string
+        addon_slug:
+          type: string
+        description:
+          type: string
+        tier_required:
+          type: string
+        monthly_price:
+          type: number
+          format: float
+        user_level:
+          type: integer
+        addon_scope:
+          type: string
+          enum: [user, site]
+        category:
+          type: string
+        user_already_has:
+          type: boolean
+
+    AddonsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        addons:
+          type: array
+          items:
+            $ref: '#/components/schemas/Addon'
+
+    UserAddonsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        addons:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              addon_name:
+                type: string
+              addon_slug:
+                type: string
+              addon_script_path:
+                type: string
+              monthly_price:
+                type: number
+                format: float
+              activated_at:
+                type: string
+                format: date-time
+
+    AddonCreateRequest:
+      type: object
+      required:
+        - addon_name
+        - addon_slug
+        - addon_script_path
+      properties:
+        addon_name:
+          type: string
+        addon_slug:
+          type: string
+        description:
+          type: string
+        addon_script_path:
+          type: string
+        tier_required:
+          type: string
+          default: basic
+        monthly_price:
+          type: number
+          format: float
+          default: 0.00
+        display_order:
+          type: integer
+          default: 0
+
+    AddonCreateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        addon_id:
+          type: integer
+        message:
+          type: string
+
+    AddonActivateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        addon_id:
+          type: integer
+
+    Customizations:
+      type: object
+      properties:
+        text_color:
+          type: string
+        main_color:
+          type: string
+        secondary_color:
+          type: string
+        accent_color:
+          type: string
+          nullable: true
+        background_color:
+          type: string
+          nullable: true
+        body_font:
+          type: string
+        header_font:
+          type: string
+        h1_font:
+          type: string
+          nullable: true
+        h2_font:
+          type: string
+          nullable: true
+        h3_font:
+          type: string
+          nullable: true
+        h4_font:
+          type: string
+          nullable: true
+        custom_css:
+          type: string
+          nullable: true
+
+    CustomizationsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        customizations:
+          $ref: '#/components/schemas/Customizations'
+
+    CustomizationsUpdateRequest:
+      type: object
+      properties:
+        text_color:
+          type: string
+        main_color:
+          type: string
+        secondary_color:
+          type: string
+        accent_color:
+          type: string
+        background_color:
+          type: string
+        body_font:
+          type: string
+        header_font:
+          type: string
+        h1_font:
+          type: string
+        h2_font:
+          type: string
+        h3_font:
+          type: string
+        h4_font:
+          type: string
+        custom_css:
+          type: string
+
+    CustomizationsUpdateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        customizations:
+          $ref: '#/components/schemas/Customizations'
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        parent_id:
+          type: integer
+          nullable: true
+        display_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CategoryCreateRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        parent_id:
+          type: integer
+          nullable: true
+        display_order:
+          type: integer
+          default: 0
+
+    CategoryUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        parent_id:
+          type: integer
+          nullable: true
+        display_order:
+          type: integer
+
+    PublicSiteData:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        site_name:
+          type: string
+        subdomain:
+          type: string
+        site_title:
+          type: string
+        site_description:
+          type: string
+        theme_name:
+          type: string
+        status:
+          type: string
+        username:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        bio:
+          type: string
+        profile_image_path:
+          type: string
+        header_image_path:
+          type: string
+        primary_color:
+          type: string
+        secondary_color:
+          type: string
+        text_color:
+          type: string
+        accent_color:
+          type: string
+        background_color:
+          type: string
+
+    PublicProduct:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+          format: float
+        status:
+          type: string
+        image_path:
+          type: string
+        alt_text:
+          type: string
+        is_primary:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    PublicArticle:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        content:
+          type: string
+        status:
+          type: string
+        page_type:
+          type: string
+        site_menu_display:
+          type: string
+        site_blog_display:
+          type: string
+        menu_order:
+          type: integer
+        featured_image_path:
+          type: string
+        published_at:
+          type: string
+          format: date-time
+
+    PublicCategory:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        parent_id:
+          type: integer
+          nullable: true
+        display_order:
+          type: integer
+
+    SubdomainAvailabilityResponse:
+      type: object
+      properties:
+        available:
+          type: boolean
+        reason:
+          type: string
+          nullable: true
+
+    CustomDomainResponse:
+      type: object
+      properties:
+        subdomain:
+          type: string
+        user_id:
+          type: integer
+        site_name:
+          type: string
+        theme_name:
+          type: string
+
+    DiscountsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        discounts:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              discount_code:
+                type: string
+              discount_type:
+                type: string
+              discount_value:
+                type: number
+                format: float
+              priority:
+                type: integer
+              can_stack:
+                type: boolean
+              valid_from:
+                type: string
+                format: date-time
+              valid_until:
+                type: string
+                format: date-time
+        stacking_applied:
+          type: string
+          enum: [single_discount, stacked_discounts]
+
+    SuccessResponse:
+      type: object
+      properties:
+        message:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+
+  responses:
+    BadRequest:
+      description: Bad request - validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Unauthorized:
+      description: Unauthorized - authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+tags:
+  - name: Site Management
+    description: Site creation and management operations
+  - name: Templates
+    description: Website template management
+  - name: Addons
+    description: Website addon management
+  - name: Customization
+    description: Site visual customization
+  - name: Categories
+    description: Custom category management
+  - name: Public Access
+    description: Public site data access
+  - name: Utilities
+    description: Utility functions
+  - name: Discounts
+    description: Discount calculation system

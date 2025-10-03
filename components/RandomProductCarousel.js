@@ -3,6 +3,7 @@ import Link from 'next/link';
 import WholesalePricing from './WholesalePricing';
 import { isWholesaleCustomer } from '../lib/userUtils';
 import { getAuthToken } from '../lib/csrf';
+import { getApiUrl, getSmartMediaUrl } from '../lib/config';
 import styles from './RandomProductCarousel.module.css';
 
 const RandomProductCarousel = ({ title = "Discover Amazing Artwork", limit = 12, vendorId = null, products: passedProducts = null }) => {
@@ -46,8 +47,8 @@ const RandomProductCarousel = ({ title = "Discover Amazing Artwork", limit = 12,
         setLoading(true);
         // Build API URL with optional vendor filter
         const apiUrl = vendorId 
-          ? `https://api2.onlineartfestival.com/products/all?include=images&vendor_id=${vendorId}`
-          : `https://api2.onlineartfestival.com/products/all?include=images`;
+          ? getApiUrl(`products/all?include=images&vendor_id=${vendorId}`)
+          : getApiUrl('products/all?include=images');
         
         const res = await fetch(apiUrl);
         
@@ -156,13 +157,13 @@ const RandomProductCarousel = ({ title = "Discover Amazing Artwork", limit = 12,
     // Check for image_url first (this is the main product image field)
     if (product.image_url) {
       if (product.image_url.startsWith('http')) return product.image_url;
-      return `https://api2.onlineartfestival.com/api/media/serve/${product.image_url}`;
+      return getSmartMediaUrl(`/api/media/serve/${product.image_url}`);
     }
     // Check for images array as fallback
     if (product.images && product.images.length > 0) {
       const img = product.images[0];
       if (img.startsWith('http')) return img;
-      return `https://api2.onlineartfestival.com/api/media/serve/${img}`;
+      return getSmartMediaUrl(`/api/media/serve/${img}`);
     }
     return null;
   };

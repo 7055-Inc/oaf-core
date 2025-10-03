@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { getApiUrl } from '../lib/config';
 import { authenticatedApiRequest, clearAuthTokens } from '../lib/csrf';
 import styles from '../styles/TermsAcceptance.module.css';
 
@@ -18,7 +19,7 @@ export default function TermsAcceptance() {
   useEffect(() => {
     const fetchCurrentTerms = async () => {
       try {
-        const response = await fetch('https://api2.onlineartfestival.com/api/terms/current');
+        const response = await fetch(getApiUrl('api/terms/current'));
         if (!response.ok) {
           throw new Error('Failed to fetch current terms');
         }
@@ -78,7 +79,7 @@ export default function TermsAcceptance() {
     setError(null);
 
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/terms/accept', {
+      const response = await authenticatedApiRequest('api/terms/accept', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

@@ -8,8 +8,32 @@ const { orderHistoryLimiter } = require('../middleware/rateLimiter');
 const router = express.Router();
 
 /**
- * Calculate totals for cart items including commissions
- * POST /api/checkout/calculate-totals
+ * @fileoverview Checkout process management routes
+ * 
+ * Handles comprehensive checkout functionality including:
+ * - Cart totals calculation with shipping, tax, and commissions
+ * - Payment intent creation with Stripe integration
+ * - Tax calculation using Stripe Tax API
+ * - Order creation and management
+ * - Payment confirmation and order finalization
+ * - Order history and status tracking
+ * - Coupon and discount management
+ * - Multi-vendor order processing
+ * 
+ * @author Beemeeart Development Team
+ * @version 1.0.0
+ */
+
+/**
+ * Calculate comprehensive totals for cart items including shipping, tax, and commissions
+ * @route POST /api/checkout/calculate-totals
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {Array} req.body.cart_items - Array of cart items with product_id and quantity
+ * @param {Object} req.body.shipping_address - Shipping address for rate calculation
+ * @param {Array} req.body.applied_coupons - Array of applied coupon codes
+ * @param {Object} res - Express response object
+ * @returns {Object} Comprehensive totals with vendor groups and commission details
  */
 router.post('/calculate-totals', verifyToken, async (req, res) => {
   try {
@@ -51,8 +75,15 @@ router.post('/calculate-totals', verifyToken, async (req, res) => {
 });
 
 /**
- * Create payment intent for order
- * POST /api/checkout/create-payment-intent
+ * Create Stripe payment intent for order with tax calculation
+ * @route POST /api/checkout/create-payment-intent
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {Array} req.body.cart_items - Array of cart items
+ * @param {Object} req.body.shipping_info - Shipping address information
+ * @param {Object} req.body.billing_info - Billing address and customer information
+ * @param {Object} res - Express response object
+ * @returns {Object} Payment intent details, order ID, and calculated totals
  */
 router.post('/create-payment-intent', verifyToken, async (req, res) => {
   try {
@@ -221,8 +252,14 @@ router.post('/create-payment-intent', verifyToken, async (req, res) => {
 });
 
 /**
- * Confirm payment and finalize order
- * POST /api/checkout/confirm-payment
+ * Confirm payment and finalize order processing
+ * @route POST /api/checkout/confirm-payment
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.body.payment_intent_id - Stripe payment intent ID
+ * @param {number} req.body.order_id - Order ID to confirm
+ * @param {Object} res - Express response object
+ * @returns {Object} Confirmation of payment and order processing status
  */
 router.post('/confirm-payment', verifyToken, async (req, res) => {
   try {
@@ -277,8 +314,13 @@ router.post('/confirm-payment', verifyToken, async (req, res) => {
 });
 
 /**
- * Get payment status
- * GET /api/checkout/payment-status/:order_id
+ * Get payment status for a specific order
+ * @route GET /api/checkout/payment-status/:order_id
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.params.order_id - Order ID to check status
+ * @param {Object} res - Express response object
+ * @returns {Object} Order payment status and basic details
  */
 router.get('/payment-status/:order_id', verifyToken, async (req, res) => {
   try {
@@ -308,8 +350,13 @@ router.get('/payment-status/:order_id', verifyToken, async (req, res) => {
 });
 
 /**
- * Get order details with items
- * GET /api/checkout/order/:order_id
+ * Get comprehensive order details with all items
+ * @route GET /api/checkout/order/:order_id
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.params.order_id - Order ID to retrieve
+ * @param {Object} res - Express response object
+ * @returns {Object} Complete order details including items and vendor information
  */
 router.get('/order/:order_id', verifyToken, async (req, res) => {
   try {
@@ -333,8 +380,15 @@ router.get('/order/:order_id', verifyToken, async (req, res) => {
 });
 
 /**
- * Get customer's order history
- * GET /orders/my
+ * Get customer's order history with pagination and filtering
+ * @route GET /api/checkout/orders/my
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {number} req.query.page - Page number for pagination (default: 1)
+ * @param {number} req.query.limit - Items per page (default: 20)
+ * @param {string} req.query.status - Filter by order status (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} Paginated order history with tracking information
  */
 router.get('/orders/my', orderHistoryLimiter, verifyToken, async (req, res) => {
   try {
@@ -481,7 +535,10 @@ router.get('/orders/my', orderHistoryLimiter, verifyToken, async (req, res) => {
 // ===== HELPER FUNCTIONS =====
 
 /**
- * Get cart items with product details
+ * Get cart items with comprehensive product details
+ * @param {Array} cartItems - Array of cart items with product_id and quantity
+ * @returns {Promise<Array>} Array of items with product details and shipping info
+ * @throws {Error} If product not found
  */
 async function getCartItemsWithDetails(cartItems) {
   const productIds = cartItems.map(item => item.product_id);
@@ -525,7 +582,10 @@ async function getCartItemsWithDetails(cartItems) {
 }
 
 /**
- * Calculate shipping costs for cart items
+ * Calculate shipping costs for cart items using various methods
+ * @param {Array} items - Array of cart items with product details
+ * @param {Object} shippingAddress - Destination shipping address
+ * @returns {Promise<Array>} Items with calculated shipping costs and options
  */
 async function calculateShippingCosts(items, shippingAddress) {
   const itemsWithShipping = [];
@@ -618,7 +678,9 @@ async function calculateShippingCosts(items, shippingAddress) {
 }
 
 /**
- * Group items by vendor for display
+ * Group cart items by vendor for organized display
+ * @param {Array} items - Array of cart items with vendor information
+ * @returns {Array} Array of vendor groups with subtotals
  */
 function groupItemsByVendor(items) {
   const groups = {};
@@ -645,7 +707,9 @@ function groupItemsByVendor(items) {
 }
 
 /**
- * Calculate order totals
+ * Calculate comprehensive order totals including all fees
+ * @param {Array} items - Array of cart items with pricing information
+ * @returns {Object} Complete totals breakdown
  */
 function calculateOrderTotals(items) {
   const totals = {
@@ -669,7 +733,12 @@ function calculateOrderTotals(items) {
 }
 
 /**
- * Create order record
+ * Create order record with transaction safety
+ * @param {number} userId - User ID creating the order
+ * @param {Object} totals - Calculated order totals
+ * @param {Array} items - Array of order items
+ * @returns {Promise<number>} Created order ID
+ * @throws {Error} If order creation fails
  */
 async function createOrder(userId, totals, items) {
   const connection = await db.getConnection();
@@ -728,7 +797,9 @@ async function createOrder(userId, totals, items) {
 }
 
 /**
- * Get order by ID
+ * Get order by ID with basic information
+ * @param {number} orderId - Order ID to retrieve
+ * @returns {Promise<Object|null>} Order object or null if not found
  */
 async function getOrderById(orderId) {
   const query = 'SELECT * FROM orders WHERE id = ?';
@@ -737,7 +808,9 @@ async function getOrderById(orderId) {
 }
 
 /**
- * Get order with items
+ * Get order with complete item details and vendor information
+ * @param {number} orderId - Order ID to retrieve
+ * @returns {Promise<Object|null>} Order with items array or null if not found
  */
 async function getOrderWithItems(orderId) {
   const orderQuery = 'SELECT * FROM orders WHERE id = ?';
@@ -767,7 +840,10 @@ async function getOrderWithItems(orderId) {
 }
 
 /**
- * Update order with payment intent ID
+ * Update order with Stripe payment intent ID and status
+ * @param {number} orderId - Order ID to update
+ * @param {string} paymentIntentId - Stripe payment intent ID
+ * @returns {Promise} Database update result
  */
 async function updateOrderPaymentIntent(orderId, paymentIntentId) {
   const query = `
@@ -780,7 +856,9 @@ async function updateOrderPaymentIntent(orderId, paymentIntentId) {
 }
 
 /**
- * Clear user's cart
+ * Clear all items from user's cart after successful order
+ * @param {number} userId - User ID whose cart to clear
+ * @returns {Promise} Database deletion result
  */
 async function clearUserCart(userId) {
   const query = 'DELETE FROM cart_items WHERE cart_id IN (SELECT id FROM carts WHERE user_id = ?)';
@@ -788,8 +866,14 @@ async function clearUserCart(userId) {
 }
 
 /**
- * Validate and apply coupon code
- * POST /api/checkout/apply-coupon
+ * Validate and apply coupon code to cart items
+ * @route POST /api/checkout/apply-coupon
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.body.coupon_code - Coupon code to apply
+ * @param {Array} req.body.cart_items - Array of cart items
+ * @param {Object} res - Express response object
+ * @returns {Object} Coupon validation result and discounted items
  */
 router.post('/apply-coupon', verifyToken, async (req, res) => {
   try {
@@ -833,8 +917,14 @@ router.post('/apply-coupon', verifyToken, async (req, res) => {
 });
 
 /**
- * Remove applied coupon
- * POST /api/checkout/remove-coupon
+ * Remove applied coupon from cart items
+ * @route POST /api/checkout/remove-coupon
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.body.coupon_code - Coupon code to remove
+ * @param {Array} req.body.cart_items - Array of cart items
+ * @param {Object} res - Express response object
+ * @returns {Object} Items without the removed coupon discount
  */
 router.post('/remove-coupon', verifyToken, async (req, res) => {
   try {
@@ -867,8 +957,13 @@ router.post('/remove-coupon', verifyToken, async (req, res) => {
 });
 
 /**
- * Get applicable auto-apply discounts
- * POST /api/checkout/get-auto-discounts
+ * Get applicable auto-apply discounts for cart items
+ * @route POST /api/checkout/get-auto-discounts
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {Array} req.body.cart_items - Array of cart items
+ * @param {Object} res - Express response object
+ * @returns {Object} Items with automatically applied discounts
  */
 router.post('/get-auto-discounts', verifyToken, async (req, res) => {
   try {
@@ -904,8 +999,14 @@ router.post('/get-auto-discounts', verifyToken, async (req, res) => {
 });
 
 /**
- * Validate coupon code without applying
- * GET /api/checkout/validate-coupon/:code
+ * Validate coupon code without applying it to cart
+ * @route GET /api/checkout/validate-coupon/:code
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.params.code - Coupon code to validate
+ * @param {string} req.query.cart_items - JSON string of cart items (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} Coupon validation status and details
  */
 router.get('/validate-coupon/:code', verifyToken, async (req, res) => {
   try {

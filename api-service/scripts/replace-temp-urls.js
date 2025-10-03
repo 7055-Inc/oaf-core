@@ -55,8 +55,8 @@ async function replaceTempUrls() {
         console.log(`   Media ID: ${permanent_url}`);
 
         // Generate smart serving URLs
-        const imagePermanentUrl = `https://api2.onlineartfestival.com/api/media/images/${permanent_url}`;
-        const thumbnailPermanentUrl = `https://api2.onlineartfestival.com/api/media/images/${permanent_url}?size=thumbnail`;
+        const imagePermanentUrl = `https://api.beemeeart.com/api/media/images/${permanent_url}`;
+        const thumbnailPermanentUrl = `https://api.beemeeart.com/api/media/images/${permanent_url}?size=thumbnail`;
         
         console.log(`   📱 Smart serving URL: ${imagePermanentUrl}`);
 

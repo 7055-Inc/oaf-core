@@ -10,6 +10,12 @@ export default function AdminMenu({
 }) {
   if (!userData) return null;
   
+  // Check if user has admin privileges (either admin user type OR manage_system permission)
+  const isAdmin = userData.user_type === 'admin';
+  const hasManageSystem = userData.permissions?.includes('manage_system');
+  
+  if (!isAdmin && !hasManageSystem) return null;
+  
   return (
     <div className={styles.sidebarSection}>
       <h3 

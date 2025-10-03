@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
 import slideInStyles from '../../SlideIn.module.css';
 
 export default function TikTokConnector({ userData }) {
@@ -29,7 +30,7 @@ export default function TikTokConnector({ userData }) {
       setLoading(true);
       
       // Fetch shops
-      const shopsResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/tiktok/shops');
+      const shopsResponse = await authApiRequest('api/tiktok/shops');
       const shopsData = await shopsResponse.json();
       if (shopsData.success) {
         setShops(shopsData.shops);
@@ -37,7 +38,7 @@ export default function TikTokConnector({ userData }) {
       }
 
       // Fetch products
-      const productsResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/tiktok/products');
+      const productsResponse = await authenticatedApiRequest('api/tiktok/products');
       const productsData = await productsResponse.json();
       if (productsData.success) {
         setProducts(productsData.products);
@@ -53,7 +54,7 @@ export default function TikTokConnector({ userData }) {
 
   const handleConnect = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/tiktok/oauth/authorize');
+      const response = await authenticatedApiRequest('api/tiktok/oauth/authorize');
       const data = await response.json();
       
       if (data.status === 'awaiting_approval') {
@@ -99,7 +100,7 @@ export default function TikTokConnector({ userData }) {
     e.preventDefault();
     try {
       const response = await authenticatedApiRequest(
-        `https://api2.onlineartfestival.com/api/tiktok/products/${selectedProduct.product_id || selectedProduct.id}`,
+        `api/tiktok/products/${selectedProduct.product_id || selectedProduct.id}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -125,7 +126,7 @@ export default function TikTokConnector({ userData }) {
     if (confirm('Are you sure you want to remove this product from TikTok?')) {
       try {
         const response = await authenticatedApiRequest(
-          `https://api2.onlineartfestival.com/api/tiktok/products/${selectedProduct.product_id || selectedProduct.id}`,
+          `api/tiktok/products/${selectedProduct.product_id || selectedProduct.id}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -265,7 +266,7 @@ export default function TikTokConnector({ userData }) {
                         <img 
                           src={product.images[0].startsWith('http') 
                             ? product.images[0]
-                            : `https://api2.onlineartfestival.com/api/media/serve/${product.images[0]}`
+                            : `api/media/serve/${product.images[0]}`
                           }
                           alt={product.name || product.tiktok_title}
                           className={slideInStyles.itemThumb}

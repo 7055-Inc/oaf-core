@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import styles from './VerificationManager.module.css';
+import { getApiUrl } from '../lib/config';
 
 export default function VerificationManager() {
   const [verificationStatus, setVerificationStatus] = useState(null);
@@ -41,7 +42,7 @@ export default function VerificationManager() {
       const token = localStorage.getItem('token');
       
       // Fetch verification status and pending applications
-      const statusResponse = await fetch('https://api2.onlineartfestival.com/api/verification/status', {
+      const statusResponse = await fetch('api/verification/status', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -56,7 +57,7 @@ export default function VerificationManager() {
       }
 
       // Fetch all applications history
-      const appsResponse = await fetch('https://api2.onlineartfestival.com/api/verification/applications', {
+      const appsResponse = await fetch('api/verification/applications', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -111,7 +112,7 @@ export default function VerificationManager() {
       const token = localStorage.getItem('token');
       
       // Create the application
-      const response = await fetch('https://api2.onlineartfestival.com/api/verification/applications', {
+      const response = await fetch('api/verification/applications', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -128,7 +129,7 @@ export default function VerificationManager() {
       const result = await response.json();
 
       // Submit the application immediately (simplified for demo - in production, would handle payment first)
-      const submitResponse = await fetch(`https://api2.onlineartfestival.com/api/verification/applications/${result.id}/submit`, {
+      const submitResponse = await fetch(`api/verification/applications/${result.id}/submit`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

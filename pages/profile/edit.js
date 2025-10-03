@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '../../components/Header';
 import styles from './Edit.module.css';
-import { authenticatedApiRequest } from '../../lib/csrf';
+import { authApiRequest } from '../../lib/apiUtils';
+import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
 
 // Available art categories for dropdown
 const ART_CATEGORIES = [
@@ -168,7 +169,7 @@ export default function ProfileEdit() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await authenticatedApiRequest('https://api2.onlineartfestival.com/users/me', {
+        const res = await authApiRequest('users/me', {
           method: 'GET'
         });
         if (!res.ok) {
@@ -444,7 +445,7 @@ export default function ProfileEdit() {
         formDataToSend.append('logo_image', logoImage);
       }
 
-      const res = await authenticatedApiRequest('https://api2.onlineartfestival.com/users/me', {
+      const res = await authApiRequest('users/me', {
         method: 'PATCH',
         body: formDataToSend
       });
@@ -735,7 +736,7 @@ export default function ProfileEdit() {
             {user.profile_image_path && (
                     <div className={styles.currentImage}>
                       <img 
-                        src={`https://api2.onlineartfestival.com${user.profile_image_path}`} 
+                        src={getSmartMediaUrl(user.profile_image_path)} 
                         alt="Current profile"
                         className={styles.imagePreview}
                       />
@@ -755,7 +756,7 @@ export default function ProfileEdit() {
             {user.header_image_path && (
                     <div className={styles.currentImage}>
                       <img 
-                        src={`https://api2.onlineartfestival.com${user.header_image_path}`} 
+                        src={`${user.header_image_path}`} 
                         alt="Current header"
                         className={styles.imagePreview}
                       />
@@ -882,7 +883,7 @@ export default function ProfileEdit() {
                   {user.logo_path && (
                     <div className={styles.currentImage}>
                       <img 
-                        src={`https://api2.onlineartfestival.com${user.logo_path}`} 
+                        src={`${user.logo_path}`} 
                         alt="Current business logo"
                         className={styles.imagePreview}
                       />

@@ -3,19 +3,41 @@ const router = express.Router();
 const db = require('../../../config/db');
 const verifyToken = require('../../middleware/jwt');
 
+/**
+ * @fileoverview Website subscription management routes
+ * 
+ * Handles website/sites subscription functionality including:
+ * - Terms and conditions acceptance tracking for website services
+ * - Website subscription creation with plan selection and addon management
+ * - Permission management for site creation and management
+ * - User-level and site-level addon activation
+ * - Subscription cancellation and permission revocation
+ * - Subscription status checking with site count tracking
+ * 
+ * @author Beemeeart Development Team
+ * @version 1.0.0
+ */
+
 // ============================================================================
 // SITES SUBSCRIPTION ROUTES
 // ============================================================================
 // All routes for website/sites subscription management
 // Modular approach - all sites subscription logic contained here
 
-// GET /subscriptions/sites/terms-check - Check if user accepted latest sites terms
+/**
+ * Check if user has accepted the latest website terms
+ * @route GET /api/subscriptions/websites/terms-check
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Terms acceptance status and latest terms details
+ */
 router.get('/terms-check', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
     
     // Get latest sites terms version
-    const [latestTerms] = await db.execute(`
+    const [latestTerms] = await db.query(`
       SELECT id, title, content, version, created_at
       FROM terms_versions 
       WHERE subscription_type = 'sites' AND is_current = 1
@@ -30,7 +52,7 @@ router.get('/terms-check', verifyToken, async (req, res) => {
     const terms = latestTerms[0];
 
     // Check if user has accepted these terms
-    const [acceptance] = await db.execute(`
+    const [acceptance] = await db.query(`
       SELECT id, accepted_at
       FROM user_terms_acceptance 
       WHERE user_id = ? AND subscription_type = 'sites' AND terms_version_id = ?
@@ -56,7 +78,15 @@ router.get('/terms-check', verifyToken, async (req, res) => {
   }
 });
 
-// POST /subscriptions/sites/terms-accept - Record terms acceptance
+/**
+ * Record user acceptance of website terms
+ * @route POST /api/subscriptions/websites/terms-accept
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {number} req.body.terms_version_id - ID of the terms version being accepted
+ * @param {Object} res - Express response object
+ * @returns {Object} Confirmation of terms acceptance recording
+ */
 router.post('/terms-accept', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
@@ -67,7 +97,7 @@ router.post('/terms-accept', verifyToken, async (req, res) => {
     }
 
     // Verify the terms version exists and is for sites
-    const [termsCheck] = await db.execute(`
+    const [termsCheck] = await db.query(`
       SELECT id FROM terms_versions 
       WHERE id = ? AND subscription_type = 'sites'
     `, [terms_version_id]);
@@ -77,7 +107,7 @@ router.post('/terms-accept', verifyToken, async (req, res) => {
     }
 
     // Record acceptance (INSERT IGNORE to handle duplicate attempts)
-    await db.execute(`
+    await db.query(`
       INSERT IGNORE INTO user_terms_acceptance (user_id, subscription_type, terms_version_id, accepted_at)
       VALUES (?, 'sites', ?, NOW())
     `, [userId, terms_version_id]);
@@ -95,7 +125,20 @@ router.post('/terms-accept', verifyToken, async (req, res) => {
 
 
 
-// POST /subscriptions/sites/signup - Create subscription and grant sites permission
+/**
+ * Create website subscription and grant sites permission
+ * @route POST /api/subscriptions/websites/signup
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.body.plan_name - Selected subscription plan name
+ * @param {Array} req.body.permissions - Requested permissions array
+ * @param {Array} req.body.selected_addons - Selected addon IDs
+ * @param {Object} req.body.pricing - Pricing details
+ * @param {string} req.body.payment_method_id - Stripe payment method ID
+ * @param {Object} req.body.auto_applied_discount - Applied discount details
+ * @param {Object} res - Express response object
+ * @returns {Object} Subscription creation confirmation with permissions
+ */
 router.post('/signup', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
@@ -119,7 +162,7 @@ router.post('/signup', verifyToken, async (req, res) => {
     }
 
     // Check if user already has sites permission
-    const [existingPermission] = await db.execute(`
+    const [existingPermission] = await db.query(`
       SELECT sites FROM user_permissions WHERE user_id = ?
     `, [userId]);
 
@@ -146,7 +189,7 @@ router.post('/signup', verifyToken, async (req, res) => {
       }
       
       if (updateFields.length > 0) {
-        await db.execute(`
+        await db.query(`
           UPDATE user_permissions SET ${updateFields.join(', ')} WHERE user_id = ?
         `, [userId]);
       }
@@ -155,7 +198,7 @@ router.post('/signup', verifyToken, async (req, res) => {
       const sites = permissionsToGrant.includes('sites') ? 1 : 0;
       const manageSites = permissionsToGrant.includes('manage_sites') ? 1 : 0;
       
-      await db.execute(`
+      await db.query(`
         INSERT INTO user_permissions (user_id, sites, manage_sites) VALUES (?, ?, ?)
       `, [userId, sites, manageSites]);
     }
@@ -164,7 +207,7 @@ router.post('/signup', verifyToken, async (req, res) => {
     if (selected_addons && selected_addons.length > 0) {
       // Get addon details to determine which are user-level vs site-level
       const addonIds = selected_addons.join(',');
-      const [addonDetails] = await db.execute(`
+      const [addonDetails] = await db.query(`
         SELECT id, addon_slug, user_level, addon_name 
         FROM website_addons 
         WHERE id IN (${selected_addons.map(() => '?').join(',')}) AND is_active = 1
@@ -174,7 +217,7 @@ router.post('/signup', verifyToken, async (req, res) => {
       const userLevelAddons = addonDetails.filter(addon => addon.user_level === 1);
       if (userLevelAddons.length > 0) {
         for (const addon of userLevelAddons) {
-          await db.execute(`
+          await db.query(`
             INSERT INTO user_addons (user_id, addon_slug, subscription_source) 
             VALUES (?, ?, 'website_subscription')
             ON DUPLICATE KEY UPDATE 
@@ -200,7 +243,7 @@ router.post('/signup', verifyToken, async (req, res) => {
     }
 
     // Get updated user permissions for response
-    const [updatedPermissions] = await db.execute(`
+    const [updatedPermissions] = await db.query(`
       SELECT * FROM user_permissions WHERE user_id = ?
     `, [userId]);
 
@@ -235,13 +278,20 @@ router.post('/signup', verifyToken, async (req, res) => {
   }
 });
 
-// POST /subscriptions/sites/cancel - Cancel subscription and revoke sites permission
+/**
+ * Cancel website subscription and revoke sites permission
+ * @route POST /api/subscriptions/websites/cancel
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Cancellation confirmation
+ */
 router.post('/cancel', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
 
     // Check if user has sites permission
-    const [existingPermission] = await db.execute(`
+    const [existingPermission] = await db.query(`
       SELECT sites FROM user_permissions WHERE user_id = ?
     `, [userId]);
 
@@ -252,7 +302,7 @@ router.post('/cancel', verifyToken, async (req, res) => {
     // TODO: Cancel Stripe subscription when integrated
 
     // Revoke sites permission
-    await db.execute(`
+    await db.query(`
       UPDATE user_permissions SET sites = 0 WHERE user_id = ?
     `, [userId]);
 
@@ -267,13 +317,20 @@ router.post('/cancel', verifyToken, async (req, res) => {
   }
 });
 
-// GET /subscriptions/sites/status - Get current subscription status (bonus endpoint)
+/**
+ * Get current website subscription status
+ * @route GET /api/subscriptions/websites/status
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Subscription status with site count
+ */
 router.get('/status', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
 
     // Check sites permission
-    const [permission] = await db.execute(`
+    const [permission] = await db.query(`
       SELECT sites FROM user_permissions WHERE user_id = ?
     `, [userId]);
 
@@ -282,7 +339,7 @@ router.get('/status', verifyToken, async (req, res) => {
     // If has subscription, get sites count
     let sitesCount = 0;
     if (hasSubscription) {
-      const [sites] = await db.execute(`
+      const [sites] = await db.query(`
         SELECT COUNT(*) as count FROM sites WHERE user_id = ? AND status != 'deleted'
       `, [userId]);
       sitesCount = sites[0].count;

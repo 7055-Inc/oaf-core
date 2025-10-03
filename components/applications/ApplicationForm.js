@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import styles from './ApplicationForm.module.css';
+import { getApiUrl } from '../../lib/config';
 
 export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
@@ -30,13 +31,13 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
   useEffect(() => {
     if (event?.id) {
       // Fetch application stats
-      fetch(`https://api2.onlineartfestival.com/api/applications/events/${event.id}/stats`)
+      fetch(getApiUrl(`api/applications/events/${event.id}/stats`))
         .then(res => res.json())
         .then(data => setApplicationStats(data.stats))
         .catch(err => console.error('Error fetching application stats:', err));
 
       // Fetch available add-ons
-      fetch(`https://api2.onlineartfestival.com/api/events/${event.id}/available-addons`)
+      fetch(getApiUrl(`api/events/${event.id}/available-addons`))
         .then(res => res.json())
         .then(data => setAvailableAddons(data))
         .catch(err => console.error('Error fetching available add-ons:', err));
@@ -44,7 +45,7 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
       // Fetch custom application fields
       const token = localStorage.getItem('token');
       if (token) {
-        fetch(`https://api2.onlineartfestival.com/api/events/${event.id}/application-fields`, {
+        fetch(getApiUrl(`api/events/${event.id}/application-fields`), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -55,7 +56,7 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
         .catch(err => console.error('Error fetching application fields:', err));
 
       // Fetch jury packets
-      fetch('https://api2.onlineartfestival.com/api/jury-packets', {
+      fetch('api/jury-packets', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -71,7 +72,7 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
       .catch(err => console.error('Error fetching jury packets:', err));
 
       // Fetch personas
-      fetch('https://api2.onlineartfestival.com/api/personas', {
+      fetch('api/personas', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -89,7 +90,7 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
       .catch(err => console.error('Error fetching personas:', err));
 
       // Check user's verification status
-      fetch('https://api2.onlineartfestival.com/api/verification/status', {
+      fetch('api/verification/status', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -158,7 +159,7 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
       const token = localStorage.getItem('token');
       
       // Get full packet details
-      const response = await fetch(`https://api2.onlineartfestival.com/api/jury-packets/${packet.id}`, {
+      const response = await fetch(`api/jury-packets/${packet.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -214,7 +215,7 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
         throw new Error('Please log in to submit an application');
       }
 
-      const response = await fetch('https://api2.onlineartfestival.com/api/applications/apply-with-packet', {
+      const response = await fetch('api/applications/apply-with-packet', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -261,7 +262,7 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
         field_responses: fieldResponses
       };
 
-      const response = await fetch('https://api2.onlineartfestival.com/api/jury-packets', {
+      const response = await fetch('api/jury-packets', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -281,7 +282,7 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
       }
 
       // Refresh packets list
-      const packetsResponse = await fetch('https://api2.onlineartfestival.com/api/jury-packets', {
+      const packetsResponse = await fetch('api/jury-packets', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -348,7 +349,7 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
         throw new Error('Please log in to submit an application');
       }
 
-      const response = await fetch(`https://api2.onlineartfestival.com/api/applications/events/${event.id}/apply`, {
+      const response = await fetch(`api/applications/events/${event.id}/apply`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -371,7 +372,7 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
         try {
           const addonsToSave = selectedAddons.filter(addon => addon.requested);
           for (const addon of addonsToSave) {
-            await fetch(`https://api2.onlineartfestival.com/api/applications/${data.application.id}/addon-requests`, {
+            await fetch(`api/applications/${data.application.id}/addon-requests`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',

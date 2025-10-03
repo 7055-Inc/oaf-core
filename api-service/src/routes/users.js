@@ -1,3 +1,9 @@
+/**
+ * User Management Routes
+ * Handles user profile CRUD operations, profile completion, and user type management
+ * Supports multi-profile system (artist, promoter, community, admin) with comprehensive data management
+ */
+
 const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
@@ -10,7 +16,15 @@ const fs = require('fs');
 
 
 
-// GET /users/me - Fetch current user's profile
+/**
+ * GET /users/me
+ * Fetch current authenticated user's complete profile
+ * Includes base profile, type-specific profile, marketplace application, and active addons
+ * 
+ * @route GET /users/me
+ * @middleware verifyToken - Requires valid JWT token
+ * @returns {Object} Complete user profile with all associated data
+ */
 router.get('/me', verifyToken, async (req, res) => {
   try {
     const [user] = await db.query(
@@ -109,7 +123,7 @@ router.get('/me', verifyToken, async (req, res) => {
         const mediaMapping = {};
         mediaUrls.forEach(media => {
           if (media.permanent_url) {
-            mediaMapping[media.id] = `https://api2.onlineartfestival.com/api/images/${media.permanent_url}`;
+            mediaMapping[media.id] = `${process.env.SMART_MEDIA_BASE_URL}/${media.permanent_url}`;
           }
         });
         
@@ -158,7 +172,16 @@ router.get('/me', verifyToken, async (req, res) => {
   }
 });
 
-// GET /users?permissions=vendor,admin - Filter users by permissions
+/**
+ * GET /users
+ * Filter users by permissions and user types
+ * Returns formatted user list suitable for dropdowns and user selection
+ * 
+ * @route GET /users
+ * @middleware verifyToken - Requires valid JWT token
+ * @param {string} permissions - Comma-separated list of permissions/user types to filter by
+ * @returns {Array} Array of users matching the specified permissions
+ */
 router.get('/', verifyToken, async (req, res) => {
   try {
     const { permissions } = req.query;
@@ -246,7 +269,18 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
-// PATCH /users/me - Update current user's profile with image uploads
+/**
+ * PATCH /users/me
+ * Update current user's profile with support for multiple profile types and file uploads
+ * Handles base profile, artist profile, community profile, promoter profile, and marketplace application
+ * 
+ * @route PATCH /users/me
+ * @middleware verifyToken - Requires valid JWT token
+ * @middleware upload.fields - Handles multiple file uploads (images and jury materials)
+ * @param {Object} req.body - Profile data for various profile types
+ * @param {Object} req.files - Uploaded files (profile images, jury materials)
+ * @returns {Object} Success message and uploaded file information
+ */
 router.patch('/me', 
   verifyToken,
   upload.fields([
@@ -806,7 +840,18 @@ router.patch('/me',
   }
 );
 
-// PATCH /users/admin/me - Update admin user's profile with access to all profile types
+/**
+ * PATCH /users/admin/me
+ * Update admin user's profile with access to all profile types
+ * Allows admin users to update artist, promoter, and community profiles simultaneously
+ * 
+ * @route PATCH /users/admin/me
+ * @middleware verifyToken - Requires valid JWT token with admin role
+ * @middleware upload.fields - Handles profile image uploads
+ * @param {Object} req.body - Profile data for all profile types
+ * @param {Object} req.files - Uploaded profile images
+ * @returns {Object} Success message
+ */
 router.patch('/admin/me', 
   verifyToken,
   upload.fields([
@@ -1012,7 +1057,15 @@ router.patch('/admin/me',
   }
 );
 
-// GET /users/profile/by-id/:id - Fetch a user's public profile by ID
+/**
+ * GET /users/profile/by-id/:id
+ * Fetch a user's public profile by user ID
+ * Returns public profile information for active users only
+ * 
+ * @route GET /users/profile/by-id/:id
+ * @param {string} id - User ID to fetch profile for
+ * @returns {Object} Public user profile data
+ */
 router.get('/profile/by-id/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -1059,7 +1112,17 @@ router.get('/profile/by-id/:id', async (req, res) => {
   }
 });
 
-// GET /users/artists - Fetch list of active artists
+/**
+ * GET /users/artists
+ * Fetch list of active artists with profile information
+ * Supports pagination, random ordering, and artist-specific data
+ * 
+ * @route GET /users/artists
+ * @param {number} limit - Maximum number of results (default: 20, max: 100)
+ * @param {number} offset - Number of results to skip (default: 0)
+ * @param {string} random - Whether to randomize results ('true'/'false', default: 'true')
+ * @returns {Array} Array of artist profiles
+ */
 router.get('/artists', async (req, res) => {
   try {
     const { limit = 20, offset = 0, random = 'true' } = req.query;
@@ -1117,7 +1180,15 @@ router.get('/artists', async (req, res) => {
   }
 });
 
-// GET /users/:id/policies - Get user's policies (public endpoint)
+/**
+ * GET /users/:id/policies
+ * Get user's shipping and return policies (public endpoint)
+ * Returns custom policies or falls back to default policies
+ * 
+ * @route GET /users/:id/policies
+ * @param {string} id - User ID to fetch policies for
+ * @returns {Object} User's shipping and return policies
+ */
 router.get('/:id/policies', async (req, res) => {
   try {
     const { id } = req.params;
@@ -1151,7 +1222,15 @@ router.get('/:id/policies', async (req, res) => {
   }
 });
 
-// GET /users/profile-completion-status - Check if user's profile is complete
+/**
+ * GET /users/profile-completion-status
+ * Check if authenticated user's profile is complete
+ * Validates required fields based on user type (artist, promoter, community)
+ * 
+ * @route GET /users/profile-completion-status
+ * @middleware verifyToken - Requires valid JWT token
+ * @returns {Object} Profile completion status and missing fields
+ */
 router.get('/profile-completion-status', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
@@ -1234,7 +1313,16 @@ router.get('/profile-completion-status', verifyToken, async (req, res) => {
   }
 });
 
-// PATCH /users/complete-profile - Update missing profile fields
+/**
+ * PATCH /users/complete-profile
+ * Update missing profile fields to complete user profile
+ * Validates and updates required fields based on user type
+ * 
+ * @route PATCH /users/complete-profile
+ * @middleware verifyToken - Requires valid JWT token
+ * @param {Object} req.body - Profile completion data (name, address, business info)
+ * @returns {Object} Success confirmation
+ */
 router.patch('/complete-profile', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
@@ -1303,7 +1391,16 @@ router.patch('/complete-profile', verifyToken, async (req, res) => {
   }
 });
 
-// POST /users/select-user-type - Allow Draft users to select their user type
+/**
+ * POST /users/select-user-type
+ * Allow Draft users to select their user type (artist, promoter, community)
+ * One-time selection that determines available profile features
+ * 
+ * @route POST /users/select-user-type
+ * @middleware verifyToken - Requires valid JWT token
+ * @param {string} user_type - Selected user type ('artist', 'promoter', 'community')
+ * @returns {Object} Success confirmation with selected user type
+ */
 router.post('/select-user-type', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
@@ -1338,6 +1435,10 @@ router.post('/select-user-type', verifyToken, async (req, res) => {
 
 /**
  * Get vendor's shipping policy (with fallback to default)
+ * Retrieves custom vendor policy or falls back to system default policy
+ * 
+ * @param {number} vendorId - Vendor user ID
+ * @returns {Object|null} Shipping policy object or null if none found
  */
 async function getVendorShippingPolicy(vendorId) {
   // First try to get vendor's custom policy
@@ -1354,7 +1455,7 @@ async function getVendorShippingPolicy(vendorId) {
     WHERE sp.user_id = ? AND sp.status = 'active'
   `;
   
-  const [vendorRows] = await db.execute(vendorQuery, [vendorId]);
+  const [vendorRows] = await db.query(vendorQuery, [vendorId]);
   
   if (vendorRows.length > 0) {
     return vendorRows[0];
@@ -1374,7 +1475,7 @@ async function getVendorShippingPolicy(vendorId) {
     WHERE sp.user_id IS NULL AND sp.status = 'active'
   `;
   
-  const [defaultRows] = await db.execute(defaultQuery);
+  const [defaultRows] = await db.query(defaultQuery);
   
   if (defaultRows.length > 0) {
     return defaultRows[0];
@@ -1386,6 +1487,10 @@ async function getVendorShippingPolicy(vendorId) {
 
 /**
  * Get vendor's return policy (with fallback to default)
+ * Retrieves custom vendor policy or falls back to system default policy
+ * 
+ * @param {number} vendorId - Vendor user ID
+ * @returns {Object|null} Return policy object or null if none found
  */
 async function getVendorReturnPolicy(vendorId) {
   // First try to get vendor's custom policy
@@ -1402,7 +1507,7 @@ async function getVendorReturnPolicy(vendorId) {
     WHERE rp.user_id = ? AND rp.status = 'active'
   `;
   
-  const [vendorRows] = await db.execute(vendorQuery, [vendorId]);
+  const [vendorRows] = await db.query(vendorQuery, [vendorId]);
   
   if (vendorRows.length > 0) {
     return vendorRows[0];
@@ -1422,7 +1527,7 @@ async function getVendorReturnPolicy(vendorId) {
     WHERE rp.user_id IS NULL AND rp.status = 'active'
   `;
   
-  const [defaultRows] = await db.execute(defaultQuery);
+  const [defaultRows] = await db.query(defaultQuery);
   
   if (defaultRows.length > 0) {
     return defaultRows[0];

@@ -28,7 +28,7 @@ export const refreshAuthToken = async () => {
       return false;
     }
 
-    const response = await fetch('https://api2.onlineartfestival.com/auth/refresh', {
+    const response = await fetch('https://api.beemeeart.com/auth/refresh', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

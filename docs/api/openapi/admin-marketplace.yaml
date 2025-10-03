@@ -1,0 +1,736 @@
+openapi: 3.0.0
+info:
+  title: Beemeeart Admin Marketplace API
+  description: Administrative controls for marketplace management including product curation and application approval
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/admin/marketplace
+    description: Production server
+  - url: https://test.beemeeart.com/admin/marketplace
+    description: Testing server
+
+security:
+  - BearerAuth: []
+
+paths:
+  /stats:
+    get:
+      summary: Get marketplace statistics
+      description: Get comprehensive marketplace curation statistics and metrics for administrative oversight
+      operationId: getMarketplaceStats
+      tags:
+        - Statistics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketplaceStatsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /products:
+    get:
+      summary: Get products for curation
+      description: Get marketplace products by category for administrative curation and management
+      operationId: getProductsForCuration
+      tags:
+        - Product Curation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: category
+          in: query
+          description: Product category filter
+          schema:
+            type: string
+            enum: [unsorted, art, crafts]
+            default: unsorted
+        - name: include
+          in: query
+          description: Comma-separated includes (images,vendor)
+          schema:
+            type: string
+            example: "images,vendor"
+        - name: limit
+          in: query
+          description: Number of products to return
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          description: Pagination offset
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: Products retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurationProductsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /products/{id}/categorize:
+    put:
+      summary: Categorize individual product
+      description: Move individual product to different marketplace category with audit logging
+      operationId: categorizeProduct
+      tags:
+        - Product Curation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Product ID to categorize
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategorizationRequest'
+      responses:
+        '200':
+          description: Product categorized successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategorizationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /products/bulk-categorize:
+    put:
+      summary: Bulk categorize products
+      description: Bulk move multiple products to different marketplace category with transaction safety
+      operationId: bulkCategorizeProducts
+      tags:
+        - Product Curation
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkCategorizationRequest'
+      responses:
+        '200':
+          description: Products categorized successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkCategorizationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /curation-log:
+    get:
+      summary: Get curation history
+      description: Get comprehensive curation history and audit trail for administrative oversight
+      operationId: getCurationLog
+      tags:
+        - Audit Trail
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: Number of log entries to return
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
+        - name: offset
+          in: query
+          description: Pagination offset
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: Curation log retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurationLogResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /applications:
+    get:
+      summary: Get marketplace applications
+      description: Get marketplace applications by status for administrative review and processing
+      operationId: getMarketplaceApplications
+      tags:
+        - Application Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Application status filter
+          schema:
+            type: string
+            enum: [pending, approved, denied]
+            default: pending
+        - name: limit
+          in: query
+          description: Number of applications to return
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          description: Pagination offset
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: Applications retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /applications/{id}/approve:
+    put:
+      summary: Approve marketplace application
+      description: Approve marketplace application and automatically grant user marketplace permissions
+      operationId: approveApplication
+      tags:
+        - Application Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Application ID to approve
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalRequest'
+      responses:
+        '200':
+          description: Application approved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /applications/{id}/deny:
+    put:
+      summary: Deny marketplace application
+      description: Deny marketplace application with required denial reason and revoke marketplace permissions
+      operationId: denyApplication
+      tags:
+        - Application Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Application ID to deny
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DenialRequest'
+      responses:
+        '200':
+          description: Application denied successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DenialResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token with admin or system management permissions
+
+  schemas:
+    MarketplaceStats:
+      type: object
+      properties:
+        total_marketplace_products:
+          type: integer
+          description: Total number of marketplace products
+        unsorted_count:
+          type: integer
+          description: Number of products awaiting categorization
+        art_count:
+          type: integer
+          description: Number of art products
+        crafts_count:
+          type: integer
+          description: Number of craft products
+        wholesale_count:
+          type: integer
+          description: Number of products with wholesale pricing
+        user_permissions:
+          type: object
+          additionalProperties:
+            type: integer
+          description: User permission counts by status
+
+    MarketplaceStatsResponse:
+      allOf:
+        - $ref: '#/components/schemas/MarketplaceStats'
+
+    CurationProduct:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Product ID
+        name:
+          type: string
+          description: Product name
+        description:
+          type: string
+          description: Product description
+        price:
+          type: number
+          format: float
+          description: Product price
+        wholesale_price:
+          type: number
+          format: float
+          description: Wholesale price
+        marketplace_category:
+          type: string
+          enum: [unsorted, art, crafts]
+          description: Current marketplace category
+        status:
+          type: string
+          description: Product status
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        vendor_id:
+          type: integer
+          description: Vendor ID
+        vendor_name:
+          type: string
+          description: Vendor display name
+        vendor_username:
+          type: string
+          description: Vendor username
+        images:
+          type: array
+          items:
+            type: string
+          description: Product image URLs (if included)
+        vendor:
+          type: object
+          description: Detailed vendor information (if included)
+          properties:
+            id:
+              type: integer
+            username:
+              type: string
+            business_name:
+              type: string
+            business_website:
+              type: string
+
+    CurationProductsResponse:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/CurationProduct'
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+
+    CategorizationRequest:
+      type: object
+      required:
+        - category
+      properties:
+        category:
+          type: string
+          enum: [unsorted, art, crafts]
+          description: Target marketplace category
+        reason:
+          type: string
+          description: Optional reason for categorization
+
+    CategorizationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Operation success status
+        product_id:
+          type: integer
+          description: Product ID that was categorized
+        previous_category:
+          type: string
+          description: Previous category
+        new_category:
+          type: string
+          description: New category
+
+    BulkCategorizationRequest:
+      type: object
+      required:
+        - product_ids
+        - category
+      properties:
+        product_ids:
+          type: array
+          items:
+            type: integer
+          description: Array of product IDs to categorize
+        category:
+          type: string
+          enum: [unsorted, art, crafts]
+          description: Target marketplace category
+        reason:
+          type: string
+          description: Optional reason for bulk categorization
+
+    BulkCategorizationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Operation success status
+        updated_count:
+          type: integer
+          description: Number of products successfully updated
+        category:
+          type: string
+          description: Target category
+
+    CurationLogEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Log entry ID
+        product_id:
+          type: integer
+          description: Product ID
+        product_name:
+          type: string
+          description: Product name
+        previous_category:
+          type: string
+          description: Previous category
+        current_category:
+          type: string
+          description: Current category
+        curated_by:
+          type: integer
+          description: Admin user ID who performed curation
+        curator_name:
+          type: string
+          description: Admin user display name
+        curator_username:
+          type: string
+          description: Admin username
+        curation_reason:
+          type: string
+          description: Reason for categorization
+        curated_at:
+          type: string
+          format: date-time
+          description: Curation timestamp
+
+    CurationLogResponse:
+      type: object
+      properties:
+        logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/CurationLogEntry'
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+
+    MarketplaceApplication:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Application ID
+        user_id:
+          type: integer
+          description: User ID
+        username:
+          type: string
+          description: Username
+        user_name:
+          type: string
+          description: User display name
+        business_name:
+          type: string
+          description: Business name
+        work_description:
+          type: string
+          description: Work description
+        additional_info:
+          type: string
+          description: Additional information
+        marketplace_status:
+          type: string
+          enum: [pending, approved, denied]
+          description: Application status
+        verification_status:
+          type: string
+          description: User verification status
+        created_at:
+          type: string
+          format: date-time
+          description: Application creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        reviewer_name:
+          type: string
+          description: Reviewer username
+        media_urls:
+          type: object
+          description: Application media URLs
+          properties:
+            raw_materials:
+              type: string
+            work_process_1:
+              type: string
+            work_process_2:
+              type: string
+            work_process_3:
+              type: string
+            artist_at_work:
+              type: string
+            booth_display:
+              type: string
+            artist_working_video:
+              type: string
+            artist_bio_video:
+              type: string
+            additional_video:
+              type: string
+
+    ApplicationsResponse:
+      type: object
+      properties:
+        applications:
+          type: array
+          items:
+            $ref: '#/components/schemas/MarketplaceApplication'
+        total:
+          type: integer
+          description: Total number of applications
+        status:
+          type: string
+          description: Requested status filter
+
+    ApprovalRequest:
+      type: object
+      properties:
+        admin_notes:
+          type: string
+          description: Optional admin notes for approval
+
+    ApprovalResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Operation success status
+        message:
+          type: string
+          description: Success message
+        applicationId:
+          type: integer
+          description: Application ID
+
+    DenialRequest:
+      type: object
+      required:
+        - denial_reason
+      properties:
+        denial_reason:
+          type: string
+          description: Required reason for denial
+        admin_notes:
+          type: string
+          description: Optional admin notes
+
+    DenialResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Operation success status
+        message:
+          type: string
+          description: Success message
+        applicationId:
+          type: integer
+          description: Application ID
+
+    PaginationInfo:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total number of items
+        limit:
+          type: integer
+          description: Items per page
+        offset:
+          type: integer
+          description: Current offset
+        has_more:
+          type: boolean
+          description: Whether more items are available
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid parameters or missing required fields
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing JWT token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: Not found - resource does not exist
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+tags:
+  - name: Statistics
+    description: Marketplace statistics and metrics
+  - name: Product Curation
+    description: Product categorization and curation operations
+  - name: Audit Trail
+    description: Curation history and audit logging
+  - name: Application Management
+    description: Marketplace application approval and denial

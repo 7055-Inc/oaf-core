@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
 
 const EmailPreferences = ({ userId }) => {
   const [activeTab, setActiveTab] = useState('preferences');
@@ -43,7 +44,7 @@ const EmailPreferences = ({ userId }) => {
     setError(null);
     
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/emails/preferences');
+      const response = await authApiRequest('emails/preferences');
       
       if (!response.ok) {
         throw new Error('Failed to load preferences');
@@ -76,7 +77,7 @@ const EmailPreferences = ({ userId }) => {
       console.log('Email history loading temporarily disabled');
       setHistoryLoading(false);
       return;
-      // const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/emails/log');
+      // const response = await authenticatedApiRequest('emails/log');
       
       if (!response.ok) {
         throw new Error('Failed to load email history');
@@ -104,7 +105,7 @@ const EmailPreferences = ({ userId }) => {
     setError(null);
     
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/emails/bounce-status');
+      const response = await authenticatedApiRequest('emails/bounce-status');
       setBounceStatus(response);
     } catch (err) {
       setError('Failed to load bounce status');
@@ -127,7 +128,7 @@ const EmailPreferences = ({ userId }) => {
         categories: preferences.categories
       };
       
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/emails/preferences', {
+      const response = await authenticatedApiRequest('emails/preferences', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -154,7 +155,7 @@ const EmailPreferences = ({ userId }) => {
     setMessage('');
 
     try {
-      await authenticatedApiRequest('https://api2.onlineartfestival.com/emails/reactivate', {
+      await authenticatedApiRequest('emails/reactivate', {
         method: 'POST'
       });
       setMessage('Email reactivated successfully!');

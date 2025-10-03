@@ -1,0 +1,184 @@
+openapi: 3.0.0
+info:
+  title: Beemeeart Security API
+  version: 1.0.0
+  description: CSRF protection and security endpoints for the Beemeeart platform
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+servers:
+  - url: https://api.beemeeart.com
+    description: Production server
+  - url: https://test.beemeeart.com
+    description: Staging server
+
+paths:
+  /csrf-token:
+    get:
+      summary: Get CSRF Token
+      description: Retrieves a CSRF token for authenticated requests. Required for all state-changing operations.
+      operationId: getCsrfToken
+      tags:
+        - Security
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: CSRF token retrieved successfully
+          headers:
+            Set-Cookie:
+              description: CSRF token cookie for automatic inclusion
+              schema:
+                type: string
+                example: "csrf-token=abc123def456; Domain=.beemeeart.com; Path=/; HttpOnly=false; Secure; SameSite=Lax"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfTokenResponse'
+        '500':
+          description: Internal Server Error - Token generation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: 'Use "Bearer {your_api_key}"'
+    
+    CsrfToken:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+      description: 'CSRF token obtained from /csrf-token endpoint'
+
+  schemas:
+    CsrfTokenResponse:
+      type: object
+      properties:
+        csrfToken:
+          type: string
+          description: CSRF token for use in subsequent requests
+          example: "abc123def456ghi789jkl012mno345pqr678"
+      required:
+        - csrfToken
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "CSRF secret not available"
+        message:
+          type: string
+          description: Detailed error description
+          example: "Please include a valid CSRF token with your request"
+      required:
+        - error
+
+    CsrfErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          enum: 
+            - "CSRF token missing"
+            - "Invalid CSRF token"
+            - "Security token required. Please refresh and try again."
+          example: "CSRF token missing"
+        message:
+          type: string
+          description: Detailed error message with guidance
+          example: "Please include a valid CSRF token with your request"
+      required:
+        - error
+        - message
+
+  parameters:
+    CsrfTokenHeader:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      description: CSRF token for request validation
+      schema:
+        type: string
+        example: "abc123def456ghi789jkl012mno345pqr678"
+
+    CsrfTokenQuery:
+      name: _csrf
+      in: query
+      required: false
+      description: Alternative CSRF token location (header preferred)
+      schema:
+        type: string
+        example: "abc123def456ghi789jkl012mno345pqr678"
+
+  responses:
+    CsrfTokenMissing:
+      description: CSRF token is missing from the request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CsrfErrorResponse'
+          example:
+            error: "CSRF token missing"
+            message: "Please include a valid CSRF token with your request"
+
+    CsrfTokenInvalid:
+      description: CSRF token is invalid or expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CsrfErrorResponse'
+          example:
+            error: "Invalid CSRF token"
+            message: "The CSRF token is invalid or expired"
+
+    CsrfStrictMode:
+      description: Strict CSRF validation failed for sensitive operation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CsrfErrorResponse'
+          example:
+            error: "Security token required. Please refresh and try again."
+
+tags:
+  - name: Security
+    description: Security and CSRF protection endpoints
+    externalDocs:
+      description: Security best practices
+      url: https://beemeeart.com/docs/security
+
+# Global security requirements for all endpoints
+security:
+  - ApiKeyAuth: []
+  - CsrfToken: []
+
+# Example of how to document CSRF-protected endpoints
+externalDocs:
+  description: |
+    ## CSRF Protection Usage
+    
+    All state-changing operations (POST, PUT, DELETE, PATCH) require CSRF tokens.
+    
+    ### Token Sources (checked in order):
+    1. X-CSRF-Token header (recommended)
+    2. _csrf request body field
+    3. _csrf query parameter
+    4. csrf-token cookie (automatic)
+    
+    ### Protection Levels:
+    - **Standard**: Most API endpoints
+    - **Strict**: Payments, admin, vendor operations
+    
+    ### Exemptions:
+    - Safe methods (GET, HEAD, OPTIONS)
+    - Webhook endpoints
+    - Auth validation requests
+  url: https://beemeeart.com/docs/csrf-protection

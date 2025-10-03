@@ -5,6 +5,7 @@ import Link from 'next/link';
 import WholesalePricing from '../../components/WholesalePricing';
 import { isWholesaleCustomer } from '../../lib/userUtils';
 import { getAuthToken } from '../../lib/csrf';
+import { getApiUrl } from '../../lib/config';
 import styles from './ArtistStorefront.module.css';
 
 const ArtistProductDetail = () => {
@@ -24,18 +25,18 @@ const ArtistProductDetail = () => {
     // Check for image_url first (this is the main product image field)
     if (product.image_url) {
       if (product.image_url.startsWith('http')) return product.image_url;
-      return `https://api2.onlineartfestival.com/api/media/serve/${product.image_url}`;
+      return getApiUrl(`api/media/serve/${product.image_url}`);
     }
     // Check for image_path (legacy field)
     if (product.image_path) {
       if (product.image_path.startsWith('http')) return product.image_path;
-      return `https://api2.onlineartfestival.com/api/media/serve/${product.image_path}`;
+      return `api/media/serve/${product.image_path}`;
     }
     // Check for images array (from the include=images parameter)
     if (product.images && product.images.length > 0) {
       const img = product.images[0];
       if (img.startsWith('http')) return img;
-      return `https://api2.onlineartfestival.com/api/media/serve/${img}`;
+      return `api/media/serve/${img}`;
     }
     return null; // No image available
   };
@@ -52,7 +53,7 @@ const ArtistProductDetail = () => {
     // Add additional images from images array
     if (product.images && product.images.length > 0) {
       product.images.forEach(img => {
-        const imageUrl = img.startsWith('http') ? img : `https://api2.onlineartfestival.com/api/media/serve/${img}`;
+        const imageUrl = img.startsWith('http') ? img : `api/media/serve/${img}`;
         if (!images.includes(imageUrl)) {
           images.push(imageUrl);
         }
@@ -87,8 +88,8 @@ const ArtistProductDetail = () => {
       
       // Fetch site data and product data in parallel
       const [siteResponse, productResponse] = await Promise.all([
-        fetch(`https://api2.onlineartfestival.com/api/sites/resolve/${subdomain}`),
-        fetch(`https://api2.onlineartfestival.com/products/${productId}?include=images,shipping,vendor`)
+        fetch(`api/sites/resolve/${subdomain}`),
+        fetch(`products/${productId}?include=images,shipping,vendor`)
       ]);
 
       if (siteResponse.ok) {
@@ -114,7 +115,7 @@ const ArtistProductDetail = () => {
   const addToCart = async (productId) => {
     // Basic add to cart functionality - you may want to expand this
     try {
-      const response = await fetch('https://api2.onlineartfestival.com/cart/add', {
+      const response = await fetch('cart/add', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

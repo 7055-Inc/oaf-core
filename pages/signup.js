@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getAuth, createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import firebaseApp from '../lib/firebase';
+import { getApiUrl } from '../lib/config';
 import Header from '../components/Header';
 import { clearAuthTokens } from '../lib/csrf';
 import CookieConsentModal from '../components/CookieConsentModal';
@@ -93,7 +94,7 @@ export default function Signup() {
       // Clear any existing tokens first
       clearAuthTokens();
       
-      const response = await fetch('https://api2.onlineartfestival.com/auth/exchange', {
+      const response = await fetch(getApiUrl('auth/exchange'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -115,8 +116,8 @@ export default function Signup() {
         localStorage.setItem('refreshToken', data.refreshToken);
         
         // Set secure cookies for middleware
-        document.cookie = `token=${data.token}; path=/; domain=.onlineartfestival.com; secure; samesite=lax; max-age=3600`;
-        document.cookie = `refreshToken=${data.refreshToken}; path=/; domain=.onlineartfestival.com; secure; samesite=lax; max-age=604800`;
+        document.cookie = `token=${data.token}; path=/; domain=.beemeeart.com; secure; samesite=lax; max-age=3600`;
+        document.cookie = `refreshToken=${data.refreshToken}; path=/; domain=.beemeeart.com; secure; samesite=lax; max-age=604800`;
         
         // Authentication successful, tokens set
         

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '../../components/Header';
 import { authenticatedApiRequest } from '../../lib/csrf';
+import { authApiRequest } from '../../lib/apiUtils';
 import { hasAddon } from '../../lib/userUtils';
 import styles from './Inventory.module.css';
 
@@ -53,7 +54,7 @@ export default function InventoryManagement() {
 
   const fetchUserPermissions = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/users/me');
+      const response = await authApiRequest('users/me');
       if (response.ok) {
         const userDataResponse = await response.json();
         setUserData(userDataResponse);
@@ -68,7 +69,7 @@ export default function InventoryManagement() {
     try {
       setLoading(true);
       // Get products (will show only user's products unless admin)
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/products');
+      const response = await authenticatedApiRequest('products');
       if (!response.ok) throw new Error('Failed to fetch products');
       
       const productsData = await response.json();
@@ -79,7 +80,7 @@ export default function InventoryManagement() {
           try {
             // Try to get existing inventory record
             const inventoryResponse = await authenticatedApiRequest(
-              `https://api2.onlineartfestival.com/inventory/${product.id}`
+              `inventory/${product.id}`
             );
             
             let inventory;
@@ -144,7 +145,7 @@ export default function InventoryManagement() {
   const handleSingleInventoryUpdate = async (productId, newQuantity, reason = 'Manual adjustment') => {
     try {
       const response = await authenticatedApiRequest(
-        `https://api2.onlineartfestival.com/inventory/${productId}`,
+        `inventory/${productId}`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -196,7 +197,7 @@ export default function InventoryManagement() {
         }
 
         return authenticatedApiRequest(
-          `https://api2.onlineartfestival.com/inventory/${productId}`,
+          `inventory/${productId}`,
           {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },

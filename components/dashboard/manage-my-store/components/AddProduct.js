@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
+import { getSmartMediaUrl } from '../../../../lib/config';
+import { authApiRequest } from '../../../../lib/apiUtils';
+import { getFrontendUrl } from '../../../../lib/config';
 import styles from '../../../../pages/dashboard/Dashboard.module.css';
 import slideInStyles from '../../SlideIn.module.css';
 import AddCategoryModal from '../../../AddCategoryModal';
@@ -155,7 +158,7 @@ export default function AddProduct({ userData }) {
           status: 'active' // ACTIVATE the draft!
         };
 
-        const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/products/${variation.id}`, {
+        const response = await authApiRequest(`products/${variation.id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json'
@@ -174,7 +177,7 @@ export default function AddProduct({ userData }) {
       await Promise.all(activationPromises);
 
       // Also activate the parent product (change from draft to active)
-      const parentActivationResponse = await authenticatedApiRequest(`https://api2.onlineartfestival.com/products/${parentProductId}`, {
+      const parentActivationResponse = await authenticatedApiRequest(`products/${parentProductId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
@@ -191,7 +194,7 @@ export default function AddProduct({ userData }) {
 
       // Queue new product email for variable product
       try {
-        const emailResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/emails/queue', {
+        const emailResponse = await authenticatedApiRequest('emails/queue', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -199,7 +202,7 @@ export default function AddProduct({ userData }) {
             templateData: { 
               product_name: parentProduct.name, 
               product_id: parentProductId,
-              product_url: `https://onlineartfestival.com/products/${parentProductId}`,
+              product_url: getFrontendUrl(`/products/${parentProductId}`),
               product_description: parentProduct.description || parentProduct.short_description || '',
               product_price: `$${parentProduct.price}`,
               product_image_url: parentProduct.images && parentProduct.images.length > 0 ? parentProduct.images[0] : '',
@@ -247,7 +250,7 @@ export default function AddProduct({ userData }) {
 
   const loadCategories = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/categories', {
+      const response = await authenticatedApiRequest('categories', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -285,7 +288,7 @@ export default function AddProduct({ userData }) {
 
   const loadUserCategories = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/sites/categories', {
+      const response = await authenticatedApiRequest('api/sites/categories', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -312,7 +315,7 @@ export default function AddProduct({ userData }) {
 
   const handleAddNewCategory = async (categoryData) => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/sites/categories', {
+      const response = await authenticatedApiRequest('api/sites/categories', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -381,7 +384,7 @@ export default function AddProduct({ userData }) {
         uploadFormData.append('images', file);
       });
 
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/products/upload?product_id=new', {
+      const response = await authenticatedApiRequest('products/upload?product_id=new', {
         method: 'POST',
         body: uploadFormData
       });
@@ -444,7 +447,7 @@ export default function AddProduct({ userData }) {
         product_type: selectedProductType
       };
 
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/products', {
+      const response = await authenticatedApiRequest('products', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -468,7 +471,7 @@ export default function AddProduct({ userData }) {
 
       // Queue new product email
       try {
-        const emailResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/emails/queue', {
+        const emailResponse = await authenticatedApiRequest('emails/queue', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -476,7 +479,7 @@ export default function AddProduct({ userData }) {
             templateData: { 
               product_name: newProduct.name, 
               product_id: newProduct.id,
-              product_url: `https://onlineartfestival.com/products/${newProduct.id}`,
+              product_url: getFrontendUrl(`/products/${newProduct.id}`),
               product_description: newProduct.description || newProduct.short_description || '',
               product_price: `$${newProduct.price}`,
               product_image_url: newProduct.images && newProduct.images.length > 0 ? newProduct.images[0] : '',
@@ -576,7 +579,7 @@ export default function AddProduct({ userData }) {
         packages: packages.filter(pkg => pkg.length && pkg.width && pkg.height && pkg.weight)
       };
       
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/shipping/calculate-cart-shipping', {
+      const response = await authenticatedApiRequest('api/shipping/calculate-cart-shipping', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -1355,7 +1358,7 @@ export default function AddProduct({ userData }) {
                          <div key={index}>
                            <div>
                              <img 
-                               src={imageUrl.startsWith('http') ? imageUrl : `https://api2.onlineartfestival.com${imageUrl}`} 
+                               src={imageUrl.startsWith('http') ? imageUrl : getSmartMediaUrl(imageUrl)} 
                                alt={`Product ${index + 1}`} 
                              />
                            </div>
@@ -1478,7 +1481,7 @@ export default function AddProduct({ userData }) {
                         status: 'draft'
                       };
 
-                      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/products', {
+                      const response = await authenticatedApiRequest('products', {
                         method: 'POST',
                         headers: {
                           'Content-Type': 'application/json'
@@ -1504,7 +1507,7 @@ export default function AddProduct({ userData }) {
                           await delay(200); // 200ms delay between variation creations (light throttling)
                         }
                         
-                        const variationResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/products/variations', {
+                        const variationResponse = await authenticatedApiRequest('products/variations', {
                           method: 'POST',
                           headers: {
                             'Content-Type': 'application/json'

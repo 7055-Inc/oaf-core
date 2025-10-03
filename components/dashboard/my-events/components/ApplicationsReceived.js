@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getAuthToken } from '../../../../lib/csrf';
+import { getApiUrl } from '../../../../lib/config';
 import styles from '../../SlideIn.module.css';
 import ApplicationCard from './applications-received/ApplicationCard';
 import BulkAcceptanceInterface from './applications-received/BulkAcceptanceInterface';
@@ -26,7 +27,7 @@ export default function ApplicationsReceived({ userData }) {
         throw new Error('Please log in to manage applications');
       }
 
-      const response = await fetch(`https://api2.onlineartfestival.com/api/events?promoter_id=${userData.id}&allow_applications=1`, {
+      const response = await fetch(getApiUrl(`api/events?promoter_id=${userData.id}&allow_applications=1`), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -56,7 +57,7 @@ export default function ApplicationsReceived({ userData }) {
     setApplicationsLoading(true);
     try {
       const token = getAuthToken();
-      const response = await fetch(`https://api2.onlineartfestival.com/api/applications/events/${eventId}/applications`, {
+      const response = await fetch(getApiUrl(`api/applications/events/${eventId}/applications`), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -84,7 +85,7 @@ export default function ApplicationsReceived({ userData }) {
   const updateApplicationStatus = async (applicationId, status, juryComments = '') => {
     try {
       const token = getAuthToken();
-      const response = await fetch(`https://api2.onlineartfestival.com/api/applications/${applicationId}/status`, {
+      const response = await fetch(`api/applications/${applicationId}/status`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

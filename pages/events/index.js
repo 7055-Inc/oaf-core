@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import { getApiUrl, getFrontendUrl } from '../../lib/config';
 import Header from '../../components/Header';
 import styles from './styles/EventsList.module.css';
 
@@ -28,7 +29,7 @@ export default function EventsPage() {
         queryParams.append('event_type_id', filters.event_type_id);
       }
       
-      const response = await fetch(`https://api2.onlineartfestival.com/api/events?${queryParams}`);
+      const response = await fetch(getApiUrl(`api/events?${queryParams}`));
       const data = await response.json();
       setEvents(data || []);
     } catch (err) {
@@ -107,13 +108,13 @@ export default function EventsPage() {
         <title>Art Events & Festivals - Online Art Festival</title>
         <meta name="description" content="Discover upcoming art events, festivals, and exhibitions. Find indoor and outdoor art festivals, gallery exhibitions, craft faires, and more art events near you." />
         <meta name="keywords" content="art events, art festivals, art exhibitions, craft fairs, art shows, gallery events, outdoor art festival, indoor art festival" />
-        <link rel="canonical" href="https://onlineartfestival.com/events" />
+        <link rel="canonical" href={getFrontendUrl('/events')} />
         
         {/* Open Graph */}
         <meta property="og:title" content="Art Events & Festivals - Online Art Festival" />
         <meta property="og:description" content="Discover upcoming art events, festivals, and exhibitions. Find art events near you." />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://onlineartfestival.com/events" />
+        <meta property="og:url" content="/events" />
         
         {/* Twitter Card */}
         <meta name="twitter:card" content="summary" />
@@ -129,7 +130,7 @@ export default function EventsPage() {
               "@type": "CollectionPage",
               "name": "Art Events & Festivals",
               "description": "Discover upcoming art events, festivals, and exhibitions",
-              "url": "https://onlineartfestival.com/events",
+              "url": "/events",
               "mainEntity": {
                 "@type": "ItemList",
                 "numberOfItems": events.length,
@@ -148,7 +149,7 @@ export default function EventsPage() {
                       "addressRegion": event.venue_state
                     }
                   },
-                  "url": `https://onlineartfestival.com/events/${event.id}`
+                  "url": `/events/${event.id}`
                 }))
               }
             })

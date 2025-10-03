@@ -1,0 +1,915 @@
+openapi: 3.0.0
+info:
+  title: Shipping Subscriptions API
+  description: Comprehensive shipping subscription management with dual payment methods and label processing
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/api
+    description: Production server
+
+paths:
+  /subscriptions/shipping/vendor-address:
+    get:
+      summary: Get vendor address
+      description: Get vendor shipping settings for Ship From address prefill
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorAddressResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/shipping/terms-check:
+    get:
+      summary: Check terms acceptance
+      description: Check if user has accepted the latest shipping terms
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TermsCheckResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/shipping/terms:
+    get:
+      summary: Get current terms
+      description: Get current shipping terms and conditions (public endpoint)
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TermsResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/shipping/accept-terms:
+    post:
+      summary: Accept terms
+      description: Record user acceptance of shipping terms with audit trail
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptTermsRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptTermsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/shipping/my:
+    get:
+      summary: Get my subscription
+      description: Get complete shipping subscription status and details
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MySubscriptionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/shipping/signup:
+    post:
+      summary: Sign up for subscription
+      description: Create or activate shipping subscription
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignupResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/shipping/activate:
+    post:
+      summary: Activate subscription
+      description: Activate subscription after payment method setup
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivateRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/shipping/cancel:
+    delete:
+      summary: Cancel subscription
+      description: Cancel shipping subscription and revoke permissions
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/shipping/preferences:
+    put:
+      summary: Update preferences
+      description: Update payment method preferences
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreferencesRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreferencesResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/shipping/update-payment-method:
+    post:
+      summary: Update payment method
+      description: Create setup intent for payment method update
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdatePaymentMethodResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/shipping/purchase-label:
+    post:
+      summary: Purchase label
+      description: Process payment for shipping label with automatic payment method selection
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PurchaseLabelRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseLabelResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/shipping/create-standalone-label:
+    post:
+      summary: Create standalone label
+      description: Create standalone shipping label not attached to an order
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStandaloneLabelRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateStandaloneLabelResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/shipping/all-labels:
+    get:
+      summary: Get all labels
+      description: Get unified library of both order and standalone labels
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AllLabelsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/shipping/standalone-labels:
+    get:
+      summary: Get standalone labels
+      description: Get standalone label library only
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandaloneLabelsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/shipping/purchases:
+    get:
+      summary: Get purchase history
+      description: Get shipping label purchase history with pagination
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+          description: Number of records to return
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Number of records to skip
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseHistoryResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/shipping/refund:
+    post:
+      summary: Process refund
+      description: Process refund for shipping label purchase
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Bearer token authentication
+
+  schemas:
+    Address:
+      type: object
+      properties:
+        name:
+          type: string
+        street:
+          type: string
+        address_line_2:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zip:
+          type: string
+        country:
+          type: string
+        phone:
+          type: string
+
+    Terms:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        content:
+          type: string
+        version:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    SetupIntent:
+      type: object
+      properties:
+        id:
+          type: string
+        client_secret:
+          type: string
+
+    Package:
+      type: object
+      required:
+        - length
+        - width
+        - height
+        - weight
+      properties:
+        length:
+          type: number
+        width:
+          type: number
+        height:
+          type: number
+        weight:
+          type: number
+        dimension_unit:
+          type: string
+          default: in
+        weight_unit:
+          type: string
+          default: lbs
+
+    ShippingRate:
+      type: object
+      required:
+        - carrier
+        - service
+        - cost
+      properties:
+        carrier:
+          type: string
+        service:
+          type: string
+        cost:
+          type: number
+          format: decimal
+
+    Purchase:
+      type: object
+      properties:
+        id:
+          type: integer
+        source:
+          type: string
+          enum: [card, connect]
+        date:
+          type: string
+          format: date-time
+        amount:
+          type: number
+          format: decimal
+        payment_method:
+          type: string
+        tracking_number:
+          type: string
+        carrier:
+          type: string
+        status:
+          type: string
+
+    Label:
+      type: object
+      properties:
+        db_id:
+          type: integer
+        type:
+          type: string
+          enum: [order, standalone]
+        order_id:
+          type: integer
+        order_item_id:
+          type: integer
+        tracking_number:
+          type: string
+        label_file_path:
+          type: string
+        service_name:
+          type: string
+        cost:
+          type: number
+          format: decimal
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        customer_name:
+          type: string
+        product_name:
+          type: string
+        quantity:
+          type: integer
+
+    VendorAddressResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        has_vendor_address:
+          type: boolean
+        address:
+          $ref: '#/components/schemas/Address'
+        incomplete_address:
+          $ref: '#/components/schemas/Address'
+
+    TermsCheckResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        termsAccepted:
+          type: boolean
+        latestTerms:
+          $ref: '#/components/schemas/Terms'
+
+    TermsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        terms:
+          $ref: '#/components/schemas/Terms'
+
+    AcceptTermsRequest:
+      type: object
+      properties:
+        ip_address:
+          type: string
+        user_agent:
+          type: string
+
+    AcceptTermsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        activated:
+          type: boolean
+        terms_version_id:
+          type: integer
+
+    MySubscriptionResponse:
+      type: object
+      properties:
+        subscription:
+          type: object
+          properties:
+            id:
+              type: integer
+            status:
+              type: string
+            cardLast4:
+              type: string
+            preferConnectBalance:
+              type: boolean
+            hasStripeConnect:
+              type: boolean
+            termsAccepted:
+              type: boolean
+            termsAcceptedAt:
+              type: string
+              format: date-time
+            createdAt:
+              type: string
+              format: date-time
+        card_purchases:
+          type: array
+          items:
+            $ref: '#/components/schemas/Purchase'
+        connect_purchases:
+          type: array
+          items:
+            $ref: '#/components/schemas/Purchase'
+        has_permission:
+          type: boolean
+        connect_balance:
+          type: object
+          properties:
+            available:
+              type: integer
+            pending:
+              type: integer
+
+    SignupRequest:
+      type: object
+      properties:
+        preferConnectBalance:
+          type: boolean
+          default: false
+        acceptTerms:
+          type: boolean
+          default: false
+
+    SignupResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        subscription_id:
+          type: integer
+        activated:
+          type: boolean
+        has_payment_method:
+          type: boolean
+        needs_terms:
+          type: boolean
+        setup_intent:
+          $ref: '#/components/schemas/SetupIntent'
+        message:
+          type: string
+
+    ActivateRequest:
+      type: object
+      required:
+        - setup_intent_id
+      properties:
+        setup_intent_id:
+          type: string
+
+    ActivateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
+    CancelResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
+    PreferencesRequest:
+      type: object
+      required:
+        - preferConnectBalance
+      properties:
+        preferConnectBalance:
+          type: boolean
+
+    PreferencesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        prefer_connect_balance:
+          type: boolean
+
+    UpdatePaymentMethodResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        setup_intent:
+          $ref: '#/components/schemas/SetupIntent'
+        message:
+          type: string
+
+    PurchaseLabelRequest:
+      type: object
+      required:
+        - shippingLabelId
+        - amount
+      properties:
+        shippingLabelId:
+          type: integer
+        amount:
+          type: number
+          format: decimal
+
+    PurchaseLabelResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        payment_method:
+          type: string
+          enum: [card, connect_balance]
+        amount:
+          type: number
+          format: decimal
+        shipping_label_id:
+          type: integer
+        payment_intent_id:
+          type: string
+        purchase_id:
+          type: integer
+        transaction_id:
+          type: integer
+
+    CreateStandaloneLabelRequest:
+      type: object
+      required:
+        - shipper_address
+        - recipient_address
+        - packages
+        - selected_rate
+      properties:
+        shipper_address:
+          $ref: '#/components/schemas/Address'
+        recipient_address:
+          $ref: '#/components/schemas/Address'
+        packages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Package'
+        selected_rate:
+          $ref: '#/components/schemas/ShippingRate'
+        force_card_payment:
+          type: boolean
+          default: false
+
+    CreateStandaloneLabelResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        label:
+          type: object
+          properties:
+            id:
+              type: integer
+            tracking_number:
+              type: string
+            carrier:
+              type: string
+            service:
+              type: string
+            cost:
+              type: number
+              format: decimal
+            label_url:
+              type: string
+        payment_method:
+          type: string
+        amount:
+          type: number
+          format: decimal
+
+    AllLabelsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        labels:
+          type: array
+          items:
+            $ref: '#/components/schemas/Label'
+
+    StandaloneLabelsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        labels:
+          type: array
+          items:
+            $ref: '#/components/schemas/Label'
+
+    PurchaseHistoryResponse:
+      type: object
+      properties:
+        card_purchases:
+          type: array
+          items:
+            $ref: '#/components/schemas/Purchase'
+        connect_purchases:
+          type: array
+          items:
+            $ref: '#/components/schemas/Purchase'
+        total_card:
+          type: integer
+        total_connect:
+          type: integer
+        limit:
+          type: integer
+
+    RefundRequest:
+      type: object
+      required:
+        - purchaseId
+        - amount
+      properties:
+        purchaseId:
+          type: integer
+        amount:
+          type: number
+          format: decimal
+        reason:
+          type: string
+          default: requested_by_customer
+
+    RefundResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        refund:
+          type: object
+          properties:
+            success:
+              type: boolean
+            refund_id:
+              type: string
+            method:
+              type: string
+        amount:
+          type: number
+          format: decimal
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        details:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+tags:
+  - name: Shipping Subscriptions
+    description: Shipping subscription and label management

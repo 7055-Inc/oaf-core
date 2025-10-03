@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
+import { authApiRequest, API_ENDPOINTS } from '../../../../lib/apiUtils';
 
 // Get all supported timezones with US timezones prioritized
 const getTimezones = () => {
@@ -365,7 +366,7 @@ export default function EditProfile({ userData }) {
   // Fetch user's carts for wishlist selection
   const fetchUserCarts = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/cart', {
+      const response = await authApiRequest(API_ENDPOINTS.CART, {
         method: 'GET'
       });
       
@@ -544,10 +545,10 @@ export default function EditProfile({ userData }) {
       }
 
       const endpoint = userData?.user_type === 'admin' 
-        ? 'https://api2.onlineartfestival.com/users/admin/me'
-        : 'https://api2.onlineartfestival.com/users/me';
+        ? 'users/admin/me'
+        : 'users/me';
       
-      const res = await authenticatedApiRequest(endpoint, {
+      const res = await authApiRequest(endpoint, {
         method: 'PATCH',
         body: formDataToSend
       });

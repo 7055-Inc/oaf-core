@@ -3,19 +3,39 @@ const router = express.Router();
 const axios = require('axios');
 const { secureLogger } = require('../middleware/secureLogger');
 
+/**
+ * @fileoverview Media proxy service routes
+ * 
+ * Handles media serving and proxy functionality including:
+ * - Direct file serving proxy with streaming support
+ * - Smart media serving with format negotiation (AVIF, WebP, JPEG)
+ * - Automatic image optimization and size variants
+ * - HTTP caching with ETag and Last-Modified support
+ * - Conditional requests (304 Not Modified) handling
+ * - Comprehensive error handling and logging
+ * - Media backend authentication and timeout management
+ * 
+ * This service acts as a proxy between the frontend and the media backend,
+ * providing optimized image delivery, format negotiation, and caching.
+ * 
+ * @author Beemeeart Development Team
+ * @version 1.0.0
+ */
+
 // Configuration - Update these with your actual media backend details
 const MEDIA_BACKEND_URL = process.env.MEDIA_BACKEND_URL || 'http://10.128.0.29:3001';
 const MEDIA_API_KEY = 'media_20074c47e0d2af1a90b1d9ba1d001648:eb7d555c29ce59c6202f3975b37a45cdc2e7a21eb09c6d684e982ebee5cc9e6a';
 
 /**
- * GET /api/media/serve/* - Media serving proxy endpoint
- * 
- * This endpoint acts as a proxy between the frontend and the media backend.
- * The frontend requests images from the main API, and this endpoint fetches
- * them from the media backend server and streams them back.
- * 
- * Example: GET /api/media/serve/user_123/product/img/123_processed.jpg
- * Proxies to: http://media-backend:3001/files/user_123/product/img/123_processed.jpg
+ * Media serving proxy endpoint
+ * @route GET /api/media/serve/*
+ * @access Public (no authentication required)
+ * @param {Object} req - Express request object
+ * @param {string} req.params[0] - File path after /serve/
+ * @param {Object} res - Express response object
+ * @returns {Stream} Media file stream with appropriate headers
+ * @description Acts as proxy between frontend and media backend, streaming files with caching support
+ * @example GET /api/media/serve/user_123/product/img/123_processed.jpg
  */
 router.get('/serve/*', async (req, res) => {
   try {
@@ -161,10 +181,14 @@ router.get('/serve/*', async (req, res) => {
 });
 
 /**
- * GET /api/media/info/* - Get media file information without downloading
- * 
- * This endpoint returns metadata about a media file without streaming the content.
- * Useful for checking if a file exists and getting its properties.
+ * Get media file information without downloading
+ * @route HEAD /api/media/serve/*
+ * @access Public (no authentication required)
+ * @param {Object} req - Express request object
+ * @param {string} req.params[0] - File path after /serve/
+ * @param {Object} res - Express response object
+ * @returns {Object} HTTP headers with media metadata (no body)
+ * @description Returns metadata about media file without streaming content, useful for existence checks
  */
 router.head('/serve/*', async (req, res) => {
   try {
@@ -223,13 +247,16 @@ router.head('/serve/*', async (req, res) => {
 });
 
 /**
- * GET /api/images/:mediaId - Smart serving proxy endpoint
- * 
- * This endpoint proxies to the media backend's smart serving system.
- * It supports automatic format negotiation (AVIF, WebP, JPEG) and size parameters.
- * 
- * Example: GET /api/images/456?size=thumbnail
- * Proxies to: http://media-backend:3001/serve/456?size=thumbnail
+ * Smart serving proxy endpoint with format negotiation
+ * @route GET /api/media/images/:mediaId
+ * @access Public (no authentication required)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.mediaId - Media ID (numeric)
+ * @param {string} req.query.size - Size variant (thumbnail, small, grid, detail, header, zoom)
+ * @param {Object} res - Express response object
+ * @returns {Stream} Optimized media stream with format negotiation
+ * @description Proxies to smart serving system with automatic format negotiation and size optimization
+ * @example GET /api/media/images/456?size=thumbnail
  */
 router.get('/images/:mediaId', async (req, res) => {
   try {
@@ -267,7 +294,7 @@ router.get('/images/:mediaId', async (req, res) => {
       headers: {
         'Authorization': MEDIA_API_KEY,
         'Accept': req.get('Accept') || 'image/avif,image/webp,image/*,*/*;q=0.8', // Pass Accept header for format negotiation
-        'User-Agent': req.get('User-Agent') || 'OAF-MediaProxy/1.0'
+        'User-Agent': req.get('User-Agent') || 'Beemeeart-MediaProxy/1.0'
       },
       responseType: 'stream',
       timeout: 30000,

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import styles from '../../SlideIn.module.css';
+import { getApiUrl } from '../../../../lib/config';
 
 export default function EventManagement() {
   const [events, setEvents] = useState([]);
@@ -23,7 +24,7 @@ export default function EventManagement() {
         throw new Error('No token found');
       }
       
-      const response = await fetch('https://api2.onlineartfestival.com/users/me', {
+      const response = await fetch(getApiUrl('users/me'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -48,7 +49,7 @@ export default function EventManagement() {
         throw new Error('Authentication token not found');
       }
       
-      const response = await fetch('https://api2.onlineartfestival.com/api/events', {
+      const response = await fetch(getApiUrl('api/events'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -71,7 +72,7 @@ export default function EventManagement() {
         return;
       }
       
-      const response = await fetch('https://api2.onlineartfestival.com/api/events/types', {
+      const response = await fetch(getApiUrl('api/events/types'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -109,7 +110,7 @@ export default function EventManagement() {
         throw new Error('Authentication token not found');
       }
       
-      const response = await fetch(`https://api2.onlineartfestival.com/api/events/${eventId}`, {
+      const response = await fetch(getApiUrl(`api/events/${eventId}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -131,8 +132,8 @@ export default function EventManagement() {
       }
       
       const url = editingEvent 
-        ? `https://api2.onlineartfestival.com/api/events/${editingEvent.id}`
-        : 'https://api2.onlineartfestival.com/api/events';
+        ? `api/events/${editingEvent.id}`
+        : 'api/events';
       
       const response = await fetch(url, {
         method: editingEvent ? 'PUT' : 'POST',

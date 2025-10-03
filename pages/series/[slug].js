@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
+import { getApiUrl, getFrontendUrl } from '../../lib/config';
 import Header from '../../components/Header';
 import styles from './Series.module.css';
 
@@ -21,7 +22,7 @@ export default function SeriesPage() {
 
   const fetchSeries = async () => {
     try {
-      const response = await fetch(`https://api2.onlineartfestival.com/api/articles/series/${slug}`);
+      const response = await fetch(getApiUrl(`api/articles/series/${slug}`));
       if (!response.ok) {
         throw new Error('Series not found');
       }
@@ -52,7 +53,7 @@ export default function SeriesPage() {
 
   // Generate JSON-LD structured data for series
   const generateSeriesSchema = () => {
-    const canonicalUrl = `https://onlineartfestival.com/series/${series.slug}`;
+    const canonicalUrl = getFrontendUrl(`/series/${series.slug}`);
     
     const schema = {
       "@context": "https://schema.org",
@@ -63,7 +64,7 @@ export default function SeriesPage() {
       "publisher": {
         "@type": "Organization",
         "name": "Online Art Festival",
-        "url": "https://onlineartfestival.com"
+        "url": ""
       },
       "dateCreated": series.created_at,
       "dateModified": series.updated_at || series.created_at
@@ -74,7 +75,7 @@ export default function SeriesPage() {
       schema.hasPart = articles.map(article => ({
         "@type": "Article",
         "name": article.title,
-        "url": `https://onlineartfestival.com/articles/${article.slug}`,
+        "url": `/articles/${article.slug}`,
         "position": article.position_in_series,
         "author": {
           "@type": "Person",
@@ -119,12 +120,12 @@ export default function SeriesPage() {
       <Head>
         <title>{series.series_name} - Online Art Festival</title>
         <meta name="description" content={series.description} />
-        <link rel="canonical" href={`https://onlineartfestival.com/series/${series.slug}`} />
+        <link rel="canonical" href={`/series/${series.slug}`} />
         
         <meta property="og:title" content={series.series_name} />
         <meta property="og:description" content={series.description} />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content={`https://onlineartfestival.com/series/${series.slug}`} />
+        <meta property="og:url" content={`/series/${series.slug}`} />
         
         <meta name="twitter:card" content="summary" />
         <meta name="twitter:title" content={series.series_name} />

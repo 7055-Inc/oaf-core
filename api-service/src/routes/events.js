@@ -7,9 +7,45 @@ const { requirePermission } = require('../middleware/permissions');
 const geocodingService = require('../services/geocodingService');
 const eventSchemaService = require('../services/eventSchemaService');
 
+/**
+ * @fileoverview Comprehensive event management routes
+ * 
+ * Handles complete event lifecycle management including:
+ * - Event CRUD operations with comprehensive filtering and search
+ * - Event types management and categorization
+ * - Artist management and application processing
+ * - Custom artist events and personal event management
+ * - Event image upload and management with temporary storage
+ * - Event categories and classification system
+ * - Event add-ons and additional services management
+ * - Application fields customization and configuration
+ * - Ticket sales system with Stripe payment integration
+ * - Schema.org JSON-LD generation for SEO optimization
+ * - Geocoding integration for venue location services
+ * - Permission-based access control for different user roles
+ * 
+ * This system supports multi-tenant event management with role-based permissions,
+ * comprehensive application workflows, and integrated payment processing.
+ * 
+ * @author Beemeeart Development Team
+ * @version 1.0.0
+ */
+
 // --- Event CRUD Endpoints ---
 
-// List/search events (with filters)
+/**
+ * List and search events with comprehensive filtering
+ * @route GET /api/events
+ * @access Public
+ * @param {Object} req - Express request object
+ * @param {string} req.query.promoter_id - Filter by promoter ID (optional)
+ * @param {string} req.query.event_status - Filter by event status (comma-separated) (optional)
+ * @param {string} req.query.allow_applications - Filter by application acceptance (optional)
+ * @param {string} req.query.application_status - Filter by application status (optional)
+ * @param {Object} res - Express response object
+ * @returns {Array} List of events with event type information
+ * @description Retrieves events with flexible filtering options and event type details
+ */
 router.get('/', async (req, res) => {
   try {
     const { promoter_id, event_status, allow_applications, application_status } = req.query;
@@ -50,7 +86,15 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get artist's custom events (MUST come before /:id route)
+/**
+ * Get artist's custom personal events
+ * @route GET /api/events/my-events
+ * @access Private (requires authentication)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Array} List of artist's custom events
+ * @description Retrieves personal events created by the authenticated artist
+ */
 router.get('/my-events', verifyToken, async (req, res) => {
     try {
         const artistId = req.userId;
@@ -65,7 +109,15 @@ router.get('/my-events', verifyToken, async (req, res) => {
     }
 });
 
-// Get event types (consolidated from event-types.js)
+/**
+ * Get available event types
+ * @route GET /api/events/types
+ * @access Public
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Array} List of active event types
+ * @description Retrieves all active event types for event categorization
+ */
 router.get('/types', async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM event_types WHERE is_active = TRUE ORDER BY name');
@@ -75,7 +127,16 @@ router.get('/types', async (req, res) => {
   }
 });
 
-// Get single event details
+/**
+ * Get single event details
+ * @route GET /api/events/:id
+ * @access Public
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Event ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Complete event details with type information
+ * @description Retrieves detailed information for a specific event
+ */
 router.get('/:id', async (req, res) => {
   try {
     const [event] = await db.execute(`
@@ -95,7 +156,16 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create new event (events permission required)
+/**
+ * Create new event
+ * @route POST /api/events
+ * @access Private (requires authentication and events permission)
+ * @param {Object} req - Express request object
+ * @param {Object} req.body - Event creation data
+ * @param {Object} res - Express response object
+ * @returns {Object} Created event details
+ * @description Creates new event with geocoding, schema generation, and image processing
+ */
 router.post('/', verifyToken, requirePermission('events'), async (req, res) => {
   try {
     const {
@@ -219,7 +289,17 @@ router.post('/', verifyToken, requirePermission('events'), async (req, res) => {
   }
 });
 
-// Update event (events permission required)
+/**
+ * Update existing event
+ * @route PUT /api/events/:id
+ * @access Private (requires authentication and events permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Event ID
+ * @param {Object} req.body - Event update data
+ * @param {Object} res - Express response object
+ * @returns {Object} Updated event details
+ * @description Updates event information with comprehensive field support
+ */
 router.put('/:id', verifyToken, requirePermission('events'), async (req, res) => {
   try {
     const {
@@ -263,7 +343,16 @@ router.put('/:id', verifyToken, requirePermission('events'), async (req, res) =>
   }
 });
 
-// Archive event (soft delete, events permission required)
+/**
+ * Archive event (soft delete)
+ * @route DELETE /api/events/:id
+ * @access Private (requires authentication and events permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Event ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Success confirmation
+ * @description Archives event by setting status to 'archived' (soft delete)
+ */
 router.delete('/:id', verifyToken, requirePermission('events'), async (req, res) => {
   try {
     await db.execute(
@@ -276,7 +365,16 @@ router.delete('/:id', verifyToken, requirePermission('events'), async (req, res)
   }
 });
 
-// Renew event for next year (events permission required)
+/**
+ * Renew event for next year
+ * @route POST /api/events/:id/renew
+ * @access Private (requires authentication and events permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Event ID to renew
+ * @param {Object} res - Express response object
+ * @returns {Object} New event details for next year
+ * @description Creates new event for next year based on existing event template
+ */
 router.post('/:id/renew', verifyToken, requirePermission('events'), async (req, res) => {
   try {
     const [originalEvent] = await db.execute('SELECT * FROM events WHERE id = ?', [req.params.id]);
@@ -323,7 +421,16 @@ router.post('/:id/renew', verifyToken, requirePermission('events'), async (req, 
 
 // --- Artist Management Endpoints ---
 
-// List artists for event (public - shows accepted/confirmed artists)
+/**
+ * List artists for event (public view)
+ * @route GET /api/events/:id/artists
+ * @access Public
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Event ID
+ * @param {Object} res - Express response object
+ * @returns {Object} List of accepted/confirmed artists with profiles
+ * @description Retrieves public list of artists participating in the event
+ */
 router.get('/:id/artists', async (req, res) => {
   try {
     const eventId = req.params.id;
@@ -387,7 +494,16 @@ router.get('/:id/artists', async (req, res) => {
   }
 });
 
-// Add artist manually (events permission required)
+/**
+ * Add artist manually to event
+ * @route POST /api/events/:id/artists
+ * @access Private (requires authentication and events permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Event ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Success confirmation
+ * @description Manually adds artist to event (TODO: Implementation needed)
+ */
 router.post('/:id/artists', verifyToken, requirePermission('events'), (req, res) => {
   // TODO: Implement manual artist addition
   res.send('Add artist manually');
@@ -513,7 +629,16 @@ router.get('/:id/categories', async (req, res) => {
 // CUSTOM EVENTS (Artist Personal Events)
 // ============================================================================
 
-// Create new custom event
+/**
+ * Create new custom artist event
+ * @route POST /api/events/custom
+ * @access Private (requires authentication)
+ * @param {Object} req - Express request object
+ * @param {Object} req.body - Custom event data
+ * @param {Object} res - Express response object
+ * @returns {Object} Created custom event details
+ * @description Creates personal event for authenticated artist
+ */
 router.post('/custom', verifyToken, async (req, res) => {
     try {
         const artistId = req.userId;
@@ -539,7 +664,17 @@ router.post('/custom', verifyToken, async (req, res) => {
     }
 });
 
-// Update custom event
+/**
+ * Update custom artist event
+ * @route PUT /api/events/custom/:id
+ * @access Private (requires authentication and ownership)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Custom event ID
+ * @param {Object} req.body - Update data
+ * @param {Object} res - Express response object
+ * @returns {Object} Updated custom event details
+ * @description Updates personal event with ownership validation
+ */
 router.put('/custom/:id', verifyToken, async (req, res) => {
     try {
         const { id } = req.params;
@@ -577,7 +712,16 @@ router.put('/custom/:id', verifyToken, async (req, res) => {
     }
 });
 
-// Delete custom event
+/**
+ * Delete custom artist event
+ * @route DELETE /api/events/custom/:id
+ * @access Private (requires authentication and ownership)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Custom event ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Success confirmation
+ * @description Deletes personal event with ownership validation
+ */
 router.delete('/custom/:id', verifyToken, async (req, res) => {
     try {
         const { id } = req.params;
@@ -859,7 +1003,16 @@ router.delete('/:id/application-fields/:field_id', verifyToken, requirePermissio
 // TICKET SALES SYSTEM
 // ============================================================================
 
-// Get tickets for an event (public)
+/**
+ * Get tickets for event (public)
+ * @route GET /api/events/:id/tickets
+ * @access Public
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Event ID
+ * @param {Object} res - Express response object
+ * @returns {Object} Available tickets for the event
+ * @description Retrieves public ticket information for event
+ */
 router.get('/:id/tickets', async (req, res) => {
   try {
     const eventId = req.params.id;
@@ -882,7 +1035,17 @@ router.get('/:id/tickets', async (req, res) => {
   }
 });
 
-// Create tickets for event (promoter with tickets permission only)
+/**
+ * Create tickets for event
+ * @route POST /api/events/:id/tickets
+ * @access Private (requires authentication, ownership, and tickets permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Event ID
+ * @param {Object} req.body - Ticket creation data
+ * @param {Object} res - Express response object
+ * @returns {Object} Created ticket details
+ * @description Creates new ticket type for event with permission validation
+ */
 router.post('/:id/tickets', verifyToken, async (req, res) => {
   try {
     const eventId = req.params.id;
@@ -992,7 +1155,18 @@ router.delete('/:id/tickets/:ticketId', verifyToken, async (req, res) => {
   }
 });
 
-// Purchase tickets (public)
+/**
+ * Purchase tickets for event
+ * @route POST /api/events/:id/tickets/:ticketId/purchase
+ * @access Public
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Event ID
+ * @param {string} req.params.ticketId - Ticket ID
+ * @param {Object} req.body - Purchase data (buyer_email, buyer_name, quantity)
+ * @param {Object} res - Express response object
+ * @returns {Object} Payment intent and ticket information
+ * @description Processes ticket purchase with Stripe payment integration
+ */
 router.post('/:id/tickets/:ticketId/purchase', async (req, res) => {
   try {
     const { id: eventId, ticketId } = req.params;
@@ -1083,7 +1257,11 @@ router.post('/:id/tickets/:ticketId/purchase', async (req, res) => {
   }
 });
 
-// Generate unique ticket code
+/**
+ * Generate unique ticket code
+ * @returns {string} Unique ticket code in format TKT-XXXXXXXX
+ * @description Generates unique 8-character alphanumeric ticket code with TKT prefix
+ */
 function generateUniqueTicketCode() {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let result = '';

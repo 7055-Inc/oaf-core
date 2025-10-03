@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import { getApiUrl } from '../lib/config';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import SearchBar from '../components/SearchBar';
@@ -20,14 +21,14 @@ const Custom404 = () => {
     const fetchHelpfulData = async () => {
       try {
         // Fetch popular categories
-        const categoriesRes = await fetch('https://api2.onlineartfestival.com/categories?limit=6');
+        const categoriesRes = await fetch(getApiUrl('categories?limit=6'));
         if (categoriesRes.ok) {
           const categoriesData = await categoriesRes.json();
           setPopularCategories(categoriesData.categories || []);
         }
 
         // Fetch recent products
-        const productsRes = await fetch('https://api2.onlineartfestival.com/products?limit=4&sort=created_at');
+        const productsRes = await fetch('products?limit=4&sort=created_at');
         if (productsRes.ok) {
           const productsData = await productsRes.json();
           setRecentProducts(productsData.products || []);
@@ -53,7 +54,7 @@ const Custom404 = () => {
   const getImageUrl = (imagePath) => {
     if (!imagePath) return '/static_media/placeholder-product.jpg';
     if (imagePath.startsWith('http')) return imagePath;
-    return `https://api2.onlineartfestival.com/api/media/serve/${imagePath}`;
+    return `api/media/serve/${imagePath}`;
   };
 
   return (

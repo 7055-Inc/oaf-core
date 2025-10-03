@@ -1,0 +1,1258 @@
+openapi: 3.0.0
+info:
+  title: Beemeeart Product Management API
+  description: Comprehensive product catalog management with variations, inventory, and marketplace integration
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/products
+    description: Production server
+  - url: https://test.beemeeart.com/products
+    description: Testing server
+
+paths:
+  /:
+    get:
+      summary: Get public product catalog
+      description: Retrieve public product catalog with smart parent/child logic
+      operationId: getProducts
+      tags:
+        - Public Catalog
+      parameters:
+        - name: vendor_id
+          in: query
+          description: Filter by vendor ID
+          schema:
+            type: string
+        - name: category_id
+          in: query
+          description: Filter by category ID
+          schema:
+            type: string
+        - name: variant_search
+          in: query
+          description: Show variants (true) or parents only (false)
+          schema:
+            type: string
+            enum: ['true', 'false']
+      responses:
+        '200':
+          description: Products retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create product
+      description: Create a new product with comprehensive features
+      operationId: createProduct
+      tags:
+        - Product Management
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreateRequest'
+      responses:
+        '201':
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /all:
+    get:
+      summary: Get all products with related data
+      description: Get comprehensive product information with optional related data
+      operationId: getAllProducts
+      tags:
+        - Public Catalog
+      parameters:
+        - name: include
+          in: query
+          description: Comma-separated list of data to include
+          schema:
+            type: string
+            example: "inventory,images,vendor"
+        - name: vendor_id
+          in: query
+          description: Filter by specific vendor
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Products retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductsWithDataResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /my/{ids}:
+    get:
+      summary: Get user's products
+      description: Retrieve products belonging to the authenticated user
+      operationId: getUserProducts
+      tags:
+        - Product Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: ids
+          in: path
+          required: false
+          description: Product ID(s) - single, comma-separated, or omit for all
+          schema:
+            type: string
+            example: "123,124,125"
+        - name: include
+          in: query
+          description: Comma-separated data to include
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Limit results for all products query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User products retrieved successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ProductWithData'
+                  - $ref: '#/components/schemas/ProductsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /{id}:
+    get:
+      summary: Get product details
+      description: Retrieve detailed product information with complete family structure
+      operationId: getProductById
+      tags:
+        - Public Catalog
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Product ID
+          schema:
+            type: integer
+        - name: include
+          in: query
+          description: Comma-separated data to include
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Product details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductFamilyResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      summary: Update product (complete)
+      description: Update a product with complete data replacement
+      operationId: updateProduct
+      tags:
+        - Product Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Product ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductUpdateRequest'
+      responses:
+        '200':
+          description: Product updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductWithData'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      summary: Update product (partial)
+      description: Partial update of a product (only provided fields updated)
+      operationId: patchProduct
+      tags:
+        - Product Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Product ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductPatchRequest'
+      responses:
+        '200':
+          description: Product updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductWithData'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      summary: Delete product
+      description: Delete a product and all its children (soft delete)
+      operationId: deleteProduct
+      tags:
+        - Product Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Product ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Product deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /{id}/packages:
+    get:
+      summary: Get shipping packages
+      description: Get shipping package configuration for a product
+      operationId: getProductPackages
+      tags:
+        - Public Catalog
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Product ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Packages retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackagesResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /{id}/variations:
+    get:
+      summary: Get product variations
+      description: Get organized variation structure for variable products
+      operationId: getProductVariations
+      tags:
+        - Public Catalog
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Parent product ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Variations retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VariationsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /upload:
+    post:
+      summary: Upload product images
+      description: Upload product images with automatic processing
+      operationId: uploadProductImages
+      tags:
+        - Image Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: product_id
+          in: query
+          description: Product ID or 'new' for creation
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        '200':
+          description: Images uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /bulk-delete:
+    post:
+      summary: Bulk delete products
+      description: Delete multiple products efficiently
+      operationId: bulkDeleteProducts
+      tags:
+        - Product Management
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkDeleteRequest'
+      responses:
+        '200':
+          description: Products deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkDeleteResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /variations:
+    post:
+      summary: Create product variation association
+      description: Associate a product with specific variation type and value
+      operationId: createProductVariation
+      tags:
+        - Variation Management
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductVariationRequest'
+      responses:
+        '201':
+          description: Variation association created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductVariationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /variations/types:
+    get:
+      summary: Get variation types
+      description: Get all variation types for current user with usage statistics
+      operationId: getVariationTypes
+      tags:
+        - Variation Management
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Variation types retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VariationType'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create variation type
+      description: Create a new variation type (e.g., Color, Size, Material)
+      operationId: createVariationType
+      tags:
+        - Variation Management
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VariationTypeRequest'
+      responses:
+        '201':
+          description: Variation type created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VariationType'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /variations/types/{id}:
+    delete:
+      summary: Delete variation type
+      description: Delete a variation type and all associated values
+      operationId: deleteVariationType
+      tags:
+        - Variation Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Variation type ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Variation type deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /variations/types/{id}/values:
+    get:
+      summary: Get variation values
+      description: Get all values for a variation type
+      operationId: getVariationValues
+      tags:
+        - Variation Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Variation type ID
+          schema:
+            type: integer
+        - name: product_id
+          in: query
+          description: Filter values by specific product
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Variation values retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VariationValue'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /variations/values:
+    post:
+      summary: Create variation value
+      description: Create a new variation value for a specific type and product
+      operationId: createVariationValue
+      tags:
+        - Variation Management
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VariationValueRequest'
+      responses:
+        '201':
+          description: Variation value created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VariationValue'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /variations/values/{id}:
+    delete:
+      summary: Delete variation value
+      description: Delete a specific variation value
+      operationId: deleteVariationValue
+      tags:
+        - Variation Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Variation value ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Variation value deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Product ID
+        name:
+          type: string
+          description: Product name
+        description:
+          type: string
+          description: Full product description
+        short_description:
+          type: string
+          description: Brief product description
+        price:
+          type: number
+          format: float
+          description: Product price
+        vendor_id:
+          type: integer
+          description: Vendor user ID
+        category_id:
+          type: integer
+          description: Product category ID
+        sku:
+          type: string
+          description: Stock keeping unit
+        status:
+          type: string
+          enum: [draft, active, inactive, deleted]
+          description: Product status
+        product_type:
+          type: string
+          enum: [simple, variable, variant]
+          description: Product type
+        parent_id:
+          type: integer
+          nullable: true
+          description: Parent product ID for variants
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    ProductWithData:
+      allOf:
+        - $ref: '#/components/schemas/Product'
+        - type: object
+          properties:
+            images:
+              type: array
+              items:
+                type: string
+              description: Product image URLs
+            inventory:
+              $ref: '#/components/schemas/Inventory'
+            shipping:
+              $ref: '#/components/schemas/Shipping'
+            vendor:
+              $ref: '#/components/schemas/Vendor'
+            children:
+              type: array
+              items:
+                $ref: '#/components/schemas/Product'
+              description: Child products for variable products
+
+    ProductFamilyResponse:
+      allOf:
+        - $ref: '#/components/schemas/ProductWithData'
+        - type: object
+          properties:
+            family_size:
+              type: integer
+              description: Number of child products
+            requested_product_id:
+              type: integer
+              description: Originally requested product ID
+            is_requested_product_parent:
+              type: boolean
+              description: Whether requested product is the parent
+
+    ProductsResponse:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductWithData'
+
+    ProductsWithDataResponse:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductWithData'
+
+    ProductCreateRequest:
+      type: object
+      required:
+        - name
+        - price
+        - category_id
+        - sku
+      properties:
+        name:
+          type: string
+          description: Product name
+        description:
+          type: string
+          description: Full product description
+        short_description:
+          type: string
+          description: Brief product description
+        price:
+          type: number
+          format: float
+          description: Product price
+        category_id:
+          type: integer
+          description: Product category ID
+        sku:
+          type: string
+          description: Stock keeping unit
+        status:
+          type: string
+          enum: [draft, active, inactive]
+          default: draft
+          description: Product status
+        product_type:
+          type: string
+          enum: [simple, variable, variant]
+          default: simple
+          description: Product type
+        parent_id:
+          type: integer
+          nullable: true
+          description: Parent product ID for variants
+        width:
+          type: number
+          format: float
+          description: Product width
+        height:
+          type: number
+          format: float
+          description: Product height
+        depth:
+          type: number
+          format: float
+          description: Product depth
+        weight:
+          type: number
+          format: float
+          description: Product weight
+        dimension_unit:
+          type: string
+          enum: [in, cm]
+          default: in
+          description: Dimension unit
+        weight_unit:
+          type: string
+          enum: [lbs, kg]
+          default: lbs
+          description: Weight unit
+        images:
+          type: array
+          items:
+            type: string
+          description: Product image URLs
+        packages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Package'
+          description: Shipping packages
+        beginning_inventory:
+          type: integer
+          description: Initial inventory quantity
+        reorder_qty:
+          type: integer
+          description: Reorder threshold
+        wholesale_price:
+          type: number
+          format: float
+          description: Wholesale price
+        wholesale_description:
+          type: string
+          description: Wholesale pricing description
+        allow_returns:
+          type: boolean
+          default: true
+          description: Whether returns are allowed
+
+    ProductUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/ProductCreateRequest'
+        - type: object
+          properties:
+            vendor_id:
+              type: integer
+              description: Vendor ID (admin only)
+
+    ProductPatchRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        short_description:
+          type: string
+        price:
+          type: number
+          format: float
+        category_id:
+          type: integer
+        sku:
+          type: string
+        status:
+          type: string
+          enum: [draft, active, inactive]
+        product_type:
+          type: string
+          enum: [simple, variable, variant]
+        parent_id:
+          type: integer
+          nullable: true
+        width:
+          type: number
+          format: float
+        height:
+          type: number
+          format: float
+        depth:
+          type: number
+          format: float
+        weight:
+          type: number
+          format: float
+        dimension_unit:
+          type: string
+          enum: [in, cm]
+        weight_unit:
+          type: string
+          enum: [lbs, kg]
+        images:
+          type: array
+          items:
+            type: string
+        packages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Package'
+        beginning_inventory:
+          type: integer
+        reorder_qty:
+          type: integer
+        allow_returns:
+          type: boolean
+        vendor_id:
+          type: integer
+          description: Vendor ID (admin only)
+
+    Package:
+      type: object
+      properties:
+        length:
+          type: number
+          format: float
+        width:
+          type: number
+          format: float
+        height:
+          type: number
+          format: float
+        weight:
+          type: number
+          format: float
+        dimension_unit:
+          type: string
+          enum: [in, cm]
+        weight_unit:
+          type: string
+          enum: [lbs, kg]
+
+    PackagesResponse:
+      type: object
+      properties:
+        packages:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/Package'
+              - type: object
+                properties:
+                  id:
+                    type: integer
+
+    Inventory:
+      type: object
+      properties:
+        qty_on_hand:
+          type: integer
+          description: Quantity on hand
+        qty_on_order:
+          type: integer
+          description: Quantity on order
+        qty_available:
+          type: integer
+          description: Available quantity
+        reorder_qty:
+          type: integer
+          description: Reorder threshold
+
+    Shipping:
+      type: object
+      properties:
+        length:
+          type: number
+          format: float
+        width:
+          type: number
+          format: float
+        height:
+          type: number
+          format: float
+        weight:
+          type: number
+          format: float
+        dimension_unit:
+          type: string
+        weight_unit:
+          type: string
+        ship_method:
+          type: string
+        ship_rate:
+          type: number
+          format: float
+        shipping_type:
+          type: string
+        shipping_services:
+          type: string
+
+    Vendor:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        display_name:
+          type: string
+        business_name:
+          type: string
+        business_website:
+          type: string
+
+    VariationType:
+      type: object
+      properties:
+        id:
+          type: integer
+        variation_name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        usage_count:
+          type: integer
+
+    VariationValue:
+      type: object
+      properties:
+        id:
+          type: integer
+        value_name:
+          type: string
+        product_id:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    VariationTypeRequest:
+      type: object
+      required:
+        - variation_name
+      properties:
+        variation_name:
+          type: string
+          description: Name of the variation type
+
+    VariationValueRequest:
+      type: object
+      required:
+        - variation_type_id
+        - value_name
+        - product_id
+      properties:
+        variation_type_id:
+          type: integer
+          description: Variation type ID
+        value_name:
+          type: string
+          description: Name of the variation value
+        product_id:
+          type: integer
+          description: Product ID
+
+    ProductVariationRequest:
+      type: object
+      required:
+        - product_id
+        - variation_type_id
+        - variation_value_id
+      properties:
+        product_id:
+          type: integer
+        variation_type_id:
+          type: integer
+        variation_value_id:
+          type: integer
+
+    ProductVariationResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        product_id:
+          type: integer
+        variation_type_id:
+          type: integer
+        variation_value_id:
+          type: integer
+
+    VariationsResponse:
+      type: object
+      properties:
+        parent_product:
+          $ref: '#/components/schemas/ProductWithData'
+        variation_types:
+          type: array
+          items:
+            $ref: '#/components/schemas/VariationType'
+        variation_options:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: object
+              properties:
+                id:
+                  type: integer
+                value_name:
+                  type: string
+        child_products:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/ProductWithData'
+              - type: object
+                properties:
+                  variations:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          value_id:
+                            type: integer
+                          value_name:
+                            type: string
+        total_variations:
+          type: integer
+
+    UploadResponse:
+      type: object
+      properties:
+        urls:
+          type: array
+          items:
+            type: string
+          description: Uploaded image URLs
+
+    BulkDeleteRequest:
+      type: object
+      required:
+        - product_ids
+      properties:
+        product_ids:
+          type: array
+          items:
+            type: integer
+          description: Array of product IDs to delete
+
+    BulkDeleteResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        deleted_product_ids:
+          type: array
+          items:
+            type: integer
+
+    DeleteResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        deleted_product_ids:
+          type: array
+          items:
+            type: integer
+
+    SuccessResponse:
+      type: object
+      properties:
+        message:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+
+  responses:
+    BadRequest:
+      description: Bad request - validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Unauthorized:
+      description: Unauthorized - authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Conflict:
+      description: Conflict - duplicate resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    PayloadTooLarge:
+      description: Payload too large - file size limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    UnsupportedMediaType:
+      description: Unsupported media type - invalid file type
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+tags:
+  - name: Public Catalog
+    description: Public product catalog access
+  - name: Product Management
+    description: Product CRUD operations
+  - name: Image Management
+    description: Product image upload and management
+  - name: Variation Management
+    description: Product variation and type management

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { getApiUrl, getSmartMediaUrl } from '../lib/config';
 import styles from './ArtistProductCarousel.module.css';
 
 const ArtistProductCarousel = ({ vendorId, currentProductId, artistName }) => {
@@ -18,7 +19,7 @@ const ArtistProductCarousel = ({ vendorId, currentProductId, artistName }) => {
     const fetchArtistProducts = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`https://api2.onlineartfestival.com/products?vendor_id=${vendorId}`);
+        const res = await fetch(getApiUrl(`products?vendor_id=${vendorId}`));
         
         if (!res.ok) {
           throw new Error('Failed to fetch artist products');
@@ -34,7 +35,7 @@ const ArtistProductCarousel = ({ vendorId, currentProductId, artistName }) => {
           ...product,
           images: product.images?.map(img => {
             if (img.startsWith('http')) return img;
-            return `https://api2.onlineartfestival.com${img}`;
+            return getSmartMediaUrl(img);
           }) || []
         }));
         

@@ -1,0 +1,819 @@
+openapi: 3.0.0
+info:
+  title: Checkout API
+  description: Comprehensive checkout process management with payment processing, tax calculation, and order management
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/api
+    description: Production server
+
+paths:
+  /checkout/calculate-totals:
+    post:
+      summary: Calculate cart totals
+      description: Calculate comprehensive totals for cart items including shipping, discounts, and commissions
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalculateTotalsRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculateTotalsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /checkout/create-payment-intent:
+    post:
+      summary: Create payment intent
+      description: Create Stripe payment intent for order processing with tax calculation
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentIntentRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatePaymentIntentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /checkout/confirm-payment:
+    post:
+      summary: Confirm payment
+      description: Confirm payment and finalize order processing
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmPaymentRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfirmPaymentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /checkout/payment-status/{order_id}:
+    get:
+      summary: Get payment status
+      description: Check payment status for a specific order
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Order ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentStatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /checkout/order/{order_id}:
+    get:
+      summary: Get order details
+      description: Retrieve comprehensive order details with all items
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Order ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetailsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /checkout/orders/my:
+    get:
+      summary: Get order history
+      description: Get customer's order history with pagination and filtering
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+          description: Items per page
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, processing, shipped, delivered, cancelled, all]
+          description: Filter by order status
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderHistoryResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /checkout/apply-coupon:
+    post:
+      summary: Apply coupon
+      description: Validate and apply a coupon code to cart items
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyCouponRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplyCouponResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /checkout/remove-coupon:
+    post:
+      summary: Remove coupon
+      description: Remove an applied coupon from cart items
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemoveCouponRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemoveCouponResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /checkout/get-auto-discounts:
+    post:
+      summary: Get auto discounts
+      description: Get automatically applicable discounts for cart items
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetAutoDiscountsRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetAutoDiscountsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /checkout/validate-coupon/{code}:
+    get:
+      summary: Validate coupon
+      description: Validate a coupon code without applying it
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Coupon code to validate
+        - name: cart_items
+          in: query
+          schema:
+            type: string
+          description: JSON string of cart items (optional)
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidateCouponResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Bearer token authentication
+
+  schemas:
+    CartItem:
+      type: object
+      required:
+        - product_id
+        - quantity
+      properties:
+        product_id:
+          type: integer
+        quantity:
+          type: integer
+          minimum: 1
+
+    Address:
+      type: object
+      required:
+        - name
+        - line1
+        - city
+        - state
+        - postal_code
+      properties:
+        name:
+          type: string
+        line1:
+          type: string
+        line2:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        postal_code:
+          type: string
+        country:
+          type: string
+          default: US
+
+    CalculateTotalsRequest:
+      type: object
+      required:
+        - cart_items
+      properties:
+        cart_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+        shipping_address:
+          $ref: '#/components/schemas/Address'
+        applied_coupons:
+          type: array
+          items:
+            type: string
+
+    VendorGroup:
+      type: object
+      properties:
+        vendor_id:
+          type: integer
+        vendor_name:
+          type: string
+        items:
+          type: array
+          items:
+            type: object
+        subtotal:
+          type: number
+          format: decimal
+        shipping_total:
+          type: number
+          format: decimal
+        commission_total:
+          type: number
+          format: decimal
+
+    OrderTotals:
+      type: object
+      properties:
+        subtotal:
+          type: number
+          format: decimal
+        shipping_total:
+          type: number
+          format: decimal
+        tax_total:
+          type: number
+          format: decimal
+        platform_fee_total:
+          type: number
+          format: decimal
+        total_amount:
+          type: number
+          format: decimal
+        vendor_count:
+          type: integer
+
+    CalculateTotalsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        vendor_groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendorGroup'
+        totals:
+          $ref: '#/components/schemas/OrderTotals'
+        items_with_commissions:
+          type: array
+          items:
+            type: object
+
+    CreatePaymentIntentRequest:
+      type: object
+      required:
+        - cart_items
+      properties:
+        cart_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+        shipping_info:
+          $ref: '#/components/schemas/Address'
+        billing_info:
+          type: object
+          properties:
+            email:
+              type: string
+              format: email
+            name:
+              type: string
+            address:
+              $ref: '#/components/schemas/Address'
+
+    PaymentIntent:
+      type: object
+      properties:
+        id:
+          type: string
+        client_secret:
+          type: string
+        amount:
+          type: integer
+
+    TaxInfo:
+      type: object
+      properties:
+        calculation_id:
+          type: string
+        tax_amount:
+          type: number
+          format: decimal
+        tax_breakdown:
+          type: array
+          items:
+            type: object
+
+    CreatePaymentIntentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        payment_intent:
+          $ref: '#/components/schemas/PaymentIntent'
+        order_id:
+          type: integer
+        totals:
+          allOf:
+            - $ref: '#/components/schemas/OrderTotals'
+            - type: object
+              properties:
+                tax_amount:
+                  type: number
+                  format: decimal
+                total_with_tax:
+                  type: number
+                  format: decimal
+        tax_info:
+          $ref: '#/components/schemas/TaxInfo'
+
+    ConfirmPaymentRequest:
+      type: object
+      required:
+        - payment_intent_id
+        - order_id
+      properties:
+        payment_intent_id:
+          type: string
+        order_id:
+          type: integer
+
+    ConfirmPaymentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        order_id:
+          type: integer
+
+    PaymentStatusResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        order:
+          type: object
+          properties:
+            id:
+              type: integer
+            status:
+              type: string
+            total_amount:
+              type: number
+              format: decimal
+            created_at:
+              type: string
+              format: date-time
+            stripe_payment_intent_id:
+              type: string
+
+    OrderItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        product_id:
+          type: integer
+        product_title:
+          type: string
+        vendor_id:
+          type: integer
+        vendor_name:
+          type: string
+        quantity:
+          type: integer
+        price:
+          type: number
+          format: decimal
+        shipping_cost:
+          type: number
+          format: decimal
+        commission_rate:
+          type: number
+          format: decimal
+        commission_amount:
+          type: number
+          format: decimal
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        status:
+          type: string
+        total_amount:
+          type: number
+          format: decimal
+        shipping_amount:
+          type: number
+          format: decimal
+        tax_amount:
+          type: number
+          format: decimal
+        platform_fee_amount:
+          type: number
+          format: decimal
+        created_at:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+
+    OrderDetailsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        order:
+          $ref: '#/components/schemas/Order'
+
+    OrderHistoryItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        stripe_payment_intent_id:
+          type: string
+        status:
+          type: string
+        total_amount:
+          type: number
+          format: decimal
+        shipping_amount:
+          type: number
+          format: decimal
+        tax_amount:
+          type: number
+          format: decimal
+        platform_fee_amount:
+          type: number
+          format: decimal
+        created_at:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              item_id:
+                type: integer
+              product_id:
+                type: integer
+              product_name:
+                type: string
+              product_thumbnail:
+                type: string
+              quantity:
+                type: integer
+              price:
+                type: number
+                format: decimal
+              shipping_cost:
+                type: number
+                format: decimal
+              item_status:
+                type: string
+              vendor_name:
+                type: string
+              tracking:
+                type: object
+                properties:
+                  carrier:
+                    type: string
+                  tracking_number:
+                    type: string
+                  updated_at:
+                    type: string
+                    format: date-time
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        pages:
+          type: integer
+
+    OrderHistoryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderHistoryItem'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    ApplyCouponRequest:
+      type: object
+      required:
+        - coupon_code
+        - cart_items
+      properties:
+        coupon_code:
+          type: string
+        cart_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+
+    Coupon:
+      type: object
+      properties:
+        code:
+          type: string
+        discount_type:
+          type: string
+          enum: [percentage, fixed_amount]
+        discount_value:
+          type: number
+        description:
+          type: string
+        valid_until:
+          type: string
+          format: date-time
+
+    ApplyCouponResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        coupon:
+          $ref: '#/components/schemas/Coupon'
+        items_with_discounts:
+          type: array
+          items:
+            type: object
+        message:
+          type: string
+
+    RemoveCouponRequest:
+      type: object
+      required:
+        - coupon_code
+        - cart_items
+      properties:
+        coupon_code:
+          type: string
+        cart_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+
+    RemoveCouponResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        items_without_coupon:
+          type: array
+          items:
+            type: object
+        message:
+          type: string
+
+    GetAutoDiscountsRequest:
+      type: object
+      required:
+        - cart_items
+      properties:
+        cart_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+
+    GetAutoDiscountsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        auto_discounted_items:
+          type: array
+          items:
+            type: object
+        items_with_auto_discounts:
+          type: array
+          items:
+            type: object
+
+    ValidateCouponResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        coupon:
+          $ref: '#/components/schemas/Coupon'
+        error:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input data
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Invalid cart items"
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing API key
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Invalid or missing API key"
+
+    Forbidden:
+      description: Forbidden - access denied
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Order not found or access denied"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Internal server error"

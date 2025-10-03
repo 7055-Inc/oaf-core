@@ -6,8 +6,33 @@ const { requirePermission } = require('../middleware/permissions');
 const router = express.Router();
 
 /**
+ * @fileoverview Vendor financial management routes
+ * 
+ * Handles vendor-facing financial operations including:
+ * - Tax summary generation and reporting by period
+ * - State-by-state tax breakdown and compliance tracking
+ * - Transaction history with filtering and pagination
+ * - Balance management and payout tracking
+ * - Financial settings management (vendor-configurable fields)
+ * - Tax compliance status monitoring across states
+ * - Tax report generation and availability
+ * 
+ * All endpoints require vendor authentication and appropriate permissions.
+ * Provides comprehensive financial visibility and management for vendors.
+ * 
+ * @author Beemeeart Development Team
+ * @version 1.0.0
+ */
+
+/**
  * Get vendor's tax summary for a specific period
- * GET /api/vendor/financials/my-tax-summary/:period
+ * @route GET /api/vendor/financials/my-tax-summary/:period
+ * @access Private (requires vendor permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.period - Report period in YYYY-MM format
+ * @param {Object} res - Express response object
+ * @returns {Object} Comprehensive tax summary with state breakdown for the specified period
+ * @description Generates or retrieves vendor tax summary including total sales, tax collected, and state-by-state breakdown
  */
 router.get('/my-tax-summary/:period', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
@@ -41,7 +66,13 @@ router.get('/my-tax-summary/:period', verifyToken, requirePermission('vendor'), 
 
 /**
  * Get vendor's state-by-state tax breakdown
- * GET /api/vendor/financials/my-state-breakdown/:period
+ * @route GET /api/vendor/financials/my-state-breakdown/:period
+ * @access Private (requires vendor permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.period - Report period in YYYY-MM format
+ * @param {Object} res - Express response object
+ * @returns {Object} Detailed state-by-state tax breakdown for the specified period
+ * @description Provides granular tax information by state for compliance and reporting purposes
  */
 router.get('/my-state-breakdown/:period', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
@@ -70,7 +101,12 @@ router.get('/my-state-breakdown/:period', verifyToken, requirePermission('vendor
 
 /**
  * Get vendor's current tax liability across all states
- * GET /api/vendor/financials/my-tax-liability
+ * @route GET /api/vendor/financials/my-tax-liability
+ * @access Private (requires vendor permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Current tax liability with 12-month trend analysis and annual totals
+ * @description Provides current month tax summary plus 12-month historical trend for liability analysis
  */
 router.get('/my-tax-liability', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
@@ -114,7 +150,15 @@ router.get('/my-tax-liability', verifyToken, requirePermission('vendor'), async 
 
 /**
  * Get vendor's tax history with pagination
- * GET /api/vendor/financials/my-tax-history
+ * @route GET /api/vendor/financials/my-tax-history
+ * @access Private (requires vendor permission)
+ * @param {Object} req - Express request object
+ * @param {number} req.query.page - Page number for pagination (default: 1)
+ * @param {number} req.query.limit - Items per page (default: 20)
+ * @param {string} req.query.period - Filter by period in YYYY-MM format (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} Paginated tax history with order details and pagination metadata
+ * @description Retrieves detailed tax history for individual orders with optional period filtering
  */
 router.get('/my-tax-history', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
@@ -144,13 +188,13 @@ router.get('/my-tax-history', verifyToken, requirePermission('vendor'), async (r
     
     // Get total count
     const countQuery = query.replace('SELECT ots.*, o.total_amount, o.created_at as order_date, o.status as order_status', 'SELECT COUNT(*) as total');
-    const [countRows] = await db.execute(countQuery, params);
+    const [countRows] = await db.query(countQuery, params);
     const total = countRows[0].total;
     
     // Get paginated data
     query += ` ORDER BY o.created_at DESC LIMIT ${parseInt(limit)} OFFSET ${offset}`;
     
-    const [rows] = await db.execute(query, params);
+    const [rows] = await db.query(query, params);
     
     res.json({
       success: true,
@@ -172,7 +216,16 @@ router.get('/my-tax-history', verifyToken, requirePermission('vendor'), async (r
 
 /**
  * Get vendor's transaction history
- * GET /api/vendor/financials/my-transactions
+ * @route GET /api/vendor/financials/my-transactions
+ * @access Private (requires stripe_connect permission)
+ * @param {Object} req - Express request object
+ * @param {number} req.query.page - Page number for pagination (default: 1)
+ * @param {number} req.query.limit - Items per page (default: 20)
+ * @param {string} req.query.type - Filter by transaction type (optional)
+ * @param {string} req.query.status - Filter by transaction status (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} Paginated transaction history with filtering and human-readable type displays
+ * @description Provides comprehensive transaction history with filtering capabilities and graceful error handling
  */
 router.get('/my-transactions', verifyToken, requirePermission('stripe_connect'), async (req, res) => {
   try {
@@ -230,7 +283,7 @@ router.get('/my-transactions', verifyToken, requirePermission('stripe_connect'),
       countParams.push(status);
     }
     
-    const [countRows] = await db.execute(countQuery, countParams);
+    const [countRows] = await db.query(countQuery, countParams);
     const total = countRows[0] ? countRows[0].total : 0;
     
     // Add LIMIT and OFFSET to the query (must be direct values, not parameters)
@@ -240,7 +293,7 @@ router.get('/my-transactions', verifyToken, requirePermission('stripe_connect'),
     console.log('Params count:', params.length);
     console.log('Params:', params);
     
-    const [rows] = await db.execute(query, params);
+    const [rows] = await db.query(query, params);
     
     res.json({
       success: true,
@@ -273,7 +326,12 @@ router.get('/my-transactions', verifyToken, requirePermission('stripe_connect'),
 
 /**
  * Get vendor's current balance and financial overview
- * GET /api/vendor/financials/my-balance
+ * @route GET /api/vendor/financials/my-balance
+ * @access Private (requires stripe_connect permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Complete balance information including available balance, pending payouts, and payout eligibility
+ * @description Provides comprehensive financial overview with balance calculations, settings, and payout eligibility status
  */
 router.get('/my-balance', verifyToken, requirePermission('stripe_connect'), async (req, res) => {
   try {
@@ -313,7 +371,7 @@ router.get('/my-balance', verifyToken, requirePermission('stripe_connect'), asyn
       WHERE vendor_id = ?
     `;
     
-    const [rows] = await db.execute(query, [vendorId]);
+    const [rows] = await db.query(query, [vendorId]);
     const balance = rows[0];
     
     balance.current_balance = balance.available_balance - balance.pending_payout;
@@ -321,7 +379,7 @@ router.get('/my-balance', verifyToken, requirePermission('stripe_connect'), asyn
     // Get vendor settings for payout information (with fallback defaults)
     let settings = {};
     try {
-      const [settingsRows] = await db.execute(
+      const [settingsRows] = await db.query(
         'SELECT commission_rate, payout_days FROM vendor_settings WHERE vendor_id = ?',
         [vendorId]
       );
@@ -354,7 +412,14 @@ router.get('/my-balance', verifyToken, requirePermission('stripe_connect'), asyn
 
 /**
  * Get vendor's payout history and scheduled payouts
- * GET /api/vendor/financials/my-payouts
+ * @route GET /api/vendor/financials/my-payouts
+ * @access Private (requires vendor permission)
+ * @param {Object} req - Express request object
+ * @param {number} req.query.page - Page number for pagination (default: 1)
+ * @param {number} req.query.limit - Items per page (default: 20)
+ * @param {Object} res - Express response object
+ * @returns {Object} Payout history with pending payout information and pagination
+ * @description Retrieves payout transaction history and pending payout calculations with next payout date
  */
 router.get('/my-payouts', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
@@ -374,7 +439,7 @@ router.get('/my-payouts', verifyToken, requirePermission('vendor'), async (req, 
       LIMIT ${parseInt(limit)} OFFSET ${offset}
     `;
     
-    const [rows] = await db.execute(query, [vendorId]);
+    const [rows] = await db.query(query, [vendorId]);
     
     // Get pending payouts
     const pendingQuery = `
@@ -389,7 +454,7 @@ router.get('/my-payouts', verifyToken, requirePermission('vendor'), async (req, 
         AND transaction_type IN ('sale', 'adjustment')
     `;
     
-    const [pendingRows] = await db.execute(pendingQuery, [vendorId]);
+    const [pendingRows] = await db.query(pendingQuery, [vendorId]);
     const pending = pendingRows[0];
     
     res.json({
@@ -411,7 +476,12 @@ router.get('/my-payouts', verifyToken, requirePermission('vendor'), async (req, 
 
 /**
  * Get vendor's financial settings
- * GET /api/vendor/financials/my-settings
+ * @route GET /api/vendor/financials/my-settings
+ * @access Private (requires vendor permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} Vendor financial settings including commission rates, payout preferences, and Stripe account information
+ * @description Retrieves vendor-specific financial configuration with fallback to default values if no settings exist
  */
 router.get('/my-settings', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
@@ -426,7 +496,7 @@ router.get('/my-settings', verifyToken, requirePermission('vendor'), async (req,
       WHERE vs.vendor_id = ?
     `;
     
-    const [rows] = await db.execute(query, [vendorId]);
+    const [rows] = await db.query(query, [vendorId]);
     
     if (rows.length === 0) {
       return res.json({
@@ -454,7 +524,13 @@ router.get('/my-settings', verifyToken, requirePermission('vendor'), async (req,
 
 /**
  * Update vendor's financial settings (limited fields)
- * PUT /api/vendor/financials/my-settings
+ * @route PUT /api/vendor/financials/my-settings
+ * @access Private (requires vendor permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.body.payment_schedule - Payment schedule ('weekly', 'biweekly', 'monthly')
+ * @param {Object} res - Express response object
+ * @returns {Object} Update confirmation message
+ * @description Allows vendors to update limited financial settings (payment schedule only) with validation
  */
 router.put('/my-settings', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
@@ -478,20 +554,20 @@ router.put('/my-settings', verifyToken, requirePermission('vendor'), async (req,
     params.push(vendorId);
     
     // Check if settings exist
-    const [existing] = await db.execute(
+    const [existing] = await db.query(
       'SELECT id FROM vendor_settings WHERE vendor_id = ?',
       [vendorId]
     );
     
     if (existing.length > 0) {
       // Update existing settings
-      await db.execute(
+      await db.query(
         `UPDATE vendor_settings SET ${updates.join(', ')}, updated_at = NOW() WHERE vendor_id = ?`,
         params
       );
     } else {
       // Create new settings with defaults
-      await db.execute(
+      await db.query(
         'INSERT INTO vendor_settings (vendor_id, payment_schedule, commission_rate, minimum_payout) VALUES (?, ?, 0.1, 25.00)',
         [vendorId, payment_schedule || 'weekly']
       );
@@ -510,7 +586,12 @@ router.put('/my-settings', verifyToken, requirePermission('vendor'), async (req,
 
 /**
  * Get vendor's tax compliance status by state
- * GET /api/vendor/financials/my-compliance-status
+ * @route GET /api/vendor/financials/my-compliance-status
+ * @access Private (requires vendor permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} State-by-state compliance status with nexus thresholds and compliance recommendations
+ * @description Analyzes vendor sales by state against nexus thresholds to determine tax compliance requirements
  */
 router.get('/my-compliance-status', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
@@ -560,7 +641,12 @@ router.get('/my-compliance-status', verifyToken, requirePermission('vendor'), as
 
 /**
  * Get available tax reports for vendor
- * GET /api/vendor/financials/my-tax-reports
+ * @route GET /api/vendor/financials/my-tax-reports
+ * @access Private (requires vendor permission)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} List of available tax reports with download URLs and report types
+ * @description Provides inventory of available tax reports for the past 12 months with direct access URLs
  */
 router.get('/my-tax-reports', verifyToken, requirePermission('vendor'), async (req, res) => {
   try {
@@ -575,7 +661,7 @@ router.get('/my-tax-reports', verifyToken, requirePermission('vendor'), async (r
       LIMIT 12
     `;
     
-    const [rows] = await db.execute(query, [vendorId]);
+    const [rows] = await db.query(query, [vendorId]);
     
     const availableReports = rows.map(row => ({
       period: row.report_period,

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
 import styles from '../../SlideIn.module.css';
 
 const ManageEmailCore = () => {
@@ -75,10 +76,10 @@ const ManageEmailCore = () => {
 
   const loadOverviewData = async () => {
     try {
-      const statsResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/admin/email-stats');
+      const statsResponse = await authApiRequest('admin/email-stats');
       setStats(statsResponse);
       
-      const recentResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/admin/email-recent?limit=10');
+      const recentResponse = await authenticatedApiRequest('admin/email-recent?limit=10');
       setRecentActivity(recentResponse.emails || []);
     } catch (err) {
       setStats({});
@@ -88,7 +89,7 @@ const ManageEmailCore = () => {
 
   const loadQueueData = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/admin/email-queue');
+      const response = await authenticatedApiRequest('admin/email-queue');
       setQueueStats(response);
     } catch (err) {
       setQueueStats({ stats: [], recent: [] });
@@ -97,7 +98,7 @@ const ManageEmailCore = () => {
 
   const loadBounceData = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/admin/email-bounces');
+      const response = await authenticatedApiRequest('admin/email-bounces');
       setBounceData(Array.isArray(response) ? response : []);
     } catch (err) {
       setBounceData([]);
@@ -106,7 +107,7 @@ const ManageEmailCore = () => {
 
   const loadTemplateData = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/admin/email-templates');
+      const response = await authenticatedApiRequest('admin/email-templates');
       const data = await response.json();
       setTemplates(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -135,7 +136,7 @@ const ManageEmailCore = () => {
         }
       }
 
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/admin/email-test', {
+      const response = await authenticatedApiRequest('admin/email-test', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -173,7 +174,7 @@ const ManageEmailCore = () => {
     setMessage('');
 
     try {
-      await authenticatedApiRequest('https://api2.onlineartfestival.com/admin/email-process-queue', {
+      await authenticatedApiRequest('admin/email-process-queue', {
         method: 'POST'
       });
       setMessage('Queue processing initiated successfully!');
@@ -193,7 +194,7 @@ const ManageEmailCore = () => {
     setMessage('');
 
     try {
-      await authenticatedApiRequest('https://api2.onlineartfestival.com/admin/email-bounces-unblacklist', {
+      await authenticatedApiRequest('admin/email-bounces-unblacklist', {
         method: 'POST',
         body: JSON.stringify({ domain })
       });

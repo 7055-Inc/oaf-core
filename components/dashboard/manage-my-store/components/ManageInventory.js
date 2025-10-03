@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
 import { hasAddon } from '../../../../lib/userUtils';
 import slideInStyles from '../../SlideIn.module.css';
 import CSVUploadModal from '../../../csv/CSVUploadModal';
@@ -31,6 +32,9 @@ export default function ManageInventory({ userData }) {
   const [showCSVModal, setShowCSVModal] = useState(false);
   const [csvJobId, setCsvJobId] = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [selectedProductHistory, setSelectedProductHistory] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => {
     fetchUserPermissions();
@@ -53,7 +57,7 @@ export default function ManageInventory({ userData }) {
 
   const fetchUserPermissions = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/users/me');
+      const response = await authApiRequest('users/me');
       if (response.ok) {
         const userData = await response.json();
         setUserPermissions(userData);
@@ -67,18 +71,19 @@ export default function ManageInventory({ userData }) {
     try {
       setLoading(true);
       // Get products (will show only user's products unless admin)
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/products');
+      const response = await authApiRequest('products/my');
       if (!response.ok) throw new Error('Failed to fetch products');
       
-      const productsData = await response.json();
+      const responseData = await response.json();
+      const productsData = responseData.products;
       
       // For each product, get or create inventory record
       const productsWithInventory = await Promise.all(
         productsData.map(async (product) => {
           try {
             // Try to get existing inventory record with allocations
-            const inventoryResponse = await authenticatedApiRequest(
-              `https://api2.onlineartfestival.com/inventory/${product.id}`
+            const inventoryResponse = await authApiRequest(
+              `inventory/${product.id}`
             );
             
             let inventory;
@@ -142,8 +147,8 @@ export default function ManageInventory({ userData }) {
 
   const handleSingleInventoryUpdate = async (productId, newQuantity, reason = 'Manual adjustment') => {
     try {
-      const response = await authenticatedApiRequest(
-        `https://api2.onlineartfestival.com/inventory/${productId}`,
+      const response = await authApiRequest(
+        `inventory/${productId}`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -194,8 +199,8 @@ export default function ManageInventory({ userData }) {
             newQuantity = product.inventory?.qty_on_hand || 0;
         }
 
-        return authenticatedApiRequest(
-          `https://api2.onlineartfestival.com/inventory/${productId}`,
+        return authApiRequest(
+          `inventory/${productId}`,
           {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -234,7 +239,7 @@ export default function ManageInventory({ userData }) {
 
   const checkJobStatus = async (jobId) => {
     try {
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/csv/job/${jobId}`);
+      const response = await authApiRequest(`csv/job/${jobId}`);
       if (response.ok) {
         const data = await response.json();
         setJobStatus(data.job);
@@ -253,6 +258,32 @@ export default function ManageInventory({ userData }) {
       }
     } catch (err) {
       setError('Failed to check job status');
+    }
+  };
+
+  const handleViewHistory = async (product) => {
+    setHistoryLoading(true);
+    setShowHistoryModal(true);
+    setSelectedProductHistory({ product, history: [] });
+
+    try {
+      const response = await authApiRequest(`inventory/${product.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedProductHistory({ 
+          product, 
+          history: data.history || [] 
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching inventory history:', error);
+      setSelectedProductHistory({ 
+        product, 
+        history: [],
+        error: 'Failed to load history'
+      });
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -345,6 +376,7 @@ export default function ManageInventory({ userData }) {
                   isSelected={selectedProducts.includes(product.id)}
                   onSelect={handleProductSelect}
                   onInventoryUpdate={handleSingleInventoryUpdate}
+                  onViewHistory={handleViewHistory}
                   showVendor={false}
                   hasAnyMarketplaceAddon={hasAnyMarketplaceAddon}
                   hasTikTokAddon={hasTikTokAddon}
@@ -474,12 +506,112 @@ export default function ManageInventory({ userData }) {
             )}
           </div>
         )}
+
+        {/* History Modal */}
+        {showHistoryModal && (
+          <div className="modal-overlay" onClick={() => setShowHistoryModal(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px' }}>
+              <h3 className="modal-title">
+                Inventory History - {selectedProductHistory?.product?.name}
+                <button 
+                  onClick={() => setShowHistoryModal(false)}
+                  style={{ 
+                    float: 'right', 
+                    background: 'none', 
+                    border: 'none', 
+                    fontSize: '1.5rem', 
+                    cursor: 'pointer',
+                    padding: '0',
+                    color: '#999'
+                  }}
+                >
+                  ×
+                </button>
+              </h3>
+              <div>
+                {historyLoading ? (
+                  <div style={{ textAlign: 'center', padding: '2rem' }}>
+                    Loading history...
+                  </div>
+                ) : selectedProductHistory?.error ? (
+                  <div style={{ color: 'red', textAlign: 'center', padding: '2rem' }}>
+                    {selectedProductHistory.error}
+                  </div>
+                ) : selectedProductHistory?.history?.length > 0 ? (
+                  <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid #dee2e6' }}>
+                          <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600' }}>Date</th>
+                          <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600' }}>Change Type</th>
+                          <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600' }}>Previous Qty</th>
+                          <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600' }}>New Qty</th>
+                          <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600' }}>Change</th>
+                          <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600' }}>Reason</th>
+                          <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600' }}>User</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedProductHistory.history.map((entry, index) => (
+                          <tr key={index} style={{ borderBottom: '1px solid #dee2e6' }}>
+                            <td style={{ padding: '0.75rem', fontSize: '0.85rem' }}>
+                              {new Date(entry.created_at).toLocaleDateString()} {new Date(entry.created_at).toLocaleTimeString()}
+                            </td>
+                            <td style={{ padding: '0.75rem', fontSize: '0.85rem' }}>
+                              <span style={{ 
+                                padding: '0.25rem 0.5rem', 
+                                borderRadius: '4px', 
+                                backgroundColor: entry.change_type === 'initial_stock' ? '#e3f2fd' : 
+                                                entry.change_type === 'adjustment' ? '#fff3e0' : '#f3e5f5',
+                                fontSize: '0.75rem'
+                              }}>
+                                {entry.change_type.replace('_', ' ')}
+                              </span>
+                            </td>
+                            <td style={{ padding: '0.75rem', fontSize: '0.85rem' }}>{entry.previous_qty}</td>
+                            <td style={{ padding: '0.75rem', fontSize: '0.85rem' }}>{entry.new_qty}</td>
+                            <td style={{ 
+                              padding: '0.75rem', 
+                              fontSize: '0.85rem',
+                              color: entry.quantity_change > 0 ? 'green' : entry.quantity_change < 0 ? 'red' : 'black'
+                            }}>
+                              {entry.quantity_change > 0 ? '+' : ''}{entry.quantity_change}
+                            </td>
+                            <td style={{ padding: '0.75rem', fontSize: '0.85rem' }}>{entry.reason || '-'}</td>
+                            <td style={{ padding: '0.75rem', fontSize: '0.85rem' }}>
+                              {entry.first_name && entry.last_name ? 
+                                `${entry.first_name} ${entry.last_name}` : 
+                                entry.username || 'System'
+                              }
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
+                    No inventory history found for this product.
+                  </div>
+                )}
+              </div>
+              <div className="modal-actions">
+                <button 
+                  onClick={() => setShowHistoryModal(false)}
+                  className="secondary"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 }
 
 // Individual product row component for inventory (moved inline)
-function InventoryRow({ product, isSelected, onSelect, onInventoryUpdate, showVendor, hasAnyMarketplaceAddon, hasTikTokAddon, hasAmazonAddon, hasEtsyAddon }) {
+function InventoryRow({ product, isSelected, onSelect, onInventoryUpdate, onViewHistory, showVendor, hasAnyMarketplaceAddon, hasTikTokAddon, hasAmazonAddon, hasEtsyAddon }) {
   const [editing, setEditing] = useState(false);
   const [newQuantity, setNewQuantity] = useState(product.inventory?.qty_on_hand || 0);
   const [adjustmentReason, setAdjustmentReason] = useState('');
@@ -590,7 +722,14 @@ function InventoryRow({ product, isSelected, onSelect, onInventoryUpdate, showVe
               className="secondary"
               style={{ fontSize: '0.75rem', padding: '0.4rem 0.8rem' }}
             >
-              View
+              Edit Product
+            </button>
+            <button
+              onClick={() => onViewHistory(product)}
+              className="secondary"
+              style={{ fontSize: '0.75rem', padding: '0.4rem 0.8rem', marginLeft: '0.5rem' }}
+            >
+              History
             </button>
           </div>
         )}

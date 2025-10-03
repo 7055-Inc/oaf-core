@@ -1,0 +1,576 @@
+openapi: 3.0.0
+info:
+  title: Jury Packet Management API
+  description: Comprehensive jury packet management for artist submissions and portfolio organization
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/api/jury-packets
+    description: Production server
+
+paths:
+  /:
+    get:
+      summary: Get all jury packets
+      description: Get all jury packets for authenticated artist with persona information
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/JuryPacketSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      summary: Create jury packet
+      description: Create new jury packet for authenticated artist
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JuryPacketCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JuryPacketCreateResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /{id}:
+    get:
+      summary: Get jury packet details
+      description: Get detailed information for specific jury packet (requires ownership)
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Jury packet ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JuryPacketDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/PacketNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      summary: Update jury packet
+      description: Update existing jury packet (requires ownership)
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Jury packet ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JuryPacketUpdate'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/PacketNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      summary: Delete jury packet
+      description: Delete jury packet (requires ownership, permanent deletion)
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Jury packet ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/PacketNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Bearer token authentication
+
+  schemas:
+    JuryPacketSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Jury packet ID
+        packet_name:
+          type: string
+          description: Packet name
+        persona_id:
+          type: integer
+          nullable: true
+          description: Associated persona ID
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        persona_name:
+          type: string
+          nullable: true
+          description: Persona name
+        persona_display_name:
+          type: string
+          nullable: true
+          description: Persona display name
+
+    JuryPacketDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Jury packet ID
+        artist_id:
+          type: integer
+          description: Artist user ID
+        packet_name:
+          type: string
+          description: Packet name
+        packet_data:
+          $ref: '#/components/schemas/PacketData'
+        photos_data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PhotoData'
+        persona_id:
+          type: integer
+          nullable: true
+          description: Associated persona ID
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    PacketData:
+      type: object
+      description: Flexible packet data structure
+      properties:
+        artist_statement:
+          type: string
+          description: Artist statement
+        bio:
+          type: string
+          description: Artist biography
+        exhibition_history:
+          type: string
+          description: Exhibition history
+        awards:
+          type: string
+          description: Awards and recognition
+        education:
+          type: string
+          description: Educational background
+        medium:
+          type: string
+          description: Primary artistic medium
+        style:
+          type: string
+          description: Artistic style
+        themes:
+          type: string
+          description: Artistic themes
+        techniques:
+          type: string
+          description: Techniques used
+        website:
+          type: string
+          format: uri
+          description: Artist website
+        social_media:
+          type: object
+          properties:
+            instagram:
+              type: string
+              description: Instagram handle
+            facebook:
+              type: string
+              description: Facebook page
+            twitter:
+              type: string
+              description: Twitter handle
+        professional_references:
+          type: array
+          items:
+            type: string
+          description: Professional references
+        work_description:
+          type: string
+          description: Description of submitted work
+        work_dimensions:
+          type: string
+          description: Dimensions of work
+        work_price:
+          type: number
+          format: float
+          description: Price of work
+        availability:
+          type: string
+          description: Availability information
+        custom_fields:
+          type: object
+          description: Additional custom data
+          additionalProperties: true
+      additionalProperties: true
+
+    PhotoData:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Photo ID
+        url:
+          type: string
+          format: uri
+          description: Photo URL
+        title:
+          type: string
+          description: Photo title
+        description:
+          type: string
+          description: Photo description
+        medium:
+          type: string
+          description: Medium used
+        dimensions:
+          type: string
+          description: Artwork dimensions
+        year:
+          type: integer
+          description: Year created
+        price:
+          type: number
+          format: float
+          nullable: true
+          description: Price
+        is_primary:
+          type: boolean
+          description: Primary image flag
+        order:
+          type: integer
+          description: Display order
+        tags:
+          type: array
+          items:
+            type: string
+          description: Photo tags
+        metadata:
+          type: object
+          description: Additional metadata
+          additionalProperties: true
+
+    JuryPacketCreate:
+      type: object
+      required:
+        - packet_name
+      properties:
+        packet_name:
+          type: string
+          description: Packet name
+          example: "Contemporary Sculpture Portfolio"
+        packet_data:
+          $ref: '#/components/schemas/PacketData'
+        photos_data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PhotoData'
+        persona_id:
+          type: integer
+          nullable: true
+          description: Artist persona ID
+          example: 123
+
+    JuryPacketUpdate:
+      type: object
+      required:
+        - packet_name
+      properties:
+        packet_name:
+          type: string
+          description: Packet name
+        packet_data:
+          $ref: '#/components/schemas/PacketData'
+        photos_data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PhotoData'
+        persona_id:
+          type: integer
+          nullable: true
+          description: Artist persona ID
+
+    JuryPacketCreateResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Created packet ID
+        packet_name:
+          type: string
+          description: Packet name
+        persona_id:
+          type: integer
+          nullable: true
+          description: Associated persona ID
+        packet_data:
+          $ref: '#/components/schemas/PacketData'
+        photos_data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PhotoData'
+        message:
+          type: string
+          example: "Jury packet created successfully"
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Response message
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+
+  responses:
+    Unauthorized:
+      description: Unauthorized - invalid or missing API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Authentication required"
+
+    PacketNotFound:
+      description: Jury packet not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Jury packet not found"
+
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            packet_name_required:
+              summary: Packet name required
+              value:
+                error: "Packet name is required"
+            invalid_persona:
+              summary: Invalid persona
+              value:
+                error: "Invalid persona selected"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            create_error:
+              summary: Create packet error
+              value:
+                error: "Failed to create jury packet"
+            update_error:
+              summary: Update packet error
+              value:
+                error: "Failed to update jury packet"
+            delete_error:
+              summary: Delete packet error
+              value:
+                error: "Failed to delete jury packet"
+            fetch_error:
+              summary: Fetch packets error
+              value:
+                error: "Failed to fetch jury packets"
+
+  examples:
+    BasicPacketCreate:
+      summary: Basic packet creation
+      value:
+        packet_name: "Spring Exhibition Submission"
+        packet_data:
+          artist_statement: "My work explores the relationship between color and emotion..."
+          medium: "Acrylic on Canvas"
+          work_description: "A series of five paintings inspired by seasonal changes"
+
+    ComprehensivePacketCreate:
+      summary: Comprehensive packet with photos
+      value:
+        packet_name: "Professional Portfolio 2025"
+        persona_id: 123
+        packet_data:
+          artist_statement: "My artistic practice spans over fifteen years..."
+          bio: "Jane Smith is an award-winning contemporary artist..."
+          exhibition_history: "2024: Modern Gallery, Portland\n2023: Art Center, Seattle"
+          awards: "2024: Best in Show, Northwest Art Fair"
+          medium: "Mixed Media Sculpture"
+          style: "Contemporary Abstract"
+          website: "https://janesmithart.com"
+          work_price: 12000
+        photos_data:
+          - id: "main_work"
+            url: "/images/portfolio/sculpture_main.jpg"
+            title: "Convergence Series #3"
+            description: "Large-scale mixed media sculpture"
+            medium: "Steel, Bronze, Glass"
+            dimensions: "8' x 6' x 4'"
+            year: 2024
+            price: 12000
+            is_primary: true
+            order: 1
+            tags: ["sculpture", "contemporary", "large-scale"]
+
+    PacketUpdate:
+      summary: Update existing packet
+      value:
+        packet_name: "Updated Portfolio Name"
+        packet_data:
+          artist_statement: "Updated artist statement with new insights..."
+          work_price: 15000
+
+    PacketListResponse:
+      summary: List of jury packets
+      value:
+        - id: 123
+          packet_name: "Contemporary Sculpture Portfolio"
+          persona_id: 456
+          created_at: "2025-01-15T10:00:00Z"
+          updated_at: "2025-01-20T14:30:00Z"
+          persona_name: "Professional Artist"
+          persona_display_name: "Jane Smith - Professional"
+        - id: 124
+          packet_name: "Abstract Paintings Collection"
+          persona_id: null
+          created_at: "2025-01-10T09:00:00Z"
+          updated_at: "2025-01-18T16:45:00Z"
+          persona_name: null
+          persona_display_name: null
+
+    PacketDetailResponse:
+      summary: Detailed packet information
+      value:
+        id: 123
+        artist_id: 789
+        packet_name: "Contemporary Sculpture Portfolio"
+        packet_data:
+          artist_statement: "My work explores the intersection of nature and technology..."
+          bio: "Jane Smith is a contemporary sculptor based in Portland, Oregon..."
+          exhibition_history: "2024: Gallery Modern, Portland\n2023: Art Center Downtown..."
+          medium: "Mixed Media Sculpture"
+          style: "Contemporary Abstract"
+          website: "https://janesmithart.com"
+          work_price: 15000
+        photos_data:
+          - id: "photo_1"
+            url: "/images/portfolio/sculpture_1.jpg"
+            title: "Urban Nature #1"
+            description: "Steel and bronze sculpture with integrated LED lighting"
+            medium: "Steel, Bronze, LED"
+            dimensions: "6' x 4' x 3'"
+            year: 2024
+            price: 8500
+            is_primary: true
+            order: 1
+            tags: ["sculpture", "contemporary", "nature"]
+        persona_id: 456
+        created_at: "2025-01-15T10:00:00Z"
+        updated_at: "2025-01-20T14:30:00Z"
+
+tags:
+  - name: Jury Packet Management
+    description: Jury packet CRUD operations and portfolio organization
+
+  - name: Artist Submissions
+    description: Artist submission management and organization
+
+  - name: Portfolio Management
+    description: Portfolio organization and presentation tools
+
+externalDocs:
+  description: Jury Packet Management API Documentation
+  url: https://docs.beemeeart.com/api/jury-packets

@@ -1,0 +1,915 @@
+openapi: 3.0.0
+info:
+  title: Vendor Financial Management API
+  description: Comprehensive vendor-facing financial management system with tax reporting, transaction history, balance management, and compliance monitoring
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/api
+    description: Production server
+
+paths:
+  /vendor/financials/my-tax-summary/{period}:
+    get:
+      summary: Get tax summary
+      description: Get comprehensive tax summary for a specific period
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: period
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+          description: Report period in YYYY-MM format
+          example: "2025-09"
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxSummaryResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vendor/financials/my-state-breakdown/{period}:
+    get:
+      summary: Get state tax breakdown
+      description: Get detailed state-by-state tax breakdown for a period
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: period
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+          description: Report period in YYYY-MM format
+          example: "2025-09"
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StateBreakdownResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vendor/financials/my-tax-liability:
+    get:
+      summary: Get tax liability
+      description: Get current tax liability with 12-month trend analysis
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxLiabilityResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vendor/financials/my-tax-history:
+    get:
+      summary: Get tax history
+      description: Get detailed tax history with pagination
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+          description: Page number
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+          description: Items per page
+        - name: period
+          in: query
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+          description: Filter by period in YYYY-MM format
+          example: "2025-09"
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxHistoryResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vendor/financials/my-transactions:
+    get:
+      summary: Get transaction history
+      description: Get comprehensive transaction history with filtering
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+          description: Page number
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+          description: Items per page
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [sale, commission, payout, refund, adjustment, subscription_charge]
+          description: Filter by transaction type
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, completed, failed, cancelled]
+          description: Filter by transaction status
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionHistoryResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vendor/financials/my-balance:
+    get:
+      summary: Get current balance
+      description: Get current balance and comprehensive financial overview
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vendor/financials/my-payouts:
+    get:
+      summary: Get payout history
+      description: Get payout history and pending payout information
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+          description: Page number
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+          description: Items per page
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayoutHistoryResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vendor/financials/my-settings:
+    get:
+      summary: Get financial settings
+      description: Get vendor financial settings
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    put:
+      summary: Update financial settings
+      description: Update vendor financial settings (limited fields)
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSettingsRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vendor/financials/my-compliance-status:
+    get:
+      summary: Get compliance status
+      description: Get tax compliance status by state with nexus analysis
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComplianceStatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vendor/financials/my-tax-reports:
+    get:
+      summary: Get available tax reports
+      description: Get inventory of available tax reports
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxReportsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Bearer token authentication with vendor or stripe_connect permissions
+
+  schemas:
+    TaxSummary:
+      type: object
+      properties:
+        total_sales:
+          type: number
+          format: decimal
+          description: Total sales for period
+        total_tax_collected:
+          type: number
+          format: decimal
+          description: Total tax collected
+        taxable_amount:
+          type: number
+          format: decimal
+          description: Total taxable amount
+        order_count:
+          type: integer
+          description: Number of orders
+        states_with_sales:
+          type: integer
+          description: Number of states with sales
+
+    StateBreakdown:
+      type: object
+      properties:
+        customer_state:
+          type: string
+          description: State code
+        total_taxable_amount:
+          type: number
+          format: decimal
+          description: Total taxable amount in state
+        total_tax_collected:
+          type: number
+          format: decimal
+          description: Total tax collected in state
+        order_count:
+          type: integer
+          description: Number of orders in state
+        avg_tax_rate:
+          type: number
+          format: decimal
+          description: Average tax rate in state
+
+    MonthlyTrend:
+      type: object
+      properties:
+        period:
+          type: string
+          description: Period in YYYY-MM format
+        total_tax_collected:
+          type: number
+          format: decimal
+          description: Tax collected for period
+        total_sales:
+          type: number
+          format: decimal
+          description: Total sales for period
+        order_count:
+          type: integer
+          description: Number of orders for period
+
+    TaxHistoryItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Tax summary ID
+        order_id:
+          type: integer
+          description: Order ID
+        customer_state:
+          type: string
+          description: Customer state
+        taxable_amount:
+          type: number
+          format: decimal
+          description: Taxable amount
+        tax_collected:
+          type: number
+          format: decimal
+          description: Tax collected
+        tax_rate_used:
+          type: number
+          format: decimal
+          description: Tax rate used
+        total_amount:
+          type: number
+          format: decimal
+          description: Total order amount
+        order_date:
+          type: string
+          format: date-time
+          description: Order date
+        order_status:
+          type: string
+          description: Order status
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Transaction ID
+        vendor_id:
+          type: integer
+          description: Vendor ID
+        order_id:
+          type: integer
+          description: Order ID
+          nullable: true
+        transaction_type:
+          type: string
+          enum: [sale, commission, payout, refund, adjustment, subscription_charge]
+          description: Transaction type
+        amount:
+          type: number
+          format: decimal
+          description: Transaction amount
+        commission_amount:
+          type: number
+          format: decimal
+          description: Commission amount
+          nullable: true
+        status:
+          type: string
+          enum: [pending, completed, failed, cancelled]
+          description: Transaction status
+        payout_date:
+          type: string
+          format: date
+          description: Scheduled payout date
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        order_number:
+          type: integer
+          description: Order number
+          nullable: true
+        order_total:
+          type: number
+          format: decimal
+          description: Total order amount
+          nullable: true
+        type_display:
+          type: string
+          description: Human-readable transaction type
+
+    Balance:
+      type: object
+      properties:
+        available_balance:
+          type: number
+          format: decimal
+          description: Total available balance
+        pending_payout:
+          type: number
+          format: decimal
+          description: Amount pending payout
+        total_sales:
+          type: number
+          format: decimal
+          description: Total sales amount
+        total_orders:
+          type: integer
+          description: Total order count
+        total_paid_out:
+          type: number
+          format: decimal
+          description: Total amount paid out
+        current_balance:
+          type: number
+          format: decimal
+          description: Current available balance
+
+    VendorSettings:
+      type: object
+      properties:
+        commission_rate:
+          type: number
+          format: decimal
+          description: Commission rate
+        minimum_payout:
+          type: number
+          format: decimal
+          description: Minimum payout amount
+        payout_days:
+          type: integer
+          description: Payout schedule days
+        payment_schedule:
+          type: string
+          enum: [weekly, biweekly, monthly]
+          description: Payment schedule preference
+
+    PayoutTransaction:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Transaction ID
+        vendor_id:
+          type: integer
+          description: Vendor ID
+        order_id:
+          type: integer
+          description: Order ID
+          nullable: true
+        transaction_type:
+          type: string
+          enum: [payout]
+          description: Transaction type
+        amount:
+          type: number
+          format: decimal
+          description: Payout amount
+        status:
+          type: string
+          enum: [pending, completed, failed, cancelled]
+          description: Payout status
+        payout_date:
+          type: string
+          format: date
+          description: Payout date
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        order_number:
+          type: integer
+          description: Order number
+          nullable: true
+
+    PendingPayout:
+      type: object
+      properties:
+        pending_amount:
+          type: number
+          format: decimal
+          description: Pending payout amount
+        transaction_count:
+          type: integer
+          description: Number of pending transactions
+        next_payout_date:
+          type: string
+          format: date
+          description: Next scheduled payout date
+          nullable: true
+
+    ComplianceStatus:
+      type: object
+      properties:
+        state:
+          type: string
+          description: State code
+        total_sales:
+          type: number
+          format: decimal
+          description: Total sales in state
+        total_tax_collected:
+          type: number
+          format: decimal
+          description: Tax collected in state
+        order_count:
+          type: integer
+          description: Orders in state
+        nexus_threshold:
+          type: number
+          format: decimal
+          description: Nexus threshold for state
+        has_nexus:
+          type: boolean
+          description: Whether nexus is established
+        compliance_status:
+          type: string
+          enum: [active, monitoring]
+          description: Compliance status
+
+    TaxReport:
+      type: object
+      properties:
+        period:
+          type: string
+          description: Report period in YYYY-MM format
+        report_types:
+          type: array
+          items:
+            type: string
+            enum: [tax_summary, state_breakdown, compliance_report]
+          description: Available report types
+        download_urls:
+          type: object
+          properties:
+            tax_summary:
+              type: string
+              description: Tax summary download URL
+            state_breakdown:
+              type: string
+              description: State breakdown download URL
+            compliance_report:
+              type: string
+              description: Compliance report download URL
+
+    UpdateSettingsRequest:
+      type: object
+      properties:
+        payment_schedule:
+          type: string
+          enum: [weekly, biweekly, monthly]
+          description: Payment schedule preference
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Current page number
+        limit:
+          type: integer
+          description: Items per page
+        total:
+          type: integer
+          description: Total number of items
+        pages:
+          type: integer
+          description: Total number of pages
+
+    TaxSummaryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        vendor_id:
+          type: integer
+        report_period:
+          type: string
+        summary:
+          $ref: '#/components/schemas/TaxSummary'
+        state_breakdown:
+          type: array
+          items:
+            $ref: '#/components/schemas/StateBreakdown'
+
+    StateBreakdownResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        vendor_id:
+          type: integer
+        report_period:
+          type: string
+        state_breakdown:
+          type: array
+          items:
+            $ref: '#/components/schemas/StateBreakdown'
+
+    TaxLiabilityResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        vendor_id:
+          type: integer
+        current_month:
+          $ref: '#/components/schemas/TaxSummary'
+        monthly_trend:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthlyTrend'
+        total_annual_tax:
+          type: number
+          format: decimal
+
+    TaxHistoryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        vendor_id:
+          type: integer
+        tax_history:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaxHistoryItem'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    TransactionHistoryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        vendor_id:
+          type: integer
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    BalanceResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        vendor_id:
+          type: integer
+        balance:
+          $ref: '#/components/schemas/Balance'
+        settings:
+          $ref: '#/components/schemas/VendorSettings'
+        can_request_payout:
+          type: boolean
+
+    PayoutHistoryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        vendor_id:
+          type: integer
+        payouts:
+          type: array
+          items:
+            $ref: '#/components/schemas/PayoutTransaction'
+        pending:
+          $ref: '#/components/schemas/PendingPayout'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    SettingsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        vendor_id:
+          type: integer
+        settings:
+          allOf:
+            - $ref: '#/components/schemas/VendorSettings'
+            - type: object
+              properties:
+                id:
+                  type: integer
+                vendor_id:
+                  type: integer
+                stripe_account_id:
+                  type: string
+                  nullable: true
+                stripe_account_verified:
+                  type: boolean
+                  nullable: true
+                created_at:
+                  type: string
+                  format: date-time
+                updated_at:
+                  type: string
+                  format: date-time
+                vendor_name:
+                  type: string
+
+    ComplianceStatusResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        vendor_id:
+          type: integer
+        report_period:
+          type: string
+        compliance_status:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComplianceStatus'
+        states_with_nexus:
+          type: integer
+
+    TaxReportsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        vendor_id:
+          type: integer
+        available_reports:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaxReport'
+
+    MessageResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: string
+          description: Additional error details
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            invalid_period:
+              summary: Invalid period format
+              value:
+                error: "Invalid period format. Use YYYY-MM"
+            invalid_payment_schedule:
+              summary: Invalid payment schedule
+              value:
+                error: "No valid fields to update"
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Unauthorized access"
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            vendor_required:
+              summary: Vendor permission required
+              value:
+                error: "Insufficient permissions - requires vendor"
+            stripe_connect_required:
+              summary: Stripe Connect permission required
+              value:
+                error: "Insufficient permissions - requires stripe_connect"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            tax_summary_error:
+              summary: Tax summary generation error
+              value:
+                error: "Failed to get vendor tax summary"
+            balance_error:
+              summary: Balance calculation error
+              value:
+                error: "Failed to get vendor balance"
+            settings_error:
+              summary: Settings update error
+              value:
+                error: "Failed to update vendor settings"
+
+tags:
+  - name: Vendor Financial Management
+    description: Comprehensive vendor-facing financial management system

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import styles from './ApplicationStatus.module.css';
+import { getApiUrl } from '../../lib/config';
 
 export default function ApplicationStatus({ eventId, user, persona_id = null }) {
   const [application, setApplication] = useState(null);
@@ -18,7 +19,7 @@ export default function ApplicationStatus({ eventId, user, persona_id = null }) 
         }
 
         // Get user's applications and find the one for this event and persona
-        const response = await fetch('https://api2.onlineartfestival.com/api/applications/', {
+        const response = await fetch(getApiUrl('api/applications/'), {
           headers: {
             'Authorization': `Bearer ${token}`
           }

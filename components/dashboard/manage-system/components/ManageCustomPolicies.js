@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import PolicyEditor from './policies/PolicyEditor';
-import { authenticatedApiRequest, handleCsrfError } from '../../../../lib/csrf';
+import { handleCsrfError } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
 import styles from '../../SlideIn.module.css';
 
 export default function ManageCustomPolicies({ userData }) {
@@ -37,7 +38,7 @@ export default function ManageCustomPolicies({ userData }) {
       setError(null);
       
       // Load default shipping policy
-      const defaultShippingResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/admin/default-policies', {
+      const defaultShippingResponse = await authApiRequest('admin/default-policies', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -50,7 +51,7 @@ export default function ManageCustomPolicies({ userData }) {
       }
 
       // Load default return policy
-      const defaultReturnResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/admin/default-return-policies', {
+      const defaultReturnResponse = await authApiRequest('admin/default-return-policies', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -63,7 +64,7 @@ export default function ManageCustomPolicies({ userData }) {
       }
 
       // Load vendor shipping policies
-      const vendorShippingResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/admin/vendor-policies', {
+      const vendorShippingResponse = await authApiRequest('admin/vendor-policies', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -76,7 +77,7 @@ export default function ManageCustomPolicies({ userData }) {
       }
 
       // Load vendor return policies
-      const vendorReturnResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/admin/vendor-return-policies', {
+      const vendorReturnResponse = await authApiRequest('admin/vendor-return-policies', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -109,7 +110,7 @@ export default function ManageCustomPolicies({ userData }) {
 
     try {
       const endpoint = policyType === 'return' ? 'default-return-policies' : 'default-policies';
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/admin/${endpoint}`, {
+      const response = await authApiRequest(`admin/${endpoint}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -157,7 +158,7 @@ export default function ManageCustomPolicies({ userData }) {
 
     try {
       const endpoint = policyType === 'return' ? 'vendor-return-policies' : 'vendor-policies';
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/admin/${endpoint}/${userId}`, {
+      const response = await authApiRequest(`admin/${endpoint}/${userId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
@@ -215,7 +216,7 @@ export default function ManageCustomPolicies({ userData }) {
 
     try {
       const endpoint = policyType === 'return' ? 'vendor-return-policies' : 'vendor-policies';
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/admin/${endpoint}/${userId}`, {
+      const response = await authApiRequest(`admin/${endpoint}/${userId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'

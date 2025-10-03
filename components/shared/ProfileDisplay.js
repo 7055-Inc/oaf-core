@@ -1,5 +1,6 @@
 'use client';
 import styles from '../../pages/profile/Profile.module.css';
+import { getSmartMediaUrl } from '../../lib/config';
 
 export default function ProfileDisplay({ 
   userProfile, 
@@ -23,7 +24,7 @@ export default function ProfileDisplay({
     }
     // Normalize missing leading slash
     const normalized = path.startsWith('/') ? path : `/${path}`;
-    return `https://api2.onlineartfestival.com${normalized}`;
+    return getSmartMediaUrl(normalized);
   };
 
   const isOwnProfile = currentUserId && userProfile.id && (currentUserId.toString() === userProfile.id.toString());

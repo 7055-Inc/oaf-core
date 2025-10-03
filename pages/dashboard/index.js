@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
+import { authApiRequest } from '../../lib/apiUtils';
 import Header from '../../components/Header';
 
 
@@ -74,6 +75,7 @@ import MarketplaceApplications from '../../components/dashboard/admin/components
 import WholesaleApplications from '../../components/dashboard/admin/components/WholesaleApplications';
 import AdminReturns from '../../components/dashboard/admin/components/AdminReturns';
 import AdminPromotions from '../../components/dashboard/admin/components/AdminPromotions';
+import MaintenanceControl from '../../components/dashboard/admin/components/MaintenanceControl';
 
 
 
@@ -120,7 +122,7 @@ export default function Dashboard() {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         
-        authenticatedApiRequest('https://api2.onlineartfestival.com/users/me', {
+        authApiRequest('users/me', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json'
@@ -626,6 +628,14 @@ export default function Dashboard() {
     if (slideInContent.type === 'admin-promotions') {
       return (
         <AdminPromotions
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'maintenance-control') {
+      return (
+        <MaintenanceControl
           userData={userData}
         />
       );

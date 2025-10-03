@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styles from './TicketPurchaseModal.module.css';
+import { getApiUrl } from '../lib/config';
 
 export default function TicketPurchaseModal({ event, isOpen, onClose }) {
   const [tickets, setTickets] = useState([]);
@@ -72,7 +73,7 @@ export default function TicketPurchaseModal({ event, isOpen, onClose }) {
 
   const fetchTickets = async () => {
     try {
-      const response = await fetch(`https://api2.onlineartfestival.com/api/events/${event.id}/tickets`);
+      const response = await fetch(getApiUrl(`api/events/${event.id}/tickets`));
       if (response.ok) {
         const data = await response.json();
         setTickets(data.tickets || []);
@@ -121,7 +122,7 @@ export default function TicketPurchaseModal({ event, isOpen, onClose }) {
       // In a real implementation, you might combine all into one purchase
       const [ticketId, quantity] = Object.entries(selectedTickets).find(([_, qty]) => qty > 0);
       
-      const response = await fetch(`https://api2.onlineartfestival.com/api/events/${event.id}/tickets/${ticketId}/purchase`, {
+      const response = await fetch(getApiUrl(`api/events/${event.id}/tickets/${ticketId}/purchase`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

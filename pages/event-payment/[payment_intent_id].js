@@ -4,6 +4,7 @@ import Head from 'next/head';
 import Script from 'next/script';
 import Header from '../../components/Header';
 import { authenticatedApiRequest, handleCsrfError } from '../../lib/csrf';
+import { authApiRequest } from '../../lib/apiUtils';
 import styles from '../../styles/EventPayment.module.css';
 
 export default function EventPayment() {
@@ -53,7 +54,7 @@ export default function EventPayment() {
       setError(null);
 
       // Get payment intent and application details
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/applications/payment-intent/${payment_intent_id}`, {
+      const response = await authApiRequest(`api/applications/payment-intent/${payment_intent_id}`, {
         method: 'GET'
       });
 

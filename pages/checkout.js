@@ -4,6 +4,7 @@ import Head from 'next/head';
 import Script from 'next/script';
 import Header from '../components/Header';
 import { authenticatedApiRequest, handleCsrfError } from '../lib/csrf';
+import { authApiRequest } from '../lib/apiUtils';
 import CouponEntry from '../components/coupons/CouponEntry';
 import DiscountSummary from '../components/coupons/DiscountSummary';
 import { useCoupons } from '../hooks/useCoupons';
@@ -210,7 +211,7 @@ export default function Checkout() {
         quantity: item.quantity
       }));
 
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/checkout/calculate-totals', {
+      const response = await authApiRequest('checkout/calculate-totals', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -246,7 +247,7 @@ export default function Checkout() {
         selected_shipping_rate: selectedShipping[item.product_id]?.rate
       }));
 
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/checkout/create-payment-intent', {
+      const response = await authenticatedApiRequest('checkout/create-payment-intent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -305,7 +306,7 @@ export default function Checkout() {
 
       if (confirmedPaymentIntent.status === 'succeeded') {
         // Payment succeeded, confirm with backend
-        const confirmResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/checkout/confirm-payment', {
+        const confirmResponse = await authenticatedApiRequest('checkout/confirm-payment', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

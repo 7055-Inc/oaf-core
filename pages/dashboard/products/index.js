@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Header from '../../../components/Header';
 import { authenticatedApiRequest } from '../../../lib/csrf';
+import { authApiRequest } from '../../../lib/apiUtils';
+import { getSmartMediaUrl } from '../../../lib/config';
 import styles from '../Dashboard.module.css';
 
 export default function VendorProducts() {
@@ -27,7 +29,7 @@ export default function VendorProducts() {
 
   const fetchCurrentUser = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/users/me', {
+      const response = await authApiRequest('users/me', {
         method: 'GET'
       });
 
@@ -43,8 +45,8 @@ export default function VendorProducts() {
   const fetchProducts = async () => {
     try {
       const endpoint = showAllProducts && isAdmin 
-        ? 'https://api2.onlineartfestival.com/products/all?include=inventory,images,vendor'
-        : 'https://api2.onlineartfestival.com/products/my/?include=inventory,images';
+        ? 'products/all?include=inventory,images,vendor'
+        : 'products/my/?include=inventory,images';
         
       const response = await authenticatedApiRequest(endpoint, {
         method: 'GET'
@@ -101,7 +103,7 @@ export default function VendorProducts() {
       if (imageUrl.startsWith('http')) {
         return imageUrl;
       }
-      return `https://api2.onlineartfestival.com${imageUrl}`;
+      return getSmartMediaUrl(imageUrl);
     }
     return null;
   };
@@ -117,7 +119,7 @@ export default function VendorProducts() {
   const handleBulkDelete = async () => {
     setDeleting(true);
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/products/bulk-delete', {
+      const response = await authenticatedApiRequest('products/bulk-delete', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

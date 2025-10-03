@@ -1,18 +1,30 @@
+/**
+ * Marketplace Products Routes
+ * Comprehensive marketplace functionality for the Beemeeart platform
+ * Handles public marketplace product listings, filtering, search, and featured products
+ * Supports multi-category marketplace with art, crafts, and admin management
+ */
+
 const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
 const { secureLogger } = require('../middleware/secureLogger');
 
 /**
- * Marketplace Products API Routes
+ * GET /api/marketplace/products
+ * Get marketplace products with comprehensive filtering and pagination
+ * Public endpoint for browsing marketplace-enabled products across categories
  * 
- * These endpoints serve marketplace-enabled products for:
- * - Main art site (marketplace_category = 'art')
- * - Crafts subdomain (marketplace_category = 'crafts') 
- * - Admin management (all categories)
+ * @route GET /api/marketplace/products
+ * @param {string} [category=all] - Product category filter ('art', 'crafts', 'unsorted', 'all')
+ * @param {number} [limit=50] - Number of products to return (max 100)
+ * @param {number} [offset=0] - Pagination offset
+ * @param {string} [include] - Comma-separated includes ('images,vendor,categories')
+ * @param {string} [sort=created_at] - Sort field ('created_at', 'name', 'price', 'updated_at')
+ * @param {string} [order=DESC] - Sort order ('ASC', 'DESC')
+ * @returns {Object} Paginated marketplace products with metadata and filtering info
+ * @note Only returns active, marketplace-enabled products
  */
-
-// GET /api/marketplace/products - Get marketplace products with filtering
 router.get('/products', async (req, res) => {
   try {
     const { 
@@ -127,7 +139,7 @@ router.get('/products', async (req, res) => {
         // If we have image data, construct proper URLs
         if (product.image_url || product.image_path) {
           product.images = [{
-            url: product.image_url || `https://api2.onlineartfestival.com/media-proxy/${product.image_path}`,
+            url: product.image_url || `${process.env.SMART_MEDIA_BASE_URL || 'https://api.beemeeart.com/api/images'}/media-proxy/${product.image_path}`,
             is_primary: true
           }];
         }
@@ -160,7 +172,17 @@ router.get('/products', async (req, res) => {
   }
 });
 
-// GET /api/marketplace/products/featured - Get featured marketplace products
+/**
+ * GET /api/marketplace/products/featured
+ * Get featured marketplace products for homepage and category showcases
+ * Returns curated selection of high-quality products for promotional display
+ * 
+ * @route GET /api/marketplace/products/featured
+ * @param {string} [category=art] - Product category ('art' or 'crafts')
+ * @param {number} [limit=12] - Number of featured products to return
+ * @returns {Object} Featured products with complete metadata and images
+ * @note Currently features most recent products, can be enhanced with manual curation
+ */
 router.get('/products/featured', async (req, res) => {
   try {
     const { 
@@ -209,7 +231,7 @@ router.get('/products/featured', async (req, res) => {
     for (let product of products) {
       if (product.image_url || product.image_path) {
         product.images = [{
-          url: product.image_url || `https://api2.onlineartfestival.com/media-proxy/${product.image_path}`,
+          url: product.image_url || `${process.env.SMART_MEDIA_BASE_URL || 'https://api.beemeeart.com/api/images'}/media-proxy/${product.image_path}`,
           is_primary: true
         }];
       }
@@ -230,7 +252,15 @@ router.get('/products/featured', async (req, res) => {
   }
 });
 
-// GET /api/marketplace/stats - Get marketplace statistics
+/**
+ * GET /api/marketplace/stats
+ * Get comprehensive marketplace statistics and metrics
+ * Provides overview of marketplace activity including product counts and vendor metrics
+ * 
+ * @route GET /api/marketplace/stats
+ * @returns {Object} Marketplace statistics including product counts by category and vendor metrics
+ * @note Public endpoint for displaying marketplace health and activity
+ */
 router.get('/stats', async (req, res) => {
   try {
     const query = `

@@ -1,0 +1,373 @@
+/* Maintenance Page Styles */
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.backgroundPattern {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+.artBrush {
+  position: absolute;
+  top: 10%;
+  left: 10%;
+  font-size: 4rem;
+  animation: float 6s ease-in-out infinite;
+}
+
+.artPalette {
+  position: absolute;
+  top: 20%;
+  right: 15%;
+  font-size: 3rem;
+  animation: float 8s ease-in-out infinite reverse;
+}
+
+.artFrame {
+  position: absolute;
+  bottom: 20%;
+  left: 20%;
+  font-size: 3.5rem;
+  animation: float 7s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(5deg); }
+}
+
+.mainContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  position: relative;
+  z-index: 1;
+}
+
+.logoSection {
+  margin-bottom: 3rem;
+}
+
+.logo {
+  text-align: center;
+}
+
+.logoText {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  letter-spacing: -0.02em;
+}
+
+.messageSection {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 3rem;
+  max-width: 600px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.maintenanceIcon {
+  margin-bottom: 2rem;
+  color: #667eea;
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 1rem;
+  line-height: 1.2;
+}
+
+.message {
+  font-size: 1.125rem;
+  color: #4a5568;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.estimatedTime {
+  background: #f7fafc;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  border-left: 4px solid #667eea;
+}
+
+.timeInfo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.timeLabel {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.timeValue {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #667eea;
+}
+
+.progressSection {
+  margin-bottom: 2rem;
+}
+
+.progressLabel {
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 0.75rem;
+}
+
+.progressBar {
+  width: 100%;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progressText {
+  font-size: 0.875rem;
+  color: #718096;
+  font-weight: 500;
+}
+
+.statusInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #f7fafc;
+  border-radius: 12px;
+}
+
+.statusItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #4a5568;
+  font-size: 0.875rem;
+}
+
+.statusItem svg {
+  color: #48bb78;
+  flex-shrink: 0;
+}
+
+.contactSection {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #fff5f5;
+  border-radius: 12px;
+  border-left: 4px solid #f56565;
+}
+
+.contactText {
+  color: #2d3748;
+  margin: 0;
+}
+
+.contactLink {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.contactLink:hover {
+  text-decoration: underline;
+}
+
+.socialLinks {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.socialLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: #667eea;
+  color: white;
+  border-radius: 50%;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.socialLink:hover {
+  background: #5a67d8;
+  transform: translateY(-2px);
+}
+
+.refreshButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.875rem;
+}
+
+.refreshButton:hover {
+  background: #5a67d8;
+  transform: translateY(-1px);
+}
+
+.footer {
+  text-align: center;
+  padding: 2rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.875rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .mainContent {
+    padding: 1rem;
+  }
+
+  .logoText {
+    font-size: 2rem;
+  }
+
+  .messageSection {
+    padding: 2rem;
+    margin: 0 1rem;
+  }
+
+  .title {
+    font-size: 2rem;
+  }
+
+  .message {
+    font-size: 1rem;
+  }
+
+  .timeInfo {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .statusInfo {
+    padding: 1rem;
+  }
+
+  .statusItem {
+    font-size: 0.8rem;
+  }
+
+  .artBrush,
+  .artPalette,
+  .artFrame {
+    font-size: 2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .logoText {
+    font-size: 1.5rem;
+  }
+
+  .title {
+    font-size: 1.75rem;
+  }
+
+  .messageSection {
+    padding: 1.5rem;
+  }
+
+  .socialLinks {
+    gap: 0.75rem;
+  }
+
+  .socialLink {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* Loading animation for refresh button */
+.refreshButton:active {
+  transform: scale(0.98);
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  .artBrush,
+  .artPalette,
+  .artFrame {
+    animation: none;
+  }
+  
+  .progressFill {
+    transition: none;
+  }
+  
+  .socialLink:hover,
+  .refreshButton:hover {
+    transform: none;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .container {
+    background: #000;
+  }
+  
+  .messageSection {
+    background: #fff;
+    border: 2px solid #000;
+  }
+  
+  .title {
+    color: #000;
+  }
+  
+  .message {
+    color: #333;
+  }
+}

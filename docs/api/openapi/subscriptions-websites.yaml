@@ -1,0 +1,380 @@
+openapi: 3.0.0
+info:
+  title: Website Subscriptions API
+  description: Website subscription management with plan selection and addon support
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/api
+    description: Production server
+
+paths:
+  /subscriptions/websites/terms-check:
+    get:
+      summary: Check terms acceptance
+      description: Check if user has accepted the latest website terms
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TermsCheckResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/websites/terms-accept:
+    post:
+      summary: Accept terms
+      description: Record user acceptance of website terms
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptTermsRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptTermsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/websites/signup:
+    post:
+      summary: Create subscription
+      description: Create website subscription and grant sites permission
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignupResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/websites/cancel:
+    post:
+      summary: Cancel subscription
+      description: Cancel website subscription and revoke sites permission
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /subscriptions/websites/status:
+    get:
+      summary: Get subscription status
+      description: Get current website subscription status with site count
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Bearer token authentication
+
+  schemas:
+    Terms:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Terms version ID
+        title:
+          type: string
+          description: Terms title
+        content:
+          type: string
+          description: Terms content
+        version:
+          type: string
+          description: Terms version number
+        created_at:
+          type: string
+          format: date-time
+          description: Terms creation timestamp
+
+    Pricing:
+      type: object
+      properties:
+        subtotal:
+          type: number
+          format: decimal
+          description: Subtotal before discounts
+        discount:
+          type: number
+          format: decimal
+          description: Discount amount
+        total:
+          type: number
+          format: decimal
+          description: Final total amount
+
+    Discount:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Discount code
+        amount:
+          type: number
+          format: decimal
+          description: Discount amount
+        type:
+          type: string
+          enum: [fixed, percentage]
+          description: Discount type
+
+    TermsCheckResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        termsAccepted:
+          type: boolean
+          description: Whether user has accepted latest terms
+        latestTerms:
+          $ref: '#/components/schemas/Terms'
+
+    AcceptTermsRequest:
+      type: object
+      required:
+        - terms_version_id
+      properties:
+        terms_version_id:
+          type: integer
+          description: ID of the terms version to accept
+
+    AcceptTermsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+          description: Confirmation message
+
+    SignupRequest:
+      type: object
+      required:
+        - plan_name
+      properties:
+        plan_name:
+          type: string
+          enum: [Starter Plan, Professional Plan, Business Plan, Promoter Plan]
+          description: Selected subscription plan
+        permissions:
+          type: array
+          items:
+            type: string
+          description: Requested permissions
+        selected_addons:
+          type: array
+          items:
+            type: integer
+          description: Selected addon IDs
+        pricing:
+          $ref: '#/components/schemas/Pricing'
+        payment_method_id:
+          type: string
+          description: Stripe payment method ID
+        auto_applied_discount:
+          $ref: '#/components/schemas/Discount'
+
+    SignupResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+          description: Success message
+        subscription_id:
+          type: string
+          description: Generated subscription ID
+        permissions:
+          type: array
+          items:
+            type: string
+          description: Granted permissions
+        plan_name:
+          type: string
+          description: Selected plan name
+        selected_addons:
+          type: array
+          items:
+            type: integer
+          description: Activated addon IDs
+        total_price:
+          type: number
+          format: decimal
+          description: Total subscription price
+        discount_applied:
+          type: number
+          format: decimal
+          description: Applied discount amount
+
+    CancelResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+          description: Cancellation confirmation message
+
+    StatusResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        hasSubscription:
+          type: boolean
+          description: Whether user has active subscription
+        sitesCount:
+          type: integer
+          description: Number of created sites
+        status:
+          type: string
+          enum: [active, inactive]
+          description: Subscription status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: string
+          description: Additional error details
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            invalid_plan:
+              summary: Invalid plan name
+              value:
+                error: "Invalid plan name"
+            existing_subscription:
+              summary: User already has subscription
+              value:
+                error: "User already has active sites subscription"
+            missing_terms_id:
+              summary: Missing terms version ID
+              value:
+                error: "terms_version_id is required"
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Unauthorized access"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            no_terms:
+              summary: No terms found
+              value:
+                error: "No sites terms found"
+            invalid_terms:
+              summary: Invalid terms version
+              value:
+                error: "Invalid terms version"
+            no_subscription:
+              summary: No active subscription
+              value:
+                error: "No active sites subscription found"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            database_error:
+              summary: Database error
+              value:
+                error: "Failed to check terms acceptance"
+            processing_error:
+              summary: Processing error
+              value:
+                error: "Failed to create subscription"
+
+tags:
+  - name: Website Subscriptions
+    description: Website subscription and plan management

@@ -1,10 +1,19 @@
+/**
+ * CSRF Protection Middleware
+ * Provides Cross-Site Request Forgery protection for the Beemeeart API
+ * Supports token generation, validation, and cookie-based secret management
+ */
+
 const csrf = require('csrf');
 const { secureLogger } = require('./secureLogger');
 
 // Initialize CSRF instance
 const csrfInstance = new csrf();
 
-// Generate a secret for CSRF tokens (should be stored securely)
+/**
+ * Generate a secret for CSRF tokens (should be stored securely in production)
+ * Uses environment variable or generates a secure random secret
+ */
 const csrfSecret = process.env.CSRF_SECRET || 'your-csrf-secret-change-in-production-' + Math.random().toString(36);
 
 // Special middleware to handle auth validation exemption
@@ -35,7 +44,15 @@ const authValidationExemption = (req, res, next) => {
   }
 };
 
-// Middleware to generate and provide CSRF token
+/**
+ * CSRF Token Provider Middleware
+ * Generates and provides CSRF tokens for client requests
+ * Manages cookie-based secret storage with environment-configured domain
+ * 
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ */
 const csrfTokenProvider = (req, res, next) => {
   try {
     // Get or create secret from cookies
@@ -48,7 +65,7 @@ const csrfTokenProvider = (req, res, next) => {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        domain: '.onlineartfestival.com',
+        domain: process.env.COOKIE_DOMAIN || '.beemeeart.com',
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
       });
     }
@@ -67,7 +84,7 @@ const csrfTokenProvider = (req, res, next) => {
       httpOnly: false, // Frontend needs to read this
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      domain: '.onlineartfestival.com',
+      domain: process.env.COOKIE_DOMAIN || '.beemeeart.com',
       maxAge: 3600000 // 1 hour
     });
     
@@ -85,7 +102,15 @@ const csrfTokenProvider = (req, res, next) => {
   }
 };
 
-// Middleware to validate CSRF token
+/**
+ * CSRF Protection Middleware
+ * Validates CSRF tokens for state-changing requests
+ * Supports multiple token sources and configurable strict mode
+ * 
+ * @param {Object} options - Configuration options
+ * @param {boolean} options.strict - Enable strict validation mode
+ * @returns {Function} Express middleware function
+ */
 const csrfProtection = (options = {}) => {
   const { strict = false } = options;
   
@@ -121,7 +146,7 @@ const csrfProtection = (options = {}) => {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
-          domain: '.onlineartfestival.com',
+          domain: process.env.COOKIE_DOMAIN || '.beemeeart.com',
           maxAge: 24 * 60 * 60 * 1000 // 24 hours
         });
       }
@@ -163,7 +188,14 @@ const csrfProtection = (options = {}) => {
   };
 };
 
-// Route to get CSRF token for frontend
+/**
+ * CSRF Token Route Handler
+ * Provides CSRF tokens to frontend applications
+ * Returns token in both cookie and JSON response
+ * 
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 const csrfTokenRoute = (req, res) => {
   try {
     if (!req.csrfSecret) {
@@ -175,7 +207,7 @@ const csrfTokenRoute = (req, res) => {
       httpOnly: false, // Frontend needs to read this
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      domain: '.onlineartfestival.com',
+      domain: process.env.COOKIE_DOMAIN || '.beemeeart.com',
       maxAge: 60 * 60 * 1000 // 1 hour
     });
     
@@ -186,7 +218,15 @@ const csrfTokenRoute = (req, res) => {
   }
 };
 
-// Middleware for sensitive operations (stricter validation)
+/**
+ * Strict CSRF Protection Middleware
+ * Enhanced validation for sensitive operations (payments, admin actions)
+ * Provides additional security logging and validation
+ * 
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ */
 const strictCsrfProtection = (req, res, next) => {
   try {
     // Get token from multiple sources
@@ -232,7 +272,14 @@ const strictCsrfProtection = (req, res, next) => {
   }
 };
 
-// Helper function to generate tokens
+/**
+ * Generate CSRF Token Helper
+ * Creates a new CSRF token using the request's secret
+ * 
+ * @param {Object} req - Express request object with csrfSecret
+ * @returns {string} Generated CSRF token
+ * @throws {Error} If CSRF secret is not available
+ */
 const generateToken = (req) => {
   if (!req.csrfSecret) {
     throw new Error('CSRF secret not available');

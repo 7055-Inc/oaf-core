@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import styles from './CategoryMenu.module.css';
+import { getApiUrl } from '../lib/config';
 
 export default function CategoryMenu() {
   const [categories, setCategories] = useState([]);
@@ -21,7 +22,7 @@ export default function CategoryMenu() {
   const loadCategories = async () => {
     try {
       setLoading(true);
-      const res = await fetch('https://api2.onlineartfestival.com/categories');
+      const res = await fetch(getApiUrl('categories'));
       if (!res.ok) {
         throw new Error('Failed to load categories');
       }

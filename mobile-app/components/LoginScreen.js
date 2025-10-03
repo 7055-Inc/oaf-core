@@ -52,7 +52,7 @@ export default function LoginScreen({ onLogin, onSwitchToSignup }) {
 
   const authenticateWithBackend = async (provider, token, email) => {
     try {
-      const response = await fetch('https://api2.onlineartfestival.com/auth/exchange', {
+      const response = await fetch('https://api.beemeeart.com/auth/exchange', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -145,21 +145,21 @@ export default function LoginScreen({ onLogin, onSwitchToSignup }) {
         <TouchableOpacity 
           onPress={async () => {
             try {
-              const url = 'https://main.onlineartfestival.com/forgot-password';
+              const url = 'https://beemeeart.com/forgot-password';
               const supported = await Linking.canOpenURL(url);
               if (supported) {
                 await Linking.openURL(url);
               } else {
                 Alert.alert(
                   'Cannot Open Link', 
-                  'Unable to open the password reset page. Please visit main.onlineartfestival.com/forgot-password in your browser.',
+                  'Unable to open the password reset page. Please visit beemeeart.com/forgot-password in your browser.',
                   [{ text: 'OK' }]
                 );
               }
             } catch (error) {
               Alert.alert(
                 'Error', 
-                'Unable to open the password reset page. Please visit main.onlineartfestival.com/forgot-password in your browser.',
+                'Unable to open the password reset page. Please visit beemeeart.com/forgot-password in your browser.',
                 [{ text: 'OK' }]
               );
             }

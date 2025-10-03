@@ -1,0 +1,382 @@
+openapi: 3.0.0
+info:
+  title: Beemeeart Marketplace API
+  description: Comprehensive marketplace functionality for browsing and discovering products
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/marketplace
+    description: Production server
+  - url: https://test.beemeeart.com/marketplace
+    description: Testing server
+
+paths:
+  /products:
+    get:
+      summary: Browse marketplace products
+      description: Get marketplace products with comprehensive filtering and pagination
+      operationId: browseMarketplaceProducts
+      tags:
+        - Products
+      parameters:
+        - name: category
+          in: query
+          description: Product category filter
+          schema:
+            type: string
+            enum: [art, crafts, unsorted, all]
+            default: all
+        - name: limit
+          in: query
+          description: Number of products to return
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          description: Pagination offset
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: include
+          in: query
+          description: Comma-separated includes (images,vendor,categories)
+          schema:
+            type: string
+            example: "images,vendor,categories"
+        - name: sort
+          in: query
+          description: Sort field
+          schema:
+            type: string
+            enum: [created_at, name, price, updated_at]
+            default: created_at
+        - name: order
+          in: query
+          description: Sort order
+          schema:
+            type: string
+            enum: [ASC, DESC]
+            default: DESC
+      responses:
+        '200':
+          description: Products retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketplaceProductsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /products/featured:
+    get:
+      summary: Get featured products
+      description: Get featured marketplace products for homepage and category showcases
+      operationId: getFeaturedProducts
+      tags:
+        - Products
+      parameters:
+        - name: category
+          in: query
+          description: Product category
+          schema:
+            type: string
+            enum: [art, crafts]
+            default: art
+        - name: limit
+          in: query
+          description: Number of featured products to return
+          schema:
+            type: integer
+            default: 12
+            minimum: 1
+            maximum: 50
+      responses:
+        '200':
+          description: Featured products retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeaturedProductsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /stats:
+    get:
+      summary: Get marketplace statistics
+      description: Get comprehensive marketplace statistics and metrics
+      operationId: getMarketplaceStats
+      tags:
+        - Statistics
+      responses:
+        '200':
+          description: Statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketplaceStatsResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  schemas:
+    MarketplaceProduct:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Product ID
+        name:
+          type: string
+          description: Product name
+        description:
+          type: string
+          description: Full product description
+        short_description:
+          type: string
+          description: Brief product description
+        price:
+          type: number
+          format: float
+          description: Product price
+        wholesale_price:
+          type: number
+          format: float
+          description: Wholesale price (if available)
+        wholesale_description:
+          type: string
+          description: Wholesale pricing description
+        sku:
+          type: string
+          description: Product SKU
+        status:
+          type: string
+          enum: [active, inactive]
+          description: Product status
+        marketplace_enabled:
+          type: boolean
+          description: Whether product is enabled for marketplace
+        marketplace_category:
+          type: string
+          enum: [art, crafts, unsorted]
+          description: Marketplace category
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        vendor_id:
+          type: integer
+          description: Vendor/artist ID
+        business_name:
+          type: string
+          description: Vendor business name (if included)
+        first_name:
+          type: string
+          description: Vendor first name (if included)
+        last_name:
+          type: string
+          description: Vendor last name (if included)
+        username:
+          type: string
+          description: Vendor username (if included)
+        category_name:
+          type: string
+          description: Category name (if included)
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductImage'
+          description: Product images (if included)
+
+    ProductImage:
+      type: object
+      properties:
+        url:
+          type: string
+          description: Image URL
+        is_primary:
+          type: boolean
+          description: Whether this is the primary image
+
+    MarketplaceProductsResponse:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/MarketplaceProduct'
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+        filters:
+          $ref: '#/components/schemas/FilterInfo'
+
+    FeaturedProduct:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Product ID
+        name:
+          type: string
+          description: Product name
+        description:
+          type: string
+          description: Product description
+        short_description:
+          type: string
+          description: Brief description
+        price:
+          type: number
+          format: float
+          description: Product price
+        wholesale_price:
+          type: number
+          format: float
+          description: Wholesale price
+        sku:
+          type: string
+          description: Product SKU
+        marketplace_category:
+          type: string
+          enum: [art, crafts]
+          description: Marketplace category
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        vendor_id:
+          type: integer
+          description: Vendor ID
+        business_name:
+          type: string
+          description: Vendor business name
+        first_name:
+          type: string
+          description: Vendor first name
+        last_name:
+          type: string
+          description: Vendor last name
+        category_name:
+          type: string
+          description: Category name
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductImage'
+          description: Product images
+
+    FeaturedProductsResponse:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeaturedProduct'
+        category:
+          type: string
+          enum: [art, crafts]
+          description: Requested category
+        featured:
+          type: boolean
+          description: Indicates these are featured products
+
+    MarketplaceStats:
+      type: object
+      properties:
+        total_products:
+          type: integer
+          description: Total number of marketplace products
+        art_products:
+          type: integer
+          description: Number of art products
+        crafts_products:
+          type: integer
+          description: Number of craft products
+        unsorted_products:
+          type: integer
+          description: Number of unsorted products
+        total_vendors:
+          type: integer
+          description: Total number of active vendors
+
+    MarketplaceStatsResponse:
+      type: object
+      properties:
+        marketplace_stats:
+          $ref: '#/components/schemas/MarketplaceStats'
+        last_updated:
+          type: string
+          format: date-time
+          description: When statistics were last updated
+
+    PaginationInfo:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total number of items
+        limit:
+          type: integer
+          description: Items per page
+        offset:
+          type: integer
+          description: Current offset
+        hasMore:
+          type: boolean
+          description: Whether more items are available
+
+    FilterInfo:
+      type: object
+      properties:
+        category:
+          type: string
+          description: Applied category filter
+        sort:
+          type: string
+          description: Applied sort field
+        order:
+          type: string
+          description: Applied sort order
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+tags:
+  - name: Products
+    description: Marketplace product operations
+  - name: Statistics
+    description: Marketplace statistics and metrics

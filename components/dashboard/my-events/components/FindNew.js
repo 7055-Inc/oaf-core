@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { getApiUrl } from '../../../../lib/config';
 import styles from '../../SlideIn.module.css';
 
 export default function FindNew({ userData }) {
@@ -13,7 +14,7 @@ export default function FindNew({ userData }) {
 
   const fetchEvents = async () => {
     try {
-      const response = await fetch('https://api2.onlineartfestival.com/api/events?allow_applications=1&application_status=accepting');
+      const response = await fetch(getApiUrl('api/events?allow_applications=1&application_status=accepting'));
       
       if (!response.ok) {
         throw new Error('Failed to fetch events');

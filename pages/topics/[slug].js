@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
+import { getApiUrl, getFrontendUrl } from '../../lib/config';
 import Header from '../../components/Header';
 import styles from '../articles/styles/ArticleArchive.module.css';
 
@@ -29,7 +30,7 @@ export default function TopicPage() {
   const fetchTopic = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`https://api2.onlineartfestival.com/api/articles/topics/${slug}`);
+      const response = await fetch(getApiUrl(`api/articles/topics/${slug}`));
       const data = await response.json();
       
       if (data.topic) {
@@ -47,7 +48,7 @@ export default function TopicPage() {
 
   const fetchArticles = async () => {
     try {
-      const response = await fetch(`https://api2.onlineartfestival.com/api/articles/topics/${topic.id}/articles?page=${pagination.page}&limit=${pagination.limit}&status=published`);
+      const response = await fetch(`api/articles/topics/${topic.id}/articles?page=${pagination.page}&limit=${pagination.limit}&status=published`);
       const data = await response.json();
       
       if (data.articles) {
@@ -101,12 +102,12 @@ export default function TopicPage() {
       <Head>
         <title>{topic.meta_title || `${topic.name} - Online Art Festival`}</title>
         <meta name="description" content={topic.meta_description || topic.description} />
-        <link rel="canonical" href={`https://onlineartfestival.com/topics/${topic.slug}`} />
+        <link rel="canonical" href={getFrontendUrl(`/topics/${topic.slug}`)} />
         
         <meta property="og:title" content={topic.meta_title || `${topic.name} - Online Art Festival`} />
         <meta property="og:description" content={topic.meta_description || topic.description} />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content={`https://onlineartfestival.com/topics/${topic.slug}`} />
+        <meta property="og:url" content={`/topics/${topic.slug}`} />
         
         <meta name="twitter:card" content="summary" />
         <meta name="twitter:title" content={topic.meta_title || `${topic.name} - Online Art Festival`} />

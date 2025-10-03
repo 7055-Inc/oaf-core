@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Header from '../../components/Header';
 import { authenticatedApiRequest } from '../../lib/csrf';
+import { authApiRequest } from '../../lib/apiUtils';
 import styles from '../../styles/EventPaymentSuccess.module.css';
 
 export default function EventPaymentSuccess() {
@@ -23,7 +24,7 @@ export default function EventPaymentSuccess() {
       setLoading(true);
       setError(null);
 
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/applications/payment-intent/${payment_intent}`, {
+      const response = await authApiRequest(`api/applications/payment-intent/${payment_intent}`, {
         method: 'GET'
       });
 
@@ -241,7 +242,7 @@ export default function EventPaymentSuccess() {
             <div className={styles.supportInfo}>
               <p>
                 Need help? Contact support at 
-                <a href="mailto:support@onlineartfestival.com"> support@onlineartfestival.com</a>
+                <a href="mailto:support@beemeeart.com"> support@beemeeart.com</a>
               </p>
             </div>
           </div>

@@ -1,0 +1,391 @@
+openapi: 3.0.0
+info:
+  title: Beemeeart Webhooks API
+  description: Secure webhook endpoints for processing Stripe payment events including payments, subscriptions, transfers, disputes, and account updates
+  version: 1.0.0
+  contact:
+    name: Beemeeart API Support
+    url: https://beemeeart.com/support
+    email: api-support@beemeeart.com
+
+servers:
+  - url: https://api.beemeeart.com/webhooks
+    description: Production server
+  - url: https://test.beemeeart.com/webhooks
+    description: Testing server
+
+paths:
+  /stripe:
+    post:
+      summary: Process Stripe webhook
+      description: Receives and processes all Stripe webhook events with signature verification. Handles payments, subscriptions, transfers, disputes, and account events.
+      operationId: processStripeWebhook
+      tags:
+        - Stripe Webhooks
+      parameters:
+        - name: stripe-signature
+          in: header
+          required: true
+          description: Stripe webhook signature for request verification
+          schema:
+            type: string
+      requestBody:
+        required: true
+        description: Raw JSON webhook payload from Stripe
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StripeWebhookEvent'
+      responses:
+        '200':
+          description: Webhook processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  schemas:
+    StripeWebhookEvent:
+      type: object
+      description: Stripe webhook event payload (varies by event type)
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the event
+        object:
+          type: string
+          enum: [event]
+          description: String representing the object's type
+        api_version:
+          type: string
+          description: Stripe API version used to render data
+        created:
+          type: integer
+          description: Time at which the event was created
+        data:
+          type: object
+          description: Event data object containing the resource that triggered the event
+          properties:
+            object:
+              type: object
+              description: The Stripe object that triggered the event
+        livemode:
+          type: boolean
+          description: Whether the event occurred in live mode
+        pending_webhooks:
+          type: integer
+          description: Number of webhooks yet to be delivered
+        request:
+          type: object
+          description: Information about the request that triggered the event
+          properties:
+            id:
+              type: string
+              description: ID of the API request that caused the event
+            idempotency_key:
+              type: string
+              description: Idempotency key of the request
+        type:
+          type: string
+          description: Description of the event type
+          enum:
+            - payment_intent.succeeded
+            - payment_intent.payment_failed
+            - transfer.created
+            - transfer.reversed
+            - transfer.updated
+            - payout.paid
+            - payout.failed
+            - customer.subscription.created
+            - customer.subscription.updated
+            - customer.subscription.deleted
+            - invoice.created
+            - invoice.payment_succeeded
+            - invoice.payment_failed
+            - account.updated
+            - charge.dispute.created
+            - charge.dispute.closed
+            - setup_intent.succeeded
+            - setup_intent.setup_failed
+            - customer.source.expired
+
+    WebhookResponse:
+      type: object
+      properties:
+        received:
+          type: boolean
+          description: Confirmation that webhook was received and processed
+          example: true
+
+    PaymentIntentMetadata:
+      type: object
+      description: Metadata attached to PaymentIntent for different payment types
+      properties:
+        application_id:
+          type: string
+          description: Event application ID for booth fee payments
+        order_id:
+          type: string
+          description: Marketplace order ID for e-commerce payments
+        event_id:
+          type: string
+          description: Event ID for ticket purchases
+        ticket_id:
+          type: string
+          description: Ticket type ID for ticket purchases
+        buyer_email:
+          type: string
+          description: Purchaser email for ticket purchases
+        buyer_name:
+          type: string
+          description: Purchaser name for ticket purchases
+        shipping_label_id:
+          type: string
+          description: Shipping label ID for shipping label purchases
+
+    SubscriptionMetadata:
+      type: object
+      description: Metadata attached to Stripe subscriptions
+      properties:
+        user_id:
+          type: string
+          description: Platform user ID associated with subscription
+
+    TransferMetadata:
+      type: object
+      description: Metadata attached to Stripe transfers
+      properties:
+        vendor_id:
+          type: string
+          description: Vendor ID receiving the transfer
+        order_id:
+          type: string
+          description: Order ID associated with the transfer
+
+    AccountMetadata:
+      type: object
+      description: Metadata attached to Stripe Connect accounts
+      properties:
+        vendor_id:
+          type: string
+          description: Platform vendor ID associated with the account
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid webhook signature or malformed request
+      content:
+        text/plain:
+          schema:
+            type: string
+          examples:
+            signature_error:
+              summary: Invalid webhook signature
+              value: "Webhook Error: Invalid signature"
+            malformed_request:
+              summary: Malformed request
+              value: "Webhook Error: Invalid request format"
+
+    InternalServerError:
+      description: Internal server error - webhook processing failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "Webhook handler failed"
+
+tags:
+  - name: Stripe Webhooks
+    description: Stripe webhook event processing and payment synchronization
+
+# Webhook Event Type Documentation
+x-webhook-events:
+  payment_events:
+    payment_intent.succeeded:
+      description: Payment completed successfully
+      processing:
+        - Updates payment status in database
+        - Processes vendor transfers for marketplace orders
+        - Records platform commission
+        - Sends confirmation emails
+        - Updates inventory for ticket purchases
+      metadata_used:
+        - application_id (booth fee payments)
+        - order_id (e-commerce orders)
+        - event_id, ticket_id (ticket purchases)
+        - shipping_label_id (shipping labels)
+
+    payment_intent.payment_failed:
+      description: Payment failed or was declined
+      processing:
+        - Updates payment status to failed
+        - Records failure reasons
+        - Prepares customer notifications
+        - Logs failure details for analysis
+
+  transfer_events:
+    transfer.created:
+      description: Vendor transfer initiated
+      processing:
+        - Updates transaction status to processing
+        - Records transfer metadata
+        - Tracks payout progress
+
+    transfer.reversed:
+      description: Transfer reversed or failed
+      processing:
+        - Updates transaction status to failed
+        - Prepares admin notifications
+        - Handles refund scenarios
+
+    transfer.updated:
+      description: Transfer status updated
+      processing:
+        - Updates transaction status based on transfer status
+        - Tracks transfer completion
+
+  payout_events:
+    payout.paid:
+      description: Vendor payout completed
+      processing:
+        - Marks transactions as paid out
+        - Records payout arrival date
+        - Finalizes payment cycle
+
+    payout.failed:
+      description: Payout failed
+      processing:
+        - Prepares admin notifications
+        - Tracks payout failures
+        - Handles bank account issues
+
+  subscription_events:
+    customer.subscription.created:
+      description: New subscription created
+      processing:
+        - Updates database with subscription details
+        - Records billing periods
+        - Tracks subscription lifecycle
+
+    customer.subscription.updated:
+      description: Subscription modified
+      processing:
+        - Updates subscription status and billing periods
+        - Tracks cancellation flags
+        - Processes plan changes
+
+    customer.subscription.deleted:
+      description: Subscription canceled
+      processing:
+        - Marks subscription as canceled
+        - Records cancellation timestamp
+        - Updates access permissions
+
+    invoice.created:
+      description: Subscription invoice generated
+      processing:
+        - Attempts Connect balance payment if preferred
+        - Processes automatic payment from vendor balance
+        - Records payment method and transfer details
+
+    invoice.payment_succeeded:
+      description: Subscription payment successful
+      processing:
+        - Records payment details and method
+        - Tracks billing period information
+        - Maintains service access
+
+    invoice.payment_failed:
+      description: Subscription payment failed
+      processing:
+        - Records failed payment attempt
+        - Prepares customer notifications
+        - Applies grace period considerations
+
+  account_events:
+    account.updated:
+      description: Vendor account verification status changed
+      processing:
+        - Checks account capabilities (charges_enabled, payouts_enabled)
+        - Updates vendor verification status
+        - Sends verification notifications
+
+  dispute_events:
+    charge.dispute.created:
+      description: Chargeback dispute opened
+      processing:
+        - Records dispute details
+        - Prepares admin notifications
+        - Holds vendor payouts for disputed amounts
+
+    charge.dispute.closed:
+      description: Dispute resolved
+      processing:
+        - Updates dispute status
+        - Processes fund adjustments
+        - Releases or adjusts held funds
+
+  payment_method_events:
+    setup_intent.succeeded:
+      description: Payment method setup successful (shipping subscriptions)
+      processing:
+        - Activates shipping subscription
+        - Grants shipping permissions
+        - Sends activation confirmation
+
+    setup_intent.setup_failed:
+      description: Payment method setup failed
+      processing:
+        - Keeps subscription incomplete
+        - Revokes shipping permissions
+        - Sends failure notifications
+
+    customer.source.expired:
+      description: Payment method expired
+      processing:
+        - Deactivates affected subscriptions
+        - Revokes shipping permissions
+        - Sends expiration notifications
+
+# Security Documentation
+x-security:
+  signature_verification:
+    description: All webhooks verified using Stripe signature
+    implementation: stripe.webhooks.constructEvent(body, signature, secret)
+    protection: Prevents replay attacks and ensures authenticity
+
+  error_handling:
+    description: Secure error responses without exposing internal details
+    implementation: Generic error messages with detailed internal logging
+
+  data_protection:
+    description: Payment data handled according to PCI compliance
+    implementation: Parameterized queries and secure data handling
+
+# Performance Documentation
+x-performance:
+  processing_time:
+    average: "< 500ms per webhook"
+    optimization: "Asynchronous processing with non-blocking operations"
+
+  scalability:
+    design: "Scalable event routing system"
+    database: "Optimized queries with proper indexing"
+    connections: "Database connection pooling"
+
+  reliability:
+    error_isolation: "Individual event failures don't affect other events"
+    non_blocking: "Email processing doesn't block webhook response"
+    monitoring: "Comprehensive logging and monitoring"

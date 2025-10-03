@@ -6,16 +6,16 @@ export async function subdomainRouter(req) {
   let isCustomDomain = false;
   
   // Skip if this is the main domain
-  if (hostname === 'main.onlineartfestival.com' || hostname === 'onlineartfestival.com') {
+  if (hostname === 'beemeeart.com' || hostname === 'www.beemeeart.com') {
     return NextResponse.next();
   }
   
   // Handle custom domains - check if this is a verified custom domain
-  if (!hostname.includes('.onlineartfestival.com')) {
+  if (!hostname.includes('.beemeeart.com')) {
     isCustomDomain = true;
     try {
       // Check if this is a verified custom domain
-      const response = await fetch(`https://api2.onlineartfestival.com/api/sites/resolve-custom-domain/${hostname}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sites/resolve-custom-domain/${hostname}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -36,7 +36,7 @@ export async function subdomainRouter(req) {
   }
   
   // Skip if this is not a subdomain pattern and not a custom domain
-  if (!isCustomDomain && (!hostname.includes('.onlineartfestival.com') || subdomain === 'www' || subdomain === 'api' || subdomain === 'api2')) {
+  if (!isCustomDomain && (!hostname.includes('.beemeeart.com') || subdomain === 'www' || subdomain === 'api')) {
     return NextResponse.next();
   }
   
@@ -59,7 +59,7 @@ export async function subdomainRouter(req) {
     // }
     
     // Check if this subdomain corresponds to an active artist site
-    const response = await fetch(`https://api2.onlineartfestival.com/api/sites/resolve/${subdomain}`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sites/resolve/${subdomain}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'
@@ -72,6 +72,17 @@ export async function subdomainRouter(req) {
     }
     
     const siteData = await response.json();
+    
+    // Check if site is available (active status)
+    if (!siteData.available) {
+      // Route to site unavailable page with status information
+      const unavailableUrl = new URL('/custom-sites/site-unavailable', req.url);
+      unavailableUrl.searchParams.set('subdomain', subdomain);
+      unavailableUrl.searchParams.set('status', siteData.status);
+      unavailableUrl.searchParams.set('siteName', siteData.site_name || 'Artist Site');
+      unavailableUrl.searchParams.set('reason', siteData.statusMessage || 'This site is currently unavailable.');
+      return NextResponse.rewrite(unavailableUrl);
+    }
     
     // Route to appropriate artist storefront page
     const path = req.nextUrl.pathname;

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getAuthToken } from '../../../../../lib/csrf';
+import { getApiUrl } from '../../../../../lib/config';
 import styles from '../../../SlideIn.module.css';
 
 export default function PaymentDashboard({ applications, selectedEvent, onRefresh }) {
@@ -17,7 +18,7 @@ export default function PaymentDashboard({ applications, selectedEvent, onRefres
     setLoading(true);
     try {
       const token = getAuthToken();
-      const response = await fetch(`https://api2.onlineartfestival.com/api/events/${selectedEvent.id}/payment-dashboard`, {
+      const response = await fetch(getApiUrl(`api/events/${selectedEvent.id}/payment-dashboard`), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -38,7 +39,7 @@ export default function PaymentDashboard({ applications, selectedEvent, onRefres
   const sendPaymentReminder = async (applicationIds) => {
     try {
       const token = getAuthToken();
-      const response = await fetch(`https://api2.onlineartfestival.com/api/applications/payment-reminder`, {
+      const response = await fetch(`api/applications/payment-reminder`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -64,7 +65,7 @@ export default function PaymentDashboard({ applications, selectedEvent, onRefres
   const markPaymentReceived = async (applicationId) => {
     try {
       const token = getAuthToken();
-      const response = await fetch(`https://api2.onlineartfestival.com/api/applications/${applicationId}/payment-received`, {
+      const response = await fetch(`api/applications/${applicationId}/payment-received`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

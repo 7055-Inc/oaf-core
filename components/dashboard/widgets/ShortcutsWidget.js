@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { authenticatedApiRequest } from '../../../lib/csrf';
+import { authApiRequest, API_ENDPOINTS } from '../../../lib/apiUtils';
 import styles from './shortcuts/shortcuts.module.css';
 
 export default function ShortcutsWidget({ config, onConfigChange }) {
@@ -14,8 +14,8 @@ export default function ShortcutsWidget({ config, onConfigChange }) {
 
   const loadShortcutsData = async () => {
     try {
-      const response = await authenticatedApiRequest(
-        'https://api2.onlineartfestival.com/api/dashboard-widgets/widget-data/my_shortcuts'
+      const response = await authApiRequest(
+        `${API_ENDPOINTS.DASHBOARD_WIDGETS_DATA}/my_shortcuts`
       );
 
       if (response.ok) {
@@ -74,7 +74,7 @@ export default function ShortcutsWidget({ config, onConfigChange }) {
     setError(null);
 
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/dashboard-widgets/shortcuts/remove', {
+      const response = await authApiRequest(API_ENDPOINTS.DASHBOARD_WIDGETS_SHORTCUT_REMOVE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ shortcutId })

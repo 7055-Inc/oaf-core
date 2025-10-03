@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { authenticatedApiRequest, refreshAuthToken } from '../../../../lib/csrf';
+import { refreshAuthToken } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
 import PricingTiers from './website-components/PricingTiers';
 import CustomDomainSection from './website-components/CustomDomainSection';
 import SiteCustomizer from './website-components/SiteCustomizer';
@@ -40,7 +41,7 @@ export default function WebSiteSubscriptions({ userData }) {
 
     if (hasSitesPermission) {
         // Step 2: User has permission - check if they've accepted latest site terms
-        const termsResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/sites/terms-check');
+        const termsResponse = await authApiRequest('api/subscriptions/sites/terms-check');
         
         if (termsResponse.ok) {
           const termsData = await termsResponse.json();
@@ -82,7 +83,7 @@ export default function WebSiteSubscriptions({ userData }) {
 
   const fetchUserSites = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/sites/me');
+      const response = await authApiRequest('api/sites/me');
       const sites = await response.json();
       
       if (response.ok && Array.isArray(sites)) {
@@ -102,7 +103,7 @@ export default function WebSiteSubscriptions({ userData }) {
 
   const fetchSubscriptionData = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/sites/status');
+      const response = await authApiRequest('api/subscriptions/sites/status');
       const data = await response.json();
       
       if (data.success) {
@@ -116,7 +117,7 @@ export default function WebSiteSubscriptions({ userData }) {
   const fetchTemplatesAndAddons = async () => {
     try {
       // Fetch available templates
-      const templatesResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/sites/templates');
+      const templatesResponse = await authApiRequest('api/sites/templates');
       if (templatesResponse.ok) {
         const templatesData = await templatesResponse.json();
         setAvailableTemplates(templatesData.templates || []);
@@ -124,7 +125,7 @@ export default function WebSiteSubscriptions({ userData }) {
 
       // Fetch available addons (only for manage_sites users)
       if (userData?.permissions?.includes('manage_sites')) {
-        const addonsResponse = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/sites/addons');
+        const addonsResponse = await authApiRequest('api/sites/addons');
         if (addonsResponse.ok) {
           const addonsData = await addonsResponse.json();
           setAvailableAddons(addonsData.addons || []);
@@ -173,7 +174,7 @@ export default function WebSiteSubscriptions({ userData }) {
     }
 
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/sites/cancel', {
+      const response = await authApiRequest('api/subscriptions/sites/cancel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -203,7 +204,7 @@ export default function WebSiteSubscriptions({ userData }) {
     try {
       setProcessing(true);
       
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/subscriptions/sites/terms-accept', {
+      const response = await authApiRequest('api/subscriptions/sites/terms-accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -261,7 +262,7 @@ export default function WebSiteSubscriptions({ userData }) {
     try {
       setProcessing(true);
       
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/sites/${siteId}`, {
+      const response = await authApiRequest(`api/sites/${siteId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -399,7 +400,7 @@ export default function WebSiteSubscriptions({ userData }) {
                     <div>
                       <h4 style={{ margin: '0 0 5px 0', color: '#2c3e50' }}>{site.site_name}</h4>
                       <p style={{ margin: '0', color: '#6c757d', fontSize: '14px' }}>
-                        {site.domain || `${site.subdomain}.onlineartfestival.com`} • 
+                        {site.domain || `${site.subdomain}.beemeeart.com`} • 
                         <span style={{ 
                           color: site.status === 'active' ? '#28a745' : site.status === 'draft' ? '#ffc107' : '#dc3545',
                           fontWeight: 'bold',
@@ -433,7 +434,7 @@ export default function WebSiteSubscriptions({ userData }) {
                         </button>
                       )}
                       <a 
-                        href={`https://${site.domain || `${site.subdomain}.onlineartfestival.com`}`}
+                        href={`https://${site.domain || `${site.subdomain}.beemeeart.com`}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{
@@ -857,7 +858,7 @@ function SiteManagementContent({
 
   const fetchSiteAddons = async () => {
     try {
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/sites/${site.id}/addons`);
+      const response = await authApiRequest(`api/sites/${site.id}/addons`);
       if (response.ok) {
         const data = await response.json();
         setSiteAddons(data.addons || []);
@@ -874,7 +875,7 @@ function SiteManagementContent({
       
       if (isActive) {
         // Remove addon
-        const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/sites/addons/${addon.id}`, {
+        const response = await authApiRequest(`api/sites/addons/${addon.id}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' }
         });
@@ -887,7 +888,7 @@ function SiteManagementContent({
         }
       } else {
         // Add addon
-        const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/sites/addons/${addon.id}`, {
+        const response = await authApiRequest(`api/sites/addons/${addon.id}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
@@ -912,7 +913,7 @@ function SiteManagementContent({
       setProcessing(true);
       setError(null);
       
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/sites/user-addons/${addon.id}`, {
+      const response = await authApiRequest(`api/sites/user-addons/${addon.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -941,7 +942,7 @@ function SiteManagementContent({
       
       if (isActive) {
         // Remove site addon
-        const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/sites/addons/${addon.id}`, {
+        const response = await authApiRequest(`api/sites/addons/${addon.id}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' }
         });
@@ -954,7 +955,7 @@ function SiteManagementContent({
         }
       } else {
         // Add site addon
-        const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/sites/addons/${addon.id}`, {
+        const response = await authApiRequest(`api/sites/addons/${addon.id}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
@@ -976,7 +977,7 @@ function SiteManagementContent({
   const handleTemplateChange = async (templateId) => {
     try {
       setProcessing(true);
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/sites/template/${templateId}`, {
+      const response = await authApiRequest(`api/sites/template/${templateId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -1000,7 +1001,7 @@ function SiteManagementContent({
       setProcessing(true);
       setError(null);
 
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/sites/${site.id}`, {
+      const response = await authApiRequest(`api/sites/${site.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1576,7 +1577,7 @@ function NewSiteForm({ siteForm, setSiteForm, availableTemplates, onSiteCreate, 
     }
 
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/sites', {
+      const response = await authApiRequest('api/sites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1663,7 +1664,7 @@ function NewSiteForm({ siteForm, setSiteForm, availableTemplates, onSiteCreate, 
             fontSize: '14px',
             color: '#6c757d'
           }}>
-            .onlineartfestival.com
+            .beemeeart.com
           </span>
         </div>
         <small style={{ color: '#6c757d', fontSize: '12px' }}>

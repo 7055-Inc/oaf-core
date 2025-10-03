@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import WYSIWYGEditor from '../../../WYSIWYGEditor';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
+import { authApiRequest } from '../../../../lib/apiUtils';
 import styles from '../../SlideIn.module.css';
 
 const ManageAnnouncements = () => {
@@ -39,7 +40,7 @@ const ManageAnnouncements = () => {
   // Load announcements from API
   const loadAnnouncements = async () => {
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/announcements', {
+      const response = await authApiRequest('api/announcements', {
         headers: {
           'Content-Type': 'application/json'
         }
@@ -63,7 +64,7 @@ const ManageAnnouncements = () => {
   // Load announcement statistics
   const loadAnnouncementStats = async (announcementId) => {
     try {
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/announcements/${announcementId}/stats`, {
+      const response = await authenticatedApiRequest(`api/announcements/${announcementId}/stats`, {
         headers: {
           'Content-Type': 'application/json'
         }
@@ -132,7 +133,7 @@ const ManageAnnouncements = () => {
     }
 
     try {
-      const response = await authenticatedApiRequest('https://api2.onlineartfestival.com/api/announcements', {
+      const response = await authApiRequest('api/announcements', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -175,7 +176,7 @@ const ManageAnnouncements = () => {
     }
 
     try {
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/announcements/${selectedAnnouncement.id}`, {
+      const response = await authenticatedApiRequest(`api/announcements/${selectedAnnouncement.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -205,7 +206,7 @@ const ManageAnnouncements = () => {
     }
 
     try {
-      const response = await authenticatedApiRequest(`https://api2.onlineartfestival.com/api/announcements/${announcementId}`, {
+      const response = await authenticatedApiRequest(`api/announcements/${announcementId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'

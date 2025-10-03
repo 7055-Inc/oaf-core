@@ -3,7 +3,36 @@ const router = express.Router();
 const db = require('../../config/db');
 const { secureLogger } = require('../middleware/secureLogger');
 
-// GET /curated/art/products/all - Get all products from art marketplace
+/**
+ * @fileoverview Curated content routes
+ * 
+ * Handles curated marketplace content functionality including:
+ * - Art marketplace product curation and filtering
+ * - Crafts marketplace product curation and filtering
+ * - Product family management (parent-child relationships)
+ * - Comprehensive product data enrichment (inventory, images, shipping, vendor info)
+ * - Marketplace-specific filtering and status validation
+ * - Public-facing curated content for marketplace display
+ * 
+ * All endpoints are public and focus on active, marketplace-enabled products only.
+ * Supports flexible data inclusion via query parameters for performance optimization.
+ * 
+ * @author Beemeeart Development Team
+ * @version 1.0.0
+ */
+
+/**
+ * Get all art marketplace products
+ * @route GET /api/curated/art/products/all
+ * @access Public
+ * @param {Object} req - Express request object
+ * @param {string} req.query.include - Comma-separated list of data to include (inventory,images,vendor)
+ * @param {string} req.query.vendor_id - Filter by vendor ID (optional)
+ * @param {string} req.query.category_id - Filter by category ID (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} List of art marketplace products with optional enriched data
+ * @description Retrieves all active, marketplace-enabled art products with optional data enrichment
+ */
 router.get('/art/products/all', async (req, res) => {
   try {
     const { include, vendor_id, category_id } = req.query;
@@ -113,7 +142,18 @@ router.get('/art/products/all', async (req, res) => {
   }
 });
 
-// GET /curated/crafts/products/all - Get all products from crafts marketplace
+/**
+ * Get all crafts marketplace products
+ * @route GET /api/curated/crafts/products/all
+ * @access Public
+ * @param {Object} req - Express request object
+ * @param {string} req.query.include - Comma-separated list of data to include (inventory,images,vendor)
+ * @param {string} req.query.vendor_id - Filter by vendor ID (optional)
+ * @param {string} req.query.category_id - Filter by category ID (optional)
+ * @param {Object} res - Express response object
+ * @returns {Object} List of crafts marketplace products with optional enriched data
+ * @description Retrieves all active, marketplace-enabled crafts products with optional data enrichment
+ */
 router.get('/crafts/products/all', async (req, res) => {
   try {
     const { include, vendor_id, category_id } = req.query;
@@ -223,7 +263,17 @@ router.get('/crafts/products/all', async (req, res) => {
   }
 });
 
-// GET /curated/art/products/:id - Get single product from art marketplace
+/**
+ * Get single art marketplace product
+ * @route GET /api/curated/art/products/:id
+ * @access Public
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Product ID
+ * @param {string} req.query.include - Comma-separated list of data to include (inventory,images,shipping,categories,vendor)
+ * @param {Object} res - Express response object
+ * @returns {Object} Complete art product details with family structure and enriched data
+ * @description Retrieves detailed art product information with parent-child relationships and comprehensive data
+ */
 router.get('/art/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -389,7 +439,17 @@ router.get('/art/products/:id', async (req, res) => {
   }
 });
 
-// GET /curated/crafts/products/:id - Get single product from crafts marketplace
+/**
+ * Get single crafts marketplace product
+ * @route GET /api/curated/crafts/products/:id
+ * @access Public
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - Product ID
+ * @param {string} req.query.include - Comma-separated list of data to include (inventory,images,shipping,categories,vendor)
+ * @param {Object} res - Express response object
+ * @returns {Object} Complete crafts product details with family structure and enriched data
+ * @description Retrieves detailed crafts product information with parent-child relationships and comprehensive data
+ */
 router.get('/crafts/products/:id', async (req, res) => {
   try {
     const { id } = req.params;

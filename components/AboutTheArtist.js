@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import StateDisplay from './StateDisplay';
+import { getApiUrl, getSmartMediaUrl } from '../lib/config';
 import styles from './AboutTheArtist.module.css';
 
 const AboutTheArtist = ({ vendorId }) => {
@@ -24,7 +25,7 @@ const AboutTheArtist = ({ vendorId }) => {
         }
 
         // Fetch vendor profile
-        const vendorRes = await fetch(`https://api2.onlineartfestival.com/users/profile/by-id/${vendorId}`, {
+        const vendorRes = await fetch(getApiUrl(`users/profile/by-id/${vendorId}`), {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -63,7 +64,7 @@ const AboutTheArtist = ({ vendorId }) => {
       
       if (!policiesData) {
         // Fetch all policies at once
-        const res = await fetch(`https://api2.onlineartfestival.com/users/${vendorId}/policies`);
+        const res = await fetch(`users/${vendorId}/policies`);
         
         if (!res.ok) {
           throw new Error('Failed to fetch policies');
@@ -117,7 +118,7 @@ const AboutTheArtist = ({ vendorId }) => {
       if (vendor.profile_image_path.startsWith('http')) {
         return vendor.profile_image_path;
       }
-      return `https://api2.onlineartfestival.com${vendor.profile_image_path}`;
+      return getSmartMediaUrl(vendor.profile_image_path);
     }
     return null; // No fallback - we'll use CSS icon instead
   };

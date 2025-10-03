@@ -1,3 +1,10 @@
+/**
+ * Media Management Routes
+ * Comprehensive media processing and file management system for the Beemeeart platform
+ * Handles image uploads, processing workflows, AI analysis, and contextual data for media processing
+ * Supports server-to-server communication with media processing VMs and external services
+ */
+
 const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
@@ -7,9 +14,16 @@ const { secureLogger } = require('../middleware/secureLogger');
 const prefixAuth = require('../middleware/prefix'); // API key authentication
 
 /**
- * GET /api/media/pending - Get pending images for processing
- * Authentication: API Key (media workers)
- * No CSRF needed - server-to-server communication
+ * GET /api/media/pending
+ * Get pending images for processing with pagination support
+ * Used by media processing workers to fetch images awaiting processing
+ * 
+ * @route GET /api/media/pending
+ * @middleware prefixAuth - Requires API key authentication (media workers)
+ * @param {number} [limit=10] - Number of images to return
+ * @param {number} [offset=0] - Pagination offset
+ * @returns {Object} Paginated list of pending images with metadata
+ * @note No CSRF needed - server-to-server communication
  */
 router.get('/pending', prefixAuth, async (req, res) => {
   try {
@@ -65,10 +79,15 @@ router.get('/pending', prefixAuth, async (req, res) => {
 });
 
 /**
- * GET /api/media/pending/all - Get ALL pending images for processing (no pagination)
- * Authentication: API Key (media workers)
- * No CSRF needed - server-to-server communication
- * Purpose: Backend VM uses this for efficient batch processing
+ * GET /api/media/pending/all
+ * Get ALL pending images for processing without pagination
+ * Used by backend VMs for efficient batch processing of all pending images
+ * 
+ * @route GET /api/media/pending/all
+ * @middleware prefixAuth - Requires API key authentication (media workers)
+ * @returns {Object} Complete list of all pending images for batch processing
+ * @note No CSRF needed - server-to-server communication
+ * @purpose Backend VM uses this for efficient batch processing
  */
 router.get('/pending/all', prefixAuth, async (req, res) => {
   try {
@@ -107,9 +126,15 @@ router.get('/pending/all', prefixAuth, async (req, res) => {
 });
 
 /**
- * GET /api/media/download/:id - Download temporary image file
- * Authentication: API Key (media workers)
- * No CSRF needed - server-to-server communication
+ * GET /api/media/download/:id
+ * Download temporary image file for processing
+ * Streams image files to media processing workers with appropriate headers
+ * 
+ * @route GET /api/media/download/:id
+ * @middleware prefixAuth - Requires API key authentication (media workers)
+ * @param {string} id - Pending image ID to download
+ * @returns {Stream} Image file stream with appropriate headers
+ * @note No CSRF needed - server-to-server communication
  */
 router.get('/download/:id', prefixAuth, async (req, res) => {
   try {
@@ -173,9 +198,22 @@ router.get('/download/:id', prefixAuth, async (req, res) => {
 });
 
 /**
- * POST /api/media/complete/:id - Mark image as processed with media ID
- * Authentication: API Key (media workers)
- * No CSRF needed - server-to-server communication
+ * POST /api/media/complete/:id
+ * Mark image as processed with media ID and AI enhancement data
+ * Updates pending image record with processing results and permanent URLs
+ * 
+ * @route POST /api/media/complete/:id
+ * @middleware prefixAuth - Requires API key authentication (media workers)
+ * @param {string} id - Pending image ID to mark as complete
+ * @param {Object} req.body - Processing completion data
+ * @param {string} req.body.media_id - Permanent media ID (required)
+ * @param {string} [req.body.permanent_url] - Permanent URL for the processed image
+ * @param {boolean} [req.body.processing_complete] - Whether processing is fully complete
+ * @param {boolean} [req.body.ai_enhanced] - Whether AI enhancement was applied
+ * @param {Array} [req.body.formats_available] - Available image formats
+ * @param {Object} [req.body.ai_analysis] - AI analysis results
+ * @returns {Object} Processing completion confirmation with smart URL
+ * @note No CSRF needed - server-to-server communication
  */
 router.post('/complete/:id', prefixAuth, async (req, res) => {
   try {
@@ -218,7 +256,7 @@ router.post('/complete/:id', prefixAuth, async (req, res) => {
       aiEnhanced: ai_enhanced || false,
       processingComplete: processing_complete || false,
       formatsAvailable: formats_available || [],
-      smartUrl: `https://api2.onlineartfestival.com/api/images/${media_id}`,
+      smartUrl: `${process.env.SMART_MEDIA_BASE_URL || 'https://api.beemeeart.com/api/images'}/${media_id}`,
       requestedBy: req.userId
     });
 
@@ -227,7 +265,7 @@ router.post('/complete/:id', prefixAuth, async (req, res) => {
       imageId,
       media_id,
       status: 'processed',
-      smart_url_preview: `https://api2.onlineartfestival.com/api/images/${media_id}`,
+      smart_url_preview: `${process.env.SMART_MEDIA_BASE_URL || 'https://api.beemeeart.com/api/images'}/${media_id}`,
       ai_enhanced: ai_enhanced || false,
       processing_complete: processing_complete || false,
       message: 'Image processed successfully with AI enhancement - ready for URL replacement'
@@ -243,9 +281,16 @@ router.post('/complete/:id', prefixAuth, async (req, res) => {
 });
 
 /**
- * DELETE /api/media/cleanup/:id - Delete temporary file and mark as failed
- * Authentication: API Key (media workers)
- * No CSRF needed - server-to-server communication
+ * DELETE /api/media/cleanup/:id
+ * Mark image as failed and preserve temporary file as fallback
+ * Handles cleanup of failed processing attempts while maintaining file availability
+ * 
+ * @route DELETE /api/media/cleanup/:id
+ * @middleware prefixAuth - Requires API key authentication (media workers)
+ * @param {string} id - Pending image ID to mark as failed
+ * @returns {Object} Cleanup confirmation with status update
+ * @note No CSRF needed - server-to-server communication
+ * @note Temporary files are preserved as fallbacks for failed processing
  */
 router.delete('/cleanup/:id', prefixAuth, async (req, res) => {
   try {
@@ -301,9 +346,20 @@ router.delete('/cleanup/:id', prefixAuth, async (req, res) => {
   }
 });
 
-// NEW CONTEXTUAL DATA ENDPOINTS FOR MEDIA PROCESSING
+// ============================================================================
+// CONTEXTUAL DATA ENDPOINTS FOR MEDIA PROCESSING
+// ============================================================================
 
-// GET /event/:id - Get event details for media processing context
+/**
+ * GET /api/media/event/:id
+ * Get event details for media processing context
+ * Provides event information to media processing workers for contextual AI analysis
+ * 
+ * @route GET /api/media/event/:id
+ * @middleware prefixAuth - Requires API key authentication (media workers)
+ * @param {string} id - Event ID
+ * @returns {Object} Complete event details with type information
+ */
 router.get('/event/:id', prefixAuth, async (req, res) => {
   try {
     const [event] = await db.query(`
@@ -335,7 +391,18 @@ router.get('/event/:id', prefixAuth, async (req, res) => {
   }
 });
 
-// GET /product/:id - Get product details for media processing context
+/**
+ * GET /api/media/product/:id
+ * Get comprehensive product details for media processing context
+ * Provides complete product family information including parent/child relationships
+ * 
+ * @route GET /api/media/product/:id
+ * @middleware prefixAuth - Requires API key authentication (media workers)
+ * @param {string} id - Product ID (can be parent or child product)
+ * @param {string} [include] - Comma-separated list of related data to include
+ * @returns {Object} Complete product family with contextual information
+ * @note Supports both simple and variable product types with full family structure
+ */
 router.get('/product/:id', prefixAuth, async (req, res) => {
   try {
     const { id } = req.params;
@@ -501,7 +568,16 @@ router.get('/product/:id', prefixAuth, async (req, res) => {
   }
 });
 
-// GET /user/:id - Get user profile details for media processing context
+/**
+ * GET /api/media/user/:id
+ * Get comprehensive user profile details for media processing context
+ * Provides complete user information including type-specific profile data
+ * 
+ * @route GET /api/media/user/:id
+ * @middleware prefixAuth - Requires API key authentication (media workers)
+ * @param {string} id - User ID
+ * @returns {Object} Complete user profile with type-specific data (artist, community, promoter)
+ */
 router.get('/user/:id', prefixAuth, async (req, res) => {
   try {
     const { id } = req.params;
@@ -555,9 +631,15 @@ router.get('/user/:id', prefixAuth, async (req, res) => {
 });
 
 /**
- * GET /api/media/analysis/:mediaId - Get AI analysis data for a media item
- * Authentication: API Key or user token
- * Proxies request to processing VM to get AI analysis
+ * GET /api/media/analysis/:mediaId
+ * Get AI analysis data for a media item by proxying to processing VM
+ * Retrieves comprehensive AI analysis results from the media processing backend
+ * 
+ * @route GET /api/media/analysis/:mediaId
+ * @middleware prefixAuth - Requires API key authentication (media workers)
+ * @param {string} mediaId - Media ID to get analysis for (must be numeric)
+ * @returns {Object} AI analysis data from processing VM
+ * @note Proxies request to processing VM with timeout and error handling
  */
 router.get('/analysis/:mediaId', prefixAuth, async (req, res) => {
   try {
