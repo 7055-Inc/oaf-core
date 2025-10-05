@@ -1,0 +1,137 @@
+{
+  "generatedAt": "2025-10-05T00:00:00Z",
+  "root": "/var/www/main",
+  "entryPoints": [
+    "server.js",
+    "api-service/src/server.js",
+    "csv-workers/csv-processor.js",
+    "mobile-app/index.js"
+  ],
+  "directories": {
+    "pages": {
+      "type": "next-pages",
+      "language": "javascript",
+      "fileCount": 60,
+      "examples": [
+        "pages/index.js",
+        "pages/_app.js",
+        "pages/dashboard/index.js",
+        "pages/checkout.js",
+        "pages/products/[id].js"
+      ]
+    },
+    "components": {
+      "type": "react-components",
+      "language": "javascript",
+      "fileCount": 118,
+      "examples": [
+        "components/dashboard/AdminMenu.js",
+        "components/VariationManager.js",
+        "components/JuryPacketManager.js",
+        "components/ArtistCarousel.js",
+        "components/dashboard/widgets/MyProductsWidget.js"
+      ]
+    },
+    "api-service/src": {
+      "type": "express-api",
+      "language": "javascript",
+      "fileCount": 64,
+      "examples": [
+        "api-service/src/server.js",
+        "api-service/src/routes/products.js",
+        "api-service/src/routes/users.js",
+        "api-service/src/routes/checkout.js",
+        "api-service/src/routes/events.js"
+      ]
+    },
+    "lib": {
+      "type": "shared-libs",
+      "language": "javascript",
+      "fileCount": 10,
+      "examples": [
+        "lib/db.js",
+        "lib/config.js",
+        "lib/csrf.js"
+      ]
+    },
+    "styles": {
+      "type": "css-modules",
+      "language": "css",
+      "fileCount": 28,
+      "examples": [
+        "styles/global.css",
+        "styles/Checkout.module.css",
+        "pages/events/styles/EventForm.module.css"
+      ]
+    },
+    "csv-workers": {
+      "type": "background-workers",
+      "language": "javascript",
+      "fileCount": 1,
+      "examples": [
+        "csv-workers/csv-processor.js"
+      ]
+    },
+    "mobile-app": {
+      "type": "react-native",
+      "language": "javascript",
+      "fileCount": 6,
+      "examples": [
+        "mobile-app/index.js",
+        "mobile-app/App.js",
+        "mobile-app/components/LoginScreen.js"
+      ]
+    }
+  },
+  "sqlScripts": [
+    "oaf_schema_current.sql",
+    "oaf_schema_backup_july17.sql",
+    "migrate_all_users.sql",
+    "migrate_meyerdirk_art.sql",
+    "api-service/scripts/create_marketplace_tables.sql",
+    "api-service/scripts/create_payment_tables.sql",
+    "api-service/scripts/create_user_addons_system.sql",
+    "api-service/scripts/create_marketplace_applications_table.sql",
+    "api-service/scripts/create_stripe_rates_table.sql"
+  ],
+  "packages": {
+    "main": {
+      "path": "package.json",
+      "dependencies": {
+        "next": "^15.3.2",
+        "react": "^19.1.0",
+        "react-dom": "^19.1.0",
+        "express": "^5.1.0",
+        "mysql2": "^3.14.1",
+        "redis": "^5.6.0",
+        "jsonwebtoken": "^9.0.2",
+        "bull": "^4.16.5"
+      }
+    },
+    "api-service": {
+      "path": "api-service/package.json",
+      "dependencies": {
+        "express": "^4.18.2",
+        "mysql2": "^3.6.0",
+        "nodemailer": "^7.0.5",
+        "stripe": "^18.2.1"
+      }
+    },
+    "csv-workers": {
+      "path": "csv-workers/package.json",
+      "dependencies": {
+        "bull": "^4.12.9",
+        "mysql2": "^3.11.4",
+        "redis": "^4.7.0"
+      }
+    },
+    "mobile-app": {
+      "path": "mobile-app/package.json",
+      "dependencies": {
+        "expo": "~53.0.17",
+        "react": "19.0.0",
+        "react-native": "0.79.5"
+      }
+    }
+  }
+}
