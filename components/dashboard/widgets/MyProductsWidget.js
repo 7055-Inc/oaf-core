@@ -1,11 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { authApiRequest, API_ENDPOINTS } from '../../../lib/apiUtils';
+import { config, getSmartMediaUrl } from '../../../lib/config';
 import styles from './my-products/my-products.module.css';
 
-export default function MyProductsWidget({ config, onConfigChange }) {
+export default function MyProductsWidget({ config: widgetConfig, onConfigChange }) {
   const [products, setProducts] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const getProductImage = (product) => {
+    if (product.images && product.images.length > 0) {
+      const imageUrl = product.images[0];
+      // For temp images, serve directly from API domain
+      if (imageUrl.startsWith('/temp_images/') || imageUrl.startsWith('/tmp/')) {
+        return `${config.API_BASE_URL}${imageUrl}`;
+      }
+      // For processed images with media IDs, use smart serving
+      return getSmartMediaUrl(imageUrl);
+    }
+    return null;
+  };
 
   // Load initial data when component mounts
   useEffect(() => {
@@ -126,8 +140,8 @@ export default function MyProductsWidget({ config, onConfigChange }) {
             {products.map((product) => (
               <div key={product.id} className={styles.productCard}>
                 <div className={styles.productImage}>
-                  {product.images && product.images.length > 0 ? (
-                    <img src={product.images[0]} alt={product.title} />
+                  {getProductImage(product) ? (
+                    <img src={getProductImage(product)} alt={product.title} />
                   ) : (
                     <div className={styles.noImage}>
                       <i className="fas fa-image"></i>

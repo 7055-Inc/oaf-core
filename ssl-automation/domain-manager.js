@@ -20,7 +20,7 @@ const DB_CONFIG = {
 };
 
 // Configuration
-const CERTBOT_EMAIL = 'admin@onlineartfestival.com';
+const CERTBOT_EMAIL = 'admin@brakebee.com';
 const NGINX_SITES_PATH = '/etc/nginx/sites-available';
 const NGINX_SITES_ENABLED = '/etc/nginx/sites-enabled';
 const VALIDATION_EXPIRY_HOURS = 24;

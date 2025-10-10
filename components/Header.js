@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import SearchBar from './SearchBar';
-import CategoryMenu from './CategoryMenu';
 import { usePageType } from '../hooks/usePageType';
 import { getAuthToken, clearAuthTokens } from '../lib/csrf';
 import { authApiRequest, apiGet, API_ENDPOINTS } from '../lib/apiUtils';
@@ -15,9 +14,20 @@ export default function Header() {
   const [isLoading, setIsLoading] = useState(true);
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
-  const [showCategoryMenu, setShowCategoryMenu] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const dropdownTimeoutRef = useRef(null);
   const { shouldHideCategories, shouldShowHamburger, isDashboardPage } = usePageType();
+
+  // Scroll behavior for header transparency
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     const token = getAuthToken();
@@ -80,17 +90,17 @@ export default function Header() {
     };
   }, []);
 
-  // Close hamburger menu when clicking outside
+  // Close mobile menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (showCategoryMenu && !event.target.closest('.hamburger-menu-container')) {
-        setShowCategoryMenu(false);
+      if (showMobileMenu && !event.target.closest('.mobile-menu-container')) {
+        setShowMobileMenu(false);
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showCategoryMenu]);
+  }, [showMobileMenu]);
 
   const fetchCartCount = async () => {
     try {
@@ -156,52 +166,57 @@ export default function Header() {
 
   return (
     <>
-      <header className={styles.header}>
-        {/* Main header row */}
-        <div className={styles.headerRow}>
-          {/* Logo */}
-          <div>
-            <Link href="/">
+      <header className={`${styles.header} ${isScrolled ? styles.scrolled : ''}`}>
+        <div className={styles.headerContainer}>
+          {/* Logo Section */}
+          <div className={styles.logoSection}>
+            <Link href="/" className={styles.logoLink}>
               <img
-                src="/static_media/logo.png"
-                alt="Online Art Festival Logo"
-                className={styles.logo}
+                src="/static_media/brakebee-logo.png"
+                alt="Brakebee Logo"
+                className={styles.logoImage}
+                onError={(e) => {
+                  // Fallback to existing logo if new one doesn't exist
+                  e.target.src = '/static_media/logo.png';
+                }}
               />
             </Link>
           </div>
-          
-          {/* Right side icons */}
-          <div className={styles.iconsContainer}>
-            {/* Hamburger Menu Icon - only on dashboard */}
-            {shouldShowHamburger && (
-              <button
-                onClick={() => setShowCategoryMenu(!showCategoryMenu)}
-                className={`${styles.iconButton} hamburger-menu-container`}
-                title="Categories"
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="3" y1="6" x2="21" y2="6"/>
-                  <line x1="3" y1="12" x2="21" y2="12"/>
-                  <line x1="3" y1="18" x2="21" y2="18"/>
-                </svg>
-              </button>
-            )}
-            
-            {/* Search Icon */}
-            <button
-              onClick={() => setShowSearchModal(true)}
-              className={styles.iconButton}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+
+          {/* Navigation Menu - Desktop */}
+          <nav className={styles.navigation}>
+            <Link href="/collections" className={styles.navLink}>
+              Collections
+            </Link>
+            <Link href="/events" className={styles.navLink}>
+              Events
+            </Link>
+            <Link href="/artists" className={styles.navLink}>
+              Artists
+            </Link>
+            <Link href="/promoters" className={styles.navLink}>
+              Promoters
+            </Link>
+            <Link href="/join" className={`${styles.bbBtn} ${styles.ctaLink}`}>
+              Join Brakebee
+            </Link>
+          </nav>
+
+          {/* Utility Section */}
+          <div className={styles.utilitySection}>
+            {/* AI Search Placeholder */}
+            <div className={styles.searchPlaceholder} title="Feature in development">
+              <svg className={styles.magnifierIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="8"/>
                 <path d="m21 21-4.35-4.35"/>
               </svg>
-            </button>
+              <span className={styles.searchText}>Search by Leo Art AI (coming soon)</span>
+            </div>
 
-            {/* Cart Icon */}
+            {/* Cart Icon - if logged in */}
             {isLoggedIn && !isLoading && (
               <div className={styles.cartContainer}>
-                <Link href="/cart" className={styles.iconLink}>
+                <Link href="/cart" className={styles.cartLink}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="9" cy="21" r="1"/>
                     <circle cx="20" cy="21" r="1"/>
@@ -216,16 +231,14 @@ export default function Header() {
               </div>
             )}
 
-
-
-            {/* User Icon */}
+            {/* Sign In / User Menu */}
             {isLoggedIn && userId && !isLoading ? (
               <div 
-                style={{ position: 'relative' }}
+                className={styles.userMenuContainer}
                 onMouseEnter={handleDropdownEnter}
                 onMouseLeave={handleDropdownLeave}
               >
-                <button className={styles.iconButton}>
+                <button className={styles.userButton}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                     <circle cx="12" cy="7" r="4"/>
@@ -250,25 +263,57 @@ export default function Header() {
                 )}
               </div>
             ) : !isLoading ? (
-              <Link href="/login" className={styles.iconLink}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                  <circle cx="12" cy="7" r="4"/>
-                </svg>
-              </Link>
+              <button 
+                className={`${styles.bbBtn} ${styles.signInButton}`}
+                onClick={() => window.location.href = '/login'}
+              >
+                Sign In
+              </button>
             ) : (
               <div className={styles.loadingText}>Loading...</div>
             )}
+
+            {/* Mobile Menu Toggle */}
+            <button
+              className={`${styles.mobileMenuToggle} mobile-menu-container`}
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              aria-label="Toggle mobile menu"
+            >
+              <span className={styles.hamburgerLine}></span>
+              <span className={styles.hamburgerLine}></span>
+              <span className={styles.hamburgerLine}></span>
+            </button>
           </div>
         </div>
 
-        {/* Category Menu - conditionally rendered */}
-        {!shouldHideCategories && <CategoryMenu />}
-        
-        {/* Hamburger Category Menu - only shown on dashboard when hamburger is clicked */}
-        {shouldShowHamburger && showCategoryMenu && (
-          <div className={`${styles.hamburgerCategoryMenu} hamburger-menu-container`}>
-        <CategoryMenu />
+        {/* Mobile Menu Panel */}
+        {showMobileMenu && (
+          <div className={`${styles.mobileMenuPanel} mobile-menu-container`}>
+            <nav className={styles.mobileNavigation}>
+              <Link href="/collections" className={styles.mobileNavLink}>
+                Collections
+              </Link>
+              <Link href="/events" className={styles.mobileNavLink}>
+                Events
+              </Link>
+              <Link href="/artists" className={styles.mobileNavLink}>
+                Artists
+              </Link>
+              <Link href="/promoters" className={styles.mobileNavLink}>
+                Promoters
+              </Link>
+              <Link href="/join" className={styles.mobileCtaLink}>
+                Join Brakebee
+              </Link>
+              {!isLoggedIn && (
+                <button 
+                  className={`${styles.bbBtn} ${styles.mobileSignInButton}`}
+                  onClick={() => window.location.href = '/login'}
+                >
+                  Sign In
+                </button>
+              )}
+            </nav>
           </div>
         )}
       </header>

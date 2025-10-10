@@ -43,6 +43,42 @@ module.exports = {
       env: {
         NODE_ENV: 'production'
       }
+    },
+    {
+      name: 'leo-ai-platform',
+      script: 'src/server.js',
+      cwd: '/var/www/main/leo',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '1G',
+      env_file: '.env',
+      env: {
+        NODE_ENV: 'production',
+        SERVICE_NAME: 'leo-ai-platform'
+      },
+      error_file: '/var/www/main/logs/leo-error.log',
+      out_file: '/var/www/main/logs/leo-out.log',
+      log_file: '/var/www/main/logs/leo-combined.log',
+      time: true
+    },
+    {
+      name: 'luca-costing-platform',
+      script: 'src/server.js',
+      cwd: '/var/www/main/luca',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '512M',
+      env_file: '/var/www/main/luca/.env',
+      env: {
+        NODE_ENV: 'production',
+        PORT: 3004
+      },
+      error_file: '/var/www/main/logs/luca-error.log',
+      out_file: '/var/www/main/logs/luca-out.log',
+      log_file: '/var/www/main/logs/luca-combined.log',
+      time: true
     }
   ]
 }; 

@@ -1,0 +1,14 @@
+# Add these lines to /var/www/main/api-service/.env
+
+# Eventbrite API Configuration
+EVENTBRITE_API_KEY=your_eventbrite_api_key_here
+
+# API Base URL (for scraper to call back)
+API_BASE_URL=https://api.beemeeart.com
+
+# Instructions:
+# 1. Get Eventbrite API key from https://www.eventbrite.com/platform/api
+# 2. Sign up for developer account
+# 3. Create an app
+# 4. Copy your private token
+# 5. Replace "your_eventbrite_api_key_here" with your actual key

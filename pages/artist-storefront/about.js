@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
-import { getApiUrl } from '../../lib/config';
+import { getApiUrl, config } from '../../lib/config';
 import styles from './ArtistStorefront.module.css';
 
 const ArtistAbout = () => {
@@ -92,7 +92,7 @@ const ArtistAbout = () => {
             <div className={styles.artistInfo}>
               {siteData.profile_image_path && (
                 <img 
-                  src={`https://api2.beemeeart.com${siteData.profile_image_path}`}
+                  src={`${config.API_BASE_URL}${siteData.profile_image_path}`}
                   alt={`${siteData.first_name} ${siteData.last_name}`}
                   className={styles.artistAvatar}
                 />
@@ -131,7 +131,7 @@ const ArtistAbout = () => {
                 <div className={styles.profileImage}>
                   {siteData.profile_image_path ? (
                     <img 
-                      src={`https://api2.beemeeart.com${siteData.profile_image_path}`}
+                      src={`${config.API_BASE_URL}${siteData.profile_image_path}`}
                       alt={`${siteData.first_name} ${siteData.last_name}`}
                     />
                   ) : (

@@ -64,7 +64,7 @@ export default function ProductView() {
           console.log(`Curated endpoint failed with ${res.status}, trying regular products endpoint...`);
           
           const fallbackRes = await fetch(
-            `products/${params.id}?include=images,shipping,vendor,inventory,categories`,
+            getApiUrl(`products/${params.id}?include=images,shipping,vendor,inventory,categories`),
             {
               method: 'GET',
               credentials: 'include'
@@ -143,7 +143,7 @@ export default function ProductView() {
           return;
         }
         
-        const response = await fetch('users/me', {
+        const response = await fetch(getApiUrl('users/me'), {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -262,7 +262,7 @@ export default function ProductView() {
       
       if (!policiesData) {
         // Fetch all policies at once
-        const res = await fetch(`users/${product.vendor_id}/policies`);
+        const res = await fetch(getApiUrl(`users/${product.vendor_id}/policies`));
         
         if (!res.ok) {
           throw new Error('Failed to fetch policies');

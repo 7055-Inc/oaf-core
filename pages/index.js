@@ -6,6 +6,7 @@ import Footer from '../components/Footer';
 import LoginModal from '../components/login/LoginModal';
 import EventsCarousel from '../components/EventsCarousel';
 import ArtistCarousel from '../components/ArtistCarousel';
+import { VisualDiscoveryBand } from '../components/index';
 
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -68,6 +69,11 @@ export default function Home() {
     <div>
       <Header />
       
+      {/* === NEW HOMEPAGE SECTIONS === */}
+      {/* Section 1: Visual Discovery Band */}
+      <VisualDiscoveryBand />
+      
+      {/* === ARCHIVED CONTENT BELOW - FOR FUTURE RECYCLING === */}
       {/* Hero Section */}
       {heroData && heroData.videos.length > 0 && (
         <section style={{ 

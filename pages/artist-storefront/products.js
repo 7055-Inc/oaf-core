@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
-import { getApiUrl } from '../../lib/config';
+import { getApiUrl, config } from '../../lib/config';
 import styles from './ArtistStorefront.module.css';
 
 const ArtistProducts = () => {
@@ -220,13 +220,13 @@ const ArtistProducts = () => {
             <div className={styles.artistInfo}>
               {siteData.profile_image_path && (
                 <img 
-                  src={`https://api2.beemeeart.com${siteData.profile_image_path}`}
+                  src={`${config.API_BASE_URL}${siteData.profile_image_path}`}
                   alt={`${siteData.first_name} ${siteData.last_name}`}
                   className={styles.artistAvatar}
                 />
               )}
               <div className={styles.artistDetails}>
-                <Link href={`https://${subdomain}.beemeeart.com`}>
+                <Link href={`https://${subdomain}.brakebee.com`}>
                   <a className={styles.artistName}>
                     {siteData.first_name} {siteData.last_name}
                   </a>
@@ -236,16 +236,16 @@ const ArtistProducts = () => {
             </div>
 
             <nav className={styles.navigation}>
-              <Link href={`https://${subdomain}.beemeeart.com`}>
+              <Link href={`https://${subdomain}.brakebee.com`}>
                 <a className={styles.navLink}>Home</a>
               </Link>
-              <Link href={`https://${subdomain}.beemeeart.com/products`}>
+              <Link href={`https://${subdomain}.brakebee.com/products`}>
                 <a className={`${styles.navLink} ${styles.active}`}>Gallery</a>
               </Link>
-              <Link href={`https://${subdomain}.beemeeart.com/about`}>
+              <Link href={`https://${subdomain}.brakebee.com/about`}>
                 <a className={styles.navLink}>About</a>
               </Link>
-              <Link href="https://main.beemeeart.com">
+              <Link href="https://main.brakebee.com">
                 <a className={styles.navLink}>Main Site</a>
               </Link>
             </nav>
@@ -348,7 +348,7 @@ const ArtistProducts = () => {
                         <div className={styles.productImage}>
                           {product.image_path ? (
                             <img 
-                              src={`https://api2.beemeeart.com${product.image_path}`}
+                              src={`${config.API_BASE_URL}${product.image_path}`}
                               alt={product.alt_text || product.name}
                             />
                           ) : (
@@ -376,7 +376,7 @@ const ArtistProducts = () => {
                             >
                               Add to Cart
                             </button>
-                            <Link href={`https://${subdomain}.beemeeart.com/product/${product.id}`}>
+                            <Link href={`https://${subdomain}.brakebee.com/product/${product.id}`}>
                               <a className={styles.viewProductBtn}>View Details</a>
                             </Link>
                           </div>
@@ -449,11 +449,11 @@ const ArtistProducts = () => {
               <div className={styles.footerSection}>
                 <h4>Platform</h4>
                 <p>
-                  <Link href="https://main.beemeeart.com">
-                    <a>Online Art Festival</a>
+                  <Link href="https://brakebee.com">
+                    <a>Brakebee</a>
                   </Link>
                 </p>
-                <p className={styles.poweredBy}>Powered by OAF</p>
+                <p className={styles.poweredBy}>Powered by Brakebee</p>
               </div>
             </div>
             

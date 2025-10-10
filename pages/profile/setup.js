@@ -159,7 +159,7 @@ export default function ProfileSetup() {
         body.upcoming_events = formData.upcoming_events ? JSON.parse(formData.upcoming_events) : [];
         body.is_non_profit = formData.is_non_profit;
       }
-      const res = await fetch('users/me', {
+      const res = await fetch(getApiUrl('users/me'), {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,

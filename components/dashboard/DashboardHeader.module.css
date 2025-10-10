@@ -1,0 +1,136 @@
+/* Dashboard Header - Clean & Business Focused */
+
+.dashboardHeader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 70px;
+  background-color: white;
+  border-bottom: 1px solid rgba(5, 84, 116, 0.1);
+  z-index: 1000;
+  padding: 0;
+}
+
+.headerContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Logo Section */
+.logoSection {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.logoLink {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  transition: transform 0.2s ease;
+}
+
+.logoLink:hover {
+  transform: scale(1.02);
+}
+
+.logoImage {
+  width: 100px;
+  height: auto;
+  object-fit: contain;
+  transition: transform 0.3s ease;
+}
+
+/* Action Section */
+.actionSection {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.homeButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--primary-color);
+  color: white;
+  text-decoration: none;
+  border-radius: 3px;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.homeButton::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 2px;
+  background: linear-gradient(
+    15deg,
+    rgba(255,255,255,0.00) 0%,
+    rgba(255,255,255,0.65) 42%,
+    rgba(255,255,255,0.00) 85%
+  );
+  opacity: 0.12;
+  pointer-events: none;
+}
+
+.homeButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(5, 84, 116, 0.2);
+}
+
+.homeButton:hover::before {
+  opacity: 0.16;
+}
+
+.homeButton:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(5, 84, 116, 0.15);
+}
+
+.homeButton:focus {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(5, 84, 116, 0.3),
+    0 4px 12px rgba(5, 84, 116, 0.2);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .headerContainer {
+    padding: 0 1rem;
+  }
+  
+  .logoImage {
+    width: 80px;
+    height: auto;
+  }
+  
+  .homeButton {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .headerContainer {
+    padding: 0 0.75rem;
+  }
+  
+  .logoImage {
+    width: 70px;
+    height: auto;
+  }
+}

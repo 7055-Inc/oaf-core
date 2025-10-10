@@ -496,7 +496,7 @@ export default function EventPage() {
     const token = localStorage.getItem('token');
     if (token) {
       // Fetch current user
-      fetch('users/me', {
+      fetch(getApiUrl('users/me'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

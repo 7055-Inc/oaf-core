@@ -1,15 +1,37 @@
-/* Global Theme for Online Art Festival */
+/* Global Theme for Brakebee Platform */
 @import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap');
 
 :root {
-  --primary-color: #055474; /* OAF Blue */
-  --secondary-color: #3E1C56; /* Purple */
+  --primary-color: #055474; /* Brakebee Primary Blue */
+  --secondary-color: #3E1C56; /* Brakebee Accent Purple */
   --text-color: #333333; /* Dark Gray */
   --background-color: #FFFFFF; /* White */
   --accent-color: #FFFFFF; /* White */
   --success-color: #198754; /* Success status indicators */
   --warning-color: #fd7e14; /* Warning status indicators */
+  
+  /* Design System Tokens */
+  --gradient-primary: linear-gradient(90deg, #055474 0%, #3e1c56 100%);
+  --border-radius-sm: 2px;
+  --border-radius-md: 4px;
+  --header-height-desktop: 80px;
+  --header-height-mobile: 70px;
+  --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.15);
+  
+  /* Typography */
+  --font-heading: 'Permanent Marker', cursive;
+  --font-body: 'Nunito Sans', sans-serif;
+  --font-legacy: 'Montserrat', sans-serif; /* For backward compatibility */
+  
+  /* Footer Color Variables */
+  --bb-teal: #055474;
+  --bb-slate-violet: #3e1c56;
+  --bb-white-92: rgba(255,255,255,0.92);
+  --bb-white-70: rgba(255,255,255,0.70);
+  --bb-div: rgba(255,255,255,0.10);
 }
 
 html, body {
@@ -18,26 +40,26 @@ html, body {
   box-sizing: border-box;
   background-color: var(--background-color);
   color: var(--text-color);
-  font-family: 'Montserrat', sans-serif;
+  font-family: var(--font-body);
 }
 
 /* Global Heading Styles */
 h1 {
-  font-family: 'Permanent Marker', cursive;
+  font-family: var(--font-heading);
   color: var(--primary-color);
   font-size: 2rem;
   margin-bottom: 1rem;
 }
 
 h2 {
-  font-family: 'Permanent Marker', cursive;
+  font-family: var(--font-heading);
   color: var(--primary-color);
   font-size: 1.5rem;
   margin-bottom: 1rem;
 }
 
 h3 {
-  font-family: 'Permanent Marker', cursive;
+  font-family: var(--font-heading);
   color: var(--secondary-color);
   font-size: 1.25rem;
   margin-bottom: 0.75rem;

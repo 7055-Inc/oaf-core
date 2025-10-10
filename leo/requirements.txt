@@ -1,0 +1,18 @@
+# Leo AI Platform - Python Dependencies
+# Core ML and embedding libraries
+sentence-transformers>=2.2.2
+torch>=2.0.0
+transformers>=4.21.0
+numpy>=1.21.0
+
+# Optional: GPU acceleration (uncomment if using CUDA)
+# torch-audio>=2.0.0
+# torchvision>=0.15.0
+
+# Utility libraries
+scikit-learn>=1.1.0
+scipy>=1.9.0
+
+# For future enhancements
+# chromadb>=0.4.0  # Already in package.json
+# openai>=0.27.0   # If using OpenAI embeddings

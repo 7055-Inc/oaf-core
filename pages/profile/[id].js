@@ -45,7 +45,7 @@ export default function ProfileView() {
 
     const fetchProfile = async () => {
       try {
-        const res = await fetch(`users/profile/by-id/${id}`, {
+        const res = await fetch(getApiUrl(`users/profile/by-id/${id}`), {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json'

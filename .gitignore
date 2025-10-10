@@ -50,3 +50,4 @@ service-account.json
 api-service/temp_images/
 public/static_media/
 
+node_modules

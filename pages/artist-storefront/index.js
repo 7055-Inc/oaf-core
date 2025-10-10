@@ -58,7 +58,7 @@ const ArtistStorefront = () => {
       setLoading(true);
       
       // First fetch site data to get user_id
-      const siteResponse = await fetch(`https://api2.beemeeart.com/api/sites/resolve/${subdomainToUse}`);
+      const siteResponse = await fetch(`${config.API_BASE_URL}/api/sites/resolve/${subdomainToUse}`);
       let siteData = null;
       
       if (siteResponse.ok) {
@@ -71,11 +71,11 @@ const ArtistStorefront = () => {
       
       // Fetch all data in parallel including full profile
       const [profileResponse, productsResponse, articlesResponse, pagesResponse, categoriesResponse] = await Promise.all([
-        fetch(`https://api2.beemeeart.com/users/profile/by-id/${siteData.user_id}`),
-        fetch(`https://api2.beemeeart.com/products/all?vendor_id=${siteData.user_id}&include=images&limit=12`),
-        fetch(`https://api2.beemeeart.com/api/sites/resolve/${subdomainToUse}/articles?type=menu`),
-        fetch(`https://api2.beemeeart.com/api/sites/resolve/${subdomainToUse}/articles?type=pages`),
-        fetch(`https://api2.beemeeart.com/api/sites/resolve/${subdomainToUse}/categories`)
+        fetch(`${config.API_BASE_URL}/users/profile/by-id/${siteData.user_id}`),
+        fetch(`${config.API_BASE_URL}/products/all?vendor_id=${siteData.user_id}&include=images&limit=12`),
+        fetch(`${config.API_BASE_URL}/api/sites/resolve/${subdomainToUse}/articles?type=menu`),
+        fetch(`${config.API_BASE_URL}/api/sites/resolve/${subdomainToUse}/articles?type=pages`),
+        fetch(`${config.API_BASE_URL}/api/sites/resolve/${subdomainToUse}/categories`)
       ]);
 
       // Merge site data with full profile data
@@ -128,7 +128,7 @@ const ArtistStorefront = () => {
   // Simple addon trigger - loads and initializes active addons
   const loadSiteAddons = async (siteId) => {
     try {
-      const response = await fetch(`https://api2.beemeeart.com/api/sites/${siteId}/addons`);
+      const response = await fetch(`${config.API_BASE_URL}/api/sites/${siteId}/addons`);
       if (response.ok) {
         const data = await response.json();
         const addons = data.addons || [];
@@ -210,7 +210,7 @@ const ArtistStorefront = () => {
       };
 
       // Add to cart via enhanced API
-      const response = await fetch('https://api2.beemeeart.com/cart/add', {
+      const response = await fetch(`${config.API_BASE_URL}/cart/add`, {
         method: 'POST',
         headers,
         body: JSON.stringify(body)
@@ -271,18 +271,18 @@ const ArtistStorefront = () => {
     // Check for image_url first (this is the main product image field)
     if (product.image_url) {
       if (product.image_url.startsWith('http')) return product.image_url;
-      return `https://api2.beemeeart.com/api/media/serve/${product.image_url}`;
+      return `${config.API_BASE_URL}/api/media/serve/${product.image_url}`;
     }
     // Check for image_path (legacy field)
     if (product.image_path) {
       if (product.image_path.startsWith('http')) return product.image_path;
-      return `https://api2.beemeeart.com/api/media/serve/${product.image_path}`;
+      return `${config.API_BASE_URL}/api/media/serve/${product.image_path}`;
     }
     // Check for images array (from the include=images parameter)
     if (product.images && product.images.length > 0) {
       const img = product.images[0];
       if (img.startsWith('http')) return img;
-      return `https://api2.beemeeart.com/api/media/serve/${img}`;
+      return `${config.API_BASE_URL}/api/media/serve/${img}`;
     }
     return null; // No image available
   };

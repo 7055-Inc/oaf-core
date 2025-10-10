@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import Header from '../../../components/Header';
 import { authenticatedApiRequest } from '../../../lib/csrf';
 import { authApiRequest } from '../../../lib/apiUtils';
-import { getSmartMediaUrl } from '../../../lib/config';
+import { getSmartMediaUrl, config } from '../../../lib/config';
 import styles from '../Dashboard.module.css';
 
 export default function VendorProducts() {
@@ -103,6 +103,11 @@ export default function VendorProducts() {
       if (imageUrl.startsWith('http')) {
         return imageUrl;
       }
+      // For temp images, serve directly from API domain
+      if (imageUrl.startsWith('/temp_images/') || imageUrl.startsWith('/tmp/')) {
+        return `${config.API_BASE_URL}${imageUrl}`;
+      }
+      // For processed images with media IDs, use smart serving
       return getSmartMediaUrl(imageUrl);
     }
     return null;

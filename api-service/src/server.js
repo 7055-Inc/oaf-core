@@ -240,6 +240,9 @@ try {
   // Search (read-only, no CSRF needed)
   app.use('/search', require('./routes/search'));
   
+  // Hero feed for homepage visual discovery
+  app.use('/api/hero-feed', require('./routes/hero-feed'));
+  
   // Shipping services
   app.use('/api/shipping', csrfProtection(), require('./routes/shipping'));
   

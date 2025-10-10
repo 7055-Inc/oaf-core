@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
 import { authApiRequest } from '../../lib/apiUtils';
-import Header from '../../components/Header';
+import DashboardHeader from '../../components/dashboard/DashboardHeader';
 
 
 
@@ -179,7 +179,7 @@ export default function Dashboard() {
   if (error) {
     return (
       <div>
-        <Header />
+        <DashboardHeader />
         <div className={styles.container}>
           <h1>Error</h1>
           <p>{error}</p>
@@ -191,7 +191,7 @@ export default function Dashboard() {
   if (!userData) {
     return (
       <div>
-        <Header />
+        <DashboardHeader />
         <div className={styles.container}>
           <h1>Loading...</h1>
         </div>
@@ -670,7 +670,7 @@ export default function Dashboard() {
           </button>
         </div>
       ) : (
-        <Header />
+        <DashboardHeader />
       )}
 
       <div className={styles.mainContent}>

@@ -80,7 +80,7 @@ export default function Cart() {
 
         // Fetch active cart items
         if (active) {
-          const itemsRes = await fetch(`cart/${active.id}/items`, {
+          const itemsRes = await fetch(getApiUrl(`cart/${active.id}/items`), {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           if (itemsRes.ok) {
@@ -91,7 +91,7 @@ export default function Cart() {
       }
 
       // Fetch cart collections
-      const collectionsRes = await fetch('cart/collections', {
+      const collectionsRes = await fetch(getApiUrl('cart/collections'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -193,7 +193,7 @@ export default function Cart() {
       
       // Update current active cart to abandoned
       if (activeCart) {
-        await fetch(`cart/${activeCart.id}`, {
+        await fetch(getApiUrl(`cart/${activeCart.id}`), {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -204,7 +204,7 @@ export default function Cart() {
       }
 
       // Update new cart to draft (active)
-      await fetch(`cart/${cartId}`, {
+      await fetch(getApiUrl(`cart/${cartId}`), {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -3,7 +3,7 @@ const db = require('../../config/db');
 /**
  * Base URL for smart media serving endpoint
  */
-const SMART_MEDIA_BASE_URL = process.env.SMART_MEDIA_BASE_URL || 'https://api.beemeeart.com/api/images';
+const SMART_MEDIA_BASE_URL = process.env.SMART_MEDIA_BASE_URL;
 
 /**
  * Get best available media URLs for a specific image path with smart fallback
@@ -38,8 +38,9 @@ async function getProcessedMediaUrls(tempImagePath, size = 'detail') {
     
     // Fallback: serve temp image directly for pending/failed processing
     if (tempImagePath) {
+      const API_BASE_URL = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL;
       return {
-        image_url: `https://api.beemeeart.com${tempImagePath}`,
+        image_url: `${API_BASE_URL}${tempImagePath}`,
         thumbnail_url: null, // No thumbnail for temp images
         source: 'temp'
       };
@@ -52,8 +53,9 @@ async function getProcessedMediaUrls(tempImagePath, size = 'detail') {
     
     // Fallback to temp image
     if (tempImagePath) {
+      const API_BASE_URL = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL;
       return {
-        image_url: `https://api.beemeeart.com${tempImagePath}`,
+        image_url: `${API_BASE_URL}${tempImagePath}`,
         thumbnail_url: null,
         source: 'fallback'
       };
@@ -100,8 +102,9 @@ async function getBatchProcessedMediaUrls(tempImagePaths, size = 'detail') {
         };
       } else {
         // Fallback to temp image served directly
+        const API_BASE_URL = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL;
         urlMap[image_path] = {
-          image_url: `https://api.beemeeart.com${image_path}`,
+          image_url: `${API_BASE_URL}${image_path}`,
           thumbnail_url: null,
           source: 'temp'
         };
@@ -111,8 +114,9 @@ async function getBatchProcessedMediaUrls(tempImagePaths, size = 'detail') {
     // Handle images that don't have database records (serve temp directly)
     for (const tempPath of tempImagePaths) {
       if (!urlMap[tempPath]) {
+        const API_BASE_URL = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL;
         urlMap[tempPath] = {
-          image_url: `https://api.beemeeart.com${tempPath}`,
+          image_url: `${API_BASE_URL}${tempPath}`,
           thumbnail_url: null,
           source: 'direct'
         };
@@ -128,7 +132,7 @@ async function getBatchProcessedMediaUrls(tempImagePaths, size = 'detail') {
     const fallbackMap = {};
     for (const tempPath of tempImagePaths) {
       fallbackMap[tempPath] = {
-        image_url: `https://api.beemeeart.com${tempPath}`,
+        image_url: `https://api.brakebee.comth}`,
         thumbnail_url: null,
         source: 'fallback'
       };
