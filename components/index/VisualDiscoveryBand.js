@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getApiUrl } from '../../lib/config';
 import styles from './VisualDiscoveryBand.module.css';
 
 const VisualDiscoveryBand = () => {
@@ -27,7 +28,7 @@ const VisualDiscoveryBand = () => {
         }
       }
 
-      const response = await fetch(`/api/hero-feed?userId=${userId}&limit=6`);
+      const response = await fetch(getApiUrl(`api/hero-feed?userId=${userId}&limit=6`));
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);

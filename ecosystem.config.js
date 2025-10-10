@@ -79,6 +79,25 @@ module.exports = {
       out_file: '/var/www/main/logs/luca-out.log',
       log_file: '/var/www/main/logs/luca-combined.log',
       time: true
+    },
+    {
+      name: 'chromadb',
+      script: 'start-chroma.sh',
+      cwd: '/var/www/main/leo',
+      interpreter: '/bin/bash',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '2G',
+      env: {
+        CHROMA_SERVER_CORS_ALLOW_ORIGINS: '["*"]',
+        CHROMA_HOST: '0.0.0.0',
+        CHROMA_PORT: '8000'
+      },
+      error_file: '/var/www/main/logs/chromadb-error.log',
+      out_file: '/var/www/main/logs/chromadb-out.log',
+      log_file: '/var/www/main/logs/chromadb-combined.log',
+      time: true
     }
   ]
 }; 

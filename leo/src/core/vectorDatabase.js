@@ -154,6 +154,55 @@ class VectorDatabase {
       throw error;
     }
   }
+
+  /**
+   * Health check for vector database
+   */
+  async healthCheck() {
+    try {
+      if (!this.isInitialized) {
+        return {
+          healthy: false,
+          error: 'Vector database not initialized',
+          collections: 0,
+          totalDocuments: 0
+        };
+      }
+
+      // Check if we can connect to ChromaDB
+      const collections = Array.from(this.collections.keys());
+      let totalDocuments = 0;
+
+      // Count documents in each collection
+      for (const collectionName of collections) {
+        try {
+          const collection = this.collections.get(collectionName);
+          const count = await collection.count();
+          totalDocuments += count;
+        } catch (error) {
+          logger.warn(`Failed to count documents in collection '${collectionName}':`, error);
+        }
+      }
+
+      return {
+        healthy: true,
+        collections: collections.length,
+        totalDocuments,
+        collectionNames: collections,
+        timestamp: new Date().toISOString()
+      };
+
+    } catch (error) {
+      logger.error('Vector database health check failed:', error);
+      return {
+        healthy: false,
+        error: error.message,
+        collections: 0,
+        totalDocuments: 0,
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
 }
 
 module.exports = VectorDatabase;

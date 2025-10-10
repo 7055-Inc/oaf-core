@@ -116,14 +116,19 @@ class AILearningSystem {
   async generateRecommendations(query, userId, options = {}) {
     try {
       // Get base recommendations from vector search
-      const searchResults = await this.vectorDB.multiSearch(query, [
+      const searchCollections = options.collections || [
         'art_metadata',
         'site_content',
         'user_interactions'
-      ], {
-        limitPerCollection: 5,
-        totalLimit: 15
-      });
+      ];
+      
+      const searchOptions = {
+        limitPerCollection: options.limitPerCollection || 5,
+        totalLimit: options.totalLimit || 15,
+        ...options // Include any filters like { status: 'active' }
+      };
+      
+      const searchResults = await this.vectorDB.multiSearch(query, searchCollections, searchOptions);
 
       // Get learning insights for this type of query
       const learningInsights = await this.getLearningInsights(query, userId);
