@@ -5,10 +5,13 @@
 
 const express = require('express');
 const AILearningSystem = require('../learning/aiLearningSystem');
+const SchemaLearningSystem = require('../learning/schemaLearning');
+const IntelligentSearchService = require('../services/intelligentSearchService');
 const winston = require('winston');
 const path = require('path');
 
 const router = express.Router();
+const schemaLearner = new SchemaLearningSystem();
 
 // Configure logger
 const logger = winston.createLogger({
@@ -25,8 +28,9 @@ const logger = winston.createLogger({
   ]
 });
 
-// Initialize learning system
+// Initialize learning system and intelligent search
 const learningSystem = new AILearningSystem();
+const intelligentSearch = new IntelligentSearchService();
 
 // Middleware to ensure learning system is initialized
 const ensureLearningSystem = async (req, res, next) => {
@@ -150,7 +154,45 @@ router.get('/metrics', ensureLearningSystem, async (req, res) => {
 });
 
 /**
- * POST /api/learning/smart-search
+ * POST /api/learning/intelligent-search
+ * New intelligent search with truth-based AI and Llama processing
+ */
+router.post('/intelligent-search', async (req, res) => {
+  try {
+    const { query, userId = 'anonymous', options = {} } = req.body;
+
+    if (!query || typeof query !== 'string' || query.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Query is required',
+        message: 'Please provide a valid search query'
+      });
+    }
+
+    logger.info(`🔍 Intelligent search request: "${query}" (user: ${userId})`);
+
+    // Use the new intelligent search service
+    const results = await intelligentSearch.search(query.trim(), {
+      userId,
+      limit: options.limit || 20,
+      includeMetaTruths: options.includeMetaTruths !== false,
+      applyPersonalization: options.applyPersonalization !== false
+    });
+
+    res.json(results);
+
+  } catch (error) {
+    logger.error('Intelligent search failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Intelligent search failed',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/learning/smart-search (legacy compatibility)
  * Enhanced search with AI learning and personalization
  */
 router.post('/smart-search', ensureLearningSystem, async (req, res) => {
@@ -175,22 +217,17 @@ router.post('/smart-search', ensureLearningSystem, async (req, res) => {
       }
     );
 
+    // Filter and categorize results
+    const rawResults = recommendations.recommendations || recommendations || [];
+    const filteredResults = filterPrivateData(rawResults, userId);
+    const categorizedResults = categorizeSearchResults(filteredResults);
+
     // Format for search response
     const searchResults = {
       query,
-      results: recommendations.recommendations.map(rec => ({
-        id: rec.id,
-        title: rec.metadata.title || 'Untitled',
-        content: rec.content,
-        type: rec.metadata.type,
-        relevance: rec.enhancedScore,
-        originalRelevance: rec.originalScore,
-        collection: rec.collection,
-        metadata: rec.metadata,
-        learningEnhanced: rec.learningApplied
-      })),
+      categories: categorizedResults,
+      totalResults: filteredResults.length,
       metadata: {
-        totalResults: recommendations.recommendations.length,
         confidence: recommendations.confidence,
         learningApplied: recommendations.learningApplied,
         userPatternsFound: recommendations.userPatternsFound,
@@ -201,7 +238,7 @@ router.post('/smart-search', ensureLearningSystem, async (req, res) => {
 
     logger.info(`Smart search completed for user ${userId}`, {
       query,
-      resultCount: searchResults.results.length,
+      resultCount: searchResults.totalResults,
       confidence: recommendations.confidence
     });
 
@@ -332,6 +369,119 @@ router.get('/health', async (req, res) => {
     });
   }
 });
+
+/**
+ * Filter out private data that shouldn't be shown to users
+ */
+function filterPrivateData(results, currentUserId) {
+  return results.filter(rec => {
+    // Filter out private user interactions from other users
+    if (rec.collection === 'user_interactions' && 
+        rec.metadata.user_id && 
+        rec.metadata.user_id !== currentUserId) {
+      return false;
+    }
+
+    // Filter out order items from other users
+    if (rec.metadata.source_table === 'order_items' && 
+        rec.metadata.user_id && 
+        rec.metadata.user_id !== currentUserId) {
+      return false;
+    }
+
+    // Filter out deleted/inactive items
+    if (rec.metadata.status && rec.metadata.status !== 'active') {
+      return false;
+    }
+
+    // Filter out private metadata
+    if (rec.metadata.type === 'private' || rec.metadata.visibility === 'private') {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+/**
+ * Smart categorization that learns data relationships
+ */
+function categorizeSearchResults(results) {
+  const categories = {
+    products: [],
+    artists: [],
+    articles: [],
+    events: [],
+    other: []
+  };
+
+  results.forEach(rec => {
+    // Use intelligent quality filtering
+    if (!schemaLearner.isQualityResult(rec)) {
+      return; // Skip low-quality results
+    }
+
+    const formattedResult = {
+      id: rec.id,
+      title: rec.metadata.title || rec.metadata.name || 'Untitled',
+      content: rec.content,
+      relevance: rec.enhancedScore,
+      originalRelevance: rec.originalScore,
+      collection: rec.collection,
+      metadata: rec.metadata,
+      learningEnhanced: rec.learningApplied
+    };
+
+    // Use intelligent categorization
+    const smartCategory = schemaLearner.smartCategorize(rec);
+    
+    if (smartCategory === 'products') {
+      categories.products.push({
+        ...formattedResult,
+        price: rec.metadata.price,
+        vendor: rec.metadata.vendor_id,
+        image: rec.metadata.image_url,
+        category: rec.metadata.category_id
+      });
+    } else if (rec.metadata.source_table === 'users' || 
+               rec.metadata.source_table === 'artist_profiles' ||
+               rec.metadata.type === 'artist') {
+      categories.artists.push({
+        ...formattedResult,
+        displayName: rec.metadata.display_name,
+        businessName: rec.metadata.business_name,
+        location: rec.metadata.location
+      });
+    } else if (rec.metadata.source_table === 'articles' || 
+               rec.metadata.type === 'article' ||
+               rec.collection === 'site_content') {
+      categories.articles.push({
+        ...formattedResult,
+        title: rec.metadata.title || rec.metadata.name || 'Untitled Article',
+        excerpt: rec.content.substring(0, 200) + '...',
+        publishDate: rec.metadata.created_at || rec.metadata.updated_at
+      });
+    } else if (rec.metadata.source_table === 'events' || 
+               rec.metadata.type === 'event') {
+      categories.events.push({
+        ...formattedResult,
+        startDate: rec.metadata.start_date,
+        endDate: rec.metadata.end_date,
+        location: rec.metadata.location,
+        eventType: rec.metadata.event_type
+      });
+    } else {
+      categories.other.push(formattedResult);
+    }
+  });
+
+  // Sort each category by relevance
+  Object.keys(categories).forEach(category => {
+    categories[category].sort((a, b) => b.relevance - a.relevance);
+  });
+
+  return categories;
+}
 
 /**
  * Helper function to generate recommendation reasons

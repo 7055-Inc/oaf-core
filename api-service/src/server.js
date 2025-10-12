@@ -237,9 +237,6 @@ try {
   // Finance operations (isolated financial data)
   app.use('/api/finance', adminLimiter, require('./routes/finance'));
   
-  // Search (read-only, no CSRF needed)
-  app.use('/search', require('./routes/search'));
-  
   // Hero feed for homepage visual discovery
   app.use('/api/hero-feed', require('./routes/hero-feed'));
   

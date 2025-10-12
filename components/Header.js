@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import SearchBar from './SearchBar';
+import AISearchModal from './AISearchModal';
 import { usePageType } from '../hooks/usePageType';
 import { getAuthToken, clearAuthTokens } from '../lib/csrf';
 import { authApiRequest, apiGet, API_ENDPOINTS } from '../lib/apiUtils';
@@ -14,6 +15,7 @@ export default function Header() {
   const [isLoading, setIsLoading] = useState(true);
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showAISearchModal, setShowAISearchModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const dropdownTimeoutRef = useRef(null);
@@ -204,14 +206,18 @@ export default function Header() {
 
           {/* Utility Section */}
           <div className={styles.utilitySection}>
-            {/* AI Search Placeholder */}
-            <div className={styles.searchPlaceholder} title="Feature in development">
+            {/* AI Search Button */}
+            <button 
+              className={styles.aiSearchButton} 
+              onClick={() => setShowAISearchModal(true)}
+              title="Search with AI"
+            >
               <svg className={styles.magnifierIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="8"/>
                 <path d="m21 21-4.35-4.35"/>
               </svg>
-              <span className={styles.searchText}>Search by Leo Art AI (coming soon)</span>
-            </div>
+              <span className={styles.searchText}>Search Brakebee</span>
+            </button>
 
             {/* Cart Icon - if logged in */}
             {isLoggedIn && !isLoading && (
@@ -325,6 +331,15 @@ export default function Header() {
           autoFocus={true}
           showModal={true}
           onClose={() => setShowSearchModal(false)}
+        />
+      )}
+
+      {/* AI Search Modal */}
+      {showAISearchModal && (
+        <AISearchModal 
+          isOpen={showAISearchModal}
+          onClose={() => setShowAISearchModal(false)}
+          userId={userId}
         />
       )}
     </>

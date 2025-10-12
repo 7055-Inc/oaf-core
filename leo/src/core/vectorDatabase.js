@@ -12,7 +12,8 @@ class VectorDatabase {
     try {
       this.client = new ChromaClient({
         host: "localhost",
-        port: 8000
+        port: 8000,
+        ssl: false
       });
 
       await this.initializeCollections();

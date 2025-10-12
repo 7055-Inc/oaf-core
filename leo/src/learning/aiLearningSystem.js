@@ -389,22 +389,66 @@ class AILearningSystem {
   }
 
   async categorizeQuery(query) {
-    // Simple categorization - could be enhanced with ML
-    const categories = {
-      'art_search': ['art', 'painting', 'sculpture', 'artist', 'artwork'],
-      'help_request': ['help', 'how', 'problem', 'issue', 'support'],
-      'recommendation': ['recommend', 'suggest', 'similar', 'like'],
-      'information': ['what', 'when', 'where', 'who', 'info']
-    };
+    // Enhanced ML-based categorization using semantic search
+    try {
+      // Search for similar queries with known categories from feedback
+      const similarQueries = await this.vectorDB.semanticSearch(
+        query,
+        'learning_feedback',
+        { limit: 10 }
+      );
 
+      if (similarQueries.length > 0) {
+        // Use the most common category from similar queries
+        const categories = similarQueries
+          .map(q => q.metadata.query_category)
+          .filter(cat => cat);
+        
+        if (categories.length > 0) {
+          const categoryCount = {};
+          categories.forEach(cat => {
+            categoryCount[cat] = (categoryCount[cat] || 0) + 1;
+          });
+          
+          const mostCommon = Object.keys(categoryCount)
+            .reduce((a, b) => categoryCount[a] > categoryCount[b] ? a : b);
+          
+          return mostCommon;
+        }
+      }
+
+      // Fallback to semantic analysis
+      return this.semanticCategorizeQuery(query);
+      
+    } catch (error) {
+      logger.warn('ML categorization failed, using fallback:', error.message);
+      return this.semanticCategorizeQuery(query);
+    }
+  }
+
+  semanticCategorizeQuery(query) {
     const queryLower = query.toLowerCase();
     
-    for (const [category, keywords] of Object.entries(categories)) {
-      if (keywords.some(keyword => queryLower.includes(keyword))) {
-        return category;
-      }
+    // Color/material/size queries are usually product searches
+    if (/\b(red|blue|green|yellow|black|white|color|size|large|small|material|wood|metal|canvas)\b/.test(queryLower)) {
+      return 'product_search';
     }
-
+    
+    // Artist names or art styles
+    if (/\b(artist|painter|sculptor|style|abstract|modern|contemporary|gallery)\b/.test(queryLower)) {
+      return 'art_search';
+    }
+    
+    // Help/support queries
+    if (/\b(help|how|problem|issue|support|error|fix)\b/.test(queryLower)) {
+      return 'help_request';
+    }
+    
+    // Recommendation requests
+    if (/\b(recommend|suggest|similar|like|find|show)\b/.test(queryLower)) {
+      return 'recommendation';
+    }
+    
     return 'general';
   }
 

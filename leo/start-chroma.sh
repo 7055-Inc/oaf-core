@@ -14,9 +14,10 @@ echo "🎨 [LEO-CHROMA] ChromaDB data directory: /var/www/main/leo/data/chroma"
 echo "🎨 [LEO-CHROMA] ChromaDB port: 8000"
 echo "🎨 [LEO-CHROMA] Starting ChromaDB server..."
 
-# Start ChromaDB server
+# Start ChromaDB server using virtual environment
 cd /var/www/main/leo
-chroma run --host 0.0.0.0 --port 8000 --path ./data/chroma &
+source venv/bin/activate
+python -m chromadb.cli.cli run --host 0.0.0.0 --port 8000 --path ./data/chroma &
 
 CHROMA_PID=$!
 echo "✅ [LEO-CHROMA] ChromaDB server started successfully (PID: $CHROMA_PID)"

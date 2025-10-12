@@ -71,17 +71,62 @@ export default function SearchBar({
   const fetchSuggestions = async (searchQuery) => {
     try {
       setIsLoading(true);
-      const response = await fetch(
-        getApiUrl(`search/autocomplete?q=${encodeURIComponent(searchQuery)}&limit=8`)
-      );
+      // Use Leo AI intelligent search for suggestions
+      const response = await fetch('/api/leo-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: searchQuery,
+          userId: 'anonymous',
+          options: { limit: 8 }
+        })
+      });
       
       if (response.ok) {
         const data = await response.json();
-        setSuggestions(data);
-        setShowSuggestions(data.length > 0);
+        // Extract suggestions from search results
+        const suggestions = [];
+        
+        // Add product suggestions
+        if (data.categories?.products) {
+          data.categories.products.slice(0, 3).forEach(item => {
+            suggestions.push({
+              text: item.title || 'Untitled',
+              type: 'product',
+              category: 'products'
+            });
+          });
+        }
+        
+        // Add artist suggestions
+        if (data.categories?.artists) {
+          data.categories.artists.slice(0, 2).forEach(item => {
+            suggestions.push({
+              text: item.title || 'Untitled',
+              type: 'artist',
+              category: 'artists'
+            });
+          });
+        }
+        
+        // Add article suggestions
+        if (data.categories?.articles) {
+          data.categories.articles.slice(0, 3).forEach(item => {
+            suggestions.push({
+              text: item.title || 'Untitled',
+              type: 'article',
+              category: 'articles'
+            });
+          });
+        }
+        
+        setSuggestions(suggestions.slice(0, 8));
+        setShowSuggestions(suggestions.length > 0);
       }
     } catch (error) {
       console.error('Error fetching suggestions:', error);
+      setSuggestions([]);
+      setShowSuggestions(false);
     } finally {
       setIsLoading(false);
     }
@@ -116,15 +161,16 @@ export default function SearchBar({
 
   const performModalSearch = async (searchQuery, categoryFilter = 'all') => {
     try {
-      const params = new URLSearchParams({
-        q: searchQuery.trim(),
-        category: categoryFilter,
-        limit: 20
+      // Use Leo AI intelligent search
+      const response = await fetch('/api/leo-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: searchQuery.trim(),
+          userId: 'anonymous',
+          options: { limit: 20 }
+        })
       });
-      
-      const searchUrl = getApiUrl(`search?${params.toString()}`);
-      
-      const response = await fetch(searchUrl);
       
       if (!response.ok) {
         throw new Error('Search failed');

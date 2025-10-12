@@ -31,6 +31,7 @@ app.get('/health', (req, res) => {
 const vectorRoutes = require('./api/vectorRoutes');
 const learningRoutes = require('./api/learningRoutes');
 const LeoManager = require('./utils/leoManager');
+const ContinuousTruthDiscovery = require('./services/continuousTruthDiscovery');
 
 // API routes
 app.get('/api/status', (req, res) => {
@@ -48,8 +49,9 @@ app.use('/api/vector', vectorRoutes);
 // AI Learning system routes
 app.use('/api/learning', learningRoutes);
 
-// Initialize Leo Manager
+// Initialize Leo Manager and Continuous Discovery
 const leoManager = new LeoManager();
+const continuousDiscovery = new ContinuousTruthDiscovery();
 
 // Management endpoints
 app.get('/api/system/health', async (req, res) => {
@@ -125,6 +127,58 @@ app.post('/api/system/test', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'System test failed',
+      message: error.message
+    });
+  }
+});
+
+// Continuous Truth Discovery endpoints
+app.post('/api/discovery/start', async (req, res) => {
+  try {
+    await continuousDiscovery.initialize();
+    const result = await continuousDiscovery.startContinuousDiscovery();
+    res.json({
+      success: result.success,
+      message: '🧠 Continuous truth discovery started',
+      ...result
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to start continuous discovery',
+      message: error.message
+    });
+  }
+});
+
+app.post('/api/discovery/stop', async (req, res) => {
+  try {
+    const result = await continuousDiscovery.stopContinuousDiscovery();
+    res.json({
+      success: result.success,
+      message: '🛑 Continuous truth discovery stopped',
+      ...result
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to stop continuous discovery',
+      message: error.message
+    });
+  }
+});
+
+app.get('/api/discovery/stats', async (req, res) => {
+  try {
+    const stats = await continuousDiscovery.getDiscoveryStats();
+    res.json({
+      success: true,
+      stats
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get discovery stats',
       message: error.message
     });
   }

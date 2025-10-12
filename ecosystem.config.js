@@ -51,7 +51,7 @@ module.exports = {
       instances: 1,
       autorestart: true,
       watch: false,
-      max_memory_restart: '1G',
+      max_memory_restart: '8G',
       env_file: '.env',
       env: {
         NODE_ENV: 'production',
@@ -69,7 +69,7 @@ module.exports = {
       instances: 1,
       autorestart: true,
       watch: false,
-      max_memory_restart: '512M',
+      max_memory_restart: '6G',
       env_file: '/var/www/main/luca/.env',
       env: {
         NODE_ENV: 'production',
