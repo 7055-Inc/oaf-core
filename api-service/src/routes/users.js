@@ -1181,6 +1181,76 @@ router.get('/artists', async (req, res) => {
 });
 
 /**
+ * GET /users/promoters
+ * Fetch list of active promoters with profile information
+ * Supports pagination, random ordering, and promoter-specific data
+ * 
+ * @route GET /users/promoters
+ * @param {number} limit - Maximum number of results (default: 20, max: 100)
+ * @param {number} offset - Number of results to skip (default: 0)
+ * @param {string} random - Whether to randomize results ('true'/'false', default: 'true')
+ * @returns {Array} Array of promoter profiles
+ */
+router.get('/promoters', async (req, res) => {
+  try {
+    const { limit = 20, offset = 0, random = 'true' } = req.query;
+    
+    // Validate and sanitize inputs
+    const searchLimit = Math.min(parseInt(limit) || 20, 100); // Max 100 results
+    const searchOffset = Math.max(parseInt(offset) || 0, 0);
+    const useRandom = random === 'true';
+    
+    // Build the query - get promoters with their profile data
+    let query = `
+      SELECT 
+        u.id, 
+        u.username, 
+        u.user_type, 
+        u.status, 
+        u.created_at,
+        up.first_name,
+        up.last_name,
+        up.bio,
+        up.profile_image_path,
+        pp.business_name,
+        pp.legal_name,
+        pp.business_phone,
+        pp.business_website,
+        pp.office_city,
+        pp.office_state,
+        pp.founding_date,
+        pp.business_social_facebook,
+        pp.business_social_instagram
+      FROM users u
+      LEFT JOIN user_profiles up ON u.id = up.user_id
+      LEFT JOIN promoter_profiles pp ON u.id = pp.user_id
+      WHERE u.user_type = 'promoter' 
+      AND u.status = 'active'
+      AND up.user_id IS NOT NULL
+      AND pp.user_id IS NOT NULL
+    `;
+    
+    // Add ordering - random or by creation date
+    if (useRandom) {
+      query += ' ORDER BY RAND()';
+    } else {
+      query += ' ORDER BY u.created_at DESC';
+    }
+    
+    // Add limit and offset
+    query += ` LIMIT ${searchLimit} OFFSET ${searchOffset}`;
+    
+    const [promoters] = await db.query(query);
+    
+    res.json(promoters);
+  } catch (err) {
+    console.error('Error fetching promoters:', err.message, err.stack);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ error: 'Failed to fetch promoters' });
+  }
+});
+
+/**
  * GET /users/:id/policies
  * Get user's shipping and return policies (public endpoint)
  * Returns custom policies or falls back to default policies

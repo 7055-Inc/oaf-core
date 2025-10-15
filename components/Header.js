@@ -1,8 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import SearchBar from './SearchBar';
-import AISearchModal from './AISearchModal';
+import { SearchBar, SearchModal } from './search';
 import { usePageType } from '../hooks/usePageType';
 import { getAuthToken, clearAuthTokens } from '../lib/csrf';
 import { authApiRequest, apiGet, API_ENDPOINTS } from '../lib/apiUtils';
@@ -15,7 +14,13 @@ export default function Header() {
   const [isLoading, setIsLoading] = useState(true);
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
-  const [showAISearchModal, setShowAISearchModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Handle opening search modal with query
+  const handleSearchModalOpen = (query = '') => {
+    setSearchQuery(query);
+    setShowSearchModal(true);
+  };
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const dropdownTimeoutRef = useRef(null);
@@ -33,7 +38,12 @@ export default function Header() {
 
   useEffect(() => {
     const token = getAuthToken();
-    if (token) {
+    
+    // Prevent API calls on login/signup pages to avoid redirect loops
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+    const isAuthPage = currentPath === '/login' || currentPath === '/signup' || currentPath === '/logout';
+    
+    if (token && !isAuthPage) {
       setIsLoggedIn(true);
       // Fetch userId from /users/me
       authApiRequest(API_ENDPOINTS.USERS_ME, {
@@ -55,15 +65,18 @@ export default function Header() {
         })
         .catch(err => {
           console.log('Authentication error:', err.message);
-          // Clear authentication and redirect if needed
-          setIsLoggedIn(false);
-          clearAuthTokens();
+          // Clear authentication and redirect if needed - but only if not on auth pages
+          if (!isAuthPage) {
+            setIsLoggedIn(false);
+            clearAuthTokens();
+          }
         })
         .finally(() => {
           setIsLoading(false);
         });
     } else {
-      setIsLoggedIn(false);
+      // Set basic state without API calls
+      setIsLoggedIn(!!token && !isAuthPage);
       setUserId(null);
       setCartItemCount(0);
       setIsLoading(false);
@@ -209,7 +222,7 @@ export default function Header() {
             {/* AI Search Button */}
             <button 
               className={styles.aiSearchButton} 
-              onClick={() => setShowAISearchModal(true)}
+              onClick={() => handleSearchModalOpen()}
               title="Search with AI"
             >
               <svg className={styles.magnifierIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -325,23 +338,15 @@ export default function Header() {
       </header>
 
       {/* Search Modal */}
-      {showSearchModal && (
-        <SearchBar 
-          placeholder="Search products, artists, promoters..." 
-          autoFocus={true}
-          showModal={true}
-          onClose={() => setShowSearchModal(false)}
-        />
-      )}
-
-      {/* AI Search Modal */}
-      {showAISearchModal && (
-        <AISearchModal 
-          isOpen={showAISearchModal}
-          onClose={() => setShowAISearchModal(false)}
-          userId={userId}
-        />
-      )}
+      <SearchModal 
+        isOpen={showSearchModal}
+        onClose={() => {
+          setShowSearchModal(false);
+          setSearchQuery('');
+        }}
+        query={searchQuery}
+        userId={userId}
+      />
     </>
   );
 }

@@ -1125,24 +1125,58 @@ async function handleSetupIntentSucceeded(setupIntent, event) {
     if (subscriptionRows.length > 0) {
       const subscription = subscriptionRows[0];
       
-      // Activate the subscription
-      await db.execute(
-        'UPDATE user_subscriptions SET status = "active" WHERE id = ?',
-        [subscription.id]
-      );
+      // Check if user has accepted shipping terms before activation
+      const [termsAcceptance] = await db.execute(`
+        SELECT uta.id
+        FROM user_terms_acceptance uta
+        JOIN terms_versions tv ON uta.terms_version_id = tv.id
+        WHERE uta.user_id = ? AND uta.subscription_type = 'shipping_labels' AND tv.is_current = TRUE
+      `, [subscription.user_id]);
+
+      if (termsAcceptance.length === 0) {
+        console.log(`⚠️ Shipping subscription activation skipped for user ${subscription.user_id} - terms not accepted`);
+        return;
+      }
       
-      // Grant shipping permission
-      await db.execute(
-        'UPDATE user_permissions SET shipping = 1 WHERE user_id = ?',
-        [subscription.user_id]
-      );
+      // Use transaction to ensure atomic activation
+      await db.execute('START TRANSACTION');
       
-      console.log(`✅ Shipping subscription activated for user ${subscription.user_id}`);
-      // Send email notification
       try {
-        await emailService.queueEmail(subscription.user_id, 'shipping_subscription_activated', { /* template data */ });
-      } catch (notifyError) {
-        console.error('Failed to send activation notification:', notifyError);
+        // Use atomic operation to prevent race conditions with frontend activation
+        // This will only activate if status is still 'incomplete'
+        const [result] = await db.execute(
+          'UPDATE user_subscriptions SET status = "active" WHERE id = ? AND status = "incomplete"',
+          [subscription.id]
+        );
+        
+        if (result.affectedRows > 0) {
+          // Successfully activated - grant shipping permission (idempotent operation)
+          await db.execute(`
+            INSERT INTO user_permissions (user_id, shipping) 
+            VALUES (?, 1) 
+            ON DUPLICATE KEY UPDATE shipping = 1
+          `, [subscription.user_id]);
+          
+          // Commit the transaction
+          await db.execute('COMMIT');
+          
+          console.log(`✅ Shipping subscription activated via webhook for user ${subscription.user_id}`);
+          
+          // Send email notification (outside transaction)
+          try {
+            await emailService.queueEmail(subscription.user_id, 'shipping_subscription_activated', { /* template data */ });
+          } catch (notifyError) {
+            console.error('Failed to send activation notification:', notifyError);
+          }
+        } else {
+          // Already activated (likely by frontend) - this is normal
+          await db.execute('ROLLBACK');
+          console.log(`ℹ️ Shipping subscription already activated for user ${subscription.user_id} (processed by frontend)`);
+        }
+        
+      } catch (error) {
+        await db.execute('ROLLBACK');
+        throw error;
       }
     }
   } catch (error) {

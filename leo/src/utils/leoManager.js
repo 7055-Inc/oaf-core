@@ -4,8 +4,9 @@
  */
 
 const VectorDatabase = require('../core/vectorDatabase');
-const DataIngestionService = require('../tools/dataIngestion');
-const AILearningSystem = require('../learning/aiLearningSystem');
+const TruthVectorDatabase = require('../core/truthVectorDatabase');
+const CentralBrain = require('../core/centralBrain');
+const ContinuousTruthDiscovery = require('../services/continuousTruthDiscovery');
 const winston = require('winston');
 const path = require('path');
 const fs = require('fs').promises;
@@ -28,14 +29,23 @@ const logger = winston.createLogger({
 class LeoManager {
   constructor() {
     this.vectorDB = new VectorDatabase();
-    this.ingestionService = new DataIngestionService();
-    this.learningSystem = new AILearningSystem();
+    this.truthDB = new TruthVectorDatabase();
+    this.centralBrain = new CentralBrain();
+    this.continuousDiscovery = new ContinuousTruthDiscovery();
     this.isInitialized = false;
     this.services = {
       vector: false,
-      ingestion: false,
-      learning: false
+      truth: false,
+      brain: false,
+      discovery: false
     };
+  }
+
+  /**
+   * Get Central Brain instance
+   */
+  get brain() {
+    return this.centralBrain;
   }
 
   /**
@@ -50,8 +60,9 @@ class LeoManager {
 
       // Initialize services in order
       await this.initializeVectorDatabase();
-      await this.initializeLearningSystem();
-      await this.initializeIngestionService();
+      await this.initializeTruthDatabase();
+      await this.initializeCentralBrain();
+      await this.initializeContinuousDiscovery();
 
       // Run initial health checks
       const health = await this.getSystemHealth();
@@ -95,33 +106,48 @@ class LeoManager {
   }
 
   /**
-   * Initialize learning system
+   * Initialize truth vector database
    */
-  async initializeLearningSystem() {
+  async initializeTruthDatabase() {
     try {
-      logger.info('Initializing AI learning system...');
-      await this.learningSystem.initialize();
-      this.services.learning = true;
-      logger.info('✅ AI learning system initialized');
+      logger.info('Initializing truth vector database...');
+      await this.truthDB.initialize();
+      this.services.truth = true;
+      logger.info('✅ Truth vector database initialized');
     } catch (error) {
-      logger.error('❌ Learning system initialization failed:', error);
+      logger.error('❌ Truth database initialization failed:', error);
       throw error;
     }
   }
 
   /**
-   * Initialize data ingestion service
+   * Initialize central brain
    */
-  async initializeIngestionService() {
+  async initializeCentralBrain() {
     try {
-      logger.info('Initializing data ingestion service...');
-      await this.ingestionService.initialize();
-      this.services.ingestion = true;
-      logger.info('✅ Data ingestion service initialized');
+      logger.info('Initializing central brain...');
+      await this.centralBrain.initialize();
+      this.services.brain = true;
+      logger.info('✅ Central brain initialized');
     } catch (error) {
-      logger.error('❌ Data ingestion initialization failed:', error);
-      // Don't throw - ingestion can be optional
-      logger.warn('Continuing without data ingestion service');
+      logger.error('❌ Central brain initialization failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Initialize continuous truth discovery
+   */
+  async initializeContinuousDiscovery() {
+    try {
+      logger.info('Initializing continuous truth discovery...');
+      await this.continuousDiscovery.initialize();
+      this.services.discovery = true;
+      logger.info('✅ Continuous truth discovery initialized');
+    } catch (error) {
+      logger.error('❌ Continuous discovery initialization failed:', error);
+      // Don't throw - discovery can be optional
+      logger.warn('Continuing without continuous discovery');
     }
   }
 
@@ -168,23 +194,23 @@ class LeoManager {
   }
 
   /**
-   * Run initial data ingestion
+   * Start continuous truth discovery
    */
-  async runInitialIngestion() {
+  async startContinuousDiscovery() {
     try {
-      if (!this.services.ingestion) {
-        logger.warn('Data ingestion service not available');
-        return { success: false, message: 'Ingestion service not initialized' };
+      if (!this.services.discovery) {
+        logger.warn('Continuous discovery service not available');
+        return { success: false, message: 'Discovery service not initialized' };
       }
 
-      logger.info('🎨 [LEO] Running initial data ingestion...');
-      const result = await this.ingestionService.runFullIngestion();
+      logger.info('🎨 [LEO] Starting continuous truth discovery...');
+      const result = await this.continuousDiscovery.startContinuousDiscovery();
       
-      logger.info('🎨 [LEO] Initial ingestion completed', result.summary);
+      logger.info('🎨 [LEO] Continuous discovery started', result);
       return result;
 
     } catch (error) {
-      logger.error('Initial ingestion failed:', error);
+      logger.error('Failed to start continuous discovery:', error);
       return { success: false, error: error.message };
     }
   }
@@ -194,12 +220,13 @@ class LeoManager {
    */
   async startScheduledServices() {
     try {
-      if (this.services.ingestion) {
-        this.ingestionService.startScheduledIngestion();
-        logger.info('🎨 [LEO] Scheduled ingestion started');
+      // Start continuous truth discovery if available
+      if (this.services.discovery) {
+        await this.startContinuousDiscovery();
+        logger.info('🎨 [LEO] Continuous discovery started');
       }
 
-      // Add other scheduled services here as needed
+      // Note: Data ingestion is handled by vacuum-ingestion.js script
       
       return { success: true };
 
@@ -229,18 +256,26 @@ class LeoManager {
         }
       }
 
-      // Check learning system
-      if (this.services.learning) {
-        health.details.learning = await this.learningSystem.getSystemHealth();
-        if (health.details.learning.status !== 'healthy') {
+      // Check truth database
+      if (this.services.truth) {
+        health.details.truth = await this.truthDB.healthCheck();
+        if (!health.details.truth.healthy) {
           health.overall = 'degraded';
         }
       }
 
-      // Check ingestion service
-      if (this.services.ingestion) {
-        health.details.ingestion = await this.ingestionService.healthCheck();
-        if (health.details.ingestion.status !== 'healthy') {
+      // Check central brain
+      if (this.services.brain) {
+        health.details.brain = await this.centralBrain.healthCheck();
+        if (!health.details.brain.healthy) {
+          health.overall = 'degraded';
+        }
+      }
+
+      // Check continuous discovery
+      if (this.services.discovery) {
+        health.details.discovery = await this.continuousDiscovery.getDiscoveryStats();
+        if (!health.details.discovery.system_status?.is_running) {
           health.overall = 'degraded';
         }
       }
@@ -253,9 +288,16 @@ class LeoManager {
         };
       }
 
-      if (health.details.learning) {
-        health.learning = {
-          metrics: health.details.learning.metrics || {}
+      if (health.details.brain) {
+        health.brain = {
+          initialized: health.details.brain.initialized || false
+        };
+      }
+
+      if (health.details.truth) {
+        health.truth = {
+          collections: health.details.truth.collections || 0,
+          totalTruths: health.details.truth.totalTruths || 0
         };
       }
 
@@ -303,8 +345,12 @@ class LeoManager {
         report.recommendations.push('No documents in vector database - run data ingestion');
       }
 
-      if (!this.services.ingestion) {
-        report.recommendations.push('Data ingestion service not available - check database connection');
+      if (!this.services.brain) {
+        report.recommendations.push('Central brain not available - check brain initialization');
+      }
+
+      if (!this.services.discovery) {
+        report.recommendations.push('Continuous discovery not running - truth extraction may be limited');
       }
 
       return report;
@@ -329,16 +375,17 @@ class LeoManager {
     try {
       logger.info('🎨 [LEO] Shutting down Leo AI Platform...');
 
-      // Close database connections
-      if (this.ingestionService.dbConnection) {
-        await this.ingestionService.dbConnection.end();
+      // Stop continuous discovery
+      if (this.services.discovery) {
+        await this.continuousDiscovery.stopContinuousDiscovery();
       }
 
       // Reset service states
       this.services = {
         vector: false,
-        ingestion: false,
-        learning: false
+        truth: false,
+        brain: false,
+        discovery: false
       };
 
       this.isInitialized = false;
@@ -360,9 +407,10 @@ class LeoManager {
 
       const testResults = {
         vector_db: false,
+        truth_db: false,
         embeddings: false,
         search: false,
-        learning: false,
+        brain: false,
         overall: false
       };
 
@@ -401,12 +449,20 @@ class LeoManager {
         logger.error('Search test failed:', error);
       }
 
-      // Test learning system
+      // Test truth database
       try {
-        const learningHealth = await this.learningSystem.getSystemHealth();
-        testResults.learning = learningHealth.status === 'healthy';
+        const truthHealth = await this.truthDB.healthCheck();
+        testResults.truth_db = truthHealth.healthy;
       } catch (error) {
-        logger.error('Learning system test failed:', error);
+        logger.error('Truth database test failed:', error);
+      }
+
+      // Test central brain
+      try {
+        const brainHealth = await this.centralBrain.healthCheck();
+        testResults.brain = brainHealth.healthy;
+      } catch (error) {
+        logger.error('Central brain test failed:', error);
       }
 
       // Overall test result

@@ -239,6 +239,9 @@ try {
   
   // Hero feed for homepage visual discovery
   app.use('/api/hero-feed', require('./routes/hero-feed'));
+
+  // Leo AI routes (search, recommendations, and future features)
+  app.use('/api/leo', require('./routes/leo'));
   
   // Shipping services
   app.use('/api/shipping', csrfProtection(), require('./routes/shipping'));

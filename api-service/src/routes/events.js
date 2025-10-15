@@ -87,6 +87,45 @@ router.get('/', async (req, res) => {
 });
 
 /**
+ * GET /events/upcoming
+ * Fetch list of upcoming events with pagination
+ * Shows only future events sorted by start date (soonest first)
+ * 
+ * @route GET /events/upcoming
+ * @param {number} limit - Maximum number of results (default: 20, max: 100)
+ * @param {number} offset - Number of results to skip (default: 0)
+ * @returns {Array} Array of upcoming events with event type information
+ */
+router.get('/upcoming', async (req, res) => {
+  try {
+    const { limit = 20, offset = 0 } = req.query;
+    
+    // Validate and sanitize inputs
+    const searchLimit = Math.min(parseInt(limit) || 20, 100); // Max 100 results
+    const searchOffset = Math.max(parseInt(offset) || 0, 0);
+    
+    let query = `
+      SELECT 
+        e.*,
+        et.name as event_type_name
+      FROM events e
+      LEFT JOIN event_types et ON e.event_type_id = et.id
+      WHERE e.start_date >= NOW()
+      AND e.event_status = 'active'
+      ORDER BY e.start_date ASC
+      LIMIT ${searchLimit} OFFSET ${searchOffset}
+    `;
+    
+    const [events] = await db.execute(query);
+    res.json(events);
+  } catch (err) {
+    console.error('Error fetching upcoming events:', err.message, err.stack);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ error: 'Failed to fetch upcoming events' });
+  }
+});
+
+/**
  * Get artist's custom personal events
  * @route GET /api/events/my-events
  * @access Private (requires authentication)

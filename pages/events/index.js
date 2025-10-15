@@ -1,305 +1,239 @@
-import { useEffect, useState } from 'react';
-import Head from 'next/head';
+'use client';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getApiUrl, getFrontendUrl } from '../../lib/config';
 import Header from '../../components/Header';
-import styles from './styles/EventsList.module.css';
+import Footer from '../../components/Footer';
+import styles from './Events.module.css';
+import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
 
-export default function EventsPage() {
+export default function Events() {
   const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [filters, setFilters] = useState({
-    event_type_id: '',
-    venue_state: ''
-  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  
+  const EVENTS_PER_PAGE = 24;
 
   useEffect(() => {
-    fetchEvents();
+    loadEvents(1, true); // Load first page and reset
   }, []);
 
-  const fetchEvents = async () => {
+  const loadEvents = async (page = 1, reset = false) => {
     try {
-      setLoading(true);
-      const queryParams = new URLSearchParams({
-        event_status: 'active,draft' // Show active and upcoming events
-      });
+      setIsLoading(true);
+      setError(null);
       
-      if (filters.event_type_id) {
-        queryParams.append('event_type_id', filters.event_type_id);
+      const offset = (page - 1) * EVENTS_PER_PAGE;
+      const response = await fetch(
+        getApiUrl(`api/events/upcoming?limit=${EVENTS_PER_PAGE}&offset=${offset}`)
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch events');
       }
       
-      const response = await fetch(getApiUrl(`api/events?${queryParams}`));
-      const data = await response.json();
-      setEvents(data || []);
-    } catch (err) {
-      console.error('Error fetching events:', err);
-      setError('Failed to load events');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'long', 
-      day: 'numeric', 
-      year: 'numeric' 
-    });
-  };
-
-  const formatDateRange = (startDate, endDate) => {
-    if (!startDate || !endDate) return '';
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    
-    if (start.toDateString() === end.toDateString()) {
-      return formatDate(startDate);
-    }
-    
-    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-  };
-
-  const getEventStatus = (event) => {
-    if (event.event_status === 'active') {
-      const now = new Date();
-      const startDate = new Date(event.start_date);
-      const endDate = new Date(event.end_date);
+      const eventsData = await response.json();
       
-      if (now < startDate) return 'upcoming';
-      if (now >= startDate && now <= endDate) return 'happening';
-      return 'ended';
+      if (reset) {
+        setEvents(eventsData);
+      } else {
+        setEvents(prev => [...prev, ...eventsData]);
+      }
+      
+      setHasMore(eventsData.length === EVENTS_PER_PAGE);
+      setCurrentPage(page);
+      
+    } catch (err) {
+      console.error('Error loading events:', err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
-    return event.event_status;
   };
 
-  // Group events by status
-  const upcomingEvents = events.filter(event => {
-    const status = getEventStatus(event);
-    return status === 'upcoming' || status === 'draft';
-  });
+  const loadMore = () => {
+    if (!isLoading && hasMore) {
+      loadEvents(currentPage + 1, false);
+    }
+  };
 
-  const happeningEvents = events.filter(event => getEventStatus(event) === 'happening');
-  const endedEvents = events.filter(event => getEventStatus(event) === 'ended');
-
-  if (loading) {
-    return (
-      <div className={styles.container}>
-        <Header />
-        <div className={styles.loading}>Loading events...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className={styles.container}>
-        <Header />
-        <div className={styles.error}>{error}</div>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <Head>
-        <title>Art Events & Festivals - Online Art Festival</title>
-        <meta name="description" content="Discover upcoming art events, festivals, and exhibitions. Find indoor and outdoor art festivals, gallery exhibitions, craft faires, and more art events near you." />
-        <meta name="keywords" content="art events, art festivals, art exhibitions, craft fairs, art shows, gallery events, outdoor art festival, indoor art festival" />
-        <link rel="canonical" href={getFrontendUrl('/events')} />
-        
-        {/* Open Graph */}
-        <meta property="og:title" content="Art Events & Festivals - Online Art Festival" />
-        <meta property="og:description" content="Discover upcoming art events, festivals, and exhibitions. Find art events near you." />
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="/events" />
-        
-        {/* Twitter Card */}
-        <meta name="twitter:card" content="summary" />
-        <meta name="twitter:title" content="Art Events & Festivals - Online Art Festival" />
-        <meta name="twitter:description" content="Discover upcoming art events, festivals, and exhibitions." />
-        
-        {/* JSON-LD Structured Data */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "CollectionPage",
-              "name": "Art Events & Festivals",
-              "description": "Discover upcoming art events, festivals, and exhibitions",
-              "url": "/events",
-              "mainEntity": {
-                "@type": "ItemList",
-                "numberOfItems": events.length,
-                "itemListElement": events.slice(0, 10).map((event, index) => ({
-                  "@type": "Event",
-                  "position": index + 1,
-                  "name": event.title,
-                  "startDate": event.start_date,
-                  "endDate": event.end_date,
-                  "location": {
-                    "@type": "Place",
-                    "name": event.venue_name,
-                    "address": {
-                      "@type": "PostalAddress",
-                      "addressLocality": event.venue_city,
-                      "addressRegion": event.venue_state
-                    }
-                  },
-                  "url": `/events/${event.id}`
-                }))
-              }
-            })
-          }}
-        />
-      </Head>
-
-      <div className={styles.container}>
-        <Header />
-        
-        <div className={styles.content}>
-          {/* Hero Section */}
-          <div className={styles.heroSection}>
-            <div className={styles.heroContent}>
-              <h1 className={styles.heroTitle}>Art Events & Festivals</h1>
-              <p className={styles.heroDescription}>
-                Discover amazing art events, festivals, and exhibitions happening around the country. 
-                From outdoor art festivals to intimate gallery exhibitions, find your next creative inspiration.
-              </p>
-            </div>
-          </div>
-
-          {/* Events Sections */}
-          <div className={styles.eventsContainer}>
-            {/* Happening Now */}
-            {happeningEvents.length > 0 && (
-              <section className={styles.eventsSection}>
-                <h2 className={styles.sectionTitle}>
-                  <i className="fas fa-star"></i>
-                  Happening Now
-                </h2>
-                <div className={styles.eventsGrid}>
-                  {happeningEvents.map(event => (
-                    <EventCard key={event.id} event={event} status="happening" />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Upcoming Events */}
-            {upcomingEvents.length > 0 && (
-              <section className={styles.eventsSection}>
-                <h2 className={styles.sectionTitle}>
-                  <i className="fas fa-calendar-alt"></i>
-                  Upcoming Events
-                </h2>
-                <div className={styles.eventsGrid}>
-                  {upcomingEvents.map(event => (
-                    <EventCard key={event.id} event={event} status="upcoming" />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Recently Ended */}
-            {endedEvents.length > 0 && (
-              <section className={styles.eventsSection}>
-                <h2 className={styles.sectionTitle}>
-                  <i className="fas fa-history"></i>
-                  Recently Ended
-                </h2>
-                <div className={styles.eventsGrid}>
-                  {endedEvents.slice(0, 6).map(event => (
-                    <EventCard key={event.id} event={event} status="ended" />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* No Events */}
-            {events.length === 0 && (
-              <div className={styles.noEvents}>
-                <div className={styles.noEventsIcon}>🎨</div>
-                <h3>No Events Found</h3>
-                <p>Check back soon for upcoming art events and festivals!</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </>
-  );
-}
-
-function EventCard({ event, status }) {
-  const formatDateRange = (startDate, endDate) => {
-    if (!startDate || !endDate) return '';
+  const formatEventDate = (startDate, endDate) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
     
     if (start.toDateString() === end.toDateString()) {
       return start.toLocaleDateString('en-US', { 
-        month: 'long', 
-        day: 'numeric', 
-        year: 'numeric' 
+        month: 'short', 
+        day: 'numeric',
+        year: 'numeric'
       });
     }
     
     return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
   };
 
+  const formatLocation = (venueName, venueCity, venueState) => {
+    if (venueCity && venueState) {
+      return venueName ? `${venueName}, ${venueCity}, ${venueState}` : `${venueCity}, ${venueState}`;
+    }
+    if (venueName) return venueName;
+    return 'Location TBD';
+  };
+
+  const getEventImage = (event) => {
+    if (event.featured_image) {
+      return getSmartMediaUrl(event.featured_image);
+    }
+    return null;
+  };
+
+  const truncateDescription = (description, maxLength = 120) => {
+    if (!description) return 'Join us for this exciting event!';
+    if (description.length <= maxLength) return description;
+    return description.substring(0, maxLength) + '...';
+  };
+
+  const getDaysUntilEvent = (startDate) => {
+    const now = new Date();
+    const eventDate = new Date(startDate);
+    const diffTime = eventDate - now;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Tomorrow';
+    if (diffDays < 7) return `${diffDays} days`;
+    if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks`;
+    return `${Math.ceil(diffDays / 30)} months`;
+  };
+
   return (
-    <Link href={`/events/${event.id}`} className={styles.eventCard}>
-      <div className={styles.eventCardContent}>
-        <div className={styles.eventMeta}>
-          <span className={styles.eventType}>{event.event_type_name}</span>
-          <span className={`${styles.eventStatus} ${styles[status]}`}>
-            {status === 'happening' ? 'Live Now' : 
-             status === 'upcoming' ? 'Upcoming' : 
-             'Ended'}
-          </span>
-        </div>
-        
-        <h3 className={styles.eventTitle}>{event.title}</h3>
-        
-        <div className={styles.eventDetails}>
-          <div className={styles.eventDate}>
-            <i className="fas fa-calendar-alt"></i>
-            <span>{formatDateRange(event.start_date, event.end_date)}</span>
+    <div className={styles.pageContainer}>
+      <Header />
+      
+      <main className={styles.main}>
+        {/* Events Grid Section */}
+        <section className={styles.eventsSection}>
+          <div className={styles.container}>
+            
+            {error && (
+              <div className={styles.errorMessage}>
+                <p>Error loading events: {error}</p>
+                <button 
+                  onClick={() => loadEvents(1, true)}
+                  className={styles.retryButton}
+                >
+                  Try Again
+                </button>
+              </div>
+            )}
+
+            {!error && (
+              <>
+                {/* Events Grid */}
+                <div className={styles.eventsGrid}>
+                  {events.map((event, index) => (
+                    <Link 
+                      href={`/events/${event.id}`} 
+                      key={`${event.id}-${index}`}
+                      className={styles.eventCard}
+                    >
+                      <div className={styles.eventImage}>
+                        {getEventImage(event) ? (
+                          <img 
+                            src={getEventImage(event)} 
+                            alt={event.title}
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className={styles.imagePlaceholder}>
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                              <path d="M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM19 19H5V5H19V19Z" fill="currentColor"/>
+                              <path d="M12 7C13.1 7 14 7.9 14 9S13.1 11 12 11S10 10.1 10 9S10.9 7 12 7ZM12 17L8 13L10 11L12 13L14 11L16 13L12 17Z" fill="currentColor"/>
+                            </svg>
+                          </div>
+                        )}
+                        <div className={styles.dateOverlay}>
+                          <span className={styles.daysUntil}>{getDaysUntilEvent(event.start_date)}</span>
+                        </div>
+                      </div>
+                      
+                      <div className={styles.eventInfo}>
+                        <h3 className={styles.eventTitle}>{event.title}</h3>
+                        
+                        <p className={styles.eventDate}>
+                          📅 {formatEventDate(event.start_date, event.end_date)}
+                        </p>
+                        
+                        <p className={styles.eventLocation}>
+                          📍 {formatLocation(event.venue_name, event.venue_city, event.venue_state)}
+                        </p>
+                        
+                        {event.event_type_name && (
+                          <p className={styles.eventType}>
+                            {event.event_type_name}
+                          </p>
+                        )}
+                        
+                        <p className={styles.eventDescription}>
+                          {truncateDescription(event.description)}
+                        </p>
+                        
+                        <div className={styles.cardFooter}>
+                          <span className={styles.viewEvent}>View Details →</span>
+                          {event.allow_applications && event.application_status === 'open' && (
+                            <span className={styles.applicationsBadge}>Applications Open</span>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+
+                {/* Loading Skeleton */}
+                {isLoading && (
+                  <div className={styles.eventsGrid}>
+                    {[...Array(8)].map((_, index) => (
+                      <div key={`skeleton-${index}`} className={styles.skeletonCard}>
+                        <div className={styles.skeletonImage}></div>
+                        <div className={styles.skeletonContent}>
+                          <div className={styles.skeletonText}></div>
+                          <div className={styles.skeletonText}></div>
+                          <div className={styles.skeletonText}></div>
+                          <div className={styles.skeletonText}></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Load More Button */}
+                {!isLoading && hasMore && events.length > 0 && (
+                  <div className={styles.loadMoreContainer}>
+                    <button 
+                      onClick={loadMore}
+                      className={styles.loadMoreButton}
+                    >
+                      Load More Events
+                    </button>
+                  </div>
+                )}
+
+                {/* Empty State */}
+                {!isLoading && events.length === 0 && !error && (
+                  <div className={styles.emptyState}>
+                    <div className={styles.emptyIcon}>🎪</div>
+                    <h3>No Upcoming Events</h3>
+                    <p>There are no upcoming events at the moment. Check back soon for new events!</p>
+                  </div>
+                )}
+              </>
+            )}
           </div>
-          
-          <div className={styles.eventLocation}>
-            <i className="fas fa-map-marker-alt"></i>
-            <span>{event.venue_city}, {event.venue_state}</span>
-          </div>
-        </div>
-        
-        {event.short_description && (
-          <p className={styles.eventDescription}>
-            {event.short_description.length > 120 
-              ? `${event.short_description.substring(0, 120)}...`
-              : event.short_description
-            }
-          </p>
-        )}
-        
-        <div className={styles.eventFooter}>
-          {event.admission_fee > 0 ? (
-            <span className={styles.admissionFee}>
-              ${parseFloat(event.admission_fee).toFixed(2)}
-            </span>
-          ) : (
-            <span className={styles.freeEvent}>Free</span>
-          )}
-          
-          <span className={styles.viewMore}>
-            View Details <i className="fas fa-arrow-right"></i>
-          </span>
-        </div>
-      </div>
-    </Link>
+        </section>
+      </main>
+
+      <Footer />
+    </div>
   );
-} 
+}

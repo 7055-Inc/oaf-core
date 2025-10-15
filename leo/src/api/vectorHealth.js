@@ -44,38 +44,7 @@ const ensureVectorDB = async (req, res, next) => {
   }
 };
 
-/**
- * POST /api/vector/documents
- * Add documents to a collection
- */
-router.post('/documents', ensureVectorDB, async (req, res) => {
-  try {
-    const { collection, documents } = req.body;
-
-    if (!collection || !documents || !Array.isArray(documents)) {
-      return res.status(400).json({
-        error: 'Invalid request',
-        message: 'Collection name and documents array required'
-      });
-    }
-
-    const result = await vectorDB.addDocuments(collection, documents);
-    
-    logger.info(`Added ${result.count} documents to collection '${collection}'`);
-    res.json({
-      success: true,
-      collection,
-      ...result
-    });
-
-  } catch (error) {
-    logger.error('Failed to add documents:', error);
-    res.status(500).json({
-      error: 'Failed to add documents',
-      message: error.message
-    });
-  }
-});
+// Document addition is handled by vacuum-ingestion.js
 
 /**
  * POST /api/vector/search
@@ -152,37 +121,7 @@ router.post('/multi-search', ensureVectorDB, async (req, res) => {
   }
 });
 
-/**
- * POST /api/vector/learn
- * Add learning feedback for AI improvement
- */
-router.post('/learn', ensureVectorDB, async (req, res) => {
-  try {
-    const interaction = req.body;
-
-    if (!interaction.query || !interaction.response) {
-      return res.status(400).json({
-        error: 'Invalid request',
-        message: 'Query and response required for learning'
-      });
-    }
-
-    await vectorDB.addLearningFeedback(interaction);
-    
-    logger.info('Learning feedback recorded successfully');
-    res.json({
-      success: true,
-      message: 'Learning feedback recorded'
-    });
-
-  } catch (error) {
-    logger.error('Failed to record learning feedback:', error);
-    res.status(500).json({
-      error: 'Failed to record learning feedback',
-      message: error.message
-    });
-  }
-});
+// Learning feedback is handled by learning system
 
 /**
  * GET /api/vector/stats
@@ -252,105 +191,8 @@ router.get('/health', async (req, res) => {
   }
 });
 
-/**
- * POST /api/vector/ingest/art
- * Specialized endpoint for ingesting art metadata
- */
-router.post('/ingest/art', ensureVectorDB, async (req, res) => {
-  try {
-    const { artworks } = req.body;
+// Art ingestion is handled by vacuum-ingestion.js
 
-    if (!artworks || !Array.isArray(artworks)) {
-      return res.status(400).json({
-        error: 'Invalid request',
-        message: 'Artworks array required'
-      });
-    }
-
-    // Format artworks for vector storage
-    const documents = artworks.map(artwork => ({
-      id: artwork.id || `art_${Date.now()}_${Math.random()}`,
-      content: `${artwork.title || ''} ${artwork.description || ''} ${artwork.medium || ''} ${artwork.style || ''}`.trim(),
-      metadata: {
-        type: 'artwork',
-        title: artwork.title,
-        artist: artwork.artist,
-        medium: artwork.medium,
-        style: artwork.style,
-        price: artwork.price,
-        dimensions: artwork.dimensions,
-        year: artwork.year,
-        tags: artwork.tags || [],
-        user_id: artwork.user_id
-      },
-      source: 'art_ingestion'
-    }));
-
-    const result = await vectorDB.addDocuments('art_metadata', documents);
-    
-    logger.info(`Ingested ${result.count} artworks into vector database`);
-    res.json({
-      success: true,
-      message: `Successfully ingested ${result.count} artworks`,
-      ...result
-    });
-
-  } catch (error) {
-    logger.error('Art ingestion failed:', error);
-    res.status(500).json({
-      error: 'Art ingestion failed',
-      message: error.message
-    });
-  }
-});
-
-/**
- * POST /api/vector/ingest/content
- * Specialized endpoint for ingesting site content
- */
-router.post('/ingest/content', ensureVectorDB, async (req, res) => {
-  try {
-    const { content } = req.body;
-
-    if (!content || !Array.isArray(content)) {
-      return res.status(400).json({
-        error: 'Invalid request',
-        message: 'Content array required'
-      });
-    }
-
-    // Format content for vector storage
-    const documents = content.map(item => ({
-      id: item.id || `content_${Date.now()}_${Math.random()}`,
-      content: `${item.title || ''} ${item.body || ''} ${item.excerpt || ''}`.trim(),
-      metadata: {
-        type: 'site_content',
-        title: item.title,
-        url: item.url,
-        category: item.category,
-        tags: item.tags || [],
-        author: item.author,
-        published_date: item.published_date
-      },
-      source: 'content_ingestion'
-    }));
-
-    const result = await vectorDB.addDocuments('site_content', documents);
-    
-    logger.info(`Ingested ${result.count} content items into vector database`);
-    res.json({
-      success: true,
-      message: `Successfully ingested ${result.count} content items`,
-      ...result
-    });
-
-  } catch (error) {
-    logger.error('Content ingestion failed:', error);
-    res.status(500).json({
-      error: 'Content ingestion failed',
-      message: error.message
-    });
-  }
-});
+// Content ingestion is handled by vacuum-ingestion.js
 
 module.exports = router;

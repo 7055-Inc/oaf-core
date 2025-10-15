@@ -16,6 +16,7 @@ const { createMaterialsPage } = require('./views/materials');
 const { createCatalogPage } = require('./views/catalog');
 const { createProductsPage } = require('./views/products');
 const { createShippingPage } = require('./views/shipping');
+const { createSettingsPage } = require('./views/settings');
 const apiRoutes = require('./routes/api');
 
 const app = express();
@@ -200,8 +201,10 @@ app.get('/marketplace', (req, res) => {
 });
 
 app.get('/settings', (req, res) => {
-  res.send(createPlaceholderPage('Settings', 'Configure your platform preferences, integrations, and user management.'));
+  res.send(createSettingsPage());
 });
+
+// Note: Email invitation system removed - users are now added directly
 
 // 404 handler
 app.use('*', (req, res) => {

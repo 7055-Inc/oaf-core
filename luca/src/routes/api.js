@@ -1,20 +1,34 @@
 const express = require('express');
 const { executeQuery } = require('../config/database');
-const { optionalAuth } = require('../middleware/auth');
+const { optionalAuth, buildTeamWhereClause } = require('../middleware/auth');
+const teamsRouter = require('./teams');
 const router = express.Router();
 
 // Apply optional auth to all routes (allows access but sets user context if token exists)
 router.use(optionalAuth);
 
+// Team management routes
+router.use('/teams', teamsRouter);
+
 // Fallback to mock user for development if no auth token
 const getUser = (req) => req.user || { id: 1 };
+
+// Helper to get accessible user IDs for team-aware queries
+const getAccessibleIds = (req) => req.accessibleUserIds || [getUser(req).id];
 
 // Categories endpoints
 router.get('/categories', async (req, res) => {
   try {
+    const accessibleIds = getAccessibleIds(req);
+    const { clause, params } = buildTeamWhereClause(accessibleIds);
+    
     const categories = await executeQuery(
-      'SELECT * FROM material_categories WHERE user_id = ? ORDER BY name',
-      [getUser(req).id]
+      `SELECT mc.*, 
+              CASE WHEN mc.user_id = ? THEN 'owner' ELSE 'shared' END as access_type
+       FROM material_categories mc 
+       WHERE ${clause} 
+       ORDER BY access_type, name`,
+      [getUser(req).id, ...params]
     );
     res.json(categories);
   } catch (error) {
@@ -50,13 +64,17 @@ router.delete('/categories/:id', async (req, res) => {
 // Materials endpoints
 router.get('/materials', async (req, res) => {
   try {
+    const accessibleIds = getAccessibleIds(req);
+    const { clause, params: teamParams } = buildTeamWhereClause(accessibleIds, 'm.user_id');
+    
     let query = `
-      SELECT m.*, c.name as category_name 
+      SELECT m.*, c.name as category_name,
+             CASE WHEN m.user_id = ? THEN 'owner' ELSE 'shared' END as access_type
       FROM materials m 
       JOIN material_categories c ON m.category_id = c.id 
-      WHERE m.user_id = ?
+      WHERE ${clause}
     `;
-    let params = [getUser(req).id];
+    let params = [getUser(req).id, ...teamParams];
     
     if (req.query.category_id) {
       query += ' AND m.category_id = ?';
@@ -129,9 +147,17 @@ router.delete('/materials/:id', async (req, res) => {
 // Products endpoints
 router.get('/products', async (req, res) => {
   try {
+    const accessibleIds = getAccessibleIds(req);
+    const { clause, params } = buildTeamWhereClause(accessibleIds, 'p.user_id');
+    
     const products = await executeQuery(
-      'SELECT p.*, pc.name as collection_name FROM products p LEFT JOIN product_collections pc ON p.collection_id = pc.id WHERE p.user_id = ? ORDER BY p.created_at DESC',
-      [getUser(req).id]
+      `SELECT p.*, pc.name as collection_name,
+              CASE WHEN p.user_id = ? THEN 'owner' ELSE 'shared' END as access_type
+       FROM products p 
+       LEFT JOIN product_collections pc ON p.collection_id = pc.id 
+       WHERE ${clause} 
+       ORDER BY access_type, p.created_at DESC`,
+      [getUser(req).id, ...params]
     );
     
     // Return simple paginated format for compatibility

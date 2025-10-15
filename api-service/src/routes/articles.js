@@ -1511,6 +1511,156 @@ router.get('/topics/:id/articles', async (req, res) => {
 });
 
 /**
+ * GET /api/articles/by-id/:id
+ * Get single article by ID with comprehensive metadata and access control
+ * Returns complete article data including topics, tags, series navigation, and analytics
+ * 
+ * @route GET /api/articles/by-id/:id
+ * @param {string} id - Article ID identifier
+ * @returns {Object} Complete article data with metadata, navigation, and analytics
+ * @note Used by Leo AI search system which returns article IDs
+ */
+router.get('/by-id/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get article with related data
+    const [article] = await db.query(`
+      SELECT 
+        a.*,
+        u.username as author_username, up.display_name as author_display_name,
+        aseo.meta_title, aseo.meta_description, aseo.meta_keywords,
+        asoc.og_title, asoc.og_description, asoc.twitter_card_type,
+        aa.view_count, aa.reading_time_minutes
+      FROM articles a
+      LEFT JOIN users u ON a.author_id = u.id
+      LEFT JOIN user_profiles up ON u.id = up.user_id
+      LEFT JOIN article_seo aseo ON a.id = aseo.article_id
+      LEFT JOIN article_social asoc ON a.id = asoc.article_id
+      LEFT JOIN article_analytics aa ON a.id = aa.article_id
+      WHERE a.id = ?
+    `, [id]);
+    
+    if (!article[0]) {
+      return res.status(404).json({ error: 'Article not found' });
+    }
+    
+    // Check access control
+    const token = req.headers.authorization?.split(' ')[1];
+    let userId = null, roles = [], permissions = [];
+    
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        userId = decoded.userId;
+        roles = decoded.roles || [];
+        permissions = decoded.permissions || [];
+      } catch (err) {
+        // Invalid token, continue as anonymous user
+      }
+    }
+    
+    const hasAccess = await checkArticleAccess(userId, roles, permissions, article[0].id);
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Get topics
+    const [topics] = await db.query(`
+      SELECT t.id, t.name, t.slug
+      FROM article_topics t
+      JOIN article_topic_relations atr ON t.id = atr.topic_id
+      WHERE atr.article_id = ?
+    `, [article[0].id]);
+    
+    // Get tags
+    const [tags] = await db.query(`
+      SELECT t.id, t.name, t.slug
+      FROM article_tags t
+      JOIN article_tag_relations atr ON t.id = atr.tag_id
+      WHERE atr.article_id = ?
+    `, [article[0].id]);
+    
+    // Get series info
+    const [series] = await db.query(`
+      SELECT s.id, s.series_name, s.slug, asr.position_in_series
+      FROM article_series s
+      JOIN article_series_relations asr ON s.id = asr.series_id
+      WHERE asr.article_id = ?
+    `, [article[0].id]);
+
+    // Get series navigation if article is part of a series
+    let seriesNavigation = null;
+    if (series[0]) {
+      const seriesId = series[0].id;
+      const currentPosition = series[0].position_in_series;
+      
+      // Get previous article
+      const [prevArticle] = await db.query(`
+        SELECT a.id, a.title, a.slug
+        FROM articles a
+        JOIN article_series_relations asr ON a.id = asr.article_id
+        WHERE asr.series_id = ? AND asr.position_in_series = ? AND a.status = 'published'
+        LIMIT 1
+      `, [seriesId, currentPosition - 1]);
+      
+      // Get next article
+      const [nextArticle] = await db.query(`
+        SELECT a.id, a.title, a.slug
+        FROM articles a
+        JOIN article_series_relations asr ON a.id = asr.article_id
+        WHERE asr.series_id = ? AND asr.position_in_series = ? AND a.status = 'published'
+        LIMIT 1
+      `, [seriesId, currentPosition + 1]);
+      
+      // Get total articles in series
+      const [totalCount] = await db.query(`
+        SELECT COUNT(*) as total
+        FROM articles a
+        JOIN article_series_relations asr ON a.id = asr.article_id
+        WHERE asr.series_id = ? AND a.status = 'published'
+      `, [seriesId]);
+      
+      seriesNavigation = {
+        ...series[0],
+        total_articles: totalCount[0].total,
+        prev_article: prevArticle[0] || null,
+        next_article: nextArticle[0] || null
+      };
+    }
+    
+    // Get connections
+    const [connections] = await db.query(`
+      SELECT connection_type, connection_id
+      FROM article_connections
+      WHERE article_id = ?
+    `, [article[0].id]);
+    
+    // Update view count
+    await db.query(`
+      INSERT INTO article_analytics (article_id, view_count, last_viewed)
+      VALUES (?, 1, NOW())
+      ON DUPLICATE KEY UPDATE 
+        view_count = view_count + 1,
+        last_viewed = NOW()
+    `, [article[0].id]);
+    
+    res.json({
+      article: {
+        ...article[0],
+        topics,
+        tags,
+        series: seriesNavigation || null,
+        connections
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching article by ID:', err);
+    res.status(500).json({ error: 'Failed to fetch article' });
+  }
+});
+
+/**
  * GET /api/articles/:slug
  * Get single article with comprehensive metadata and access control
  * Returns complete article data including topics, tags, series navigation, and analytics

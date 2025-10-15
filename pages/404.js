@@ -5,7 +5,7 @@ import { useRouter } from 'next/router';
 import { getApiUrl } from '../lib/config';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import SearchBar from '../components/SearchBar';
+import { SearchBar } from '../components/search';
 import RandomProductCarousel from '../components/RandomProductCarousel';
 import styles from '../styles/404.module.css';
 

@@ -424,28 +424,51 @@ router.post('/activate', verifyToken, async (req, res) => {
       });
     }
 
-    // Find the subscription for this user
-    const [subscriptions] = await db.query(
-      'SELECT id FROM user_subscriptions WHERE user_id = ? AND subscription_type = "shipping_labels" AND status = "incomplete"',
-      [userId]
-    );
+    // Use transaction to ensure atomic activation
+    await db.query('START TRANSACTION');
+    
+    try {
+      // Use atomic operation to prevent race conditions with webhook
+      // This will only activate if status is still 'incomplete'
+      const [result] = await db.query(
+        'UPDATE user_subscriptions SET status = "active" WHERE user_id = ? AND subscription_type = "shipping_labels" AND status = "incomplete"',
+        [userId]
+      );
 
-    if (subscriptions.length === 0) {
-      return res.status(404).json({ error: 'No incomplete subscription found' });
+      if (result.affectedRows === 0) {
+        await db.query('ROLLBACK');
+        
+        // Check if already active (webhook may have processed first)
+        const [existing] = await db.query(
+          'SELECT id, status FROM user_subscriptions WHERE user_id = ? AND subscription_type = "shipping_labels"',
+          [userId]
+        );
+        
+        if (existing.length > 0 && existing[0].status === 'active') {
+          return res.json({
+            success: true,
+            message: 'Shipping subscription already activated',
+            already_active: true
+          });
+        } else {
+          return res.status(404).json({ error: 'No incomplete subscription found' });
+        }
+      }
+
+      // Grant shipping permission (idempotent operation)
+      await db.query(`
+        INSERT INTO user_permissions (user_id, shipping) 
+        VALUES (?, 1) 
+        ON DUPLICATE KEY UPDATE shipping = 1
+      `, [userId]);
+      
+      // Commit the transaction
+      await db.query('COMMIT');
+      
+    } catch (error) {
+      await db.query('ROLLBACK');
+      throw error;
     }
-
-    // Activate the subscription
-    await db.query(
-      'UPDATE user_subscriptions SET status = "active" WHERE id = ?',
-      [subscriptions[0].id]
-    );
-
-    // Grant shipping permission
-    await db.query(`
-      INSERT INTO user_permissions (user_id, shipping) 
-      VALUES (?, 1) 
-      ON DUPLICATE KEY UPDATE shipping = 1
-    `, [userId]);
 
     res.json({
       success: true,

@@ -28,10 +28,8 @@ app.get('/health', (req, res) => {
 });
 
 // Import routes and manager
-const vectorRoutes = require('./api/vectorRoutes');
-const learningRoutes = require('./api/learningRoutes');
+const vectorHealth = require('./api/vectorHealth');
 const LeoManager = require('./utils/leoManager');
-const ContinuousTruthDiscovery = require('./services/continuousTruthDiscovery');
 
 // API routes
 app.get('/api/status', (req, res) => {
@@ -43,15 +41,11 @@ app.get('/api/status', (req, res) => {
   });
 });
 
-// Vector database routes
-app.use('/api/vector', vectorRoutes);
+// Vector database health and stats routes
+app.use('/api/vector', vectorHealth);
 
-// AI Learning system routes
-app.use('/api/learning', learningRoutes);
-
-// Initialize Leo Manager and Continuous Discovery
+// Initialize Leo Manager
 const leoManager = new LeoManager();
-const continuousDiscovery = new ContinuousTruthDiscovery();
 
 // Management endpoints
 app.get('/api/system/health', async (req, res) => {
@@ -97,18 +91,18 @@ app.post('/api/system/initialize', async (req, res) => {
   }
 });
 
-app.post('/api/system/ingest', async (req, res) => {
+app.post('/api/system/start-discovery', async (req, res) => {
   try {
-    const result = await leoManager.runInitialIngestion();
+    const result = await leoManager.startContinuousDiscovery();
     res.json({
       success: true,
-      message: 'Data ingestion completed',
+      message: 'Continuous discovery started',
       ...result
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: 'Ingestion failed',
+      error: 'Failed to start discovery',
       message: error.message
     });
   }
@@ -132,57 +126,45 @@ app.post('/api/system/test', async (req, res) => {
   }
 });
 
-// Continuous Truth Discovery endpoints
-app.post('/api/discovery/start', async (req, res) => {
+// Central Brain endpoint for intelligent query processing
+app.post('/api/brain/process', async (req, res) => {
   try {
-    await continuousDiscovery.initialize();
-    const result = await continuousDiscovery.startContinuousDiscovery();
-    res.json({
-      success: result.success,
-      message: '🧠 Continuous truth discovery started',
-      ...result
-    });
+    const { query, context = {} } = req.body;
+
+    if (!query) {
+      return res.status(400).json({
+        success: false,
+        error: 'Query parameter is required'
+      });
+    }
+
+    // Get Central Brain from Leo Manager
+    const centralBrain = leoManager.brain;
+    
+    if (!centralBrain) {
+      return res.status(503).json({
+        success: false,
+        error: 'Central Brain not initialized'
+      });
+    }
+
+    // Process query through Central Brain
+    const result = await centralBrain.processQuery(query, context);
+    
+    res.json(result);
+
   } catch (error) {
+    console.error('🧠 [CENTRAL-BRAIN] Processing error:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to start continuous discovery',
+      error: 'Central Brain processing failed',
       message: error.message
     });
   }
 });
 
-app.post('/api/discovery/stop', async (req, res) => {
-  try {
-    const result = await continuousDiscovery.stopContinuousDiscovery();
-    res.json({
-      success: result.success,
-      message: '🛑 Continuous truth discovery stopped',
-      ...result
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to stop continuous discovery',
-      message: error.message
-    });
-  }
-});
-
-app.get('/api/discovery/stats', async (req, res) => {
-  try {
-    const stats = await continuousDiscovery.getDiscoveryStats();
-    res.json({
-      success: true,
-      stats
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get discovery stats',
-      message: error.message
-    });
-  }
-});
+// Note: Discovery management is handled through Leo Manager
+// Use /api/system/start-discovery to start continuous discovery
 
 // Scraper endpoint (placeholder for now)
 app.post('/api/scraper/run', (req, res) => {

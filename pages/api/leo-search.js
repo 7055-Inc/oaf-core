@@ -8,8 +8,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Forward the request to Leo AI platform using new intelligent search
-    const leoResponse = await fetch('http://localhost:3003/api/learning/intelligent-search', {
+    // Forward the request to API service Leo search endpoint
+    const apiResponse = await fetch('http://localhost:3001/api/leo/search', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -17,16 +17,16 @@ export default async function handler(req, res) {
       body: JSON.stringify(req.body)
     });
 
-    const data = await leoResponse.json();
+    const data = await apiResponse.json();
 
     // Forward the response status and data
-    res.status(leoResponse.status).json(data);
+    res.status(apiResponse.status).json(data);
     
   } catch (error) {
     console.error('Leo search proxy error:', error);
     res.status(500).json({ 
       error: 'Search service unavailable',
-      message: 'Unable to connect to Leo AI platform'
+      message: 'Unable to connect to Leo AI search service'
     });
   }
 }

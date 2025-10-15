@@ -252,8 +252,8 @@ const SignupCallbackPage = () => {
         localStorage.setItem('refreshToken', data.refreshToken);
         
         // Set secure cookies for middleware
-        document.cookie = `token=${data.token}; path=/; domain=.beemeeart.com; secure; samesite=lax; max-age=3600`;
-        document.cookie = `refreshToken=${data.refreshToken}; path=/; domain=.beemeeart.com; secure; samesite=lax; max-age=604800`;
+        document.cookie = `token=${data.token}; path=/; domain=${process.env.NEXT_PUBLIC_COOKIE_DOMAIN || '.brakebee.com'}; secure; samesite=lax; max-age=3600`;
+        document.cookie = `refreshToken=${data.refreshToken}; path=/; domain=${process.env.NEXT_PUBLIC_COOKIE_DOMAIN || '.brakebee.com'}; secure; samesite=lax; max-age=604800`;
         
         setStatus('success');
         setMessage('Authentication successful! Redirecting to main site...');

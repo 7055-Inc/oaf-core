@@ -1,0 +1,365 @@
+/* Events Page Styles */
+
+.pageContainer {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main {
+  flex: 1;
+  padding-top: var(--header-height-desktop);
+}
+
+/* Events Section */
+.eventsSection {
+  padding: 2rem 0;
+  background: #f9f7f4;
+  min-height: 80vh;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+/* Events Grid */
+.eventsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+.eventCard {
+  background: white;
+  border: 2px solid #3e1c56;
+  border-radius: 8px;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.eventCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(62, 28, 86, 0.2);
+  border-color: #055474;
+}
+
+.eventImage {
+  width: 100%;
+  height: 220px;
+  overflow: hidden;
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.eventImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.eventCard:hover .eventImage img {
+  transform: scale(1.05);
+}
+
+.imagePlaceholder {
+  color: #999;
+  background: #f0f0f0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dateOverlay {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(62, 28, 86, 0.9);
+  color: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  backdrop-filter: blur(4px);
+}
+
+.daysUntil {
+  white-space: nowrap;
+}
+
+.eventInfo {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.eventTitle {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #3e1c56;
+  margin: 0 0 0.75rem 0;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.eventDate {
+  font-size: 0.9rem;
+  color: #055474;
+  margin: 0 0 0.5rem 0;
+  font-weight: 500;
+}
+
+.eventLocation {
+  font-size: 0.9rem;
+  color: #055474;
+  margin: 0 0 0.5rem 0;
+  font-weight: 500;
+}
+
+.eventType {
+  font-size: 0.85rem;
+  color: #666;
+  margin: 0 0 0.75rem 0;
+  font-style: italic;
+  background: #f0f0f0;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  display: inline-block;
+  width: fit-content;
+}
+
+.eventDescription {
+  font-size: 0.9rem;
+  color: #555;
+  line-height: 1.4;
+  margin: 0 0 1rem 0;
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+}
+
+.viewEvent {
+  color: #3e1c56;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: color 0.2s ease;
+}
+
+.eventCard:hover .viewEvent {
+  color: #055474;
+}
+
+.applicationsBadge {
+  background: #28a745;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Loading States */
+.skeletonCard {
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 450px;
+  display: flex;
+  flex-direction: column;
+}
+
+.skeletonImage {
+  width: 100%;
+  height: 220px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeletonContent {
+  padding: 1.5rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.skeletonText {
+  height: 1rem;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+.skeletonText:nth-child(1) { width: 90%; height: 1.5rem; }
+.skeletonText:nth-child(2) { width: 70%; }
+.skeletonText:nth-child(3) { width: 60%; }
+.skeletonText:nth-child(4) { width: 85%; }
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Load More Button */
+.loadMoreContainer {
+  text-align: center;
+  margin: 2rem 0;
+}
+
+.loadMoreButton {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.loadMoreButton:hover {
+  background: #055474;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(62, 28, 86, 0.2);
+}
+
+.loadMoreButton:active {
+  transform: translateY(0);
+}
+
+.emptyState {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #666;
+}
+
+.emptyIcon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.emptyState h3 {
+  font-size: 1.5rem;
+  color: #3e1c56;
+  margin-bottom: 1rem;
+}
+
+.errorMessage {
+  text-align: center;
+  padding: 2rem;
+  background: #fee;
+  border: 1px solid #fcc;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.errorMessage p {
+  color: #c33;
+  margin-bottom: 1rem;
+}
+
+.retryButton {
+  background: #c33;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.retryButton:hover {
+  background: #a22;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .main {
+    padding-top: var(--header-height-mobile);
+  }
+  
+  .eventsSection {
+    padding: 1rem 0;
+  }
+  
+  .container {
+    padding: 0 1rem;
+  }
+  
+  .eventsGrid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+  
+  .eventInfo {
+    padding: 1rem;
+  }
+  
+  .eventTitle {
+    font-size: 1.2rem;
+  }
+  
+  .dateOverlay {
+    top: 0.5rem;
+    right: 0.5rem;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .eventsGrid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .eventCard {
+    margin: 0 auto;
+    max-width: 340px;
+  }
+  
+  .eventImage {
+    height: 200px;
+  }
+}

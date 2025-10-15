@@ -161,7 +161,7 @@ Only extract patterns with confidence >= 0.3. Maximum 3 truths per analysis.`;
           options: {
             temperature: 0.3,
             top_p: 0.9,
-            max_tokens: 500
+            num_predict: 500
           }
         })
       });
