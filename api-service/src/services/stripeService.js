@@ -955,12 +955,16 @@ class StripeService {
   async calculateStripeFee(amount, rateType = 'standard', currency = 'USD', region = 'US') {
     const rates = await this.getStripeRates(rateType, currency, region);
     
-    const percentageFee = amount * rates.percentage_rate;
-    const totalFee = percentageFee + rates.fixed_fee;
+    // Ensure values are numbers, not strings from database
+    const percentageRate = parseFloat(rates.percentage_rate);
+    const fixedFee = parseFloat(rates.fixed_fee);
+    
+    const percentageFee = amount * percentageRate;
+    const totalFee = percentageFee + fixedFee;
     
     return {
       percentage_fee: percentageFee,
-      fixed_fee: rates.fixed_fee,
+      fixed_fee: fixedFee,
       total_fee: totalFee,
       rate_used: rates.rate_name
     };

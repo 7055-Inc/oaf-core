@@ -15,7 +15,7 @@ const transformApiResponse = (apiData) => {
     .slice(0, 15)
     .map(cat => ({
       label: cat.name,
-      href: `/c/${cat.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}`
+      href: `/category/${cat.id}`
     }));
   
   return { items };
@@ -54,7 +54,7 @@ const validateApiSchema = (data) => {
   return true;
 };
 
-const CACHE_KEY = 'bb.footer.categories.v1';
+const CACHE_KEY = 'bb.footer.categories.v2';
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
 // Dynamic Categories Chips Component
@@ -239,17 +239,17 @@ export default function Footer() {
           <span className={styles.dot}>•</span>
           <Link href="/help">Help Center</Link>
           <span className={styles.dot}>•</span>
-          <Link href="/shipping">Shipping</Link>
+          <Link href="/policies/shipping">Shipping</Link>
           <span className={styles.dot}>•</span>
-          <Link href="/returns-exchanges">Returns & Exchanges</Link>
+          <Link href="/policies/returns">Returns & Exchanges</Link>
           <span className={styles.dot}>•</span>
-          <Link href="/terms-of-service">Terms of Service</Link>
+          <Link href="/policies/terms">Terms of Service</Link>
           <span className={styles.dot}>•</span>
-          <Link href="/privacy-policy">Privacy Policy</Link>
+          <Link href="/policies/privacy">Privacy Policy</Link>
           <span className={styles.dot}>•</span>
-          <Link href="/cookie-preferences">Cookie Preferences</Link>
+          <Link href="/policies/cookies">Cookie Preferences</Link>
           <span className={styles.dot}>•</span>
-          <Link href="/accessibility">Accessibility</Link>
+          <Link href="/policies/copyright">Copyright Policy</Link>
         </div>
 
       </div>

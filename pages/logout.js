@@ -16,8 +16,17 @@ export default function Logout() {
     document.cookie = 'csrf-secret=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
     document.cookie = 'csrf-secret=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=';
     
-    // Clear localStorage
+    // Clear authentication-related localStorage only (preserve cookie consent)
+    const cookieConsent = localStorage.getItem('cookieConsent');
+    const cookieConsentDate = localStorage.getItem('cookieConsentDate');
+    const sessionId = localStorage.getItem('sessionId');
+    
     localStorage.clear();
+    
+    // Restore cookie consent and session ID
+    if (cookieConsent) localStorage.setItem('cookieConsent', cookieConsent);
+    if (cookieConsentDate) localStorage.setItem('cookieConsentDate', cookieConsentDate);
+    if (sessionId) localStorage.setItem('sessionId', sessionId);
     
     // Redirect to home page
     setTimeout(() => {

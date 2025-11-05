@@ -67,8 +67,8 @@ app.use(async (req, res, next) => {
   const origin = req.headers.origin;
   let isAllowed = staticAllowedOrigins.includes(origin);
   
-  // Check if origin is a subdomain of beemeeart.com
-  if (!isAllowed && origin && origin.match(/^https:\/\/[a-zA-Z0-9-]+\.beemeeart\.com$/)) {
+  // Check if origin is a subdomain of brakebee.com
+  if (!isAllowed && origin && origin.match(/^https:\/\/[a-zA-Z0-9-]+\.brakebee\.com$/)) {
     isAllowed = true;
   }
   
@@ -76,7 +76,7 @@ app.use(async (req, res, next) => {
   if (!isAllowed && origin && origin.startsWith('https://')) {
     try {
       const domain = origin.replace('https://', '');
-      const [sites] = await db.query(
+      const [sites] = await db.execute(
         'SELECT id FROM sites WHERE custom_domain = ? AND domain_validation_status = "verified" AND custom_domain_active = 1',
         [domain]
       );
@@ -198,10 +198,13 @@ try {
   app.use('/products', require('./routes/products'));
   
   // Curated marketplace routes
-  app.use('/curated', require('./routes/curated'));
+  app.use('/api/curated', require('./routes/curated'));
   
   // Categories (safe for now, mostly read operations)
   app.use('/categories', require('./routes/categories'));
+  
+  // Public policies (shipping, returns, etc.)
+  app.use('/', require('./routes/policies'));
   
   // Cart operations
   app.use('/cart', require('./routes/carts'));
@@ -228,8 +231,8 @@ try {
   // Admin marketplace operations
   app.use('/api/admin/marketplace', adminLimiter, require('./routes/admin-marketplace'));
   
-  // Public marketplace operations
-  app.use('/api/marketplace', require('./routes/marketplace-products'));
+  // Admin verified operations
+  app.use('/api/admin/verified', adminLimiter, require('./routes/admin-verified'));
   
   // Vendor financial operations
   app.use('/api/vendor-financials', require('./routes/vendor-financials'));
@@ -237,23 +240,28 @@ try {
   // Finance operations (isolated financial data)
   app.use('/api/finance', adminLimiter, require('./routes/finance'));
   
-  // Hero feed for homepage visual discovery
-  app.use('/api/hero-feed', require('./routes/hero-feed'));
-
   // Leo AI routes (search, recommendations, and future features)
   app.use('/api/leo', require('./routes/leo'));
   
   // Shipping services
   app.use('/api/shipping', csrfProtection(), require('./routes/shipping'));
   
-  // Shipping subscription services
+  // Payment methods management (card on file)
+  app.use('/api', require('./routes/payment-methods'));
+  
+  // Shipping subscription services (note: uses shipping_labels as the type)
   app.use('/api/subscriptions/shipping', require('./routes/subscriptions/shipping'));
+  app.use('/api/subscriptions/shipping_labels', require('./routes/subscriptions/shipping'));
   
   // Sites subscription services
   app.use('/api/subscriptions/sites', require('./routes/subscriptions/websites'));
+  app.use('/api/subscriptions/websites', require('./routes/subscriptions/websites')); // Alias for universal flow
   
   // Marketplace subscription services
   app.use('/api/subscriptions/marketplace', require('./routes/subscriptions/marketplace'));
+  
+  // Verified subscription services
+  app.use('/api/subscriptions/verified', require('./routes/subscriptions/verified'));
   
   // Wholesale subscription services
   app.use('/api/subscriptions/wholesale', require('./routes/subscriptions/wholesale'));

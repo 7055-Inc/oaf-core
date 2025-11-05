@@ -84,7 +84,7 @@ const csrfTokenProvider = (req, res, next) => {
       httpOnly: false, // Frontend needs to read this
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      domain: process.env.COOKIE_DOMAIN || '.beemeeart.com',
+        domain: process.env.COOKIE_DOMAIN || '.brakebee.com',
       maxAge: 3600000 // 1 hour
     });
     
@@ -207,7 +207,7 @@ const csrfTokenRoute = (req, res) => {
       httpOnly: false, // Frontend needs to read this
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      domain: process.env.COOKIE_DOMAIN || '.beemeeart.com',
+        domain: process.env.COOKIE_DOMAIN || '.brakebee.com',
       maxAge: 60 * 60 * 1000 // 1 hour
     });
     

@@ -214,7 +214,7 @@ export default function NewProduct() {
               product_url: getFrontendUrl(`/products/${parentProductId}`),
               product_description: parentProduct.description || parentProduct.short_description || '',
               product_price: `$${parentProduct.price}`,
-              product_image_url: parentProduct.images && parentProduct.images.length > 0 ? parentProduct.images[0] : '',
+              product_image_url: parentProduct.images && parentProduct.images.length > 0 ? (typeof parentProduct.images[0] === 'string' ? parentProduct.images[0] : parentProduct.images[0].url) : '',
               product_variations: `${finalizedVariations.length} variations available`
             }
           })
@@ -493,7 +493,7 @@ export default function NewProduct() {
               product_url: `/products/${newProduct.id}`,
               product_description: newProduct.description || newProduct.short_description || '',
               product_price: `$${newProduct.price}`,
-              product_image_url: newProduct.images && newProduct.images.length > 0 ? newProduct.images[0] : '',
+              product_image_url: newProduct.images && newProduct.images.length > 0 ? (typeof newProduct.images[0] === 'string' ? newProduct.images[0] : newProduct.images[0].url) : '',
               product_variations: ''
             }
           })

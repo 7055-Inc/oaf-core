@@ -1,13 +1,14 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { getApiUrl } from '../../lib/config';
+import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
 import Header from '../../components/Header';
 import AboutTheArtist from '../../components/AboutTheArtist';
 import VariationSelector from '../../components/VariationSelector';
 import ArtistProductCarousel from '../../components/ArtistProductCarousel';
 import WholesalePricing from '../../components/WholesalePricing';
 import { authenticatedApiRequest, getAuthToken } from '../../lib/csrf';
+import { apiRequest, authApiRequest } from '../../lib/apiUtils';
 import { isWholesaleCustomer } from '../../lib/userUtils';
 import styles from './styles/ProductView.module.css';
 
@@ -20,7 +21,7 @@ export default function ProductView() {
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [showArtistModal, setShowArtistModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('dimensions');
+  const [activeTab, setActiveTab] = useState('description');
   const [showPolicyModal, setShowPolicyModal] = useState(false);
   const [policyModalContent, setPolicyModalContent] = useState({ type: '', content: '', loading: false });
   const [policies, setPolicies] = useState(null);
@@ -28,6 +29,45 @@ export default function ProductView() {
   const [userData, setUserData] = useState(null);
   const router = useRouter();
   const params = useParams();
+
+  // Helper function to process image URLs
+  const processProductImages = (productData) => {
+    if (!productData) return productData;
+    
+    const processedProduct = { ...productData };
+    
+    // Process images array if it exists
+    if (processedProduct.images && Array.isArray(processedProduct.images)) {
+      processedProduct.images = processedProduct.images.map(img => {
+        // Handle new format: {url, is_primary}
+        const imageUrl = typeof img === 'string' ? img : img.url;
+        const isPrimary = typeof img === 'object' && img.is_primary;
+        
+        let processedUrl;
+        // If it's already a full URL, return as-is
+        if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+          processedUrl = imageUrl;
+        }
+        // If it's a temp_images path, use API base URL directly
+        else if (imageUrl.startsWith('/temp_images/')) {
+          processedUrl = `${getApiUrl()}${imageUrl}`;
+        }
+        // Otherwise, convert to smart media proxy URL
+        else {
+          processedUrl = getSmartMediaUrl(imageUrl);
+        }
+        
+        return { url: processedUrl, is_primary: isPrimary };
+      });
+    }
+    
+    // Process children if they exist
+    if (processedProduct.children && Array.isArray(processedProduct.children)) {
+      processedProduct.children = processedProduct.children.map(child => processProductImages(child));
+    }
+    
+    return processedProduct;
+  };
 
   // Get user data for wholesale pricing
   useEffect(() => {
@@ -51,49 +91,43 @@ export default function ProductView() {
         }
         
         // Use the new curated art marketplace API - includes all data in single call
-        const res = await fetch(
-          getApiUrl(`curated/art/products/${params.id}?include=images,shipping,vendor,inventory,categories`),
-          {
-            method: 'GET',
-            credentials: 'include'
-          }
-        );
+        const res = await apiRequest(`api/curated/art/products/${params.id}?include=images,shipping,vendor,inventory,categories`, {
+          method: 'GET'
+        });
         
         if (!res.ok) {
           // If curated endpoint fails, try the regular products endpoint as fallback
           console.log(`Curated endpoint failed with ${res.status}, trying regular products endpoint...`);
           
-          const fallbackRes = await fetch(
-            getApiUrl(`products/${params.id}?include=images,shipping,vendor,inventory,categories`),
-            {
-              method: 'GET',
-              credentials: 'include'
-            }
-          );
+          const fallbackRes = await apiRequest(`products/${params.id}?include=images,shipping,vendor,inventory,categories`, {
+            method: 'GET'
+          });
           
           if (!fallbackRes.ok) {
             throw new Error(`Product not found. Curated API: ${res.status}, Regular API: ${fallbackRes.status}`);
           }
           
           const fallbackData = await fallbackRes.json();
-          setProduct(fallbackData);
-          console.log('Successfully loaded product from regular endpoint:', fallbackData);
+          const processedFallbackData = processProductImages(fallbackData);
+          setProduct(processedFallbackData);
+          console.log('Successfully loaded product from regular endpoint:', processedFallbackData);
           return;
         }
         
         const data = await res.json();
 
-        // No need to process image URLs - curated API returns proper proxy URLs
-        setProduct(data);
+        // Process image URLs to ensure they use smart media proxy
+        const processedData = processProductImages(data);
+        setProduct(processedData);
         
         // If this is a variable product with children, set up variation data from the response
-        if (data.product_type === 'variable' && data.children && data.children.length > 0) {
+        if (processedData.product_type === 'variable' && processedData.children && processedData.children.length > 0) {
           // Create variation data structure from children for the VariationSelector
           const variationTypes = [];
           const variationOptions = {};
           
           // Extract variation info from children (if available)
-          data.children.forEach(child => {
+          processedData.children.forEach(child => {
             if (child.variations) {
               Object.keys(child.variations).forEach(typeName => {
                 if (!variationTypes.find(t => t.variation_name === typeName)) {
@@ -114,7 +148,7 @@ export default function ProductView() {
           setVariationData({
             variation_types: variationTypes,
             variation_options: variationOptions,
-            child_products: data.children.map(child => ({
+            child_products: processedData.children.map(child => ({
               ...child,
               inventory: child.inventory || { qty_available: 0 }
             }))
@@ -143,12 +177,8 @@ export default function ProductView() {
           return;
         }
         
-        const response = await fetch(getApiUrl('users/me'), {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+        const response = await authApiRequest('users/me', {
+          method: 'GET'
         });
         
         if (response.ok) {
@@ -262,7 +292,9 @@ export default function ProductView() {
       
       if (!policiesData) {
         // Fetch all policies at once
-        const res = await fetch(getApiUrl(`users/${product.vendor_id}/policies`));
+        const res = await apiRequest(`users/${product.vendor_id}/policies`, {
+          method: 'GET'
+        });
         
         if (!res.ok) {
           throw new Error('Failed to fetch policies');
@@ -367,31 +399,83 @@ export default function ProductView() {
               {/* Product Image Section - Left */}
               <div className={styles.imageSection}>
                 <div className={styles.mainImage}>
-                  {(selectedVariationProduct || product).images && (selectedVariationProduct || product).images.length > 0 ? (
-                    <img 
-                      src={(selectedVariationProduct || product).images[selectedImage]} 
-                      alt={product.name}
-                      className={styles.image}
-                    />
-                  ) : (
-                    <div className={styles.noImage}>No image available</div>
-                  )}
+                  {(() => {
+                    const currentProduct = selectedVariationProduct || product;
+                    const parentImages = product.images || [];
+                    const childImages = selectedVariationProduct ? (selectedVariationProduct.images || []) : [];
+                    const allImages = [...parentImages, ...childImages];
+                    
+                    if (allImages.length === 0) {
+                      return <div className={styles.noImage}>No image available</div>;
+                    }
+                    
+                    const imageUrl = typeof allImages[selectedImage] === 'string' 
+                      ? allImages[selectedImage] 
+                      : allImages[selectedImage]?.url;
+                    
+                    return <img src={imageUrl} alt={product.name} className={styles.image} />;
+                  })()}
                 </div>
                 
-                {/* Thumbnails */}
-                {(selectedVariationProduct || product).images && (selectedVariationProduct || product).images.length > 1 && (
-                  <div className={styles.thumbnailGrid}>
-                    {(selectedVariationProduct || product).images.map((image, index) => (
-                      <div 
-                        key={index}
-                        className={`${styles.thumbnail} ${index === selectedImage ? styles.selected : ''}`}
-                        onClick={() => setSelectedImage(index)}
-                      >
-                        <img src={image} alt={`${product.name} ${index + 1}`} />
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {/* Grouped Thumbnails: [Parent] [Child1] [Child2] etc */}
+                {(() => {
+                  const parentImages = product.images || [];
+                  const childImages = selectedVariationProduct ? (selectedVariationProduct.images || []) : [];
+                  const allImages = [...parentImages, ...childImages];
+                  
+                  if (allImages.length <= 1) return null;
+                  
+                  return (
+                    <div className={styles.thumbnailContainer}>
+                      {/* Parent Images Group */}
+                      {parentImages.length > 0 && (
+                        <div className={styles.thumbnailGroup}>
+                          <div className={styles.thumbnailGroupLabel}>Parent Product</div>
+                          <div className={styles.thumbnailGrid}>
+                            {parentImages.map((image, index) => {
+                              const imageUrl = typeof image === 'string' ? image : image.url;
+                              const isPrimary = typeof image === 'object' && image.is_primary;
+                              return (
+                                <div 
+                                  key={`parent-${index}`}
+                                  className={`${styles.thumbnail} ${index === selectedImage ? styles.selected : ''} ${isPrimary ? styles.primary : ''}`}
+                                  onClick={() => setSelectedImage(index)}
+                                >
+                                  <img src={imageUrl} alt={`${product.name} ${index + 1}`} />
+                                  {isPrimary && <div className={styles.primaryBadge}>★</div>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Child Images Group */}
+                      {childImages.length > 0 && selectedVariationProduct && (
+                        <div className={styles.thumbnailGroup}>
+                          <div className={styles.thumbnailGroupLabel}>{selectedVariationProduct.name}</div>
+                          <div className={styles.thumbnailGrid}>
+                            {childImages.map((image, index) => {
+                              const imageUrl = typeof image === 'string' ? image : image.url;
+                              const isPrimary = typeof image === 'object' && image.is_primary;
+                              const actualIndex = parentImages.length + index;
+                              return (
+                                <div 
+                                  key={`child-${index}`}
+                                  className={`${styles.thumbnail} ${actualIndex === selectedImage ? styles.selected : ''} ${isPrimary ? styles.primary : ''}`}
+                                  onClick={() => setSelectedImage(actualIndex)}
+                                >
+                                  <img src={imageUrl} alt={`${selectedVariationProduct.name} ${index + 1}`} />
+                                  {isPrimary && <div className={styles.primaryBadge}>★</div>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Product Details Section - Right */}
@@ -408,16 +492,39 @@ export default function ProductView() {
                   </h1>
                   
                   {/* Artist Info Icon */}
-                  <div className={styles.artistInfoTag}>
-                    <button 
-                      onClick={() => setShowArtistModal(true)}
-                      className={styles.artistInfoButton}
-                    >
-                      <span className={styles.infoIcon}>ℹ️</span>
-                      Learn about the artist
-                    </button>
+                  <div style={{ 
+                    fontSize: '14px', 
+                    color: '#666', 
+                    marginTop: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontFamily: 'var(--font-body)',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => setShowArtistModal(true)}
+                  >
+                    <span style={{ 
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '50%',
+                      border: '1.5px solid #666',
+                      fontSize: '11px',
+                      fontWeight: 'bold'
+                    }}>i</span>
+                    Learn about the artist
                   </div>
                 </div>
+
+                {/* Short Description */}
+                {product.short_description && (
+                  <div className={styles.shortDescription}>
+                    {product.short_description}
+                  </div>
+                )}
 
                 {/* Show price for simple products only */}
                 {product.product_type !== 'variable' && (
@@ -429,13 +536,6 @@ export default function ProductView() {
                       size="large"
                       layout="stacked"
                     />
-                  </div>
-                )}
-
-                {/* Short Description */}
-                {product.short_description && (
-                  <div className={styles.shortDescription}>
-                    {product.short_description}
                   </div>
                 )}
 
@@ -463,11 +563,28 @@ export default function ProductView() {
                   </div>
 
                   <div className={styles.addToCart}>
-                    <div className={styles.quantity}>
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '0',
+                      border: '1px solid #ccc',
+                      borderRadius: '0px',
+                      width: 'fit-content',
+                      overflow: 'hidden'
+                    }}>
                       <button 
                         onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                        className={styles.quantityButton}
                         disabled={(product.inventory?.qty_available || 0) === 0}
+                        style={{
+                          background: 'white',
+                          border: 'none',
+                          borderRight: '1px solid #ccc',
+                          padding: '8px 16px',
+                          cursor: 'pointer',
+                          fontSize: '16px',
+                          fontWeight: 'bold',
+                          color: '#595b5d'
+                        }}
                       >
                         -
                       </button>
@@ -477,13 +594,29 @@ export default function ProductView() {
                         onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
                         min="1"
                         max={product.inventory?.qty_available || 0}
-                        className={styles.quantityInput}
                         disabled={(product.inventory?.qty_available || 0) === 0}
+                        style={{
+                          border: 'none',
+                          padding: '8px',
+                          width: '60px',
+                          textAlign: 'center',
+                          fontSize: '16px',
+                          margin: 0
+                        }}
                       />
                       <button 
                         onClick={() => setQuantity(Math.min(product.inventory?.qty_available || 0, quantity + 1))}
-                        className={styles.quantityButton}
                         disabled={(product.inventory?.qty_available || 0) === 0}
+                        style={{
+                          background: 'white',
+                          border: 'none',
+                          borderLeft: '1px solid #ccc',
+                          padding: '8px 16px',
+                          cursor: 'pointer',
+                          fontSize: '16px',
+                          fontWeight: 'bold',
+                          color: '#595b5d'
+                        }}
                       >
                         +
                       </button>
@@ -491,8 +624,12 @@ export default function ProductView() {
 
                     <button 
                       onClick={handleAddToCart}
-                      className={styles.addToCartButton}
                       disabled={(product.inventory?.qty_available || 0) === 0}
+                      className="secondary"
+                      style={{ 
+                        marginLeft: '10px',
+                        padding: '10px 20px'
+                      }}
                     >
                       Add to Cart
                     </button>
@@ -513,87 +650,88 @@ export default function ProductView() {
             </div>
           </div>
 
-          {/* Full Description Section */}
-          {product.description && (
-            <div className={styles.descriptionCard}>
-              <h2 className={styles.sectionTitle}>Description</h2>
-              <div className={styles.fullDescription}>
-                {product.description}
-              </div>
-            </div>
-          )}
-
           {/* Details Card with Tabs */}
           <div className={styles.detailsCard}>
-            <div className={styles.tabsContainer}>
-              <div className={styles.tabHeaders}>
-                <button 
-                  className={`${styles.tabHeader} ${activeTab === 'dimensions' ? styles.activeTab : ''}`}
-                  onClick={() => setActiveTab('dimensions')}
-                >
-                  Dimensions
-                </button>
-                <button 
-                  className={`${styles.tabHeader} ${activeTab === 'policies' ? styles.activeTab : ''}`}
-                  onClick={() => setActiveTab('policies')}
-                >
-                  Artist Policies
-                </button>
-              </div>
+            <h2 className={styles.sectionTitle}>More about this...</h2>
+            <div className="tab-container">
+              <button 
+                className={`tab ${activeTab === 'description' ? 'active' : ''}`}
+                onClick={() => setActiveTab('description')}
+              >
+                Description
+              </button>
+              <button 
+                className={`tab ${activeTab === 'dimensions' ? 'active' : ''}`}
+                onClick={() => setActiveTab('dimensions')}
+              >
+                Dimensions
+              </button>
+              <button 
+                className={`tab ${activeTab === 'policies' ? 'active' : ''}`}
+                onClick={() => setActiveTab('policies')}
+              >
+                Artist Policies
+              </button>
+            </div>
+            
+            <div className={styles.tabContent}>
+              {activeTab === 'description' && (
+                <div className={styles.fullDescription}>
+                  {product.description || 'No description available.'}
+                </div>
+              )}
               
-              <div className={styles.tabContent}>
-                {activeTab === 'dimensions' && (
-                  <div className={styles.dimensions}>
-                    <div className={styles.dimensionGrid}>
-                      <div className={styles.dimension}>
-                        <span>Width:</span>
-                        <span>{(selectedVariationProduct || product).width} {(selectedVariationProduct || product).dimension_unit}</span>
-                      </div>
-                      <div className={styles.dimension}>
-                        <span>Height:</span>
-                        <span>{(selectedVariationProduct || product).height} {(selectedVariationProduct || product).dimension_unit}</span>
-                      </div>
-                      <div className={styles.dimension}>
-                        <span>Depth:</span>
-                        <span>{(selectedVariationProduct || product).depth} {(selectedVariationProduct || product).dimension_unit}</span>
-                      </div>
-                      <div className={styles.dimension}>
-                        <span>Weight:</span>
-                        <span>{(selectedVariationProduct || product).weight} {(selectedVariationProduct || product).weight_unit}</span>
-                      </div>
-                      <div className={styles.dimension}>
-                        <span>Returns:</span>
-                        <span>
-                          {(selectedVariationProduct || product).allow_returns !== false ? (
-                            <span style={{ color: '#28a745' }}>✓ Returns Accepted</span>
-                          ) : (
-                            <span style={{ color: '#dc3545' }}>✗ No Returns</span>
-                          )}
-                        </span>
-                      </div>
+              {activeTab === 'dimensions' && (
+                <div className={styles.dimensions}>
+                  <div className={styles.dimensionGrid}>
+                    <div className={styles.dimension}>
+                      <span>Width:</span>
+                      <span>{(selectedVariationProduct || product).width} {(selectedVariationProduct || product).dimension_unit}</span>
+                    </div>
+                    <div className={styles.dimension}>
+                      <span>Height:</span>
+                      <span>{(selectedVariationProduct || product).height} {(selectedVariationProduct || product).dimension_unit}</span>
+                    </div>
+                    <div className={styles.dimension}>
+                      <span>Depth:</span>
+                      <span>{(selectedVariationProduct || product).depth} {(selectedVariationProduct || product).dimension_unit}</span>
+                    </div>
+                    <div className={styles.dimension}>
+                      <span>Weight:</span>
+                      <span>{(selectedVariationProduct || product).weight} {(selectedVariationProduct || product).weight_unit}</span>
+                    </div>
+                    <div className={styles.dimension}>
+                      <span>Returns:</span>
+                      <span>
+                        {(selectedVariationProduct || product).allow_returns !== false ? (
+                          <span style={{ color: '#28a745' }}>✓ Returns Accepted</span>
+                        ) : (
+                          <span style={{ color: '#dc3545' }}>✗ No Returns</span>
+                        )}
+                      </span>
                     </div>
                   </div>
-                )}
-                
-                {activeTab === 'policies' && (
-                  <div className={styles.policies}>
-                    <div className={styles.policyButtons}>
-                      <button 
-                        className={styles.policyButton}
-                        onClick={() => handlePolicyClick('shipping')}
-                      >
-                        📦 Shipping Policy
-                      </button>
-                      <button 
-                        className={styles.policyButton}
-                        onClick={() => handlePolicyClick('return')}
-                      >
-                        🔄 Returns Policy
-                      </button>
-                    </div>
+                </div>
+              )}
+              
+              {activeTab === 'policies' && (
+                <div className={styles.policies}>
+                  <div className={styles.policyButtons}>
+                    <button 
+                      className="secondary"
+                      onClick={() => handlePolicyClick('shipping')}
+                    >
+                      Shipping Policy
+                    </button>
+                    <button 
+                      className="secondary"
+                      onClick={() => handlePolicyClick('return')}
+                    >
+                      Returns Policy
+                    </button>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -683,4 +821,4 @@ export default function ProductView() {
       )}
     </>
   );
-} 
+}

@@ -9,7 +9,8 @@ const profilesDir = path.join(uploadDir, 'profiles');
 const eventsDir = path.join(uploadDir, 'events');
 const sitesDir = path.join(uploadDir, 'sites');
 const juryDir = path.join(uploadDir, 'jury');
-[productsDir, profilesDir, eventsDir, sitesDir, juryDir].forEach(dir => {
+const categoriesDir = path.join(uploadDir, 'categories');
+[productsDir, profilesDir, eventsDir, sitesDir, juryDir, categoriesDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -27,6 +28,8 @@ const storage = multer.diskStorage({
       cb(null, juryDir);
     } else if (file.fieldname === 'images' && req.originalUrl && req.originalUrl.includes('/api/events/upload')) {
       cb(null, eventsDir);
+    } else if (file.fieldname === 'images' && req.originalUrl && req.originalUrl.includes('/api/categories/upload')) {
+      cb(null, categoriesDir);
     } else {
       cb(null, productsDir);
     }
@@ -51,6 +54,10 @@ const storage = multer.diskStorage({
       // For event images
       const eventId = req.query.event_id || 'new';
       filename = `${req.userId}-${eventId}-${uniqueSuffix}${path.extname(file.originalname).toLowerCase()}`;
+    } else if (file.fieldname === 'images' && req.originalUrl && req.originalUrl.includes('/api/categories/upload')) {
+      // For category images
+      const categoryId = req.query.category_id || 'new';
+      filename = `${req.userId}-${categoryId}-${uniqueSuffix}${path.extname(file.originalname).toLowerCase()}`;
     } else {
       // For product images
       filename = `${req.userId}-${req.query.product_id}-${uniqueSuffix}${path.extname(file.originalname).toLowerCase()}`;

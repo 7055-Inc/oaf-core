@@ -14,6 +14,8 @@ export async function checklist(req) {
       path.startsWith('/articles') ||
       path.startsWith('/topics') ||
       path.startsWith('/artist-storefront') ||
+      path.startsWith('/redirects/') ||
+      path === '/marketplace' ||
       path === '/login' || 
       path === '/signup' || 
       path === '/terms-acceptance' ||

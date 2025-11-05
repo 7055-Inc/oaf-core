@@ -8,6 +8,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
+const EmailService = require('../services/emailService');
 const upload = require('../config/multer');
 const { enhanceUserProfileWithMedia } = require('../utils/mediaUtils');
 const path = require('path');
@@ -789,7 +790,7 @@ router.patch('/me',
         // Create or update marketplace application
         const profileData = userProfile[0] ? JSON.stringify(userProfile[0]) : null;
         
-        await db.query(
+        const [applicationResult] = await db.query(
           `INSERT INTO marketplace_applications (
             user_id, work_description, additional_info, profile_data,
             raw_materials_media_id, work_process_1_media_id, work_process_2_media_id, work_process_3_media_id,
@@ -826,6 +827,29 @@ router.patch('/me',
             juryMediaIds['jury_additional_video'] || null
           ]
         );
+
+        // Send submission email for new applications
+        if (applicationResult.insertId) {
+          try {
+            const emailService = new EmailService();
+            const artistName = userProfile[0]?.first_name && userProfile[0]?.last_name 
+              ? `${userProfile[0].first_name} ${userProfile[0].last_name}`
+              : userProfile[0]?.username || 'Artist';
+            
+            const templateData = {
+              artist_name: artistName,
+              application_id: applicationResult.insertId,
+              submission_date: new Date().toLocaleDateString('en-US', {
+                year: 'numeric', month: 'long', day: 'numeric'
+              })
+            };
+
+            await emailService.sendEmail(req.userId, 'marketplace_application_submitted', templateData);
+          } catch (emailError) {
+            console.error('Failed to send submission email:', emailError);
+            // Don't fail the submission if email fails
+          }
+        }
       }
 
       res.json({ 
@@ -1396,9 +1420,8 @@ router.get('/profile-completion-status', verifyToken, async (req, res) => {
 router.patch('/complete-profile', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
-    const { first_name, last_name, address_line1, city, state, postal_code, phone, business_name } = req.body;
     
-    // Get current user type to validate requirements
+    // Get current user type
     const [user] = await db.query('SELECT user_type FROM users WHERE id = ?', [userId]);
     if (!user[0]) {
       return res.status(404).json({ error: 'User not found' });
@@ -1406,53 +1429,66 @@ router.patch('/complete-profile', verifyToken, async (req, res) => {
     
     const userType = user[0].user_type;
     
-    // Validate required fields
-    const baseRequiredFields = { first_name, last_name, address_line1, city, state, postal_code, phone };
+    // Validate only fields that are present in the request
+    const profileFields = ['first_name', 'last_name', 'address_line1', 'city', 'state', 'postal_code', 'phone'];
+    const updates = {};
     
-    for (const [field, value] of Object.entries(baseRequiredFields)) {
-      if (!value || value.trim() === '') {
-        return res.status(400).json({ 
-          error: `${field.replace('_', ' ')} is required`,
-          field: field 
-        });
+    for (const field of profileFields) {
+      if (req.body.hasOwnProperty(field)) {
+        if (!req.body[field] || req.body[field].trim() === '') {
+          return res.status(400).json({ 
+            error: `${field.replace(/_/g, ' ')} cannot be empty`,
+            field: field 
+          });
+        }
+        updates[field] = req.body[field];
       }
     }
     
-    // Check business_name for artists and promoters
-    if ((userType === 'artist' || userType === 'promoter') && (!business_name || business_name.trim() === '')) {
-      return res.status(400).json({ 
-        error: 'Business name is required for ' + userType + 's',
-        field: 'business_name' 
-      });
+    // Validate business_name if present
+    if (req.body.hasOwnProperty('business_name')) {
+      if ((userType === 'artist' || userType === 'promoter')) {
+        if (!req.body.business_name || req.body.business_name.trim() === '') {
+          return res.status(400).json({ 
+            error: 'Business name cannot be empty',
+            field: 'business_name' 
+          });
+        }
+      }
     }
     
-    // Ensure user_profiles record exists, then update base profile (no business_name here)
-    await db.query(
-      'INSERT INTO user_profiles (user_id) VALUES (?) ON DUPLICATE KEY UPDATE user_id = user_id',
-      [userId]
-    );
-    
-    await db.query(
-      'UPDATE user_profiles SET first_name = ?, last_name = ?, address_line1 = ?, city = ?, state = ?, postal_code = ?, phone = ? WHERE user_id = ?',
-      [first_name, last_name, address_line1, city, state, postal_code, phone, userId]
-    );
-    
-    // Update business_name in appropriate table based on user type
-    if (userType === 'artist' && business_name) {
+    // Update user_profiles if there are profile fields
+    if (Object.keys(updates).length > 0) {
       await db.query(
-        'INSERT INTO artist_profiles (user_id, business_name) VALUES (?, ?) ON DUPLICATE KEY UPDATE business_name = ?',
-        [userId, business_name, business_name]
+        'INSERT INTO user_profiles (user_id) VALUES (?) ON DUPLICATE KEY UPDATE user_id = user_id',
+        [userId]
       );
-    } else if (userType === 'promoter' && business_name) {
+      
+      const setClauses = Object.keys(updates).map(k => `${k} = ?`).join(', ');
       await db.query(
-        'INSERT INTO promoter_profiles (user_id, business_name) VALUES (?, ?) ON DUPLICATE KEY UPDATE business_name = ?',
-        [userId, business_name, business_name]
+        `UPDATE user_profiles SET ${setClauses} WHERE user_id = ?`,
+        [...Object.values(updates), userId]
       );
+    }
+    
+    // Update business_name if present
+    if (req.body.business_name) {
+      if (userType === 'artist') {
+        await db.query(
+          'INSERT INTO artist_profiles (user_id, business_name) VALUES (?, ?) ON DUPLICATE KEY UPDATE business_name = ?',
+          [userId, req.body.business_name, req.body.business_name]
+        );
+      } else if (userType === 'promoter') {
+        await db.query(
+          'INSERT INTO promoter_profiles (user_id, business_name) VALUES (?, ?) ON DUPLICATE KEY UPDATE business_name = ?',
+          [userId, req.body.business_name, req.body.business_name]
+        );
+      }
     }
     
     res.json({ 
       success: true, 
-      message: 'Profile completed successfully' 
+      message: 'Profile updated successfully' 
     });
     
   } catch (err) {

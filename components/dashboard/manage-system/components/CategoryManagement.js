@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { getApiUrl } from '../../../../lib/config';
+import { authenticatedApiRequest } from '../../../../lib/csrf';
 
 export default function CategoryManagement() {
   const [categories, setCategories] = useState([]);
@@ -63,8 +64,8 @@ export default function CategoryManagement() {
       
       // Save basic category info
       const url = editingCategory 
-        ? `categories/${editingCategory.id}`
-        : 'categories';
+        ? getApiUrl(`categories/${editingCategory.id}`)
+        : getApiUrl('categories');
       
       const method = editingCategory ? 'PUT' : 'POST';
       
@@ -90,7 +91,7 @@ export default function CategoryManagement() {
 
       // If editing existing category, also save content and SEO
       if (editingCategory && contentData) {
-        await fetch(`categories/content/${editingCategory.id}`, {
+        await fetch(getApiUrl(`categories/content/${editingCategory.id}`), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify(contentData)
@@ -98,7 +99,7 @@ export default function CategoryManagement() {
       }
 
       if (editingCategory && seoData) {
-        await fetch(`categories/seo/${editingCategory.id}`, {
+        await fetch(getApiUrl(`categories/seo/${editingCategory.id}`), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify(seoData)
@@ -152,7 +153,7 @@ export default function CategoryManagement() {
         throw new Error('No authentication token found');
       }
       
-      const res = await fetch(`categories/${categoryId}`, {
+      const res = await fetch(getApiUrl(`categories/${categoryId}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -253,10 +254,10 @@ export default function CategoryManagement() {
       }
       
       const [contentRes, seoRes] = await Promise.all([
-        fetch(`categories/content/${categoryId}`, {
+        fetch(getApiUrl(`categories/content/${categoryId}`), {
           headers: { 'Authorization': `Bearer ${token}` }
         }).then(r => r.json()),
-        fetch(`categories/seo/${categoryId}`, {
+        fetch(getApiUrl(`categories/seo/${categoryId}`), {
           headers: { 'Authorization': `Bearer ${token}` }
         }).then(r => r.json())
       ]);
@@ -267,44 +268,46 @@ export default function CategoryManagement() {
     }
   };
 
-  // Handle image upload
+  // Handle image upload using the standard media system
   const handleImageUpload = async (file, imageType) => {
     if (!file || !editingCategory) return;
     
     setUploadingImage(true);
     const formData = new FormData();
-    formData.append('image', file);
-    formData.append('categoryId', editingCategory.id);
-    formData.append('imageType', imageType);
+    formData.append('images', file); // Use 'images' to match the backend expectation
 
     try {
-      const token = document.cookie.split('token=')[1]?.split(';')[0];
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-      
-      const response = await fetch('/api/upload-category-images', {
-        method: 'POST',
-        body: formData,
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await authenticatedApiRequest(
+        getApiUrl(`categories/upload?category_id=${editingCategory.id}`),
+        {
+          method: 'POST',
+          body: formData
+        }
+      );
       
       if (response.ok) {
         const result = await response.json();
-        setContentData(prev => ({
-          ...prev,
-          [imageType === 'hero' ? 'hero_image' : 'banner']: result.url
-        }));
-        setImagePreview(prev => ({
-          ...prev,
-          [imageType]: URL.createObjectURL(file)
-        }));
+        const uploadedUrl = result.urls && result.urls[0]; // Get first uploaded URL
+        
+        if (uploadedUrl) {
+          setContentData(prev => ({
+            ...prev,
+            [imageType === 'hero' ? 'hero_image' : 'banner']: uploadedUrl
+          }));
+          setImagePreview(prev => ({
+            ...prev,
+            [imageType]: URL.createObjectURL(file)
+          }));
+        } else {
+          throw new Error('No URL returned from upload');
+        }
       } else {
-        alert('Image upload failed');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Image upload failed');
       }
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Image upload failed');
+      alert(`Image upload failed: ${error.message}`);
     } finally {
       setUploadingImage(false);
     }

@@ -21,7 +21,6 @@ export default function ManageUsers() {
   const [newUser, setNewUser] = useState({
     // Base user fields
     username: '',
-    email: '',
     user_type: 'artist',
     status: 'draft',
     email_verified: 'no',
@@ -237,9 +236,26 @@ export default function ManageUsers() {
     }
   };
 
-  const handleEdit = (user) => {
-    setEditingUser({ ...user });
-    setShowEditModal(true);
+  const handleEdit = async (user) => {
+    try {
+      // Fetch complete user data including profile information
+      const response = await authenticatedApiRequest(getApiUrl(`admin/users/${user.id}`), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch user details');
+      }
+
+      const userData = await response.json();
+      setEditingUser(userData);
+      setShowEditModal(true);
+    } catch (err) {
+      setError(`Failed to load user details: ${err.message}`);
+    }
   };
 
   const handleDelete = (user) => {
@@ -300,7 +316,6 @@ export default function ManageUsers() {
       setEditingUser(null);
       setNewUser({
         username: '',
-        email: '',
         user_type: 'artist',
         status: 'draft',
         email_verified: 'no',
@@ -931,8 +946,7 @@ function UserEditModal({ user, onSave, onCancel, isCreating = false }) {
                 borderBottom: '2px solid #495057',
                 paddingBottom: '8px'
               }}>Basic Information</h4>
-              {renderField('Username', 'username', 'text', true)}
-              {renderField('Email', 'email', 'email', true)}
+              {renderField('Username (Email)', 'username', 'text', true)}
               {renderField('User Type', 'user_type', 'select', true, [
                 { value: 'artist', label: 'Artist' },
                 { value: 'promoter', label: 'Promoter' },
@@ -969,20 +983,18 @@ function UserEditModal({ user, onSave, onCancel, isCreating = false }) {
               {renderField('Job Title', 'job_title')}
               {renderField('Bio', 'bio', 'textarea')}
               {renderField('Birth Date', 'birth_date', 'date')}
-              {renderField('Gender', 'gender')}
+              {renderField('Gender', 'gender', 'select', false, [
+                { value: 'Male', label: 'Male' },
+                { value: 'Female', label: 'Female' },
+                { value: 'Custom', label: 'Custom' },
+                { value: 'Prefer Not to Say', label: 'Prefer Not to Say' }
+              ])}
               {renderField('Nationality', 'nationality')}
               {renderField('Languages Known', 'languages_known', 'array')}
-              {renderField('Education', 'education', 'array')}
-              {renderField('Awards', 'awards', 'array')}
-              {renderField('Memberships', 'memberships', 'array')}
-              {renderField('Follows', 'follows', 'array')}
+              {renderField('Education', 'education', 'textarea')}
+              {renderField('Awards', 'awards', 'textarea')}
+              {renderField('Memberships', 'memberships', 'textarea')}
               {renderField('Timezone', 'timezone')}
-              {renderField('Preferred Currency', 'preferred_currency')}
-              {renderField('Profile Visibility', 'profile_visibility', 'select', false, [
-                { value: 'public', label: 'Public' },
-                { value: 'private', label: 'Private' },
-                { value: 'connections_only', label: 'Connections Only' }
-              ])}
               {renderField('Profile Image Path', 'profile_image_path')}
               {renderField('Header Image Path', 'header_image_path')}
               {renderField('Website', 'website')}
@@ -1018,90 +1030,85 @@ function UserEditModal({ user, onSave, onCancel, isCreating = false }) {
               <h4>Artist Details</h4>
               {renderField('Business Name', 'business_name')}
               {renderField('Artist Biography', 'artist_biography', 'textarea')}
-              {renderField('Business Phone', 'business_phone')}
-              {renderField('Business Website', 'business_website')}
-              {renderField('Customer Service Email', 'customer_service_email')}
-              {renderField('Legal Name', 'legal_name')}
-              {renderField('Tax ID', 'tax_id')}
               {renderField('Art Categories', 'art_categories', 'array')}
               {renderField('Art Mediums', 'art_mediums', 'array')}
-              {renderField('Art Forms', 'art_forms', 'array')}
-              {renderField('Art Style', 'art_style')}
-              {renderField('Art Genres', 'art_genres', 'array')}
               {renderField('Does Custom Work', 'does_custom', 'select', false, [
                 { value: 'yes', label: 'Yes' },
                 { value: 'no', label: 'No' }
               ])}
-              {renderField('Commission Status', 'commission_status', 'select', false, [
-                { value: 'open', label: 'Open' },
-                { value: 'closed', label: 'Closed' },
-                { value: 'waitlist', label: 'Waitlist' }
-              ])}
-              {renderField('Price Range', 'price_range')}
-              {renderField('Business Size', 'business_size')}
+              {renderField('Custom Details', 'custom_details', 'textarea')}
+              <h5 style={{ marginTop: '20px', marginBottom: '10px', color: '#495057' }}>Business Information</h5>
+              {renderField('Business Phone', 'business_phone', 'tel')}
+              {renderField('Business Website', 'business_website')}
+              {renderField('Customer Service Email', 'customer_service_email', 'email')}
+              {renderField('Legal Name', 'legal_name')}
+              {renderField('Tax ID', 'tax_id')}
               {renderField('Founding Date', 'founding_date', 'date')}
-              {renderField('Slogan', 'slogan')}
               {renderField('Logo Path', 'logo_path')}
+              <h5 style={{ marginTop: '20px', marginBottom: '10px', color: '#495057' }}>Studio Address</h5>
               {renderField('Studio Address Line 1', 'studio_address_line1')}
               {renderField('Studio Address Line 2', 'studio_address_line2')}
               {renderField('Studio City', 'studio_city')}
               {renderField('Studio State', 'studio_state')}
               {renderField('Studio Zip', 'studio_zip')}
-              {renderField('Business Social Facebook', 'business_social_facebook')}
-              {renderField('Business Social Instagram', 'business_social_instagram')}
-              {renderField('Business Social TikTok', 'business_social_tiktok')}
-              {renderField('Business Social Twitter', 'business_social_twitter')}
-              {renderField('Business Social Pinterest', 'business_social_pinterest')}
-              {renderField('Teaching Credentials', 'teaching_credentials', 'array')}
-              {renderField('Exhibitions', 'exhibitions', 'array')}
-              {renderField('Collections', 'collections', 'array')}
-              {renderField('Publications', 'publications', 'array')}
-              {renderField('Payment Methods', 'payment_methods', 'array')}
-              {renderField('Service Area', 'service_area', 'array')}
-              {renderField('Business Hours', 'business_hours', 'array')}
+              <h5 style={{ marginTop: '20px', marginBottom: '10px', color: '#495057' }}>Business Social Media</h5>
+              {renderField('Business Facebook', 'business_social_facebook')}
+              {renderField('Business Instagram', 'business_social_instagram')}
+              {renderField('Business TikTok', 'business_social_tiktok')}
+              {renderField('Business Twitter', 'business_social_twitter')}
+              {renderField('Business Pinterest', 'business_social_pinterest')}
             </div>
           )}
 
           {activeTab === 'promoter' && formData.user_type === 'promoter' && (
             <div className={styles.formSection}>
               <h4>Promoter Details</h4>
-              {renderField('Organization Name', 'organization_name')}
-              {renderField('Organization Type', 'organization_type')}
-              {renderField('Promoter Biography', 'promoter_biography', 'textarea')}
-              {renderField('Contact Person', 'contact_person')}
-              {renderField('Contact Phone', 'contact_phone')}
-              {renderField('Contact Email', 'contact_email')}
-              {renderField('Website URL', 'website_url')}
-              {renderField('Years Experience', 'years_experience')}
-              {renderField('Events Managed', 'events_managed', 'array')}
-              {renderField('Specialties', 'specialties', 'array')}
-              {renderField('Social Media Links', 'social_media_links', 'array')}
-              {renderField('Service Areas', 'service_areas', 'array')}
-              {renderField('Certifications', 'certifications', 'array')}
-              {renderField('Partnerships', 'partnerships', 'array')}
+              {renderField('Business Name', 'business_name')}
+              {renderField('Business Phone', 'business_phone', 'tel')}
+              {renderField('Business Website', 'business_website')}
+              {renderField('Is Non-Profit', 'is_non_profit', 'select', false, [
+                { value: 'yes', label: 'Yes' },
+                { value: 'no', label: 'No' }
+              ])}
+              {renderField('Legal Name', 'legal_name')}
+              {renderField('Tax ID', 'tax_id')}
+              {renderField('Founding Date', 'founding_date', 'date')}
+              {renderField('Organization Size', 'organization_size')}
+              {renderField('Logo Path', 'logo_path')}
+              {renderField('Upcoming Events', 'upcoming_events', 'textarea')}
+              {renderField('Sponsorship Options', 'sponsorship_options', 'textarea')}
+              <h5 style={{ marginTop: '20px', marginBottom: '10px', color: '#495057' }}>Office Address</h5>
+              {renderField('Office Address Line 1', 'office_address_line1')}
+              {renderField('Office Address Line 2', 'office_address_line2')}
+              {renderField('Office City', 'office_city')}
+              {renderField('Office State', 'office_state')}
+              {renderField('Office Zip', 'office_zip')}
+              <h5 style={{ marginTop: '20px', marginBottom: '10px', color: '#495057' }}>Business Social Media</h5>
+              {renderField('Business Facebook', 'business_social_facebook')}
+              {renderField('Business Instagram', 'business_social_instagram')}
+              {renderField('Business TikTok', 'business_social_tiktok')}
+              {renderField('Business Twitter', 'business_social_twitter')}
+              {renderField('Business Pinterest', 'business_social_pinterest')}
             </div>
           )}
 
           {activeTab === 'community' && formData.user_type === 'community' && (
             <div className={styles.formSection}>
               <h4>Community Details</h4>
-              {renderField('Community Name', 'community_name')}
-              {renderField('Community Type', 'community_type')}
-              {renderField('Community Description', 'community_description', 'textarea')}
-              {renderField('Member Count', 'member_count')}
-              {renderField('Founded Date', 'founded_date', 'date')}
-              {renderField('Meeting Schedule', 'meeting_schedule')}
-              {renderField('Contact Info', 'contact_info')}
-              {renderField('Membership Requirements', 'membership_requirements')}
-              {renderField('Social Links', 'social_links', 'array')}
-              {renderField('Activities', 'activities', 'array')}
+              <p style={{ color: '#6c757d', fontSize: '14px', marginBottom: '15px' }}>
+                Community profiles store art preferences and interests in JSON format.
+              </p>
+              {renderField('Art Style Preferences', 'art_style_preferences', 'textarea')}
+              {renderField('Favorite Colors', 'favorite_colors', 'textarea')}
+              {renderField('Art Interests', 'art_interests', 'textarea')}
+              {renderField('Wishlist', 'wishlist', 'textarea')}
             </div>
           )}
 
           {activeTab === 'admin' && formData.user_type === 'admin' && (
             <div className={styles.formSection}>
               <h4>Admin Details</h4>
-              {renderField('Admin Title', 'admin_title')}
+              {renderField('Title', 'title')}
             </div>
           )}
         </div>

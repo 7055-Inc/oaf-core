@@ -118,32 +118,47 @@ export default function ManageSubscriptions({ userData }) {
   };
 
   const loadVerificationSubscription = async () => {
-    // Verification subscription would need API endpoint
-    // For now, check permissions
-    const hasVerified = userData?.permissions?.includes('verified');
-    if (hasVerified) {
-      return {
-        type: 'verification',
-        status: 'active',
-        plan: 'Artist Verification',
-        monthlyPrice: 4.17, // $50/year = $4.17/month
-        features: ['Verified Badge', 'Enhanced Profile', 'Priority Support']
-      };
+    // Verification subscription - check via new universal flow API
+    try {
+      const response = await authApiRequest('api/subscriptions/verified/my');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.has_permission) {
+          return {
+            type: 'verification',
+            status: data.subscription?.status || 'active',
+            plan: 'Artist Verification',
+            annualPrice: 50, // $50/year
+            isAnnual: true,
+            features: ['Verified Badge', 'Enhanced Profile', 'Priority Support']
+          };
+        }
+      }
+    } catch (error) {
+      console.error('Error loading verification subscription:', error);
     }
     return null;
   };
 
   const loadMarketplaceSubscription = async () => {
-    // Marketplace is typically free with addons
-    const hasMarketplace = userData?.permissions?.includes('marketplace');
-    if (hasMarketplace) {
-      return {
-        type: 'marketplace',
-        status: 'active',
-        plan: 'Marketplace (Free)',
-        monthlyPrice: 0,
-        features: ['Sell on Marketplace', 'Wholesale Pricing', 'Add-on Support']
-      };
+    // Marketplace subscription - check via new universal flow API
+    try {
+      const response = await authApiRequest('api/subscriptions/verified/my');
+      if (response.ok) {
+        const data = await response.json();
+        // Check if user has marketplace tier specifically
+        if (data.subscription?.tier === 'Marketplace Seller' && data.has_permission) {
+          return {
+            type: 'marketplace',
+            status: data.subscription?.status || 'active',
+            plan: 'Marketplace Seller',
+            monthlyPrice: 0, // Free
+            features: ['Sell on Marketplace', 'FREE Verified Badge', 'Commission-based']
+          };
+        }
+      }
+    } catch (error) {
+      console.error('Error loading marketplace subscription:', error);
     }
     return null;
   };
@@ -155,7 +170,13 @@ export default function ManageSubscriptions({ userData }) {
     Object.values(subscriptionData).forEach(sub => {
       if (sub && sub.status === 'active') {
         totalActive++;
-        monthlyTotal += parseFloat(sub.monthlyPrice) || 0;
+        // Handle both monthly and annual subscriptions
+        if (sub.isAnnual && sub.annualPrice) {
+          // Don't add annual fees to monthly total
+          // They're billed separately
+        } else {
+          monthlyTotal += parseFloat(sub.monthlyPrice) || 0;
+        }
       }
     });
 
@@ -191,38 +212,73 @@ export default function ManageSubscriptions({ userData }) {
   };
 
   const handleCancelSubscription = async (subscriptionType) => {
-    if (!confirm(`Are you sure you want to cancel your ${subscriptionType} subscription?`)) {
+    const confirmMessage = `Are you sure you want to cancel your ${subscriptionType} subscription?\n\n` +
+      `Note: You'll keep access until the end of your current billing period, but your subscription won't renew.`;
+    
+    if (!confirm(confirmMessage)) {
       return;
     }
 
-    let endpoint;
-    switch (subscriptionType) {
-      case 'website':
-        endpoint = 'api/subscriptions/sites/cancel';
-        break;
-      case 'shipping':
-        endpoint = 'api/subscriptions/shipping/cancel';
-        break;
-      default:
-        throw new Error(`Cancellation not implemented for ${subscriptionType}`);
-    }
+    try {
+      // Future implementation is now active:
+      let endpoint;
+      switch (subscriptionType) {
+        case 'website':
+          endpoint = 'subscriptions/websites/cancel';
+          break;
+        case 'shipping':
+          endpoint = 'subscriptions/shipping/cancel';
+          break;
+        case 'verified':
+          endpoint = 'subscriptions/verified/cancel';
+          break;
+        case 'marketplace':
+          endpoint = 'subscriptions/verified/cancel'; // Same backend as verified
+          break;
+        default:
+          throw new Error(`Cancellation not implemented for ${subscriptionType}`);
+      }
 
-    const response = await authApiRequest(endpoint, { 
-      method: subscriptionType === 'shipping' ? 'DELETE' : 'POST' 
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Cancellation failed');
-    }
+      const response = await authApiRequest(endpoint, { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Cancellation failed');
+      }
 
-    // Force token refresh to update permissions
-    await refreshAuthToken();
+      const result = await response.json();
+      alert(`Subscription canceled successfully.\n\n${result.note || result.message}`);
+      
+      // Refresh data
+      await loadAllSubscriptions();
+      
+    } catch (error) {
+      console.error('Error canceling subscription:', error);
+      alert(`Failed to cancel subscription: ${error.message}`);
+    }
   };
 
   const handleSubscribeToService = async (subscriptionType) => {
-    // For now, show alert - would implement subscription flows
-    alert(`Subscription activation for ${subscriptionType} coming soon! Please use the individual subscription pages for now.`);
+    // Open the appropriate subscription slide-in
+    const slideInTypes = {
+      'website': 'website-subscriptions',
+      'shipping': 'shipping-labels-subscriptions',
+      'verification': 'verified-subscriptions',
+      'marketplace': 'marketplace-subscriptions'
+    };
+    
+    const slideInType = slideInTypes[subscriptionType];
+    if (slideInType) {
+      // Trigger slide-in open event (parent dashboard will handle)
+      window.dispatchEvent(new CustomEvent('openSlideIn', { 
+        detail: { type: slideInType } 
+      }));
+    } else {
+      alert(`Subscription activation for ${subscriptionType} coming soon!`);
+    }
   };
 
   if (loading) {
@@ -244,14 +300,6 @@ export default function ManageSubscriptions({ userData }) {
 
   return (
     <div style={{ padding: '20px' }}>
-      {/* Header */}
-      <div style={{ marginBottom: '30px' }}>
-        <h2 style={{ margin: '0 0 10px 0', color: '#2c3e50' }}>Subscription Management</h2>
-        <p style={{ margin: '0', color: '#6c757d' }}>
-          Manage all your active subscriptions and billing information
-        </p>
-      </div>
-
       {error && (
         <div style={{ 
           padding: '15px', 
@@ -359,17 +407,18 @@ function SubscriptionTable({ subscriptions, userData, onAction, onRefresh }) {
       id: 'verification',
       name: 'Artist Verification',
       type: 'subscription',
-      monthlyFee: 4.17, // $50/year
+      annualFee: 50, // $50/year
+      isAnnual: true,
       isActive: subscriptions.verification?.status === 'active',
       description: 'Verified artist status and enhanced features'
     },
     {
       id: 'marketplace',
-      name: 'Marketplace Access',
+      name: 'Marketplace Seller',
       type: 'subscription',
       monthlyFee: 0, // Free
       isActive: subscriptions.marketplace?.status === 'active',
-      description: 'Sell products on our marketplace'
+      description: 'Sell on marketplace + FREE verified badge'
     },
     // Addons (loaded dynamically)
     ...availableAddons.map(addon => ({
@@ -425,8 +474,6 @@ function SubscriptionTable({ subscriptions, userData, onAction, onRefresh }) {
 
   return (
     <div style={{ marginBottom: '20px' }}>
-      <h3 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>Subscriptions & Add-ons</h3>
-      
       <div style={{ 
         border: '1px solid #dee2e6', 
         borderRadius: '4px', 
@@ -508,14 +555,24 @@ function SubscriptionTable({ subscriptions, userData, onAction, onRefresh }) {
               color: '#055474',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              flexDirection: 'column',
+              gap: '4px'
             }}>
               {(() => {
+                if (item.isAnnual && item.annualFee) {
+                  // Annual subscription
+                  return (
+                    <>
+                      <div>${item.annualFee.toFixed(2)}/year</div>
+                    </>
+                  );
+                }
                 const fee = parseFloat(item.monthlyFee) || 0;
-                return fee > 0 ? `$${fee.toFixed(2)}` : 'Free';
+                return fee > 0 ? `$${fee.toFixed(2)}/mo` : 'Free';
               })()}
               {item.id === 'shipping' && (
-                <div style={{ fontSize: '11px', color: '#6c757d', marginLeft: '4px' }}>
+                <div style={{ fontSize: '11px', color: '#6c757d' }}>
                   (Pay-as-you-go)
                 </div>
               )}

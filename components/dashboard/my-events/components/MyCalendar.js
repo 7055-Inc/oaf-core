@@ -148,7 +148,7 @@ export default function MyCalendar({ userData }) {
       }
 
       // Fetch application events
-      const applicationsResponse = await fetch(getApiUrl('api/applications/my-applications'), {
+      const applicationsResponse = await fetch(getApiUrl('api/applications/'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -165,8 +165,10 @@ export default function MyCalendar({ userData }) {
 
       if (applicationsResponse.ok) {
         const applicationsData = await applicationsResponse.json();
+        // Extract applications array from response object
+        const apps = applicationsData.applications || [];
         // Filter to show only relevant statuses (hide rejected/declined)
-        const relevantEvents = applicationsData.filter(app => 
+        const relevantEvents = apps.filter(app => 
           !['rejected', 'declined'].includes(app.status)
         );
         setEvents(relevantEvents);
@@ -174,7 +176,8 @@ export default function MyCalendar({ userData }) {
 
       if (customEventsResponse.ok) {
         const customData = await customEventsResponse.json();
-        setCustomEvents(customData);
+        // my-events returns array directly
+        setCustomEvents(Array.isArray(customData) ? customData : []);
       } else if (customEventsResponse.status !== 404) {
         // 404 is expected if no custom events exist
       }

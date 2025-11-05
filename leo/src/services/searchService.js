@@ -73,9 +73,16 @@ class SearchService {
     try {
       if (!this.isInitialized) await this.initialize();
 
-      const searchPromises = collections.map(collectionName =>
-        this.mainDB.semanticSearch(query, collectionName, { limit: Math.ceil(limit / collections.length) })
-      );
+      const searchPromises = collections.map(collectionName => {
+        const options = { limit: Math.ceil(limit / collections.length) };
+        
+        // Filter for active products when searching art_metadata collection
+        if (collectionName === 'art_metadata') {
+          options.filter = { status: 'active' };
+        }
+        
+        return this.mainDB.semanticSearch(query, collectionName, options);
+      });
 
       const searchResults = await Promise.all(searchPromises);
       const allResults = searchResults.flat();
@@ -205,9 +212,23 @@ RESPOND WITH VALID JSON:
       // Simple organization without Llama
       const organizedResults = this.fallbackOrganization(rawResults, categories, displayMode, limit);
 
+      // Check if we have insufficient product results and need fallback
+      const productResults = organizedResults.organized_results.products || [];
+      const requestedProducts = categories.includes('products');
+      
       if (Object.values(organizedResults.organized_results).every(arr => arr.length === 0)) {
         logger.warn('No results found, falling back to random sampling.');
         return await this.generateRandomSampling(limit, categories);
+      } else if (requestedProducts && productResults.length < Math.min(limit, 5)) {
+        logger.warn(`Insufficient products found (${productResults.length}), enhancing with random sampling.`);
+        const fallbackResults = await this.generateRandomSampling(limit - productResults.length, ['products']);
+        
+        // Merge existing results with fallback, avoiding duplicates
+        const existingIds = new Set(productResults.map(p => p.id));
+        const additionalProducts = fallbackResults.organized_results.products.filter(p => !existingIds.has(p.id));
+        
+        organizedResults.organized_results.products = [...productResults, ...additionalProducts];
+        organizedResults.organization_reasoning += ' + enhanced with random active products';
       }
 
       return {
@@ -407,7 +428,7 @@ RESPOND WITH VALID JSON:
         return this.performMainVectorSearch(
           query,
           [collection],
-          Math.ceil(limit * 4) // Get more for variety
+          Math.ceil(limit * 6) // Increased multiplier to ensure enough active products
         );
       });
 

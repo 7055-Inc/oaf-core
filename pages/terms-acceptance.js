@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { getApiUrl } from '../lib/config';
-import { authenticatedApiRequest, clearAuthTokens } from '../lib/csrf';
+import { authApiRequest } from '../lib/apiUtils';
+import { clearAuthTokens } from '../lib/csrf';
 import styles from '../styles/TermsAcceptance.module.css';
 
 export default function TermsAcceptance() {
@@ -79,7 +80,7 @@ export default function TermsAcceptance() {
     setError(null);
 
     try {
-      const response = await authenticatedApiRequest('api/terms/accept', {
+      const response = await authApiRequest('api/terms/accept', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

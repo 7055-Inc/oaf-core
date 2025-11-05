@@ -1,7 +1,7 @@
 .container {
   background-color: #FFFFFF;
   min-height: calc(100vh - 80px);
-  padding: 5px;
+  padding: 80px 5px 5px 5px;
   margin: 0;
 }
 
@@ -189,6 +189,48 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.thumbnailContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.thumbnailGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.thumbnailGroupLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  padding-bottom: 0.25rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.thumbnail.primary {
+  border-color: #fbbf24;
+}
+
+.primaryBadge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: #fbbf24;
+  color: white;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .detailsSection {

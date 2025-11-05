@@ -50,7 +50,7 @@ router.post('/calculate-totals', verifyToken, async (req, res) => {
     const itemsWithShipping = await calculateShippingCosts(itemsWithDetails, shipping_address);
     
     // **NEW: Apply discounts after shipping calculation**
-    const itemsWithDiscounts = await discountService.applyDiscounts(itemsWithShipping, req.user.id, applied_coupons);
+    const itemsWithDiscounts = await discountService.applyDiscounts(itemsWithShipping, req.userId, applied_coupons);
     
     // Calculate commissions for each item (on discounted prices)
     const itemsWithCommissions = await stripeService.calculateCommissions(itemsWithDiscounts);
@@ -891,7 +891,7 @@ router.post('/apply-coupon', verifyToken, async (req, res) => {
     const itemsWithDetails = await getCartItemsWithDetails(cart_items);
     
     // Validate coupon code
-    const validation = await discountService.validateCouponCode(coupon_code, req.user.id, itemsWithDetails);
+    const validation = await discountService.validateCouponCode(coupon_code, req.userId, itemsWithDetails);
     
     if (!validation.valid) {
       return res.status(400).json({ 
@@ -901,7 +901,7 @@ router.post('/apply-coupon', verifyToken, async (req, res) => {
     }
     
     // Apply coupon to get preview of discounts
-    const itemsWithDiscounts = await discountService.applyDiscounts(itemsWithDetails, req.user.id, [coupon_code]);
+    const itemsWithDiscounts = await discountService.applyDiscounts(itemsWithDetails, req.userId, [coupon_code]);
     
     res.json({
       success: true,
@@ -942,7 +942,7 @@ router.post('/remove-coupon', verifyToken, async (req, res) => {
     const itemsWithDetails = await getCartItemsWithDetails(cart_items);
     
     // Return items without the removed coupon (empty coupon array)
-    const itemsWithoutCoupon = await discountService.applyDiscounts(itemsWithDetails, req.user.id, []);
+    const itemsWithoutCoupon = await discountService.applyDiscounts(itemsWithDetails, req.userId, []);
     
     res.json({
       success: true,
@@ -977,7 +977,7 @@ router.post('/get-auto-discounts', verifyToken, async (req, res) => {
     const itemsWithDetails = await getCartItemsWithDetails(cart_items);
     
     // Apply auto-discounts only (no coupon codes)
-    const itemsWithAutoDiscounts = await discountService.applyDiscounts(itemsWithDetails, req.user.id, []);
+    const itemsWithAutoDiscounts = await discountService.applyDiscounts(itemsWithDetails, req.userId, []);
     
     // Filter to only items that have auto-applied discounts
     const autoDiscountedItems = itemsWithAutoDiscounts.filter(item => 
@@ -1028,7 +1028,7 @@ router.get('/validate-coupon/:code', verifyToken, async (req, res) => {
       itemsWithDetails = await getCartItemsWithDetails(parsedCartItems);
     }
     
-    const validation = await discountService.validateCouponCode(code, req.user.id, itemsWithDetails);
+    const validation = await discountService.validateCouponCode(code, req.userId, itemsWithDetails);
     
     res.json({
       success: validation.valid,

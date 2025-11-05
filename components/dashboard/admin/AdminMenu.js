@@ -47,6 +47,14 @@ export default function AdminMenu({
           <li>
             <button 
               className={styles.sidebarLink}
+              onClick={() => openSlideIn('verified-applications', { title: 'Verified Applications' })}
+            >
+              Verified Applications
+            </button>
+          </li>
+          <li>
+            <button 
+              className={styles.sidebarLink}
               onClick={() => openSlideIn('wholesale-applications', { title: 'Wholesale Applications' })}
             >
               Wholesale Applications

@@ -71,7 +71,7 @@ export default function Home() {
       
       {/* === NEW HOMEPAGE SECTIONS === */}
       {/* Section 1: Visual Discovery Band */}
-      <VisualDiscoveryBand />
+      {/* <VisualDiscoveryBand /> */}
       
       {/* === ARCHIVED CONTENT BELOW - FOR FUTURE RECYCLING === */}
       {/* Hero Section */}

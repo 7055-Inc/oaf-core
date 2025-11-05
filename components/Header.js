@@ -200,6 +200,9 @@ export default function Header() {
 
           {/* Navigation Menu - Desktop */}
           <nav className={styles.navigation}>
+            <Link href="/marketplace" className={styles.navLink}>
+              Browse Art
+            </Link>
             <Link href="/collections" className={styles.navLink}>
               Collections
             </Link>
@@ -212,9 +215,11 @@ export default function Header() {
             <Link href="/promoters" className={styles.navLink}>
               Promoters
             </Link>
-            <Link href="/join" className={`${styles.bbBtn} ${styles.ctaLink}`}>
-              Join Brakebee
-            </Link>
+            {!isLoggedIn && (
+              <Link href="/signup" className={`${styles.bbBtn} ${styles.ctaLink}`}>
+                Join Brakebee
+              </Link>
+            )}
           </nav>
 
           {/* Utility Section */}
@@ -309,6 +314,9 @@ export default function Header() {
         {showMobileMenu && (
           <div className={`${styles.mobileMenuPanel} mobile-menu-container`}>
             <nav className={styles.mobileNavigation}>
+              <Link href="/marketplace" className={styles.mobileNavLink}>
+                Browse Art
+              </Link>
               <Link href="/collections" className={styles.mobileNavLink}>
                 Collections
               </Link>
@@ -321,9 +329,11 @@ export default function Header() {
               <Link href="/promoters" className={styles.mobileNavLink}>
                 Promoters
               </Link>
-              <Link href="/join" className={styles.mobileCtaLink}>
-                Join Brakebee
-              </Link>
+              {!isLoggedIn && (
+                <Link href="/signup" className={styles.mobileCtaLink}>
+                  Join Brakebee
+                </Link>
+              )}
               {!isLoggedIn && (
                 <button 
                   className={`${styles.bbBtn} ${styles.mobileSignInButton}`}

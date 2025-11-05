@@ -14,6 +14,7 @@ const VisualDiscoveryBand = () => {
   const fetchHeroFeed = async () => {
     try {
       setLoading(true);
+      setError(null);
       
       // Get user ID from JWT token
       const token = localStorage.getItem('token');
@@ -24,36 +25,37 @@ const VisualDiscoveryBand = () => {
           const payload = JSON.parse(atob(token.split('.')[1]));
           userId = payload.userId || payload.id || 'anonymous';
         } catch (e) {
-          console.warn('Could not decode JWT token');
+          // JWT decode failed, continue with anonymous
         }
       }
 
       // Try Leo AI smart recommendations first
       try {
-        const smartResponse = await fetch('/api/leo-search', {
+        const smartResponse = await fetch(getApiUrl('api/leo/search'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            query: 'homepage recommendations',
+            query: 'active product recommendations for homepage',
             userId: userId,
             options: { 
               limit: 6,
               recommendationMode: true,
               includeMetaTruths: true,
-              applyPersonalization: true
+              applyPersonalization: true,
+              categories: ['products']
             }
           })
         });
-
+        
         if (smartResponse.ok) {
           const smartData = await smartResponse.json();
           
           // Extract product IDs from Leo AI recommendations
           const productIds = [];
-          if (smartData.categories?.products) {
-            smartData.categories.products.forEach(item => {
-              // Extract product ID from metadata
-              const productId = item.metadata?.product_id || item.metadata?.original_id;
+          if (smartData.results?.products) {
+            smartData.results.products.forEach(item => {
+              // Extract product ID from metadata or direct id
+              const productId = item.metadata?.product_id || item.metadata?.original_id || item.id;
               if (productId && !productIds.includes(productId)) {
                 productIds.push(productId);
               }
@@ -64,17 +66,16 @@ const VisualDiscoveryBand = () => {
           if (productIds.length > 0) {
             const productTiles = await fetchProductTiles(productIds.slice(0, 6));
             if (productTiles.length > 0) {
-              console.log(`✨ Using ${productTiles.length} Leo AI smart product recommendations`);
               setTiles(productTiles);
               return;
             }
           }
 
-          // Fallback: process other categories (artists, articles, events) the old way
+          // Fallback: process other categories (artists, articles, events)
           const smartTiles = [];
           ['artists', 'articles', 'events'].forEach(category => {
-            if (smartData.categories?.[category]) {
-              smartData.categories[category].forEach(item => {
+            if (smartData.results?.[category]) {
+              smartData.results[category].forEach(item => {
                 if (smartTiles.length < 6) {
                   // Skip low-quality items
                   if (item.metadata?.status === 'deleted' || 
@@ -89,7 +90,7 @@ const VisualDiscoveryBand = () => {
                   }
 
                   // Extract clean title
-                  let cleanTitle = item.title || 'Featured Item';
+                  let cleanTitle = item.title || item.name || 'Featured Item';
                   if (cleanTitle.startsWith('name: ')) {
                     cleanTitle = cleanTitle.replace('name: ', '').split('.')[0];
                   }
@@ -113,20 +114,20 @@ const VisualDiscoveryBand = () => {
           });
 
           if (smartTiles.length >= 1) {
-            console.log(`✨ Using ${smartTiles.length} Leo AI smart non-product recommendations`);
             setTiles(smartTiles);
             return;
           }
         }
       } catch (smartError) {
-        console.warn('Smart recommendations failed, falling back to hero feed:', smartError);
+        // Leo AI failed, but this shouldn't break the component
+        // Just continue to show nothing (component will hide itself)
       }
 
-      // If Leo AI can't provide recommendations, the system is down
-      throw new Error('Leo AI recommendations unavailable - system may be down');
+      // If Leo AI can't provide recommendations, gracefully hide the component
+      setTiles([]);
       
     } catch (err) {
-      console.error('Failed to fetch hero feed:', err);
+      // Failed to fetch hero feed, hide component
       setError(err.message);
       setTiles([]);
     } finally {
@@ -142,30 +143,39 @@ const VisualDiscoveryBand = () => {
       // Fetch each product individually to get clean data
       const productPromises = productIds.map(async (productId) => {
         try {
-          const response = await fetch(getApiUrl(`products/${productId}?include=images,vendor`));
+          const url = getApiUrl(`products/${productId}?include=images,vendor`);
+          const response = await fetch(url);
           if (response.ok) {
             const productData = await response.json();
             
-            // Only include active products
-            if (productData.status !== 'active') return null;
+            // Only show active products (filter out deleted, hidden, etc.)
+            if (productData.status !== 'active') {
+              return null;
+            }
             
-            // Get image URL using same logic as RandomProductCarousel
+            // Get image URL using proper media serving logic
             let imageUrl = null;
             // Check for image_url first (main product image field)
             if (productData.image_url) {
               if (productData.image_url.startsWith('http')) {
                 imageUrl = productData.image_url;
               } else {
-                imageUrl = getApiUrl(`api/media/serve/${productData.image_url}`);
+                // Remove leading slash if present and use proper media endpoint
+                const cleanPath = productData.image_url.replace(/^\//, '');
+                imageUrl = getApiUrl(`api/media/serve/${cleanPath}`);
               }
             }
             // Check for images array as fallback
             else if (productData.images && productData.images.length > 0) {
-              const img = productData.images[0];
+              const image = productData.images[0];
+              // Handle new format: {url, is_primary} or old format: string
+              const img = typeof image === 'string' ? image : image.url;
               if (img.startsWith('http')) {
                 imageUrl = img;
               } else {
-                imageUrl = getApiUrl(`api/media/serve/${img}`);
+                // Remove leading slash if present and use proper media endpoint
+                const cleanPath = img.replace(/^\//, '');
+                imageUrl = getApiUrl(`api/media/serve/${cleanPath}`);
               }
             }
             
@@ -182,7 +192,6 @@ const VisualDiscoveryBand = () => {
             };
           }
         } catch (error) {
-          console.warn(`Failed to fetch product ${productId}:`, error);
           return null;
         }
       });
@@ -191,7 +200,7 @@ const VisualDiscoveryBand = () => {
       return results.filter(result => result !== null);
       
     } catch (error) {
-      console.error('Failed to fetch product tiles:', error);
+      // Failed to fetch product tiles, return empty array
       return [];
     }
   };

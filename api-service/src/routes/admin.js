@@ -42,12 +42,78 @@ const emailService = new EmailService();
 router.get('/users', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/users request received, userId:', req.userId);
   try {
-    const [users] = await db.query('SELECT id, username, status, user_type FROM users');
+    const [users] = await db.execute('SELECT id, username, status, user_type FROM users');
     res.json(users);
   } catch (err) {
     console.error('Error fetching users:', err.message, err.stack);
     res.setHeader('Content-Type', 'application/json');
     res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+/**
+ * Get a single user with complete profile information
+ * @route GET /api/admin/users/:id
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.params.id - User ID
+ * @param {Object} res - Express response object
+ * @returns {Object} User with all profile information
+ */
+router.get('/users/:id', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  console.log('GET /admin/users/:id request received, userId:', req.userId);
+  const { id } = req.params;
+  try {
+    // Fetch user data
+    const [users] = await db.execute('SELECT * FROM users WHERE id = ?', [id]);
+    if (!users || users.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const userData = users[0];
+    
+    // Fetch user_profiles
+    const [userProfiles] = await db.execute('SELECT * FROM user_profiles WHERE user_id = ?', [id]);
+    const userProfile = userProfiles[0] || {};
+    
+    // Fetch artist_profiles
+    const [artistProfiles] = await db.execute('SELECT * FROM artist_profiles WHERE user_id = ?', [id]);
+    const artistProfile = artistProfiles[0] || {};
+    
+    // Fetch promoter_profiles
+    const [promoterProfiles] = await db.execute('SELECT * FROM promoter_profiles WHERE user_id = ?', [id]);
+    const promoterProfile = promoterProfiles[0] || {};
+    
+    // Fetch community_profiles
+    const [communityProfiles] = await db.execute('SELECT * FROM community_profiles WHERE user_id = ?', [id]);
+    const communityProfile = communityProfiles[0] || {};
+    
+    // Fetch admin_profiles
+    const [adminProfiles] = await db.execute('SELECT * FROM admin_profiles WHERE user_id = ?', [id]);
+    const adminProfile = adminProfiles[0] || {};
+    
+    // Merge all data, excluding duplicate user_id, created_at, updated_at fields from profile tables
+    const { user_id: upUserId, created_at: upCreated, updated_at: upUpdated, ...upData } = userProfile;
+    const { user_id: apUserId, created_at: apCreated, updated_at: apUpdated, ...apData } = artistProfile;
+    const { user_id: ppUserId, created_at: ppCreated, updated_at: ppUpdated, ...ppData } = promoterProfile;
+    const { user_id: cpUserId, created_at: cpCreated, updated_at: cpUpdated, ...cpData } = communityProfile;
+    const { user_id: adpUserId, created_at: adpCreated, updated_at: adpUpdated, ...adpData } = adminProfile;
+    
+    const completeUser = {
+      ...userData,
+      email: userData.username, // username is the email
+      ...upData,
+      ...apData,
+      ...ppData,
+      ...cpData,
+      ...adpData
+    };
+
+    res.json(completeUser);
+  } catch (err) {
+    console.error('Error fetching user details:', err.message, err.stack);
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ error: 'Failed to fetch user details' });
   }
 });
 
@@ -69,17 +135,17 @@ router.post('/users', verifyToken, requirePermission('manage_system'), async (re
     if (!username || !status || !user_type) {
       return res.status(400).json({ error: 'Missing required fields: username, status, user_type' });
     }
-    const [result] = await db.query(
+    const [result] = await db.execute(
       'INSERT INTO users (username, email_verified, status, user_type) VALUES (?, ?, ?, ?)',
       [username, 'no', status, user_type]
     );
     const newUserId = result.insertId;
-    await db.query('INSERT INTO user_profiles (user_id) VALUES (?)', [newUserId]);
-    await db.query('INSERT INTO artist_profiles (user_id) VALUES (?)', [newUserId]);
-    await db.query('INSERT INTO promoter_profiles (user_id) VALUES (?)', [newUserId]);
-    await db.query('INSERT INTO community_profiles (user_id) VALUES (?)', [newUserId]);
-    await db.query('INSERT INTO admin_profiles (user_id) VALUES (?)', [newUserId]);
-    const [newUser] = await db.query('SELECT id, username, status, user_type FROM users WHERE id = ?', [newUserId]);
+    await db.execute('INSERT INTO user_profiles (user_id) VALUES (?)', [newUserId]);
+    await db.execute('INSERT INTO artist_profiles (user_id) VALUES (?)', [newUserId]);
+    await db.execute('INSERT INTO promoter_profiles (user_id) VALUES (?)', [newUserId]);
+    await db.execute('INSERT INTO community_profiles (user_id) VALUES (?)', [newUserId]);
+    await db.execute('INSERT INTO admin_profiles (user_id) VALUES (?)', [newUserId]);
+    const [newUser] = await db.execute('SELECT id, username, status, user_type FROM users WHERE id = ?', [newUserId]);
     res.json(newUser[0]);
   } catch (err) {
     console.error('Error adding user:', err.message, err.stack);
@@ -105,7 +171,7 @@ router.put('/users/:id', verifyToken, requirePermission('manage_system'), async 
   const { id } = req.params;
   const { username, status, user_type } = req.body;
   try {
-    await db.query(
+    await db.execute(
       'UPDATE users SET username = ?, status = ?, user_type = ? WHERE id = ?',
       [username, status, user_type, id]
     );
@@ -130,7 +196,7 @@ router.delete('/users/:id', verifyToken, requirePermission('manage_system'), asy
   console.log('DELETE /admin/users/:id request received, userId:', req.userId);
   const { id } = req.params;
   try {
-    await db.query('DELETE FROM users WHERE id = ?', [id]);
+    await db.execute('DELETE FROM users WHERE id = ?', [id]);
     res.json({ message: 'User deleted successfully' });
   } catch (err) {
     console.error('Error deleting user:', err.message, err.stack);
@@ -152,7 +218,7 @@ router.get('/users/:id/permissions', verifyToken, requirePermission('manage_syst
   console.log('GET /admin/users/:id/permissions request received, userId:', req.userId);
   const { id } = req.params;
   try {
-    const [permissions] = await db.query('SELECT * FROM user_permissions WHERE user_id = ?', [id]);
+    const [permissions] = await db.execute('SELECT * FROM user_permissions WHERE user_id = ?', [id]);
     if (!permissions[0]) {
       // User has no permissions record yet
       return res.json({ 
@@ -185,16 +251,17 @@ router.get('/users/:id/permissions', verifyToken, requirePermission('manage_syst
  * @param {boolean} req.body.manage_sites - Site management permission
  * @param {boolean} req.body.manage_content - Content management permission
  * @param {boolean} req.body.manage_system - System management permission
+ * @param {boolean} req.body.verified - Verified artist status
  * @param {Object} res - Express response object
  * @returns {Object} Update confirmation
  */
 router.put('/users/:id/permissions', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('PUT /admin/users/:id/permissions request received, userId:', req.userId);
   const { id } = req.params;
-  const { vendor, events, stripe_connect, manage_sites, manage_content, manage_system } = req.body;
+  const { vendor, events, stripe_connect, manage_sites, manage_content, manage_system, verified, marketplace } = req.body;
   try {
     // Check if user exists
-    const [user] = await db.query('SELECT id FROM users WHERE id = ?', [id]);
+    const [user] = await db.execute('SELECT id FROM users WHERE id = ?', [id]);
     if (!user[0]) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -227,23 +294,31 @@ router.put('/users/:id/permissions', verifyToken, requirePermission('manage_syst
       updateFields.push('manage_system = ?');
       updateValues.push(manage_system);
     }
+    if (verified !== undefined) {
+      updateFields.push('verified = ?');
+      updateValues.push(verified);
+    }
+    if (marketplace !== undefined) {
+      updateFields.push('marketplace = ?');
+      updateValues.push(marketplace);
+    }
     
     if (updateFields.length === 0) {
       return res.status(400).json({ error: 'No permission fields provided' });
     }
     
     // Check if permissions record exists
-    const [existing] = await db.query('SELECT user_id FROM user_permissions WHERE user_id = ?', [id]);
+    const [existing] = await db.execute('SELECT user_id FROM user_permissions WHERE user_id = ?', [id]);
     
     if (existing[0]) {
       // Update existing permissions
       updateValues.push(id);
-      await db.query(`UPDATE user_permissions SET ${updateFields.join(', ')} WHERE user_id = ?`, updateValues);
+      await db.execute(`UPDATE user_permissions SET ${updateFields.join(', ')} WHERE user_id = ?`, updateValues);
     } else {
       // Create new permissions record with all fields
-      await db.query(
-        'INSERT INTO user_permissions (user_id, vendor, events, stripe_connect, manage_sites, manage_content, manage_system) VALUES (?, ?, ?, ?, ?, ?, ?)', 
-        [id, vendor || false, events || false, stripe_connect || false, manage_sites || false, manage_content || false, manage_system || false]
+      await db.execute(
+        'INSERT INTO user_permissions (user_id, vendor, events, stripe_connect, manage_sites, manage_content, manage_system, verified, marketplace) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', 
+        [id, vendor || false, events || false, stripe_connect || false, manage_sites || false, manage_content || false, manage_system || false, verified || false, marketplace || false]
       );
     }
     
@@ -281,7 +356,7 @@ router.get('/default-policies', verifyToken, requirePermission('manage_system'),
       WHERE sp.user_id IS NULL AND sp.status = 'active'
     `;
     
-    const [rows] = await db.query(query);
+    const [rows] = await db.execute(query);
     
     res.json({
       success: true,
@@ -389,7 +464,7 @@ router.get('/vendor-policies', verifyToken, requirePermission('manage_system'), 
       ${whereClause}
     `;
     
-    const [countResult] = await db.query(countQuery, params);
+    const [countResult] = await db.execute(countQuery, params);
     const total = countResult[0].total;
     
     // Get vendor policies
@@ -414,7 +489,7 @@ router.get('/vendor-policies', verifyToken, requirePermission('manage_system'), 
     `;
     
     params.push(parseInt(limit), offset);
-    const [vendors] = await db.query(dataQuery, params);
+    const [vendors] = await db.execute(dataQuery, params);
     
     res.json({
       vendors: vendors,
@@ -447,7 +522,7 @@ router.get('/vendor-policies/:user_id', verifyToken, requirePermission('manage_s
   
   try {
     // Check if user exists and has vendor permissions
-    const [userCheck] = await db.query(`
+    const [userCheck] = await db.execute(`
       SELECT u.id, u.username, u.user_type, up.vendor
       FROM users u
       LEFT JOIN user_permissions up ON u.id = up.user_id
@@ -463,7 +538,7 @@ router.get('/vendor-policies/:user_id', verifyToken, requirePermission('manage_s
     }
     
     // Get current policy
-    const [currentPolicy] = await db.query(`
+    const [currentPolicy] = await db.execute(`
       SELECT 
         sp.id,
         sp.policy_text,
@@ -477,7 +552,7 @@ router.get('/vendor-policies/:user_id', verifyToken, requirePermission('manage_s
     `, [user_id]);
     
     // Get policy history
-    const [history] = await db.query(`
+    const [history] = await db.execute(`
       SELECT 
         sp.id,
         sp.policy_text,
@@ -524,7 +599,7 @@ router.put('/vendor-policies/:user_id', verifyToken, requirePermission('manage_s
     }
 
     // Check if user exists and has vendor permissions
-    const [userCheck] = await db.query(`
+    const [userCheck] = await db.execute(`
       SELECT u.id, u.username, up.vendor
       FROM users u
       LEFT JOIN user_permissions up ON u.id = up.user_id
@@ -591,7 +666,7 @@ router.delete('/vendor-policies/:user_id', verifyToken, requirePermission('manag
   
   try {
     // Check if user exists and has vendor permissions
-    const [userCheck] = await db.query(`
+    const [userCheck] = await db.execute(`
       SELECT u.id, u.username, up.vendor
       FROM users u
       LEFT JOIN user_permissions up ON u.id = up.user_id
@@ -607,7 +682,7 @@ router.delete('/vendor-policies/:user_id', verifyToken, requirePermission('manag
     }
 
     // Archive all active policies for this user
-    await db.query(
+    await db.execute(
       'UPDATE shipping_policies SET status = "archived" WHERE user_id = ? AND status = "active"',
       [user_id]
     );
@@ -646,7 +721,7 @@ router.get('/default-return-policies', verifyToken, requirePermission('manage_sy
       WHERE rp.user_id IS NULL AND rp.status = 'active'
     `;
     
-    const [rows] = await db.query(query);
+    const [rows] = await db.execute(query);
     
     res.json({
       success: true,
@@ -754,7 +829,7 @@ router.get('/vendor-return-policies', verifyToken, requirePermission('manage_sys
       ${whereClause}
     `;
     
-    const [countResult] = await db.query(countQuery, params);
+    const [countResult] = await db.execute(countQuery, params);
     const total = countResult[0].total;
     
     // Get vendor return policies
@@ -779,7 +854,7 @@ router.get('/vendor-return-policies', verifyToken, requirePermission('manage_sys
     `;
     
     params.push(parseInt(limit), offset);
-    const [vendors] = await db.query(dataQuery, params);
+    const [vendors] = await db.execute(dataQuery, params);
     
     res.json({
       vendors: vendors,
@@ -812,7 +887,7 @@ router.get('/vendor-return-policies/:user_id', verifyToken, requirePermission('m
   
   try {
     // Check if user exists and has vendor permissions
-    const [userCheck] = await db.query(`
+    const [userCheck] = await db.execute(`
       SELECT u.id, u.username, u.user_type, up.vendor
       FROM users u
       LEFT JOIN user_permissions up ON u.id = up.user_id
@@ -828,7 +903,7 @@ router.get('/vendor-return-policies/:user_id', verifyToken, requirePermission('m
     }
     
     // Get current policy
-    const [currentPolicy] = await db.query(`
+    const [currentPolicy] = await db.execute(`
       SELECT 
         rp.id,
         rp.policy_text,
@@ -842,7 +917,7 @@ router.get('/vendor-return-policies/:user_id', verifyToken, requirePermission('m
     `, [user_id]);
     
     // Get policy history
-    const [history] = await db.query(`
+    const [history] = await db.execute(`
       SELECT 
         rp.id,
         rp.policy_text,
@@ -889,7 +964,7 @@ router.put('/vendor-return-policies/:user_id', verifyToken, requirePermission('m
     }
 
     // Check if user exists and has vendor permissions
-    const [userCheck] = await db.query(`
+    const [userCheck] = await db.execute(`
       SELECT u.id, u.username, up.vendor
       FROM users u
       LEFT JOIN user_permissions up ON u.id = up.user_id
@@ -956,7 +1031,7 @@ router.delete('/vendor-return-policies/:user_id', verifyToken, requirePermission
   
   try {
     // Check if user exists and has vendor permissions
-    const [userCheck] = await db.query(`
+    const [userCheck] = await db.execute(`
       SELECT u.id, u.username, up.vendor
       FROM users u
       LEFT JOIN user_permissions up ON u.id = up.user_id
@@ -972,7 +1047,7 @@ router.delete('/vendor-return-policies/:user_id', verifyToken, requirePermission
     }
 
     // Archive all active policies for this user
-    await db.query(
+    await db.execute(
       'UPDATE return_policies SET status = "archived" WHERE user_id = ? AND status = "active"',
       [user_id]
     );
@@ -1000,12 +1075,12 @@ router.get('/email-stats', verifyToken, requirePermission('manage_system'), asyn
   
   try {
     // Queue stats
-    const [queueStats] = await db.query(
+    const [queueStats] = await db.execute(
       'SELECT status, COUNT(*) as count FROM email_queue GROUP BY status'
     );
 
     // Email log stats (last 30 days)
-    const [emailStats] = await db.query(`
+    const [emailStats] = await db.execute(`
       SELECT 
         DATE(sent_at) as date,
         status,
@@ -1017,7 +1092,7 @@ router.get('/email-stats', verifyToken, requirePermission('manage_system'), asyn
     `);
 
     // Template usage stats
-    const [templateStats] = await db.query(`
+    const [templateStats] = await db.execute(`
       SELECT 
         et.name,
         et.template_key,
@@ -1029,7 +1104,7 @@ router.get('/email-stats', verifyToken, requirePermission('manage_system'), asyn
     `);
 
     // Bounce stats
-    const [bounceStats] = await db.query(`
+    const [bounceStats] = await db.execute(`
       SELECT 
         SUBSTRING_INDEX(email_address, '@', -1) as domain,
         SUM(CASE WHEN bounce_type = 'hard' THEN bounce_count ELSE 0 END) as hard_bounces,
@@ -1043,7 +1118,7 @@ router.get('/email-stats', verifyToken, requirePermission('manage_system'), asyn
     `);
 
     // User preference stats
-    const [preferenceStats] = await db.query(`
+    const [preferenceStats] = await db.execute(`
       SELECT 
         frequency,
         is_enabled,
@@ -1079,11 +1154,11 @@ router.get('/email-queue', verifyToken, requirePermission('manage_system'), asyn
   console.log('GET /admin/email-queue request received, userId:', req.userId);
   
   try {
-    const [stats] = await db.query(
+    const [stats] = await db.execute(
       'SELECT status, COUNT(*) as count FROM email_queue GROUP BY status'
     );
 
-    const [recent] = await db.query(
+    const [recent] = await db.execute(
       'SELECT eq.*, et.name as template_name, u.username FROM email_queue eq JOIN email_templates et ON eq.template_id = et.id JOIN users u ON eq.user_id = u.id ORDER BY eq.created_at DESC LIMIT 20'
     );
 
@@ -1110,7 +1185,7 @@ router.get('/email-templates', verifyToken, requirePermission('manage_system'), 
   console.log('GET /admin/email-templates request received, userId:', req.userId);
   
   try {
-    const [templates] = await db.query(`
+    const [templates] = await db.execute(`
       SELECT 
         id,
         template_key,
@@ -1146,7 +1221,7 @@ router.get('/email-bounces', verifyToken, requirePermission('manage_system'), as
   console.log('GET /admin/email-bounces request received, userId:', req.userId);
   
   try {
-    const [bounces] = await db.query(`
+    const [bounces] = await db.execute(`
       SELECT 
         bt.id,
         bt.email_address,
@@ -1204,7 +1279,7 @@ router.get('/email-recent', verifyToken, requirePermission('manage_system'), asy
     console.log('Query parameters:', { limit, offset });
 
     // Use string concatenation for LIMIT/OFFSET to avoid parameter issues
-    const [recent] = await db.query(`
+    const [recent] = await db.execute(`
       SELECT 
         el.*
       FROM email_log el
@@ -1213,7 +1288,7 @@ router.get('/email-recent', verifyToken, requirePermission('manage_system'), asy
     `);
 
     // Get total count
-    const [countResult] = await db.query('SELECT COUNT(*) as total FROM email_log');
+    const [countResult] = await db.execute('SELECT COUNT(*) as total FROM email_log');
     const total = countResult[0].total;
 
     res.json({
@@ -1262,7 +1337,7 @@ router.post('/email-test', verifyToken, requirePermission('manage_system'), asyn
     let targetUserId = null;
     if (recipient.includes('@')) {
       // Email address - find user by email domain (since email is username in this system)
-      const [userRows] = await db.query(
+      const [userRows] = await db.execute(
         'SELECT id FROM users WHERE username = ?',
         [recipient]
       );
@@ -1349,7 +1424,7 @@ router.post('/email-bounces-unblacklist', verifyToken, requirePermission('manage
       return res.status(400).json({ error: 'Domain is required' });
     }
 
-    await db.query(`
+    await db.execute(`
       UPDATE bounce_tracking 
       SET is_blacklisted = 0,
           bounce_count = 0,
@@ -1374,7 +1449,7 @@ router.post('/email-bounces-unblacklist', verifyToken, requirePermission('manage
 router.get('/event-email-stats', verifyToken, requirePermission('manage_system'), async (req, res) => {
     try {
         // Get application email statistics
-        const [emailStats] = await db.query(`
+        const [emailStats] = await db.execute(`
             SELECT 
                 email_type,
                 COUNT(*) as total_sent,
@@ -1386,7 +1461,7 @@ router.get('/event-email-stats', verifyToken, requirePermission('manage_system')
         `);
 
         // Get recent email activity
-        const [recentActivity] = await db.query(`
+        const [recentActivity] = await db.execute(`
             SELECT 
                 ael.email_type,
                 ael.sent_at,
@@ -1403,7 +1478,7 @@ router.get('/event-email-stats', verifyToken, requirePermission('manage_system')
         `);
 
         // Get applications needing reminders
-        const [reminderStats] = await db.query(`
+        const [reminderStats] = await db.execute(`
             SELECT 
                 COUNT(CASE WHEN DATE(booth_fee_due_date) = DATE(DATE_ADD(NOW(), INTERVAL 3 DAY)) THEN 1 END) as due_soon,
                 COUNT(CASE WHEN DATE(booth_fee_due_date) = DATE(DATE_SUB(NOW(), INTERVAL 1 DAY)) THEN 1 END) as overdue,
@@ -1507,7 +1582,7 @@ router.post('/send-test-booth-fee-email', verifyToken, requirePermission('manage
                 break;
             case 'booth_fee_confirmation':
                 // For testing, we'll need a payment intent ID
-                const [paymentData] = await db.query(`
+                const [paymentData] = await db.execute(`
                     SELECT payment_intent_id FROM event_booth_fees WHERE application_id = ?
                 `, [application_id]);
                 
@@ -1537,7 +1612,7 @@ router.post('/send-test-booth-fee-email', verifyToken, requirePermission('manage
  */
 router.get('/applications-needing-reminders', verifyToken, requirePermission('manage_system'), async (req, res) => {
     try {
-        const [applications] = await db.query(`
+        const [applications] = await db.execute(`
             SELECT 
                 ea.id,
                 ea.booth_fee_amount,
@@ -1606,7 +1681,7 @@ router.get('/applications-needing-reminders', verifyToken, requirePermission('ma
 router.get('/promotions/all', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     // Simple query following the working /users pattern
-    const [promotions] = await db.query('SELECT id, name, status, created_at FROM promotions ORDER BY created_at DESC');
+    const [promotions] = await db.execute('SELECT id, name, status, created_at FROM promotions ORDER BY created_at DESC');
     res.json({
       success: true,
       promotions: promotions
@@ -1745,7 +1820,7 @@ router.put('/promotions/:id', verifyToken, requirePermission('manage_system'), a
     const { status, name, description, valid_until } = req.body;
     
     // Verify promotion exists
-    const [promotionCheck] = await db.query(
+    const [promotionCheck] = await db.execute(
       'SELECT id FROM promotions WHERE id = ?',
       [promotionId]
     );
@@ -1777,7 +1852,7 @@ router.put('/promotions/:id', verifyToken, requirePermission('manage_system'), a
     params.push(promotionId);
     
     const updateQuery = `UPDATE promotions SET ${updates.join(', ')} WHERE id = ?`;
-    await db.query(updateQuery, params);
+    await db.execute(updateQuery, params);
     
     res.json({
       success: true,
@@ -1804,7 +1879,7 @@ router.post('/promotions/:id/invite-vendors', verifyToken, requirePermission('ma
     }
     
     // Verify promotion exists and belongs to admin
-    const [promotionCheck] = await db.query(
+    const [promotionCheck] = await db.execute(
       'SELECT id, status FROM promotions WHERE id = ?',
       [promotionId]
     );
@@ -1918,7 +1993,7 @@ router.get('/promotions/:id/vendor-suggestions', verifyToken, requirePermission(
       ORDER BY pp.created_at DESC
     `;
     
-    const [suggestions] = await db.query(suggestionsQuery, [promotionId]);
+    const [suggestions] = await db.execute(suggestionsQuery, [promotionId]);
     
     res.json({
       success: true,
@@ -1945,7 +2020,7 @@ router.post('/promotions/:id/approve-suggestion', verifyToken, requirePermission
     }
     
     // Verify suggestion exists and belongs to promotion
-    const [suggestionCheck] = await db.query(
+    const [suggestionCheck] = await db.execute(
       `SELECT id FROM promotion_products 
        WHERE id = ? AND promotion_id = ? AND added_by = 'vendor' AND approval_status = 'pending'`,
       [suggestion_id, promotionId]
@@ -1965,7 +2040,7 @@ router.post('/promotions/:id/approve-suggestion', verifyToken, requirePermission
       WHERE id = ?
     `;
     
-    await db.query(updateQuery, [admin_discount_percentage, vendor_discount_percentage, suggestion_id]);
+    await db.execute(updateQuery, [admin_discount_percentage, vendor_discount_percentage, suggestion_id]);
     
     res.json({
       success: true,
@@ -1992,7 +2067,7 @@ router.post('/promotions/:id/reject-suggestion', verifyToken, requirePermission(
     }
     
     // Verify suggestion exists and belongs to promotion
-    const [suggestionCheck] = await db.query(
+    const [suggestionCheck] = await db.execute(
       `SELECT id FROM promotion_products 
        WHERE id = ? AND promotion_id = ? AND added_by = 'vendor' AND approval_status = 'pending'`,
       [suggestion_id, promotionId]
@@ -2003,7 +2078,7 @@ router.post('/promotions/:id/reject-suggestion', verifyToken, requirePermission(
     }
     
     // Update suggestion
-    await db.query(
+    await db.execute(
       'UPDATE promotion_products SET approval_status = \'rejected\' WHERE id = ?',
       [suggestion_id]
     );
@@ -2030,7 +2105,7 @@ router.post('/promotions/:id/reject-suggestion', verifyToken, requirePermission(
 router.get('/coupons/all', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     // Simple query following the working pattern
-    const [coupons] = await db.query("SELECT id, code, name, discount_type, discount_value, is_active, vendor_id, is_vendor_specific, created_at FROM coupons WHERE coupon_type = 'admin_coupon' ORDER BY created_at DESC");
+    const [coupons] = await db.execute("SELECT id, code, name, discount_type, discount_value, is_active, vendor_id, is_vendor_specific, created_at FROM coupons WHERE coupon_type = 'admin_coupon' ORDER BY created_at DESC");
     res.json({
       success: true,
       coupons: coupons
@@ -2191,7 +2266,7 @@ router.put('/coupons/:id', verifyToken, requirePermission('manage_system'), asyn
     const couponId = req.params.id;
     const { is_active } = req.body;
 
-    const [result] = await db.query(
+    const [result] = await db.execute(
       'UPDATE coupons SET is_active = ? WHERE id = ? AND coupon_type = "admin_coupon"',
       [is_active, couponId]
     );
@@ -2331,7 +2406,7 @@ router.post('/sales/create-sitewide', verifyToken, requirePermission('manage_sys
 router.get('/sales/all', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
     // Simple query following the working /users pattern
-    const [sales] = await db.query("SELECT id, code, name, discount_type, discount_value, is_active, created_at FROM coupons WHERE coupon_type = 'site_sale' ORDER BY created_at DESC");
+    const [sales] = await db.execute("SELECT id, code, name, discount_type, discount_value, is_active, created_at FROM coupons WHERE coupon_type = 'site_sale' ORDER BY created_at DESC");
     res.json({
       success: true,
       sales: sales
@@ -2352,7 +2427,7 @@ router.put('/sales/:id', verifyToken, requirePermission('manage_system'), async 
     const { is_active, name, description, discount_value, valid_until } = req.body;
     
     // Verify sale exists and is a site_sale type
-    const [saleCheck] = await db.query(
+    const [saleCheck] = await db.execute(
       'SELECT id FROM coupons WHERE id = ? AND coupon_type = \'site_sale\'',
       [saleId]
     );
@@ -2382,7 +2457,7 @@ router.put('/sales/:id', verifyToken, requirePermission('manage_system'), async 
     params.push(saleId);
     
     const updateQuery = `UPDATE coupons SET ${updates.join(', ')} WHERE id = ?`;
-    await db.query(updateQuery, params);
+    await db.execute(updateQuery, params);
     
     res.json({
       success: true,
@@ -2415,7 +2490,7 @@ router.get('/promotions/analytics/overview', verifyToken, requirePermission('man
       LEFT JOIN promotion_products pp ON p.id = pp.promotion_id AND pp.approval_status = 'approved'
     `;
     
-    const [overview] = await db.query(overviewQuery);
+    const [overview] = await db.execute(overviewQuery);
     
     // Get recent promotion activity
     const activityQuery = `
@@ -2442,7 +2517,7 @@ router.get('/promotions/analytics/overview', verifyToken, requirePermission('man
       LIMIT 20
     `;
     
-    const [activity] = await db.query(activityQuery);
+    const [activity] = await db.execute(activityQuery);
     
     res.json({
       success: true,

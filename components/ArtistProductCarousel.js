@@ -19,7 +19,7 @@ const ArtistProductCarousel = ({ vendorId, currentProductId, artistName }) => {
     const fetchArtistProducts = async () => {
       try {
         setLoading(true);
-        const res = await fetch(getApiUrl(`products?vendor_id=${vendorId}`));
+        const res = await fetch(getApiUrl(`products?vendor_id=${vendorId}&include=images&status=active`));
         
         if (!res.ok) {
           throw new Error('Failed to fetch artist products');
@@ -27,15 +27,21 @@ const ArtistProductCarousel = ({ vendorId, currentProductId, artistName }) => {
         
         const data = await res.json();
         
-        // Filter out the current product to avoid showing it in "more from this artist"
-        const otherProducts = data.filter(product => product.id !== currentProductId);
+        // Filter out the current product and any drafts
+        const otherProducts = data.filter(product => 
+          product.id !== currentProductId && 
+          product.status === 'active' &&
+          product.name && 
+          product.name.toLowerCase() !== 'new product draft'
+        );
         
         // Ensure image URLs are absolute
         const processedProducts = otherProducts.map(product => ({
           ...product,
           images: product.images?.map(img => {
-            if (img.startsWith('http')) return img;
-            return getSmartMediaUrl(img);
+            const imageUrl = typeof img === 'string' ? img : img.url;
+            if (imageUrl.startsWith('http')) return imageUrl;
+            return getSmartMediaUrl(imageUrl);
           }) || []
         }));
         
@@ -132,7 +138,9 @@ const ArtistProductCarousel = ({ vendorId, currentProductId, artistName }) => {
 
   const getImageUrl = (product) => {
     if (product.images && product.images.length > 0) {
-      return product.images[0];
+      const image = product.images[0];
+      // Handle new format: {url, is_primary} or old format: string
+      return typeof image === 'string' ? image : image.url;
     }
     return null;
   };

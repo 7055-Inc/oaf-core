@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest, refreshAuthToken } from '../../../../../lib/csrf';
 import { authApiRequest } from '../../../../../lib/apiUtils';
+import { getApiUrl } from '../../../../../lib/config';
 import StripeCardSetup from '../../../../stripe/StripeCardSetup';
 
 export default function MarketplacePricingTiers({ userData, onSubscriptionSuccess }) {
@@ -43,19 +44,9 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
     try {
       setLoadingStatus(true);
       
-      // Fetch marketplace subscription status
-      const statusResponse = await authenticatedApiRequest(
-        'api/subscriptions/marketplace/status'
-      );
-      
-      if (statusResponse.ok) {
-        const statusData = await statusResponse.json();
-        setMarketplaceStatus(statusData);
-      }
-      
-      // Fetch terms data
+      // Only fetch terms data - marketplace status is available from user permissions
       const termsResponse = await authenticatedApiRequest(
-        'api/subscriptions/marketplace/terms-check'
+        getApiUrl('api/subscriptions/marketplace/terms-check')
       );
       
       if (termsResponse.ok) {
@@ -64,7 +55,7 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
       }
       
     } catch (error) {
-      console.error('Error fetching marketplace status:', error);
+      console.error('Error fetching marketplace terms:', error);
     } finally {
       setLoadingStatus(false);
     }
@@ -77,7 +68,7 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
       setProcessing(true);
       
       const response = await authenticatedApiRequest(
-        'api/subscriptions/marketplace/terms-accept',
+        getApiUrl('api/subscriptions/marketplace/terms-accept'),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -88,10 +79,22 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
       );
       
       if (response.ok) {
-        // Refresh status after terms acceptance
-        await fetchMarketplaceStatus();
-        // Force token refresh to get updated permissions
-        await refreshAuthToken();
+        // Refresh token to get updated permissions with new marketplace access
+        try {
+          const newToken = await refreshAuthToken();
+          if (newToken) {
+            // Token refresh successful - user now has updated permissions
+            console.log('Token refreshed successfully with updated marketplace permissions');
+          } else {
+            console.warn('Token refresh returned null - user may need to log in again for updated permissions');
+            // Show a subtle warning but continue
+            alert('Terms accepted successfully! You may need to refresh the page to see updated permissions.');
+          }
+        } catch (tokenError) {
+          console.warn('Token refresh failed after terms acceptance:', tokenError);
+          // Show a subtle warning but continue - the terms acceptance was successful
+          alert('Terms accepted successfully! Please refresh the page to see updated permissions.');
+        }
       } else {
         const errorData = await response.json();
         alert(`Failed to accept terms: ${errorData.error}`);
@@ -110,7 +113,7 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
     
     // Load user profile data
     try {
-      const response = await authenticatedApiRequest('users/me');
+      const response = await authenticatedApiRequest(getApiUrl('users/me'));
       if (response.ok) {
         const profileData = await response.json();
         setUserProfile(profileData);
@@ -164,7 +167,7 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
       }
 
       // Submit everything to the enhanced /users/me PATCH endpoint
-      const response = await authenticatedApiRequest('users/me', {
+      const response = await authenticatedApiRequest(getApiUrl('users/me'), {
         method: 'PATCH',
         body: formData // multipart form data, no Content-Type header needed
       });
@@ -1012,26 +1015,6 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
               </div>
             </div>
 
-            {/* Terms acceptance */}
-            <div style={{ marginBottom: '25px' }}>
-              <label style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                cursor: 'pointer',
-                fontSize: '14px'
-              }}>
-                <input
-                  type="checkbox"
-                  checked={signupTermsAccepted}
-                  onChange={(e) => setSignupTermsAccepted(e.target.checked)}
-                  style={{ marginRight: '10px', marginTop: '2px' }}
-                />
-                <span style={{ color: '#495057' }}>
-                  I agree to the marketplace terms and conditions and acknowledge that my application is subject to jury approval.
-                  I understand that all submitted materials will be used solely for verification purposes.
-                </span>
-              </label>
-            </div>
 
             <div style={{ display: 'flex', gap: '15px' }}>
               <button

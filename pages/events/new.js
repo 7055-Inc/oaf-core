@@ -1,9 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
+import { getSmartMediaUrl } from '../../lib/config';
 import Header from '../../components/Header';
-import { authenticatedApiRequest } from '../../lib/csrf';
+import { authApiRequest } from '../../lib/apiUtils';
 import styles from './styles/EventForm.module.css';
 
 export default function NewEvent() {
@@ -110,10 +110,9 @@ export default function NewEvent() {
     const userRoles = payload.roles || [];
 
     // Fetch user data for profile information
-    fetch(getApiUrl('users/me'), {
+    authApiRequest('users/me', {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     })
@@ -146,10 +145,8 @@ export default function NewEvent() {
 
   const fetchEventTypes = async () => {
     try {
-      const token = document.cookie.split('token=')[1]?.split(';')[0];
-              const response = await fetch(getApiUrl('api/events/types'), {
+      const response = await authApiRequest('api/events/types', {
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -339,7 +336,7 @@ export default function NewEvent() {
         uploadFormData.append('images', file);
       });
 
-      const res = await authenticatedApiRequest('api/events/upload', {
+      const res = await authApiRequest('api/events/upload', {
         method: 'POST',
         body: uploadFormData
       });
@@ -378,7 +375,7 @@ export default function NewEvent() {
         max_applications: formData.max_applications ? parseInt(formData.max_applications) : null
       };
 
-      const res = await authenticatedApiRequest('api/events', {
+      const res = await authApiRequest('api/events', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -397,7 +394,7 @@ export default function NewEvent() {
       if (availableAddons.length > 0) {
         try {
           for (const addon of availableAddons) {
-            await authenticatedApiRequest(`api/events/${result.id}/available-addons`, {
+            await authApiRequest(`api/events/${result.id}/available-addons`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
@@ -420,7 +417,7 @@ export default function NewEvent() {
       if (applicationFields.length > 0) {
         try {
           for (const field of applicationFields) {
-            await authenticatedApiRequest(`api/events/${result.id}/application-fields`, {
+            await authApiRequest(`api/events/${result.id}/application-fields`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
@@ -468,7 +465,7 @@ export default function NewEvent() {
                 fieldType = 'url';
               }
 
-              await authenticatedApiRequest(`api/events/${result.id}/application-fields`, {
+              await authApiRequest(`api/events/${result.id}/application-fields`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json'
@@ -499,7 +496,7 @@ export default function NewEvent() {
                 booth_2: 'Booth Setup Photo #2'
               };
 
-              await authenticatedApiRequest(`api/events/${result.id}/application-fields`, {
+              await authApiRequest(`api/events/${result.id}/application-fields`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json'

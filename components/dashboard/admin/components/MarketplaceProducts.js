@@ -41,7 +41,7 @@ export default function MarketplaceProducts({ userData }) {
 
       for (const cat of categories) {
         const response = await authApiRequest(
-          `api/admin/marketplace/products?category=${cat}&include=vendor,images`
+          `/api/admin/marketplace/products?category=${cat}&include=vendor,images`
         );
         
         if (response.ok) {
@@ -64,7 +64,7 @@ export default function MarketplaceProducts({ userData }) {
   const fetchStats = async () => {
     try {
       const response = await authenticatedApiRequest(
-        'api/admin/marketplace/stats'
+        '/api/admin/marketplace/stats'
       );
       
       if (response.ok) {
@@ -81,7 +81,7 @@ export default function MarketplaceProducts({ userData }) {
       setProcessing(true);
       
       const response = await authenticatedApiRequest(
-        `api/admin/marketplace/products/${productId}/categorize`,
+        `/api/admin/marketplace/products/${productId}/categorize`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -123,12 +123,14 @@ export default function MarketplaceProducts({ userData }) {
   const getImageUrl = (product) => {
     if (product.image_url) {
       if (product.image_url.startsWith('http')) return product.image_url;
-      return `api/media/serve/${product.image_url}`;
+      return `/api/media/serve/${product.image_url}`;
     }
     if (product.images && product.images.length > 0) {
-      const img = product.images[0];
+      const image = product.images[0];
+      // Handle new format: {url, is_primary} or old format: string
+      const img = typeof image === 'string' ? image : image.url;
       if (img.startsWith('http')) return img;
-      return `api/media/serve/${img}`;
+      return `/api/media/serve/${img}`;
     }
     return null;
   };

@@ -262,16 +262,21 @@ export default function TikTokConnector({ userData }) {
                     style={{ cursor: 'pointer' }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                      {product.images && product.images.length > 0 && (
-                        <img 
-                          src={product.images[0].startsWith('http') 
-                            ? product.images[0]
-                            : `api/media/serve/${product.images[0]}`
-                          }
-                          alt={product.name || product.tiktok_title}
-                          className={slideInStyles.itemThumb}
-                        />
-                      )}
+                      {product.images && product.images.length > 0 && (() => {
+                        const image = product.images[0];
+                        // Handle new format: {url, is_primary} or old format: string
+                        const imgUrl = typeof image === 'string' ? image : image.url;
+                        return (
+                          <img 
+                            src={imgUrl.startsWith('http') 
+                              ? imgUrl
+                              : `api/media/serve/${imgUrl}`
+                            }
+                            alt={product.name || product.tiktok_title}
+                            className={slideInStyles.itemThumb}
+                          />
+                        );
+                      })()}
                       <div style={{ flex: 1 }}>
                         <div className={slideInStyles.productName}>
                           {product.tiktok_title || product.name}

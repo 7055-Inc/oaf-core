@@ -1,41 +1,18 @@
 import { useState, useCallback } from 'react';
+import { authApiRequest, handleApiResponse } from '../lib/apiUtils';
 
 export function useCoupons() {
   const [appliedCoupons, setAppliedCoupons] = useState([]);
   const [autoDiscounts, setAutoDiscounts] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const getAuthToken = () => {
-    return document.cookie.split('token=')[1]?.split(';')[0];
-  };
-
-  const apiRequest = async (endpoint, options = {}) => {
-    const token = getAuthToken();
-    if (!token) {
-      throw new Error('Authentication required');
-    }
-
-    const response = await fetch(`https://api.beemeeart.com${endpoint}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        ...options.headers
-      },
-      ...options
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `Request failed: ${response.status}`);
-    }
-
-    return response.json();
-  };
+  // Use the proper authenticated API request function that includes CSRF tokens
 
   const validateCoupon = useCallback(async (couponCode, cartItems) => {
     try {
-      const response = await apiRequest(`/checkout/validate-coupon/${couponCode}?cart_items=${encodeURIComponent(JSON.stringify(cartItems))}`);
-      return response.coupon;
+      const response = await authApiRequest(`checkout/validate-coupon/${couponCode}?cart_items=${encodeURIComponent(JSON.stringify(cartItems))}`);
+      const data = await handleApiResponse(response);
+      return data.coupon;
     } catch (error) {
       throw new Error(error.message || 'Invalid coupon code');
     }
@@ -70,13 +47,17 @@ export function useCoupons() {
 
   const getAutoDiscounts = useCallback(async (cartItems) => {
     try {
-      const response = await apiRequest('/checkout/get-auto-discounts', {
+      const response = await authApiRequest('checkout/get-auto-discounts', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({ cart_items: cartItems })
       });
       
-      setAutoDiscounts(response.auto_discounts || []);
-      return response.auto_discounts || [];
+      const data = await handleApiResponse(response);
+      setAutoDiscounts(data.auto_discounts || []);
+      return data.auto_discounts || [];
     } catch (error) {
       console.error('Failed to fetch auto discounts:', error);
       setAutoDiscounts([]);
@@ -89,8 +70,11 @@ export function useCoupons() {
     try {
       const appliedCouponCodes = appliedCoupons.map(c => c.code);
       
-      const response = await apiRequest('/checkout/calculate-totals', {
+      const response = await authApiRequest('checkout/calculate-totals', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           cart_items: cartItems,
           applied_coupons: appliedCouponCodes,
@@ -98,7 +82,8 @@ export function useCoupons() {
         })
       });
 
-      return response;
+      const data = await handleApiResponse(response);
+      return data;
     } catch (error) {
       throw new Error(error.message || 'Failed to calculate totals');
     } finally {

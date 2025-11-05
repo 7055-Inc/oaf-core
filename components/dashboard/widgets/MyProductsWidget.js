@@ -10,7 +10,9 @@ export default function MyProductsWidget({ config: widgetConfig, onConfigChange 
 
   const getProductImage = (product) => {
     if (product.images && product.images.length > 0) {
-      const imageUrl = product.images[0];
+      const image = product.images[0];
+      // Handle new format: {url, is_primary} or old format: string
+      const imageUrl = typeof image === 'string' ? image : image.url;
       // For temp images, serve directly from API domain
       if (imageUrl.startsWith('/temp_images/') || imageUrl.startsWith('/tmp/')) {
         return `${config.API_BASE_URL}${imageUrl}`;

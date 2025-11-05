@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Header from '../../components/Header';
-import { authenticatedApiRequest } from '../../lib/csrf';
+import { authApiRequest } from '../../lib/apiUtils';
 import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
 import CouponEntry from '../../components/coupons/CouponEntry';
 import DiscountSummary from '../../components/coupons/DiscountSummary';
@@ -125,7 +125,7 @@ export default function UnifiedCart() {
     if (newQuantity < 1) return;
     
     try {
-      const response = await authenticatedApiRequest(`cart/${cartId}/items/${itemId}`, {
+      const response = await authApiRequest(`cart/${cartId}/items/${itemId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -147,7 +147,7 @@ export default function UnifiedCart() {
 
   const removeItem = async (cartId, itemId) => {
     try {
-      const response = await authenticatedApiRequest(`cart/${cartId}/items/${itemId}`, {
+      const response = await authApiRequest(`cart/${cartId}/items/${itemId}`, {
         method: 'DELETE'
       });
 
@@ -228,32 +228,30 @@ export default function UnifiedCart() {
       <div className={styles.container}>
         <Header />
         
-        <div className={styles.content}>
-          <div className={styles.header}>
-            <h1 className={styles.title}>🎨 My Digital Art Mall</h1>
-            <p className={styles.subtitle}>
+        <div className={styles.content} style={{marginTop: '120px'}}>
+          <div className="section-box">
+            <p style={{color: 'var(--secondary-color)', fontWeight: '600', marginBottom: '1rem'}}>
               Your curated collection from {Object.keys(unifiedCartData?.grouped_by_source || {}).length} artist galleries
             </p>
           </div>
 
           {!hasItems ? (
-            <div className={styles.emptyCart}>
-              <div className={styles.emptyIcon}>🛒</div>
-              <h2>Your art collection is empty</h2>
-              <p>Discover amazing artworks from our talented artists</p>
+            <div className="form-card" style={{textAlign: 'center', padding: '3rem'}}>
+              <div style={{fontSize: '4rem', marginBottom: '1rem'}}>🛒</div>
+              <h2 style={{color: 'var(--primary-color)'}}>Your art collection is empty</h2>
+              <p style={{color: 'var(--secondary-color)', marginBottom: '2rem'}}>Discover amazing artworks from our talented artists</p>
               <button 
-                className={styles.exploreButton}
                 onClick={() => router.push('/')}
+                style={{fontSize: '1.1rem', padding: '12px 24px'}}
               >
-                Explore Galleries
+                🎨 Explore Galleries
               </button>
             </div>
           ) : (
             <>
               {/* Cart Summary */}
-              <div className={styles.cartSummary}>
-                <div className={styles.summaryCard}>
-                  <h3>Cart Summary</h3>
+              <div className="form-card">
+                <h3 style={{color: 'var(--primary-color)', marginBottom: '1rem'}}>Cart Summary</h3>
                   <div className={styles.summaryStats}>
                     <div className={styles.stat}>
                       <span className={styles.statNumber}>{unifiedCartData.total_items}</span>
@@ -264,17 +262,17 @@ export default function UnifiedCart() {
                       <span className={styles.statLabel}>Galleries</span>
                     </div>
                     <div className={styles.stat}>
-                      <span className={styles.statNumber}>${unifiedCartData.total_value.toFixed(2)}</span>
+                      <span className={styles.statNumber}>${(parseFloat(unifiedCartData.total_value) || 0).toFixed(2)}</span>
                       <span className={styles.statLabel}>Total</span>
                     </div>
                   </div>
                   <button 
-                    className={styles.checkoutButton}
                     onClick={proceedToCheckout}
+                    className="secondary"
+                    style={{marginTop: '1rem'}}
                   >
-                    Proceed to Checkout → ${unifiedCartData.total_value.toFixed(2)}
+                    Proceed to Checkout → ${(parseFloat(unifiedCartData.total_value) || 0).toFixed(2)}
                   </button>
-                </div>
               </div>
 
               {/* Carts by Source */}
@@ -290,7 +288,7 @@ export default function UnifiedCart() {
                           🎨 {sourceName}
                         </h3>
                         <span className={styles.sourceStats}>
-                          {sourceData.total_items} items • ${sourceData.total_value.toFixed(2)}
+                          {sourceData.total_items} items • ${(parseFloat(sourceData.total_value) || 0).toFixed(2)}
                         </span>
                       </div>
                       <div className={styles.toggleIcon}>
@@ -329,22 +327,24 @@ export default function UnifiedCart() {
                                       <div className={styles.itemDetails}>
                                         <h4 className={styles.itemName}>{item.product_name}</h4>
                                         <p className={styles.itemVendor}>by {item.vendor_display_name}</p>
-                                        <p className={styles.itemPrice}>${parseFloat(item.price).toFixed(2)}</p>
+                                        <p className={styles.itemPrice}>${(parseFloat(item.price) || 0).toFixed(2)}</p>
                                       </div>
                                       
                                       <div className={styles.itemControls}>
                                         <div className={styles.quantityControls}>
                                           <button 
                                             onClick={() => updateQuantity(cart.id, item.id, item.quantity - 1)}
-                                            className={styles.quantityBtn}
+                                            className="secondary"
                                             disabled={item.quantity <= 1}
+                                            style={{padding: '8px 12px', minWidth: '40px'}}
                                           >
                                             -
                                           </button>
                                           <span className={styles.quantity}>{item.quantity}</span>
                                           <button 
                                             onClick={() => updateQuantity(cart.id, item.id, item.quantity + 1)}
-                                            className={styles.quantityBtn}
+                                            className="secondary"
+                                            style={{padding: '8px 12px', minWidth: '40px'}}
                                           >
                                             +
                                           </button>
@@ -352,10 +352,11 @@ export default function UnifiedCart() {
                                         
                                         <button 
                                           onClick={() => removeItem(cart.id, item.id)}
-                                          className={styles.removeBtn}
+                                          className="secondary"
                                           title="Remove item"
+                                          style={{color: 'red', borderColor: 'red', marginLeft: '10px', padding: '8px 12px'}}
                                         >
-                                          🗑️
+                                          ✕
                                         </button>
                                       </div>
                                     </div>
@@ -394,10 +395,10 @@ export default function UnifiedCart() {
               {/* Bottom Checkout */}
               <div className={styles.bottomCheckout}>
                 <div className={styles.checkoutSummary}>
-                  <span className={styles.totalLabel}>Total: ${unifiedCartData.total_value.toFixed(2)}</span>
+                  <span className={styles.totalLabel}>Total: ${(parseFloat(unifiedCartData.total_value) || 0).toFixed(2)}</span>
                   <button 
-                    className={styles.checkoutButtonLarge}
                     onClick={proceedToCheckout}
+                    className="secondary"
                   >
                     Checkout All Items
                   </button>

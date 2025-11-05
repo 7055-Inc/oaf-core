@@ -247,7 +247,7 @@ export default function Checkout() {
         selected_shipping_rate: selectedShipping[item.product_id]?.rate
       }));
 
-      const response = await authenticatedApiRequest('checkout/create-payment-intent', {
+      const response = await authApiRequest('checkout/create-payment-intent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -306,7 +306,7 @@ export default function Checkout() {
 
       if (confirmedPaymentIntent.status === 'succeeded') {
         // Payment succeeded, confirm with backend
-        const confirmResponse = await authenticatedApiRequest('checkout/confirm-payment', {
+        const confirmResponse = await authApiRequest('checkout/confirm-payment', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

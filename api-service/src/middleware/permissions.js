@@ -28,6 +28,11 @@ const hasPermission = (req, permission) => {
     return true;
   }
   
+  // Handle permission inheritance: vendor permission grants marketplace access
+  if (permission === 'marketplace' && req.permissions && req.permissions.includes('vendor')) {
+    return true;
+  }
+  
   return false;
 };
 

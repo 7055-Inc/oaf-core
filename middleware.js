@@ -20,18 +20,19 @@ export default async function middleware(req) {
   }
   
   // Route to subdomain handler for artist sites and custom domains
-  if ((hostname.includes('.beemeeart.com') && 
-       hostname !== 'main.beemeeart.com' && 
-       hostname !== 'beemeeart.com' &&
+  if ((hostname.includes('.brakebee.com') && 
+       hostname !== 'main.brakebee.com' && 
+       hostname !== 'www.brakebee.com' &&
        !hostname.startsWith('api') &&
        !hostname.startsWith('www')) ||
-      (!hostname.includes('.beemeeart.com') && 
+      (!hostname.includes('.brakebee.com') && 
+       hostname !== 'brakebee.com' &&
        hostname !== 'localhost' &&
        !hostname.startsWith('127.0.0.1'))) {
     return subdomainRouter(req);
   }
   
-  // Route to checklist for main domain
+  // Route to checklist for main domain (brakebee.com, main.brakebee.com, www.brakebee.com, localhost)
   return checklist(req);
 }
 

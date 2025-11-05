@@ -6,12 +6,12 @@ export async function subdomainRouter(req) {
   let isCustomDomain = false;
   
   // Skip if this is the main domain
-  if (hostname === 'beemeeart.com' || hostname === 'www.beemeeart.com') {
+  if (hostname === 'brakebee.com' || hostname === 'www.brakebee.com') {
     return NextResponse.next();
   }
   
   // Handle custom domains - check if this is a verified custom domain
-  if (!hostname.includes('.beemeeart.com')) {
+  if (!hostname.includes('.brakebee.com')) {
     isCustomDomain = true;
     try {
       // Check if this is a verified custom domain
@@ -36,7 +36,7 @@ export async function subdomainRouter(req) {
   }
   
   // Skip if this is not a subdomain pattern and not a custom domain
-  if (!isCustomDomain && (!hostname.includes('.beemeeart.com') || subdomain === 'www' || subdomain === 'api')) {
+  if (!isCustomDomain && (!hostname.includes('.brakebee.com') || subdomain === 'www' || subdomain === 'api')) {
     return NextResponse.next();
   }
   

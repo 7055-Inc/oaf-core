@@ -11,6 +11,7 @@ const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
 const { requirePermission } = require('../middleware/permissions');
 const { secureLogger } = require('../middleware/secureLogger');
+const EmailService = require('../services/emailService');
 
 /**
  * GET /admin/marketplace/stats
@@ -517,8 +518,8 @@ router.get('/applications', verifyToken, requirePermission('manage_system'), asy
 
 /**
  * PUT /admin/marketplace/applications/:id/approve
- * Approve marketplace application and grant user marketplace permissions
- * Updates application status and automatically grants marketplace access to user
+ * Approve marketplace application and grant user vendor permissions
+ * Updates application status and automatically grants vendor access and verified status to user
  * 
  * @route PUT /admin/marketplace/applications/:id/approve
  * @middleware verifyToken - Requires user authentication
@@ -527,7 +528,7 @@ router.get('/applications', verifyToken, requirePermission('manage_system'), asy
  * @param {Object} req.body - Approval data
  * @param {string} [req.body.admin_notes] - Optional admin notes for approval
  * @returns {Object} Approval confirmation with application ID
- * @note Automatically grants marketplace permissions to approved user
+ * @note Automatically grants vendor and verified permissions to approved user
  */
 router.put('/applications/:id/approve', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -551,16 +552,49 @@ router.put('/applications/:id/approve', verifyToken, requirePermission('manage_s
       return res.status(404).json({ error: 'Application not found' });
     }
 
-    // Get the user_id from the application
-    const [application] = await db.query('SELECT user_id FROM marketplace_applications WHERE id = ?', [id]);
+    // Get the user_id and application details for email
+    const [application] = await db.query(`
+      SELECT ma.user_id, u.username, up.first_name, up.last_name, reviewer.username as reviewer_name
+      FROM marketplace_applications ma
+      LEFT JOIN users u ON ma.user_id = u.id
+      LEFT JOIN user_profiles up ON ma.user_id = up.user_id
+      LEFT JOIN users reviewer ON ? = reviewer.id
+      WHERE ma.id = ?
+    `, [reviewerId, id]);
     
     if (application[0]) {
-      // Update user permissions to grant marketplace access
+      // Update user permissions to grant vendor access
       await db.query(`
-        INSERT INTO user_permissions (user_id, marketplace) 
-        VALUES (?, 1) 
-        ON DUPLICATE KEY UPDATE marketplace = 1
+        INSERT INTO user_permissions (user_id, vendor, verified) 
+        VALUES (?, 1, 1) 
+        ON DUPLICATE KEY UPDATE vendor = 1, verified = 1
       `, [application[0].user_id]);
+
+      // Send approval email
+      try {
+        const emailService = new EmailService();
+        const artistName = application[0].first_name && application[0].last_name 
+          ? `${application[0].first_name} ${application[0].last_name}`
+          : application[0].username;
+        
+        const templateData = {
+          artist_name: artistName,
+          application_id: id,
+          approval_date: new Date().toLocaleDateString('en-US', {
+            year: 'numeric', month: 'long', day: 'numeric'
+          }),
+          reviewer_name: application[0].reviewer_name || 'Admin Team',
+          admin_notes_section: admin_notes 
+            ? `<p><strong>Admin Notes:</strong> ${admin_notes}</p>` 
+            : '',
+          dashboard_url: `${process.env.FRONTEND_URL || 'https://brakebee.com'}/dashboard`
+        };
+
+        await emailService.sendEmail(application[0].user_id, 'marketplace_application_approved', templateData);
+      } catch (emailError) {
+        console.error('Failed to send approval email:', emailError);
+        // Don't fail the approval if email fails
+      }
 
       secureLogger.info('Marketplace application approved', {
         applicationId: id,
@@ -585,7 +619,7 @@ router.put('/applications/:id/approve', verifyToken, requirePermission('manage_s
 /**
  * PUT /admin/marketplace/applications/:id/deny
  * Deny marketplace application with required denial reason
- * Updates application status and ensures user does not have marketplace permissions
+ * Updates application status and ensures user does not have vendor permissions
  * 
  * @route PUT /admin/marketplace/applications/:id/deny
  * @middleware verifyToken - Requires user authentication
@@ -595,7 +629,7 @@ router.put('/applications/:id/approve', verifyToken, requirePermission('manage_s
  * @param {string} req.body.denial_reason - Required reason for denial
  * @param {string} [req.body.admin_notes] - Optional admin notes for denial
  * @returns {Object} Denial confirmation with application ID
- * @note Ensures user marketplace permissions are revoked and requires denial reason
+ * @note Ensures user vendor permission is revoked (verified status remains unchanged) and requires denial reason
  */
 router.put('/applications/:id/deny', verifyToken, requirePermission('manage_system'), async (req, res) => {
   try {
@@ -624,22 +658,55 @@ router.put('/applications/:id/deny', verifyToken, requirePermission('manage_syst
       return res.status(404).json({ error: 'Application not found' });
     }
 
-    // Get the user_id from the application
-    const [application] = await db.query('SELECT user_id FROM marketplace_applications WHERE id = ?', [id]);
+    // Get the user_id and application details for email
+    const [application] = await db.query(`
+      SELECT ma.user_id, u.username, up.first_name, up.last_name, reviewer.username as reviewer_name
+      FROM marketplace_applications ma
+      LEFT JOIN users u ON ma.user_id = u.id
+      LEFT JOIN user_profiles up ON ma.user_id = up.user_id
+      LEFT JOIN users reviewer ON ? = reviewer.id
+      WHERE ma.id = ?
+    `, [reviewerId, id]);
     
     if (application[0]) {
-      // Ensure user does NOT have marketplace permissions
+      // Ensure user does NOT have vendor permissions (verified status remains unchanged)
       await db.query(`
-        INSERT INTO user_permissions (user_id, marketplace) 
-        VALUES (?, 0) 
-        ON DUPLICATE KEY UPDATE marketplace = 0
+        INSERT INTO user_permissions (user_id, vendor, marketplace) 
+        VALUES (?, 0, 0) 
+        ON DUPLICATE KEY UPDATE vendor = 0, marketplace = 0
       `, [application[0].user_id]);
+
+      // Send denial email
+      try {
+        const emailService = new EmailService();
+        const artistName = application[0].first_name && application[0].last_name 
+          ? `${application[0].first_name} ${application[0].last_name}`
+          : application[0].username;
+        
+        const templateData = {
+          artist_name: artistName,
+          application_id: id,
+          review_date: new Date().toLocaleDateString('en-US', {
+            year: 'numeric', month: 'long', day: 'numeric'
+          }),
+          reviewer_name: application[0].reviewer_name || 'Admin Team',
+          denial_reason: denial_reason,
+          admin_notes_section: admin_notes && admin_notes !== denial_reason
+            ? `<p><strong>Additional Notes:</strong> ${admin_notes}</p>` 
+            : ''
+        };
+
+        await emailService.sendEmail(application[0].user_id, 'marketplace_application_denied', templateData);
+      } catch (emailError) {
+        console.error('Failed to send denial email:', emailError);
+        // Don't fail the denial if email fails
+      }
 
       secureLogger.info('Marketplace application denied', {
         applicationId: id,
         userId: application[0].user_id,
         reviewerId,
-        denialReason,
+        denialReason: denial_reason,
         adminNotes: admin_notes
       });
     }

@@ -284,7 +284,7 @@ Get marketplace applications by status for administrative review and processing.
 ### Approve Marketplace Application
 `PUT /admin/marketplace/applications/:id/approve`
 
-Approve marketplace application and automatically grant user marketplace permissions.
+Approve marketplace application and automatically grant user vendor permissions.
 
 **Authentication:** JWT token + system management permissions required
 
@@ -310,13 +310,13 @@ Approve marketplace application and automatically grant user marketplace permiss
 **Automatic Actions:**
 - Updates application status to 'approved'
 - Records admin user and approval timestamp
-- Grants marketplace permissions to user
+- Grants vendor and verified permissions to user
 - Creates audit log entry
 
 ### Deny Marketplace Application
 `PUT /admin/marketplace/applications/:id/deny`
 
-Deny marketplace application with required denial reason and revoke marketplace permissions.
+Deny marketplace application with required denial reason and revoke vendor permissions.
 
 **Authentication:** JWT token + system management permissions required
 
@@ -343,7 +343,7 @@ Deny marketplace application with required denial reason and revoke marketplace 
 **Automatic Actions:**
 - Updates application status to 'denied'
 - Records denial reason and admin notes
-- Ensures user does NOT have marketplace permissions
+- Ensures user does NOT have vendor permission (verified status remains unchanged)
 - Creates audit log entry
 
 **Requirements:**

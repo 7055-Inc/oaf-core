@@ -34,7 +34,9 @@ const ArtistProductDetail = () => {
     }
     // Check for images array (from the include=images parameter)
     if (product.images && product.images.length > 0) {
-      const img = product.images[0];
+      const image = product.images[0];
+      // Handle new format: {url, is_primary} or old format: string
+      const img = typeof image === 'string' ? image : image.url;
       if (img.startsWith('http')) return img;
       return `api/media/serve/${img}`;
     }

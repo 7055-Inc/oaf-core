@@ -60,10 +60,12 @@ import TransactionHistory from '../../components/dashboard/my-finances/component
 import PayoutsEarnings from '../../components/dashboard/my-finances/components/PayoutsEarnings';
 import MySubscriptionsMenu from '../../components/dashboard/my-subscriptions/MySubscriptionsMenu';
 import ManageSubscriptions from '../../components/dashboard/my-subscriptions/components/ManageSubscriptions';
-import MarketplaceSubscriptions from '../../components/dashboard/my-subscriptions/components/MarketplaceSubscriptions';
-import VerifiedSubscriptions from '../../components/dashboard/my-subscriptions/components/VerifiedSubscriptions';
-import WebSiteSubscriptions from '../../components/dashboard/my-subscriptions/components/WebSiteSubscriptions';
-import ShipSubscriptions from '../../components/dashboard/my-subscriptions/components/ShipSubscriptions';
+import MarketplaceSubscriptions from '../../components/dashboard/my-subscriptions/components/MarketplaceSubscriptions'; // OLD
+import MarketplaceSellerSubscription from '../../components/dashboard/my-subscriptions/components/MarketplaceSellerSubscription'; // NEW
+import VerifiedSubscriptions from '../../components/dashboard/my-subscriptions/components/VerifiedSubscriptions'; // OLD
+import VerifiedArtistSubscription from '../../components/dashboard/my-subscriptions/components/VerifiedArtistSubscription'; // NEW
+import WebsitesSubscription from '../../components/dashboard/my-subscriptions/components/WebsitesSubscription';
+import ShippingLabelsSubscription from '../../components/dashboard/my-subscriptions/components/ShippingLabelsSubscription';
 import AdminMenu from '../../components/dashboard/admin/AdminMenu';
 import ManageSystemMenu from '../../components/dashboard/manage-system/ManageSystemMenu';
 import DevelopersMenu from '../../components/dashboard/developers/DevelopersMenu';
@@ -72,6 +74,7 @@ import MyArticles from '../../components/dashboard/manage-my-store/components/My
 import ManageArticles from '../../components/dashboard/admin/components/ManageArticles';
 import MarketplaceProducts from '../../components/dashboard/admin/components/MarketplaceProducts';
 import MarketplaceApplications from '../../components/dashboard/admin/components/MarketplaceApplications';
+import VerifiedApplications from '../../components/dashboard/admin/components/VerifiedApplications';
 import WholesaleApplications from '../../components/dashboard/admin/components/WholesaleApplications';
 import AdminReturns from '../../components/dashboard/admin/components/AdminReturns';
 import AdminPromotions from '../../components/dashboard/admin/components/AdminPromotions';
@@ -410,7 +413,7 @@ export default function Dashboard() {
     
     if (slideInContent.type === 'marketplace-subscriptions') {
       return (
-        <MarketplaceSubscriptions
+        <MarketplaceSellerSubscription
           userData={userData}
         />
       );
@@ -418,7 +421,7 @@ export default function Dashboard() {
     
     if (slideInContent.type === 'verified-subscriptions') {
       return (
-        <VerifiedSubscriptions
+        <VerifiedArtistSubscription
           userData={userData}
         />
       );
@@ -426,15 +429,15 @@ export default function Dashboard() {
     
     if (slideInContent.type === 'website-subscriptions') {
       return (
-        <WebSiteSubscriptions
+        <WebsitesSubscription
           userData={userData}
         />
       );
     }
     
-    if (slideInContent.type === 'ship-subscriptions') {
+    if (slideInContent.type === 'shipping-labels-subscriptions') {
       return (
-        <ShipSubscriptions
+        <ShippingLabelsSubscription
           userData={userData}
         />
       );
@@ -452,6 +455,14 @@ export default function Dashboard() {
     if (slideInContent.type === 'marketplace-applications') {
       return (
         <MarketplaceApplications
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'verified-applications') {
+      return (
+        <VerifiedApplications
           userData={userData}
         />
       );

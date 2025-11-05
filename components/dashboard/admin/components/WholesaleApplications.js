@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
 import { authApiRequest } from '../../../../lib/apiUtils';
+import { getApiUrl } from '../../../../lib/config';
 
 // Wholesale Applications Admin Component
 // Title is handled by slide-in header template in Dashboard
@@ -77,7 +78,7 @@ export default function WholesaleApplications({ userData }) {
       setProcessingAction(true);
       
       const response = await authenticatedApiRequest(
-        `api/subscriptions/wholesale/admin/applications/${selectedApplication.id}/${action}`,
+        getApiUrl(`api/subscriptions/wholesale/admin/applications/${selectedApplication.id}/${action}`),
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Header from '../../components/Header';
-import { authenticatedApiRequest, handleCsrfError } from '../../lib/csrf';
+import { authApiRequest } from '../../lib/apiUtils';
+import { handleCsrfError } from '../../lib/csrf';
 import { getApiUrl } from '../../lib/config';
 import CouponEntry from '../../components/coupons/CouponEntry';
 import DiscountSummary from '../../components/coupons/DiscountSummary';
@@ -114,7 +115,7 @@ export default function Cart() {
     try {
       const item = cartItems.find(item => item.id === itemId);
       
-      const res = await authenticatedApiRequest(`cart/${activeCart.id}/items/${itemId}`, {
+      const res = await authApiRequest(`cart/${activeCart.id}/items/${itemId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -140,7 +141,7 @@ export default function Cart() {
 
   const removeItem = async (itemId) => {
     try {
-      const res = await authenticatedApiRequest(`cart/${activeCart.id}/items/${itemId}`, {
+      const res = await authApiRequest(`cart/${activeCart.id}/items/${itemId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -157,7 +158,7 @@ export default function Cart() {
   const saveForLater = async (item) => {
     try {
       // Add to saved items
-      const saveRes = await authenticatedApiRequest('cart/saved', {
+      const saveRes = await authApiRequest('cart/saved', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -221,7 +222,11 @@ export default function Cart() {
   };
 
   const calculateTotal = () => {
-    return cartItems.reduce((total, item) => total + (parseFloat(item.price) * item.quantity), 0).toFixed(2);
+    return cartItems.reduce((total, item) => {
+      const price = parseFloat(item.price) || 0;
+      const quantity = parseInt(item.quantity) || 0;
+      return total + (price * quantity);
+    }, 0).toFixed(2);
   };
 
   const proceedToCheckout = () => {
@@ -258,12 +263,18 @@ export default function Cart() {
   return (
     <div className={styles.container}>
       <Header />
-      <div className={styles.content}>
-        <h1 className={styles.title}>Shopping Cart</h1>
+      <div className={styles.content} style={{marginTop: '120px'}}>
+          {cartItems.length > 0 && (
+            <div className="section-box">
+              <p style={{color: 'var(--secondary-color)', fontWeight: '600', marginBottom: '1rem'}}>
+                {cartItems.length} item{cartItems.length !== 1 ? 's' : ''} in your cart
+              </p>
+            </div>
+          )}
 
         {/* Active Cart Section */}
-        <div className={styles.activeCartSection}>
-          <h2 className={styles.sectionTitle}>Active Cart</h2>
+        <div className="section-box">
+          <h2 className={styles.sectionTitle}>Active Cart: {activeCart?.id ? `Cart #${activeCart.id}` : 'Default Cart'}</h2>
           
           {cartItems.length === 0 ? (
             <div className={styles.emptyCart}>
@@ -280,22 +291,27 @@ export default function Cart() {
               {cartItems.map(item => (
                 <div key={item.id} className={styles.cartItem}>
                   <div className={styles.itemInfo}>
-                    <h3 className={styles.itemName}>Product ID: {item.product_id}</h3>
-                    <p className={styles.itemPrice}>${parseFloat(item.price).toFixed(2)}</p>
+                    <h3 className={styles.itemName}>Product Title</h3>
+                    <p style={{fontFamily: 'var(--font-body)', fontSize: '14px', color: '#666', margin: '5px 0'}}>
+                      Product ID: {item.product_id}
+                    </p>
+                    <p className={styles.itemPrice}>${(parseFloat(item.price) || 0).toFixed(2)}</p>
                   </div>
                   
                   <div className={styles.itemControls}>
                     <div className={styles.quantityControls}>
                       <button 
                         onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        className={styles.quantityButton}
+                        className="secondary"
+                        style={{padding: '8px 12px', minWidth: '40px'}}
                       >
                         -
                       </button>
                       <span className={styles.quantity}>{item.quantity}</span>
                       <button 
                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        className={styles.quantityButton}
+                        className="secondary"
+                        style={{padding: '8px 12px', minWidth: '40px'}}
                       >
                         +
                       </button>
@@ -303,16 +319,18 @@ export default function Cart() {
                     
                     <button 
                       onClick={() => saveForLater(item)}
-                      className={styles.saveButton}
+                      className="secondary"
+                      style={{marginRight: '10px'}}
                     >
                       Save for Later
                     </button>
                     
                     <button 
                       onClick={() => removeItem(item.id)}
-                      className={styles.removeButton}
+                      className="secondary"
+                      style={{color: 'red', borderColor: 'red', padding: '8px 12px'}}
                     >
-                      Remove
+                      ✕
                     </button>
                   </div>
                 </div>
@@ -335,9 +353,11 @@ export default function Cart() {
                 showItemBreakdown={true}
               />
               
-              <div className={styles.cartTotal}>
-                <h3>Total: ${cartTotal > 0 ? cartTotal.toFixed(2) : calculateTotal()}</h3>
-                <button className={styles.checkoutButton} onClick={proceedToCheckout}>
+              <div className="form-card" style={{textAlign: 'right'}}>
+                <h1 style={{fontFamily: 'var(--font-heading)', color: 'var(--primary-color)', marginBottom: '1rem'}}>
+                  Total: ${cartTotal > 0 ? (parseFloat(cartTotal) || 0).toFixed(2) : calculateTotal()}
+                </h1>
+                <button onClick={proceedToCheckout} className="secondary">
                   Proceed to Checkout
                 </button>
               </div>
@@ -347,8 +367,8 @@ export default function Cart() {
 
         {/* Cart Collections Section */}
         {cartCollections.length > 0 && (
-          <div className={styles.collectionsSection}>
-            <h2 className={styles.sectionTitle}>Other Cart Collections</h2>
+          <div className="section-box">
+            <h2>📂 Other Cart Collections</h2>
             
             {cartCollections.map(collection => (
               <div key={collection.id} className={styles.collectionFolder}>

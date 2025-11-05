@@ -190,6 +190,7 @@ router.get('/my', verifyToken, async (req, res) => {
     const hasAcceptedTerms = termsAcceptance.length > 0;
 
     // Auto-grant permission logic: if user has card + terms, ensure they have permission
+    // NOTE: We no longer auto-create subscriptions here - that's handled by select-tier and application steps
     if (hasAcceptedTerms) {
       // Check if user has any valid payment method (from any subscription)
       const [anySubscription] = await db.query(`
@@ -199,20 +200,21 @@ router.get('/my', verifyToken, async (req, res) => {
       `, [userId]);
 
       if (anySubscription.length > 0) {
-        // User has card + terms - ensure permission AND active subscription
+        // User has card + terms - ensure permission is granted
         await db.query(`
           INSERT INTO user_permissions (user_id, shipping) 
           VALUES (?, 1) 
           ON DUPLICATE KEY UPDATE shipping = 1
         `, [userId]);
-
-        // Also ensure they have an active shipping subscription
+        
+        // Also activate any incomplete shipping subscription
         await db.query(`
-          INSERT INTO user_subscriptions (
-            user_id, stripe_customer_id, subscription_type, status, prefer_connect_balance
-          ) VALUES (?, ?, 'shipping_labels', 'active', 0)
-          ON DUPLICATE KEY UPDATE status = 'active'
-        `, [userId, anySubscription[0].stripe_customer_id]);
+          UPDATE user_subscriptions 
+          SET status = 'active' 
+          WHERE user_id = ? 
+            AND subscription_type = 'shipping_labels' 
+            AND status = 'incomplete'
+        `, [userId]);
       }
     }
 
@@ -262,6 +264,8 @@ router.get('/my', verifyToken, async (req, res) => {
         subscription: {
           id: null,
           status: 'inactive',
+          tier: null,
+          tierPrice: null,
           cardLast4: cardLast4,
           preferConnectBalance: false,
           hasStripeConnect: req.permissions && req.permissions.includes('stripe_connect'),
@@ -365,6 +369,8 @@ router.get('/my', verifyToken, async (req, res) => {
       subscription: {
         id: subscription.id,
         status: subscription.status,
+        tier: subscription.tier,
+        tierPrice: subscription.tier_price,
         cardLast4: cardLast4,
         preferConnectBalance: subscription.prefer_connect_balance,
         hasStripeConnect: req.permissions && req.permissions.includes('stripe_connect'),
@@ -381,6 +387,78 @@ router.get('/my', verifyToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching shipping subscription:', error);
     res.status(500).json({ error: 'Failed to fetch subscription data' });
+  }
+});
+
+/**
+ * Select/Update tier for shipping subscription
+ * @route POST /api/subscriptions/shipping/select-tier
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.body.tier_name - Name of the selected tier
+ * @param {number} req.body.tier_price - Price of the selected tier
+ * @param {Object} res - Express response object
+ * @returns {Object} Tier selection confirmation
+ */
+router.post('/select-tier', verifyToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { subscription_type, tier_name, tier_price } = req.body;
+
+    // Validate subscription_type is provided
+    if (!subscription_type) {
+      return res.status(400).json({
+        success: false,
+        error: 'subscription_type is required'
+      });
+    }
+
+    // Check if user already has a subscription record for THIS subscription type
+    const [existing] = await db.query(`
+      SELECT id, tier, stripe_customer_id 
+      FROM user_subscriptions 
+      WHERE user_id = ? AND subscription_type = ?
+      LIMIT 1
+    `, [userId, subscription_type]);
+
+    if (existing.length > 0) {
+      // SAFETY FIX: Update existing subscription with tier
+      // This handles users who have permissions but no tier set
+      await db.query(`
+        UPDATE user_subscriptions 
+        SET tier = ?, tier_price = ?
+        WHERE id = ?
+      `, [tier_name || subscription_type, tier_price || 0, existing[0].id]);
+
+      return res.json({
+        success: true,
+        message: 'Tier updated successfully',
+        subscription_id: existing[0].id,
+        action: 'updated'
+      });
+    } else {
+      // Create new subscription record with tier for THIS subscription type
+      const [result] = await db.query(`
+        INSERT INTO user_subscriptions (
+          user_id, subscription_type, tier, tier_price, status
+        ) VALUES (?, ?, ?, ?, 'incomplete')
+      `, [userId, subscription_type, tier_name || subscription_type, tier_price || 0]);
+
+      return res.json({
+        success: true,
+        message: 'Tier selected successfully',
+        subscription_id: result.insertId,
+        action: 'created'
+      });
+    }
+
+  } catch (error) {
+    console.error('Error selecting tier:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to select tier',
+      details: error.message 
+    });
   }
 });
 
@@ -1548,6 +1626,60 @@ router.post('/create-standalone-label', verifyToken, requirePermission('shipping
       error: 'Failed to create label',
       details: error.message 
     });
+  }
+});
+
+/**
+ * Cancel shipping subscription
+ * @route POST /api/subscriptions/shipping/cancel
+ * @access Private
+ * @description Marks subscription for cancellation at end of current period
+ */
+router.post('/cancel', verifyToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    // Get user's shipping subscription
+    const [subscriptions] = await db.execute(`
+      SELECT id, status, current_period_end, cancel_at_period_end 
+      FROM user_subscriptions 
+      WHERE user_id = ? AND subscription_type = 'shipping_labels'
+      LIMIT 1
+    `, [userId]);
+
+    if (subscriptions.length === 0) {
+      return res.status(404).json({ error: 'No active subscription found' });
+    }
+
+    const subscription = subscriptions[0];
+
+    // Check if already canceled
+    if (subscription.cancel_at_period_end === 1) {
+      return res.json({
+        success: true,
+        message: 'Subscription is already set to cancel',
+        cancelAt: subscription.current_period_end
+      });
+    }
+
+    // Mark for cancellation at period end
+    await db.execute(`
+      UPDATE user_subscriptions 
+      SET cancel_at_period_end = 1, 
+          canceled_at = NOW()
+      WHERE id = ?
+    `, [subscription.id]);
+
+    res.json({
+      success: true,
+      message: 'Subscription will be canceled at the end of your billing period',
+      cancelAt: subscription.current_period_end,
+      note: 'You will retain access until ' + (subscription.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString() : 'the end of your billing period')
+    });
+
+  } catch (error) {
+    console.error('Error canceling subscription:', error);
+    res.status(500).json({ error: 'Failed to cancel subscription' });
   }
 });
 

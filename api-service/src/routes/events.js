@@ -137,8 +137,8 @@ router.get('/upcoming', async (req, res) => {
 router.get('/my-events', verifyToken, async (req, res) => {
     try {
         const artistId = req.userId;
-        const [events] = await db.query(
-            'SELECT * FROM artist_custom_events WHERE artist_id = ? ORDER BY event_date DESC',
+        const [events] = await db.execute(
+            'SELECT * FROM artist_custom_events WHERE artist_id = ? ORDER BY event_start_date DESC',
             [artistId]
         );
         res.json(events);
@@ -681,14 +681,17 @@ router.get('/:id/categories', async (req, res) => {
 router.post('/custom', verifyToken, async (req, res) => {
     try {
         const artistId = req.userId;
-        const { title, description, event_date, location, event_type } = req.body;
+        const { event_name, event_start_date, event_end_date, venue_name, city, state, website } = req.body;
         
-        const [result] = await db.query(`
-            INSERT INTO artist_custom_events (artist_id, title, description, event_date, location, event_type, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
-        `, [artistId, title, description, event_date, location || null, event_type || 'other']);
+        const [result] = await db.execute(`
+            INSERT INTO artist_custom_events (
+                artist_id, event_name, event_start_date, event_end_date, 
+                venue_name, city, state, website
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `, [artistId, event_name, event_start_date, event_end_date, venue_name || null, city || null, state || null, website || null]);
         
-        const [event] = await db.query(
+        const [event] = await db.execute(
             'SELECT * FROM artist_custom_events WHERE id = ?',
             [result.insertId]
         );

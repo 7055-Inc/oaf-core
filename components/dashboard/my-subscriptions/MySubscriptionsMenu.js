@@ -136,9 +136,9 @@ export default function MySubscriptionsMenu({
           <li>
             <button 
               className={styles.sidebarLink}
-              onClick={() => openSlideIn('ship-subscriptions', { title: 'Ship Subscriptions' })}
+              onClick={() => openSlideIn('shipping-labels-subscriptions', { title: 'Shipping Labels' })}
             >
-              Ship
+              Shipping Labels
             </button>
           </li>
         </ul>

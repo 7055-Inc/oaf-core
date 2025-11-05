@@ -6,8 +6,10 @@
   top: 0;
   left: 0;
   right: 0;
+  width: 100%;
   height: var(--header-height-desktop);
-  background-color: transparent;
+  background-color: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
   transition: all 0.3s ease;
   z-index: 1001;
   padding: 0;
@@ -20,13 +22,14 @@
 }
 
 .headerContainer {
-  max-width: 1200px;
+  width: 95%;
   margin: 0 auto;
   padding: 0 2rem;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  box-sizing: border-box;
 }
 
 /* Logo Section */
@@ -74,9 +77,10 @@
 .navigation {
   display: flex;
   align-items: center;
-  gap: 2rem;
-  flex: 1;
-  justify-content: center;
+  gap: 1.5rem;
+  margin-left: 2rem;
+  max-width: 50%;
+  overflow: hidden;
 }
 
 .navLink {
@@ -181,7 +185,6 @@
   display: flex;
   align-items: center;
   gap: 1.5rem;
-  flex-shrink: 0;
 }
 
 /* AI Search Button */
@@ -439,13 +442,29 @@
 }
 
 /* Responsive Design */
+@media (max-width: 1400px) {
+  .navigation {
+    gap: 1.8rem;
+  }
+}
+
+@media (max-width: 1200px) {
+  .aiSearchButton {
+    width: 200px;
+  }
+  
+  .navigation {
+    gap: 1.6rem;
+  }
+}
+
 @media (max-width: 1024px) {
   .navigation {
     gap: 1.5rem;
   }
   
   .aiSearchButton {
-    width: 180px;
+    width: 160px;
   }
 }
 

@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { authenticatedApiRequest } from '../../../../lib/csrf';
-import { getSmartMediaUrl } from '../../../../lib/config';
+import { getSmartMediaUrl, config } from '../../../../lib/config';
 import { authApiRequest } from '../../../../lib/apiUtils';
 import { getFrontendUrl } from '../../../../lib/config';
 import styles from '../../../../pages/dashboard/Dashboard.module.css';
 import slideInStyles from '../../SlideIn.module.css';
-import AddCategoryModal from '../../../AddCategoryModal';
 import VariationManager from '../../../VariationManager';
 import VariationBulkEditor from '../../../VariationBulkEditor';
 
@@ -26,7 +24,6 @@ export default function AddProduct({ userData }) {
     short_description: '',
     price: '',
     category_id: '',
-    user_category_id: '',
     sku: '',
     status: 'draft',
     // Inventory fields for initial setup
@@ -61,8 +58,6 @@ export default function AddProduct({ userData }) {
   ]);
 
   const [categories, setCategories] = useState([]);
-  const [userCategories, setUserCategories] = useState([]);
-  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showCarrierServices, setShowCarrierServices] = useState(false);
@@ -74,7 +69,6 @@ export default function AddProduct({ userData }) {
   // Load categories on component mount
   useEffect(() => {
     loadCategories();
-    loadUserCategories();
   }, []);
 
   // Handle product type selection
@@ -177,7 +171,7 @@ export default function AddProduct({ userData }) {
       await Promise.all(activationPromises);
 
       // Also activate the parent product (change from draft to active)
-      const parentActivationResponse = await authenticatedApiRequest(`products/${parentProductId}`, {
+      const parentActivationResponse = await authApiRequest(`products/${parentProductId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
@@ -194,7 +188,7 @@ export default function AddProduct({ userData }) {
 
       // Queue new product email for variable product
       try {
-        const emailResponse = await authenticatedApiRequest('emails/queue', {
+        const emailResponse = await authApiRequest('emails/queue', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -220,8 +214,9 @@ export default function AddProduct({ userData }) {
         setError(`Product activated successfully, but failed to send notification email: ${queueError.message}`);
       }
 
-      // Success! All drafts are now active products
-      // Product creation complete - user can navigate as needed
+      // Success! All drafts are now active products - redirect to the product page
+      alert('Variable product created successfully with all variations!');
+      router.push(`/products/${parentProductId}`);
       
     } catch (err) {
       setError(err.message);
@@ -250,7 +245,7 @@ export default function AddProduct({ userData }) {
 
   const loadCategories = async () => {
     try {
-      const response = await authenticatedApiRequest('categories', {
+      const response = await authApiRequest('categories', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -286,58 +281,6 @@ export default function AddProduct({ userData }) {
     }
   };
 
-  const loadUserCategories = async () => {
-    try {
-      const response = await authenticatedApiRequest('api/sites/categories', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          setUserCategories(data);
-        } else {
-          console.error('User categories data is not an array:', data);
-          setUserCategories([]);
-        }
-      } else {
-        console.error('Failed to load user categories');
-        setUserCategories([]);
-      }
-    } catch (error) {
-      console.error('Error loading user categories:', error);
-      setUserCategories([]);
-    }
-  };
-
-  const handleAddNewCategory = async (categoryData) => {
-    try {
-      const response = await authenticatedApiRequest('api/sites/categories', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(categoryData)
-      });
-      
-      if (response.ok) {
-        const newCategory = await response.json();
-        // API returns category object directly, not wrapped
-        setUserCategories(prev => [...prev, newCategory]);
-        setFormData(prev => ({ ...prev, user_category_id: newCategory.id }));
-        setShowAddCategoryModal(false);
-      } else {
-        const errorData = await response.json();
-        setError(errorData.error || 'Failed to create category');
-      }
-    } catch (error) {
-      console.error('Error creating category:', error);
-      setError('Failed to create category');
-    }
-  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -377,27 +320,62 @@ export default function AddProduct({ userData }) {
 
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
+    
+    // Validate files before upload
+    const maxFileSize = 5 * 1024 * 1024; // 5MB limit as per documentation
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    
+    for (const file of files) {
+      if (file.size > maxFileSize) {
+        setError(`File "${file.name}" is too large. Maximum size is 5MB.`);
+        return;
+      }
+      if (!allowedTypes.includes(file.type)) {
+        setError(`File "${file.name}" is not a supported image format. Please use JPEG, PNG, GIF, or WebP.`);
+        return;
+      }
+    }
+
     setLoading(true);
+    setError(null); // Clear any previous errors
+    
     try {
       const uploadFormData = new FormData();
       files.forEach(file => {
         uploadFormData.append('images', file);
       });
 
-      const response = await authenticatedApiRequest('products/upload?product_id=new', {
+      const response = await authApiRequest('products/upload?product_id=new', {
         method: 'POST',
         body: uploadFormData
       });
 
-      if (!response.ok) throw new Error('Failed to upload images');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to upload images');
+      }
       
       const data = await response.json();
-      setFormData(prev => ({
-        ...prev,
-        images: [...(Array.isArray(prev.images) ? prev.images : []), ...(Array.isArray(data.urls) ? data.urls : [])]
-      }));
+      
+      // The API returns { urls: [...] } - add these to existing images
+      if (data.urls && Array.isArray(data.urls)) {
+        setFormData(prev => {
+          const currentImages = Array.isArray(prev.images) ? prev.images : [];
+          const newImages = data.urls.map((url, index) => ({
+            url,
+            is_primary: currentImages.length === 0 && index === 0 // First image is primary by default
+          }));
+          
+          return {
+            ...prev,
+            images: [...currentImages, ...newImages]
+          };
+        });
+      } else {
+        throw new Error('Invalid response format from upload API');
+      }
     } catch (err) {
-      setError(err.message);
+      setError(`Image upload failed: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -408,7 +386,27 @@ export default function AddProduct({ userData }) {
       return;
     }
     
-    const updatedImages = formData.images.filter((_, i) => i !== index);
+    const removedImage = formData.images[index];
+    let updatedImages = formData.images.filter((_, i) => i !== index);
+    
+    // If we removed the primary image and there are still images left, make the first one primary
+    if (removedImage.is_primary && updatedImages.length > 0) {
+      updatedImages[0].is_primary = true;
+    }
+    
+    setFormData(prev => ({ ...prev, images: updatedImages }));
+  };
+
+  const setPrimaryImage = (index) => {
+    if (!Array.isArray(formData.images)) {
+      return;
+    }
+    
+    const updatedImages = formData.images.map((img, i) => ({
+      ...img,
+      is_primary: i === index
+    }));
+    
     setFormData(prev => ({ ...prev, images: updatedImages }));
   };
 
@@ -437,7 +435,6 @@ export default function AddProduct({ userData }) {
         ...formData, 
         parent_id: formData.parent_id || null,
         category_id: parseInt(formData.category_id),
-        user_category_id: formData.user_category_id ? parseInt(formData.user_category_id) : null,
         price: parseFloat(formData.price),
         beginning_inventory: parseInt(formData.beginning_inventory) || 0,
         reorder_qty: parseInt(formData.reorder_qty) || 0,
@@ -447,7 +444,7 @@ export default function AddProduct({ userData }) {
         product_type: selectedProductType
       };
 
-      const response = await authenticatedApiRequest('products', {
+      const response = await authApiRequest('products', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -471,7 +468,7 @@ export default function AddProduct({ userData }) {
 
       // Queue new product email
       try {
-        const emailResponse = await authenticatedApiRequest('emails/queue', {
+        const emailResponse = await authApiRequest('emails/queue', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -507,8 +504,9 @@ export default function AddProduct({ userData }) {
         setCurrentVariationStep(2); // Reset to step 2 when starting variation setup
         setWorkflowStep('variation-setup');
       } else {
-        // For simple products, close slide-in
-        // Product creation successful - user can navigate as needed
+        // For simple products, redirect to the product page
+        alert('Product created successfully!');
+        router.push(`/products/${newProduct.id}`);
       }
     } catch (err) {
       setError(err.message);
@@ -579,7 +577,7 @@ export default function AddProduct({ userData }) {
         packages: packages.filter(pkg => pkg.length && pkg.width && pkg.height && pkg.weight)
       };
       
-      const response = await authenticatedApiRequest('api/shipping/calculate-cart-shipping', {
+      const response = await authApiRequest('api/shipping/calculate-cart-shipping', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -632,12 +630,6 @@ export default function AddProduct({ userData }) {
 
   return (
     <div>
-        <AddCategoryModal 
-          isOpen={showAddCategoryModal} 
-          onClose={() => setShowAddCategoryModal(false)} 
-          onSubmit={handleAddNewCategory} 
-        />
-        
         {/* Product Type Selection */}
         {workflowStep === 'type-selection' && (
           <div>
@@ -734,28 +726,6 @@ export default function AddProduct({ userData }) {
                   </div>
 
                   <div>
-                    <label>Vendor Category</label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <select
-                        name="user_category_id"
-                        value={formData.user_category_id}
-                        onChange={handleChange}
-                      >
-                        <option value="">Select your category (optional)</option>
-                        {Array.isArray(userCategories) && userCategories.map(category => (
-                          <option key={category.id} value={category.id}>
-                            {category.name}
-                          </option>
-                        ))}
-                      </select>
-                      <button 
-                        type="button" 
-                        onClick={() => setShowAddCategoryModal(true)}
-                        className="secondary"
-                      >
-                        Add New
-                      </button>
-                    </div>
                     <small className={slideInStyles.helpText}>
                       Create your own categories to organize your products
                     </small>
@@ -1341,40 +1311,84 @@ export default function AddProduct({ userData }) {
                <div className="section-box">
                  <h2>Images</h2>
                  <div>
-               <input
+                   <input
                      type="file"
-                     accept="image/*"
+                     accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                      multiple
                      onChange={handleImageUpload}
+                     disabled={loading}
                    />
                    <div>
-                     {loading ? 'Uploading...' : 'Upload Images'}
-             </div>
-             </div>
+                     {loading ? 'Uploading images...' : 'Upload Images'}
+                   </div>
+                   <small className={slideInStyles.helpText}>
+                     Upload product images (JPEG, PNG, GIF, WebP). Maximum 5MB per file. Images will be processed for optimal web delivery.
+                   </small>
+                 </div>
                  
-                   {Array.isArray(formData.images) && formData.images.length > 0 && (
-                   <div>
-                       {formData.images.map((imageUrl, index) => (
-                         <div key={index}>
-                           <div>
-                             <img 
-                               src={imageUrl.startsWith('http') ? imageUrl : getSmartMediaUrl(imageUrl)} 
-                               alt={`Product ${index + 1}`} 
-                             />
-                           </div>
-                           <div>
-                             <button 
-                               type="button" 
-                               onClick={() => removeImage(index)}
-                               className="secondary"
-                             >
-                               Remove
-                             </button>
-                           </div>
-             </div>
-                     ))}
-             </div>
-                 )}
+                  {Array.isArray(formData.images) && formData.images.length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px', marginTop: '16px' }}>
+                      {formData.images.map((image, index) => {
+                        // Handle different URL formats:
+                        // - Temporary paths: /temp_images/products/...
+                        // - Permanent URLs: https://... or media IDs
+                        const imageUrl = typeof image === 'string' ? image : image.url;
+                        let displayUrl;
+                        if (imageUrl.startsWith('http')) {
+                          displayUrl = imageUrl;
+                        } else if (imageUrl.startsWith('/temp_images/')) {
+                          // For temporary images, use the API base URL + the path
+                          displayUrl = `${config.API_BASE_URL}${imageUrl}`;
+                        } else {
+                          // For media IDs, use the smart media URL
+                          displayUrl = getSmartMediaUrl(imageUrl);
+                        }
+                        
+                        const isPrimary = typeof image === 'object' && image.is_primary;
+                        
+                        return (
+                          <div key={index} style={{ border: isPrimary ? '3px solid var(--primary-color)' : '1px solid #ddd', borderRadius: '8px', padding: '8px', position: 'relative' }}>
+                            {isPrimary && (
+                              <div style={{ position: 'absolute', top: '4px', left: '4px', background: 'var(--primary-color)', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>
+                                PRIMARY
+                              </div>
+                            )}
+                            <div style={{ marginBottom: '8px' }}>
+                              <img 
+                                src={displayUrl}
+                                alt={`Product ${index + 1}`} 
+                                style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '4px' }}
+                                onError={(e) => {
+                                  console.error('Failed to load image:', displayUrl);
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                              <input
+                                type="radio"
+                                name="primaryImage"
+                                checked={isPrimary}
+                                onChange={() => setPrimaryImage(index)}
+                                id={`primary-${index}`}
+                              />
+                              <label htmlFor={`primary-${index}`} style={{ fontSize: '14px', margin: 0 }}>
+                                Set as Primary
+                              </label>
+                            </div>
+                            <button 
+                              type="button" 
+                              onClick={() => removeImage(index)}
+                              className="secondary"
+                              style={{ width: '100%' }}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
              </div>
 
              {/* Variations Section - Only shown for variable products */}
@@ -1481,7 +1495,7 @@ export default function AddProduct({ userData }) {
                         status: 'draft'
                       };
 
-                      const response = await authenticatedApiRequest('products', {
+                      const response = await authApiRequest('products', {
                         method: 'POST',
                         headers: {
                           'Content-Type': 'application/json'
@@ -1507,7 +1521,7 @@ export default function AddProduct({ userData }) {
                           await delay(200); // 200ms delay between variation creations (light throttling)
                         }
                         
-                        const variationResponse = await authenticatedApiRequest('products/variations', {
+                        const variationResponse = await authApiRequest('products/variations', {
                           method: 'POST',
                           headers: {
                             'Content-Type': 'application/json'

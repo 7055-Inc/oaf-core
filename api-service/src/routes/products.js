@@ -163,13 +163,13 @@ router.get('/all', async (req, res) => {
           );
           
           const [permanentImages] = await db.query(
-            'SELECT image_url FROM product_images WHERE product_id = ? ORDER BY `order` ASC',
+            'SELECT image_url, is_primary FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, `order` ASC',
             [product.id]
           );
           
           response.images = [
-            ...permanentImages.map(img => img.image_url),
-            ...tempImages.map(img => img.image_path)
+            ...permanentImages.map(img => ({ url: img.image_url, is_primary: img.is_primary === 1 })),
+            ...tempImages.map(img => ({ url: img.image_path, is_primary: false }))
           ];
         }
         
@@ -313,13 +313,13 @@ router.get('/my/:ids?', verifyToken, async (req, res) => {
           
           // Get permanent images
           const [permanentImages] = await db.query(
-            'SELECT image_url FROM product_images WHERE product_id = ? ORDER BY `order` ASC',
+            'SELECT image_url, is_primary FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, `order` ASC',
             [product.id]
           );
           
           response.images = [
-            ...permanentImages.map(img => img.image_url),
-            ...tempImages.map(img => img.image_path)
+            ...permanentImages.map(img => ({ url: img.image_url, is_primary: img.is_primary === 1 })),
+            ...tempImages.map(img => ({ url: img.image_path, is_primary: false }))
           ];
         }
         
@@ -461,14 +461,14 @@ router.get('/:id', async (req, res) => {
 
         // Get permanent product images
         const [permanentImages] = await db.query(
-          'SELECT image_url FROM product_images WHERE product_id = ? ORDER BY `order` ASC',
+          'SELECT image_url, is_primary FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, `order` ASC',
           [productData.id]
         );
 
         // Combine both sets of images
         response.images = [
-          ...permanentImages.map(img => img.image_url),
-          ...tempImages.map(img => img.image_path)
+          ...permanentImages.map(img => ({ url: img.image_url, is_primary: img.is_primary === 1 })),
+          ...tempImages.map(img => ({ url: img.image_path, is_primary: false }))
         ];
       }
 
@@ -724,7 +724,7 @@ router.get('/:id/variations', optionalAuth, async (req, res) => {
 
     // Get parent product images
     const [parentImages] = await db.query(
-      'SELECT image_url FROM product_images WHERE product_id = ? ORDER BY `order` ASC',
+      'SELECT image_url, is_primary FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, `order` ASC',
       [id]
     );
 
@@ -764,6 +764,9 @@ router.get('/:id/variations', optionalAuth, async (req, res) => {
  */
 router.post('/', verifyToken, requirePermission('vendor'), uploadLimiter, async (req, res) => {
   try {
+    console.log('=== PRODUCT CREATION DEBUG ===');
+    console.log('Full request body:', JSON.stringify(req.body, null, 2));
+    
     secureLogger.info('Product creation request', { 
       userId: req.userId, 
       productType: req.body.product_type, 
@@ -780,8 +783,11 @@ router.post('/', verifyToken, requirePermission('vendor'), uploadLimiter, async 
       allow_returns // Returns system field
     } = req.body;
 
+    console.log('Destructured values - name:', name, 'price:', price, 'category_id:', category_id, 'sku:', sku);
+
     // Validate required fields
     if (!name || !price || !category_id || !sku) {
+      console.log('Validation failed - missing required fields');
       return res.status(400).json({ error: 'Name, price, category ID, and SKU are required' });
     }
 
@@ -907,10 +913,14 @@ router.post('/', verifyToken, requirePermission('vendor'), uploadLimiter, async 
     // Handle images - move from temp to permanent storage and associate with product
     if (images && Array.isArray(images)) {
       for (let i = 0; i < images.length; i++) {
-        const imageUrl = images[i];
+        const image = images[i];
+        // Support both old format (string) and new format (object with url and is_primary)
+        const imageUrl = typeof image === 'string' ? image : image.url;
+        const isPrimary = typeof image === 'object' && image.is_primary ? 1 : 0;
+        
         await db.query(
-          'INSERT INTO product_images (product_id, image_url, `order`) VALUES (?, ?, ?)',
-          [productId, imageUrl, i]
+          'INSERT INTO product_images (product_id, image_url, `order`, is_primary) VALUES (?, ?, ?, ?)',
+          [productId, imageUrl, i, isPrimary]
         );
       }
     }
@@ -994,8 +1004,12 @@ router.post('/', verifyToken, requirePermission('vendor'), uploadLimiter, async 
     
     res.status(201).json(newProduct[0]);
   } catch (err) {
+    console.error('=== PRODUCT CREATION ERROR ===');
+    console.error('Error message:', err.message);
+    console.error('Error stack:', err.stack);
+    console.error('Error code:', err.code);
     secureLogger.error('Error creating product', err);
-    res.status(500).json({ error: 'Failed to create product' });
+    res.status(500).json({ error: 'Failed to create product', details: err.message });
   }
 });
 
@@ -1083,10 +1097,14 @@ router.put('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, asyn
       
       // Then insert new images
       for (let i = 0; i < images.length; i++) {
-        const imageUrl = images[i];
+        const image = images[i];
+        // Support both old format (string) and new format (object with url and is_primary)
+        const imageUrl = typeof image === 'string' ? image : image.url;
+        const isPrimary = typeof image === 'object' && image.is_primary ? 1 : 0;
+        
         await db.query(
-          'INSERT INTO product_images (product_id, image_url, `order`) VALUES (?, ?, ?)',
-          [id, imageUrl, i]
+          'INSERT INTO product_images (product_id, image_url, `order`, is_primary) VALUES (?, ?, ?, ?)',
+          [id, imageUrl, i, isPrimary]
         );
       }
     }
@@ -1140,7 +1158,7 @@ router.put('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, asyn
     // Get updated product with images
     const [updatedProduct] = await db.query('SELECT * FROM products WHERE id = ?', [id]);
     const [productImages] = await db.query(
-      'SELECT image_url FROM product_images WHERE product_id = ? ORDER BY `order` ASC',
+      'SELECT image_url, is_primary FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, `order` ASC',
       [id]
     );
     
@@ -1149,7 +1167,7 @@ router.put('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, asyn
     
     res.json({ 
       ...updatedProduct[0], 
-      images: productImages.map(img => img.image_url),
+      images: productImages.map(img => ({ url: img.image_url, is_primary: img.is_primary === 1 })),
       shipping: shipping[0] || {} 
     });
   } catch (err) {
@@ -1370,10 +1388,14 @@ router.patch('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, as
       
       // Then insert new images
       for (let i = 0; i < images.length; i++) {
-        const imageUrl = images[i];
+        const image = images[i];
+        // Support both old format (string) and new format (object with url and is_primary)
+        const imageUrl = typeof image === 'string' ? image : image.url;
+        const isPrimary = typeof image === 'object' && image.is_primary ? 1 : 0;
+        
         await db.query(
-          'INSERT INTO product_images (product_id, image_url, `order`) VALUES (?, ?, ?)',
-          [id, imageUrl, i]
+          'INSERT INTO product_images (product_id, image_url, `order`, is_primary) VALUES (?, ?, ?, ?)',
+          [id, imageUrl, i, isPrimary]
         );
       }
     }
@@ -1425,7 +1447,7 @@ router.patch('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, as
     // Get updated product with images
     const [updatedProduct] = await db.query('SELECT * FROM products WHERE id = ?', [id]);
     const [productImages] = await db.query(
-      'SELECT image_url FROM product_images WHERE product_id = ? ORDER BY `order` ASC',
+      'SELECT image_url, is_primary FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, `order` ASC',
       [id]
     );
     
@@ -1434,7 +1456,7 @@ router.patch('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, as
     
     res.json({ 
       ...updatedProduct[0], 
-      images: productImages.map(img => img.image_url),
+      images: productImages.map(img => ({ url: img.image_url, is_primary: img.is_primary === 1 })),
       shipping: shipping[0] || {} 
     });
   } catch (err) {
@@ -1893,7 +1915,7 @@ router.delete('/:id', verifyToken, requirePermission('vendor'), async (req, res)
     const { id } = req.params;
     
     // Get product to verify ownership and get children
-    const [product] = await db.query(
+    const [product] = await db.execute(
       'SELECT id, name, vendor_id, parent_id, product_type FROM products WHERE id = ? AND status != "deleted"',
       [id]
     );
@@ -1915,7 +1937,7 @@ router.delete('/:id', verifyToken, requirePermission('vendor'), async (req, res)
     
     // If this is a variable product (parent), also delete all its children
     if (product[0].product_type === 'variable' && product[0].parent_id === null) {
-      const [children] = await db.query(
+      const [children] = await db.execute(
         'SELECT id FROM products WHERE parent_id = ? AND status != "deleted"',
         [product[0].id]
       );
@@ -1929,9 +1951,113 @@ router.delete('/:id', verifyToken, requirePermission('vendor'), async (req, res)
     await db.query('START TRANSACTION');
     
     try {
-      // Perform soft delete by setting status to 'deleted'
       const deletePlaceholders = allProductsToDelete.map(() => '?').join(',');
-      await db.query(
+      
+      // Delete all associated records from related tables
+      // Cart items
+      await db.execute(
+        `DELETE FROM cart_items WHERE product_id IN (${deletePlaceholders})`,
+        allProductsToDelete
+      );
+      
+      // Product categories
+      await db.execute(
+        `DELETE FROM product_categories WHERE product_id IN (${deletePlaceholders})`,
+        allProductsToDelete
+      );
+      
+      // Product images
+      await db.execute(
+        `DELETE FROM product_images WHERE product_id IN (${deletePlaceholders})`,
+        allProductsToDelete
+      );
+      
+      // Product shipping
+      await db.execute(
+        `DELETE FROM product_shipping WHERE product_id IN (${deletePlaceholders})`,
+        allProductsToDelete
+      );
+      
+      // Product inventory
+      await db.execute(
+        `DELETE FROM product_inventory WHERE product_id IN (${deletePlaceholders})`,
+        allProductsToDelete
+      );
+      
+      // Product variations
+      await db.execute(
+        `DELETE FROM product_variations WHERE product_id IN (${deletePlaceholders})`,
+        allProductsToDelete
+      );
+      
+      // Saved items (wishlists)
+      await db.execute(
+        `DELETE FROM saved_items WHERE product_id IN (${deletePlaceholders})`,
+        allProductsToDelete
+      );
+      
+      // Coupon products
+      await db.execute(
+        `DELETE FROM coupon_products WHERE product_id IN (${deletePlaceholders})`,
+        allProductsToDelete
+      );
+      
+      // Promotion products
+      await db.execute(
+        `DELETE FROM promotion_products WHERE product_id IN (${deletePlaceholders})`,
+        allProductsToDelete
+      );
+      
+      // Inventory history
+      await db.execute(
+        `DELETE FROM inventory_history WHERE product_id IN (${deletePlaceholders})`,
+        allProductsToDelete
+      );
+      
+      // Marketplace curation
+      await db.execute(
+        `DELETE FROM marketplace_curation WHERE product_id IN (${deletePlaceholders})`,
+        allProductsToDelete
+      );
+      
+      // TikTok product data
+      await db.execute(
+        `DELETE FROM tiktok_product_data WHERE product_id IN (${deletePlaceholders})`,
+        allProductsToDelete
+      );
+      
+      // TikTok corporate products
+      await db.execute(
+        `DELETE FROM tiktok_corporate_products WHERE product_id IN (${deletePlaceholders})`,
+        allProductsToDelete
+      );
+      
+      // TikTok inventory allocations
+      await db.execute(
+        `DELETE FROM tiktok_inventory_allocations WHERE product_id IN (${deletePlaceholders})`,
+        allProductsToDelete
+      );
+      
+      // User variation values
+      await db.execute(
+        `DELETE FROM user_variation_values WHERE product_id IN (${deletePlaceholders})`,
+        allProductsToDelete
+      );
+      
+      // Vendor SKU log
+      await db.execute(
+        `DELETE FROM vendor_sku_log WHERE product_id IN (${deletePlaceholders})`,
+        allProductsToDelete
+      );
+      
+      // Sales records (keep for historical data, but you can uncomment to delete)
+      // await db.execute(
+      //   `DELETE FROM sales WHERE product_id IN (${deletePlaceholders})`,
+      //   allProductsToDelete
+      // );
+      
+      // Finally, perform soft delete on products table by setting status to 'deleted'
+      await db.execute(
         `UPDATE products SET status = 'deleted', updated_by = ? WHERE id IN (${deletePlaceholders})`,
         [req.userId, ...allProductsToDelete]
       );
@@ -1994,7 +2120,7 @@ router.post('/bulk-delete', verifyToken, requirePermission('vendor'), uploadLimi
     
     // Get all products to verify ownership and get children
     const placeholders = validIds.map(() => '?').join(',');
-    const [products] = await db.query(
+    const [products] = await db.execute(
       `SELECT id, name, vendor_id, parent_id, product_type FROM products WHERE id IN (${placeholders}) AND status != 'deleted'`,
       validIds
     );
@@ -2022,7 +2148,7 @@ router.post('/bulk-delete', verifyToken, requirePermission('vendor'), uploadLimi
       
       // If this is a variable product (parent), also delete all its children
       if (product.product_type === 'variable' && product.parent_id === null) {
-        const [children] = await db.query(
+        const [children] = await db.execute(
           'SELECT id FROM products WHERE parent_id = ? AND status != "deleted"',
           [product.id]
         );
@@ -2040,10 +2166,108 @@ router.post('/bulk-delete', verifyToken, requirePermission('vendor'), uploadLimi
     await db.query('START TRANSACTION');
     
     try {
-      // Perform soft delete by setting status to 'deleted'
       if (uniqueProductIds.length > 0) {
         const deletePlaceholders = uniqueProductIds.map(() => '?').join(',');
-        await db.query(
+        
+        // Delete all associated records from related tables
+        // Cart items
+        await db.execute(
+          `DELETE FROM cart_items WHERE product_id IN (${deletePlaceholders})`,
+          uniqueProductIds
+        );
+        
+        // Product categories
+        await db.execute(
+          `DELETE FROM product_categories WHERE product_id IN (${deletePlaceholders})`,
+          uniqueProductIds
+        );
+        
+        // Product images
+        await db.execute(
+          `DELETE FROM product_images WHERE product_id IN (${deletePlaceholders})`,
+          uniqueProductIds
+        );
+        
+        // Product shipping
+        await db.execute(
+          `DELETE FROM product_shipping WHERE product_id IN (${deletePlaceholders})`,
+          uniqueProductIds
+        );
+        
+        // Product inventory
+        await db.execute(
+          `DELETE FROM product_inventory WHERE product_id IN (${deletePlaceholders})`,
+          uniqueProductIds
+        );
+        
+        // Product variations
+        await db.execute(
+          `DELETE FROM product_variations WHERE product_id IN (${deletePlaceholders})`,
+          uniqueProductIds
+        );
+        
+        // Saved items (wishlists)
+        await db.execute(
+          `DELETE FROM saved_items WHERE product_id IN (${deletePlaceholders})`,
+          uniqueProductIds
+        );
+        
+        // Coupon products
+        await db.execute(
+          `DELETE FROM coupon_products WHERE product_id IN (${deletePlaceholders})`,
+          uniqueProductIds
+        );
+        
+        // Promotion products
+        await db.execute(
+          `DELETE FROM promotion_products WHERE product_id IN (${deletePlaceholders})`,
+          uniqueProductIds
+        );
+        
+        // Inventory history
+        await db.execute(
+          `DELETE FROM inventory_history WHERE product_id IN (${deletePlaceholders})`,
+          uniqueProductIds
+        );
+        
+        // Marketplace curation
+        await db.execute(
+          `DELETE FROM marketplace_curation WHERE product_id IN (${deletePlaceholders})`,
+          uniqueProductIds
+        );
+        
+        // TikTok product data
+        await db.execute(
+          `DELETE FROM tiktok_product_data WHERE product_id IN (${deletePlaceholders})`,
+          uniqueProductIds
+        );
+        
+        // TikTok corporate products
+        await db.execute(
+          `DELETE FROM tiktok_corporate_products WHERE product_id IN (${deletePlaceholders})`,
+          uniqueProductIds
+        );
+        
+        // TikTok inventory allocations
+        await db.execute(
+          `DELETE FROM tiktok_inventory_allocations WHERE product_id IN (${deletePlaceholders})`,
+          uniqueProductIds
+        );
+        
+        // User variation values
+        await db.execute(
+          `DELETE FROM user_variation_values WHERE product_id IN (${deletePlaceholders})`,
+          uniqueProductIds
+        );
+        
+        // Vendor SKU log
+        await db.execute(
+          `DELETE FROM vendor_sku_log WHERE product_id IN (${deletePlaceholders})`,
+          uniqueProductIds
+        );
+        
+        // Finally, perform soft delete on products table by setting status to 'deleted'
+        await db.execute(
           `UPDATE products SET status = 'deleted', updated_by = ? WHERE id IN (${deletePlaceholders})`,
           [req.userId, ...uniqueProductIds]
         );

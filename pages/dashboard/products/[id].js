@@ -4,7 +4,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Header from '../../../components/Header';
 import { authenticatedApiRequest } from '../../../lib/csrf';
 import { authApiRequest } from '../../../lib/apiUtils';
-import { getSmartMediaUrl } from '../../../lib/config';
+import { getSmartMediaUrl, config } from '../../../lib/config';
 import styles from '../../../pages/products/styles/ProductForm.module.css';
 
 export default function EditProduct() {
@@ -68,6 +68,9 @@ export default function EditProduct() {
   const [currentUserData, setCurrentUserData] = useState(null);
   const [loadingVendors, setLoadingVendors] = useState(false);
   
+  // Categories state
+  const [categories, setCategories] = useState([]);
+  
   // Inventory update state
   const [inventoryUpdateTimeout, setInventoryUpdateTimeout] = useState(null);
   const [savingInventory, setSavingInventory] = useState(false);
@@ -96,7 +99,7 @@ export default function EditProduct() {
     setLoadingVendors(true);
     try {
       // Fetch all users with vendor permissions + admins
-      const res = await authenticatedApiRequest('users?permissions=vendor,admin', {
+      const res = await authApiRequest('users?permissions=vendor,admin', {
         method: 'GET'
       });
       
@@ -115,7 +118,7 @@ export default function EditProduct() {
 
   const fetchCurrentUser = async () => {
     try {
-      const res = await authenticatedApiRequest('users/me', {
+      const res = await authApiRequest('users/me', {
         method: 'GET'
       });
       
@@ -125,6 +128,21 @@ export default function EditProduct() {
       }
     } catch (err) {
       console.error('Error fetching current user:', err);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const res = await authApiRequest('categories', {
+        method: 'GET'
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setCategories(data.flat_categories || []);
+      }
+    } catch (err) {
+      console.error('Error fetching categories:', err);
     }
   };
 
@@ -140,10 +158,27 @@ export default function EditProduct() {
         
         const data = await res.json();
         
-        // Ensure image URLs are absolute
-        const images = data.images?.map(img => {
-          if (img.startsWith('http')) return img;
-          return getSmartMediaUrl(img);
+        // Process images to handle both old string format and new object format
+        const images = data.images?.map((img, index) => {
+          // Handle new format: {url, is_primary} or old format: string
+          const imageUrl = typeof img === 'string' ? img : img.url;
+          const isPrimary = typeof img === 'object' && img.is_primary;
+          
+          let processedUrl;
+          if (imageUrl.startsWith('http')) {
+            processedUrl = imageUrl;
+          } else if (imageUrl.startsWith('/temp_images/')) {
+            // For temp images, use API base URL directly
+            processedUrl = `${config.API_BASE_URL}${imageUrl}`;
+          } else {
+            // For media IDs, use smart serving
+            processedUrl = getSmartMediaUrl(imageUrl);
+          }
+          
+          return {
+            url: processedUrl,
+            is_primary: isPrimary || (index === 0 && data.images.every(i => typeof i === 'string')) // If all are strings, make first primary
+          };
         }) || [];
 
         setFormData({
@@ -197,10 +232,11 @@ export default function EditProduct() {
           }
         }
 
-        // Fetch vendor list and current user data
+        // Fetch vendor list, current user data, and categories
         await Promise.all([
           fetchVendors(),
-          fetchCurrentUser()
+          fetchCurrentUser(),
+          fetchCategories()
         ]);
 
       } catch (err) {
@@ -227,7 +263,7 @@ export default function EditProduct() {
     return (
       <div className={styles.container}>
         <Header />
-        <div className={styles.content}>
+        <div className={styles.content} style={{ paddingTop: '100px' }}>
           <div className={styles.loading}>Loading...</div>
         </div>
       </div>
@@ -274,7 +310,7 @@ export default function EditProduct() {
           updateData.qty_on_hand = newValue;
         } else if (field === 'reorder_qty') {
           // For reorder_qty, we need to update the existing record without changing qty_on_hand
-          const res = await authenticatedApiRequest(`inventory/${params.id}`, {
+          const res = await authApiRequest(`inventory/${params.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -301,7 +337,7 @@ export default function EditProduct() {
         }
 
         // For qty_on_hand updates
-        const res = await authenticatedApiRequest(`inventory/${params.id}`, {
+        const res = await authApiRequest(`inventory/${params.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updateData)
@@ -406,7 +442,7 @@ export default function EditProduct() {
         country: 'US'
       };
       
-      const response = await authenticatedApiRequest(
+      const response = await authApiRequest(
         'api/shipping/calculate-cart-shipping',
         {
           method: 'POST',
@@ -482,21 +518,19 @@ export default function EditProduct() {
     const files = Array.from(e.target.files);
     setLoading(true);
     try {
-      const formData = new FormData();
+      const uploadFormData = new FormData();
       files.forEach(file => {
-        formData.append('images', file);
+        uploadFormData.append('images', file);
       });
-
-
       
       // Make sure we have a valid product ID
       if (!params.id) {
         throw new Error('Product ID is required for image upload');
       }
 
-      const res = await authenticatedApiRequest(`products/upload?product_id=${params.id}`, {
+      const res = await authApiRequest(`products/upload?product_id=${params.id}`, {
         method: 'POST',
-        body: formData
+        body: uploadFormData
       });
 
       if (!res.ok) {
@@ -510,24 +544,17 @@ export default function EditProduct() {
         throw new Error('Invalid upload response format');
       }
 
-      // Ensure image URLs are absolute
-      const newImages = data.urls.map(url => {
-        if (url.startsWith('http')) return url;
-        // If the URL starts with a slash, it's a relative path
-        if (url.startsWith('/')) {
-          return getSmartMediaUrl(url);
-        }
-        // If it's a relative path without a leading slash
-        return `${url}`;
-      });
-
-
-
+      // Add new images as objects with is_primary flag
       setFormData(prev => {
-        const updatedImages = [...(prev.images || []), ...newImages];
+        const currentImages = Array.isArray(prev.images) ? prev.images : [];
+        const newImages = data.urls.map((url, index) => ({
+          url,
+          is_primary: currentImages.length === 0 && index === 0 // First image is primary if no existing images
+        }));
+        
         return {
           ...prev,
-          images: updatedImages
+          images: [...currentImages, ...newImages]
         };
       });
     } catch (err) {
@@ -535,6 +562,35 @@ export default function EditProduct() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const removeImage = (index) => {
+    if (!Array.isArray(formData.images)) {
+      return;
+    }
+    
+    const removedImage = formData.images[index];
+    let updatedImages = formData.images.filter((_, i) => i !== index);
+    
+    // If we removed the primary image and there are still images left, make the first one primary
+    if (removedImage.is_primary && updatedImages.length > 0) {
+      updatedImages[0].is_primary = true;
+    }
+    
+    setFormData(prev => ({ ...prev, images: updatedImages }));
+  };
+
+  const setPrimaryImage = (index) => {
+    if (!Array.isArray(formData.images)) {
+      return;
+    }
+    
+    const updatedImages = formData.images.map((img, i) => ({
+      ...img,
+      is_primary: i === index
+    }));
+    
+    setFormData(prev => ({ ...prev, images: updatedImages }));
   };
 
   const handleSubmit = async (e) => {
@@ -550,7 +606,7 @@ export default function EditProduct() {
         vendor_id: formData.vendor_id || null
       };
       
-      const res = await authenticatedApiRequest(`products/${params.id}`, {
+      const res = await authApiRequest(`products/${params.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -565,7 +621,7 @@ export default function EditProduct() {
       
       const responseData = await res.json();
       
-      router.push('/dashboard/products');
+      router.push(`/products/${params.id}`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -578,16 +634,23 @@ export default function EditProduct() {
     
     setLoading(true);
     try {
-      const res = await authenticatedApiRequest(`products/${params.id}`, {
+      const res = await authApiRequest(`products/${params.id}`, {
         method: 'DELETE'
       });
+      
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.error || 'Failed to delete product');
       }
+      
+      // Read the response body to prevent JSON parsing errors
+      const data = await res.json();
+      
+      // Redirect to products list after successful deletion
       router.push('/dashboard/products');
     } catch (err) {
       setError(err.message);
+      alert('Error deleting product: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -597,7 +660,7 @@ export default function EditProduct() {
     return (
       <div className={styles.container}>
         <Header />
-        <div className={styles.content}>
+        <div className={styles.content} style={{ paddingTop: '100px' }}>
           <div className={styles.loading}>Loading product and vendor data...</div>
         </div>
       </div>
@@ -607,7 +670,7 @@ export default function EditProduct() {
   return (
     <div className={styles.container}>
       <Header />
-      <div className={styles.content}>
+      <div className={styles.content} style={{ paddingTop: '100px' }}>
         <h1 className={styles.title}>Edit Product</h1>
         {error && <div className={styles.error}>{error}</div>}
         
@@ -646,6 +709,24 @@ export default function EditProduct() {
                   onChange={handleChange}
                   className={styles.textarea}
                 />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Category</label>
+                <select
+                  name="category_id"
+                  value={formData.category_id}
+                  onChange={handleChange}
+                  className={styles.select}
+                  required
+                >
+                  <option value="">Select a category</option>
+                  {categories.map(category => (
+                    <option key={category.id} value={category.id}>
+                      {category.parent_name ? `${category.parent_name} > ${category.name}` : category.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className={styles.formGroup}>
@@ -1239,27 +1320,73 @@ export default function EditProduct() {
                   multiple
                   onChange={handleImageUpload}
                   className={styles.fileInput}
+                  id="imageUpload"
                 />
-                <div className={styles.uploadButton}>
+                <label htmlFor="imageUpload" className={styles.uploadButton}>
                   {loading ? 'Uploading...' : 'Upload Images'}
-                </div>
+                </label>
+                <small className={styles.helpText}>
+                  Upload product images (JPEG, PNG, GIF, WebP). Maximum 50MB per file. Images will be processed for optimal web delivery.
+                </small>
               </div>
               
-              {formData.images.length > 0 && (
-                <div className={styles.imagePreview}>
-                  {formData.images.map((url, index) => (
-                    <div key={index} className={styles.imageThumbnail}>
-                      <img 
-                        src={url} 
-                        alt={`Product ${index + 1}`} 
-                        onError={(e) => {
-                          console.error('Image failed to load:', url);
-                          e.target.style.display = 'none';
-                        }}
-                      />
-                      <div className={styles.imageUrl}>{url}</div>
-                    </div>
-                  ))}
+              {Array.isArray(formData.images) && formData.images.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px', marginTop: '16px' }}>
+                  {formData.images.map((image, index) => {
+                    // Handle different URL formats
+                    const imageUrl = typeof image === 'string' ? image : image.url;
+                    let displayUrl;
+                    if (imageUrl.startsWith('http')) {
+                      displayUrl = imageUrl;
+                    } else if (imageUrl.startsWith('/temp_images/')) {
+                      displayUrl = `${config.API_BASE_URL}${imageUrl}`;
+                    } else {
+                      displayUrl = getSmartMediaUrl(imageUrl);
+                    }
+                    
+                    const isPrimary = typeof image === 'object' && image.is_primary;
+                    
+                    return (
+                      <div key={index} style={{ border: isPrimary ? '3px solid var(--primary-color)' : '1px solid #ddd', borderRadius: '8px', padding: '8px', position: 'relative' }}>
+                        {isPrimary && (
+                          <div style={{ position: 'absolute', top: '4px', left: '4px', background: 'var(--primary-color)', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', zIndex: 1 }}>
+                            PRIMARY
+                          </div>
+                        )}
+                        <div style={{ marginBottom: '8px' }}>
+                          <img 
+                            src={displayUrl}
+                            alt={`Product ${index + 1}`} 
+                            style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '4px' }}
+                            onError={(e) => {
+                              console.error('Failed to load image:', displayUrl);
+                              e.target.style.display = 'none';
+                            }}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                          <input
+                            type="radio"
+                            name="primaryImage"
+                            checked={isPrimary}
+                            onChange={() => setPrimaryImage(index)}
+                            id={`primary-${index}`}
+                          />
+                          <label htmlFor={`primary-${index}`} style={{ fontSize: '14px', margin: 0 }}>
+                            Set as Primary
+                          </label>
+                        </div>
+                        <button 
+                          type="button" 
+                          onClick={() => removeImage(index)}
+                          className="secondary"
+                          style={{ width: '100%' }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

@@ -446,9 +446,9 @@ export default function EventPage() {
     
     Promise.all([
       fetch(getApiUrl(`api/events/${id}`)).then(res => res.json()),
-      fetch(`api/events/${id}/images`).then(res => res.json()),
-      fetch(`api/events/${id}/categories`).then(res => res.json()),
-      fetch(`api/events/${id}/artists`).then(res => res.json().catch(() => ({ artists: [] }))) // Handle artists fetch with fallback
+      fetch(getApiUrl(`api/events/${id}/images`)).then(res => res.json()),
+      fetch(getApiUrl(`api/events/${id}/categories`)).then(res => res.json()),
+      fetch(getApiUrl(`api/events/${id}/artists`)).then(res => res.json().catch(() => ({ artists: [] }))) // Handle artists fetch with fallback
     ])
       .then(async ([eventData, imagesData, categoriesData, artistsData]) => {
         setEvent(eventData || null);
@@ -546,7 +546,7 @@ export default function EventPage() {
 
   const loadApplicationStats = async () => {
     try {
-      const response = await fetch(`api/applications/events/${id}/stats`);
+      const response = await fetch(getApiUrl(`api/applications/events/${id}/stats`));
       if (response.ok) {
         const stats = await response.json();
         setApplicationStats(stats);

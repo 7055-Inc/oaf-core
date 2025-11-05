@@ -498,7 +498,7 @@ async function ensureShortcutsWidget(userId) {
 
     // Check if shortcuts widget already exists
     const [existing] = await db.execute(
-      'SELECT id FROM dashboard_layouts WHERE user_id = ? AND widget_type = ?',
+      'SELECT id FROM dashboard_layouts WHERE user_id = ? AND widget_type = ? ORDER BY id ASC',
       [userId, 'my_shortcuts']
     );
 
@@ -537,6 +537,19 @@ async function ensureShortcutsWidget(userId) {
       `, [userId, 'my_shortcuts', 0, 0, JSON.stringify(defaultConfig), 0]);
       
       console.log('Shortcuts widget created successfully:', result);
+    } else if (existing.length > 1) {
+      // CLEANUP: Remove duplicate shortcuts widgets, keep only the first one
+      console.log(`Found ${existing.length} shortcuts widgets - cleaning up duplicates for user:`, userId);
+      
+      const keepId = existing[0].id;
+      const duplicateIds = existing.slice(1).map(w => w.id);
+      
+      await db.execute(`
+        DELETE FROM dashboard_layouts 
+        WHERE user_id = ? AND widget_type = ? AND id != ?
+      `, [userId, 'my_shortcuts', keepId]);
+      
+      console.log(`Removed ${duplicateIds.length} duplicate shortcuts widgets, kept ID:`, keepId);
     } else {
       console.log('Shortcuts widget already exists for user:', userId);
     }
@@ -601,7 +614,33 @@ router.post('/add-widget', verifyToken, async (req, res) => {
     const userId = req.userId;
     const { widgetType, gridRow, gridCol } = req.body;
 
-    // Simple INSERT - just add the widget
+    // Special handling for my_shortcuts - only allow one per user
+    if (widgetType === 'my_shortcuts') {
+      const [existing] = await db.execute(
+        'SELECT id FROM dashboard_layouts WHERE user_id = ? AND widget_type = ?',
+        [userId, 'my_shortcuts']
+      );
+      
+      if (existing.length > 0) {
+        return res.status(400).json({ 
+          error: 'You already have a shortcuts widget on your dashboard. Only one shortcuts widget is allowed per user.' 
+        });
+      }
+    }
+
+    // Check if widget type already exists (prevent duplicates for all widgets)
+    const [existingWidget] = await db.execute(
+      'SELECT id FROM dashboard_layouts WHERE user_id = ? AND widget_type = ?',
+      [userId, widgetType]
+    );
+
+    if (existingWidget.length > 0) {
+      return res.status(400).json({ 
+        error: `You already have a "${widgetType.replace('_', ' ')}" widget on your dashboard.` 
+      });
+    }
+
+    // Insert the widget
     await db.execute(`
       INSERT INTO dashboard_layouts (user_id, widget_type, grid_row, grid_col, widget_config)
       VALUES (?, ?, ?, ?, ?)

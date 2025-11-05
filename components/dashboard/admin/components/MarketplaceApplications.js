@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
 import { authApiRequest } from '../../../../lib/apiUtils';
+import { getApiUrl } from '../../../../lib/config';
 
 // Marketplace Applications Admin Component
 // Title is handled by slide-in header template in Dashboard
@@ -77,7 +78,7 @@ export default function MarketplaceApplications({ userData }) {
       setProcessingAction(true);
       
       const response = await authenticatedApiRequest(
-        `api/admin/marketplace/applications/${selectedApplication.id}/${action}`,
+        getApiUrl(`api/admin/marketplace/applications/${selectedApplication.id}/${action}`),
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -100,6 +101,44 @@ export default function MarketplaceApplications({ userData }) {
     } catch (error) {
       console.error(`Error ${action}ing application:`, error);
       alert(`Error ${action}ing application. Please try again.`);
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  const handleRevokeAccess = async () => {
+    if (!selectedApplication) return;
+
+    if (!confirm('Are you sure you want to remove marketplace access for this user? This will revoke their vendor permission.')) {
+      return;
+    }
+
+    try {
+      setProcessingAction(true);
+      
+      const response = await authApiRequest(
+        `admin/users/${selectedApplication.user_id}/permissions`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            vendor: false,
+            marketplace: false
+          })
+        }
+      );
+
+      if (response.ok) {
+        alert('Marketplace access removed successfully!');
+        closeApplicationModal();
+        await fetchApplications();
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to remove access: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error removing marketplace access:', error);
+      alert('Error removing marketplace access. Please try again.');
     } finally {
       setProcessingAction(false);
     }
@@ -308,6 +347,22 @@ export default function MarketplaceApplications({ userData }) {
                       <div><strong>Notes:</strong> {selectedApplication.marketplace_admin_notes}</div>
                     )}
                   </div>
+                  
+                  {applicationsTab === 'accepted' && (
+                    <div style={{ marginTop: '16px' }}>
+                      <button
+                        onClick={handleRevokeAccess}
+                        disabled={processingAction}
+                        className="secondary"
+                        style={{ width: '100%' }}
+                      >
+                        🚫 Remove Marketplace Access
+                      </button>
+                      <p style={{ fontSize: '12px', color: '#6c757d', marginTop: '8px', marginBottom: '0' }}>
+                        This will revoke vendor permission (and nested marketplace/stripe_connect access). Verified status will remain.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -120,12 +120,13 @@ router.get('/unified', verifyToken, async (req, res) => {
       carts.map(async (cart) => {
         const [items] = await db.query(`
           SELECT ci.*, p.name as product_name, p.price as current_price, 
-                 p.image_path, u.username as vendor_name,
+                 pi.image_url as image_path, u.username as vendor_name,
                  COALESCE(up.first_name, u.username) as vendor_display_name
           FROM cart_items ci
           JOIN products p ON ci.product_id = p.id
           JOIN users u ON ci.vendor_id = u.id
           LEFT JOIN user_profiles up ON u.id = up.user_id
+          LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.order = 0
           WHERE ci.cart_id = ?
         `, [cart.id]);
 

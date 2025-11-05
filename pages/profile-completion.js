@@ -62,7 +62,7 @@ export default function ProfileCompletion() {
     setError(null);
 
     try {
-      const response = await authenticatedApiRequest('users/complete-profile', {
+      const response = await authApiRequest('users/complete-profile', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
@@ -171,7 +171,7 @@ export default function ProfileCompletion() {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       try {
-        const checkResponse = await authenticatedApiRequest('users/profile-completion-status');
+        const checkResponse = await authApiRequest('users/profile-completion-status');
         if (checkResponse.ok) {
           const checkData = await checkResponse.json();
           if (!checkData.requiresCompletion) {

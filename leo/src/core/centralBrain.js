@@ -56,13 +56,7 @@ class CentralBrain {
       logger.info(`🧠 [CENTRAL-BRAIN] Processing query: "${query}" (user: ${userId}, type: ${requestType})`);
       const startTime = Date.now();
 
-      // Check if this is a search request - delegate to SearchService
-      if (requestType === 'search' || requestType === 'sitewide_search' || context.recommendationMode) {
-        logger.info('🔍 Delegating to SearchService for intelligent search handling');
-        return await this.handleSearchRequest(query, context);
-      }
-
-      // For non-search requests, use the original Central Brain logic
+      // Use Llama analysis for ALL requests (no more SearchService bypass)
       // Step 1: Let Llama analyze the query and decide what to do
       const queryAnalysis = await this.analyzeQueryWithLlama(query, context);
       
@@ -99,93 +93,22 @@ class CentralBrain {
     }
   }
 
-  /**
-   * Handle search requests by delegating to SearchService
-   */
-  async handleSearchRequest(query, context = {}) {
-    try {
-      const startTime = Date.now();
-      
-      // Determine display mode based on context
-      let displayMode = 'modal'; // default
-      if (context.page === 'search' || context.fullPage) {
-        displayMode = 'full_page';
-      }
-
-      // Prepare context for SearchService
-      const searchContext = {
-        userId: context.userId || 'anonymous',
-        displayMode,
-        limit: context.limit || 20,
-        categories: context.categories || ['products', 'artists', 'articles', 'events']
-      };
-
-      logger.info(`🔍 [CENTRAL-BRAIN] Delegating search to SearchService: "${query}"`);
-      
-      // Delegate to SearchService
-      const searchResults = await this.searchService.handleSitewideSearch(query, searchContext);
-
-      const responseTime = Date.now() - startTime;
-      logger.info(`✅ Search completed via SearchService in ${responseTime}ms`);
-
-      // Return in Central Brain format for consistency
-      return {
-        success: true,
-        query,
-        context,
-        analysis: {
-          intent: 'search',
-          delegated_to: 'SearchService',
-          reasoning: 'Search request delegated to specialized SearchService'
-        },
-        response: searchResults,
-        metadata: {
-          responseTime,
-          userId: context.userId || 'anonymous',
-          timestamp: new Date().toISOString(),
-          brainProcessed: true,
-          searchServiceUsed: true
-        }
-      };
-
-    } catch (error) {
-      logger.error('Search delegation failed:', error);
-      throw error;
-    }
-  }
 
   /**
    * Step 1: Let Llama analyze the query and create an execution plan
    */
   async analyzeQueryWithLlama(query, context) {
     try {
-      const analysisPrompt = `You are Leo AI's central brain. Analyze this user query and create an execution plan.
+      const analysisPrompt = `Analyze query: "${query}"
+Context: ${context.requestType || 'unknown'}, user: ${context.userId || 'anon'}
 
-USER QUERY: "${query}"
-CONTEXT: ${JSON.stringify(context, null, 2)}
-
-INSTRUCTIONS:
-1. Determine what the user is asking for (search, recommendations, help, etc.)
-2. Identify what data sources are needed (products, articles, events, users)
-3. Determine if personalization should be applied
-4. Decide how results should be organized
-5. Specify what information to return to the frontend
-
-RESPOND WITH VALID JSON:
+Return JSON:
 {
-  "intent": "search|recommendation|help|feedback|other",
-  "data_sources": ["products", "articles", "events", "users"],
-  "personalization": true/false,
-  "truth_application": true/false,
-  "result_limit": number,
-  "organization_strategy": "relevance|category|mixed|temporal",
-  "response_format": {
-    "products": true/false,
-    "articles": true/false,
-    "events": true/false,
-    "users": true/false
-  },
-  "reasoning": "Why this execution plan makes sense"
+  "intent": "recommendation|search|help",
+  "data_sources": ["products"],
+  "personalization": true,
+  "result_limit": ${context.limit || 6},
+  "reasoning": "brief reason"
 }`;
 
       const llamaResponse = await this.queryLlama(analysisPrompt);
@@ -198,13 +121,10 @@ RESPOND WITH VALID JSON:
       // Fallback analysis
       return {
         intent: 'search',
-        data_sources: ['products', 'articles'],
+        data_sources: ['products'],
         personalization: true,
-        truth_application: true,
-        result_limit: context.limit || 20,
-        organization_strategy: 'relevance',
-        response_format: { products: true, articles: true, events: false, users: false },
-        reasoning: 'Fallback analysis - treating as general search'
+        result_limit: context.limit || 6,
+        reasoning: 'Fallback analysis'
       };
 
     } catch (error) {
@@ -229,7 +149,10 @@ RESPOND WITH VALID JSON:
       
       if (analysis.data_sources.includes('products')) {
         vectorSearches.push(
-          this.mainDB.semanticSearch(analysis.query || 'products', 'art_metadata', { limit: Math.ceil(limit * 0.4) })
+          this.mainDB.semanticSearch(analysis.query || 'products', 'art_metadata', { 
+            limit: Math.ceil(limit * 0.4),
+            filter: { status: 'active' } // Only return active products
+          })
         );
       }
       if (analysis.data_sources.includes('articles')) {
@@ -277,42 +200,19 @@ RESPOND WITH VALID JSON:
    */
   async organizeResponseWithLlama(results, analysis, context) {
     try {
-      const organizationPrompt = `You are organizing search results for the user. Apply intelligence and return organized data.
-
-ORIGINAL INTENT: ${analysis.intent}
-ORGANIZATION STRATEGY: ${analysis.organization_strategy}
-
-VECTOR RESULTS (first 10):
-${JSON.stringify(results.main_vector_results.slice(0, 10).map(r => ({
-  content: r.content?.substring(0, 100),
-  metadata: r.metadata,
+      const organizationPrompt = `Organize results for ${analysis.intent}.
+Results: ${JSON.stringify(results.main_vector_results.slice(0, 5).map(r => ({
+  id: r.metadata?.original_id || r.id,
   similarity: r.similarity
-})), null, 2)}
+})))}
 
-RELEVANT TRUTHS:
-${JSON.stringify(results.relevant_truths.map(t => ({
-  pattern: t.content?.substring(0, 100),
-  confidence: t.confidence
-})), null, 2)}
-
-INSTRUCTIONS:
-1. Apply truths to reorder/enhance results
-2. Categorize results by type (products, articles, events, users)
-3. Extract clean IDs for each category
-4. Provide reasoning for the organization
-
-RESPOND WITH VALID JSON:
+Return JSON:
 {
   "organized_results": {
-    "products": [{"id": "123", "relevance": 0.9, "reason": "why this product"}],
-    "articles": [{"id": "456", "relevance": 0.8, "reason": "why this article"}],
-    "events": [{"id": "789", "relevance": 0.7, "reason": "why this event"}],
-    "users": [{"id": "101", "relevance": 0.6, "reason": "why this user"}]
+    "products": [{"id": "123", "relevance": 0.9, "reason": "relevant"}]
   },
-  "intelligence_applied": true/false,
-  "truths_used": ["list of truth patterns that influenced this organization"],
-  "confidence": 0.1-1.0,
-  "organization_reasoning": "How and why results were organized this way"
+  "intelligence_applied": true,
+  "confidence": 0.8
 }`;
 
       const llamaResponse = await this.queryLlama(organizationPrompt);
@@ -330,6 +230,7 @@ RESPOND WITH VALID JSON:
       return this.fallbackOrganization(results.main_vector_results);
     }
   }
+
 
   /**
    * Fallback organization when Llama fails
@@ -357,6 +258,7 @@ RESPOND WITH VALID JSON:
       }
     });
 
+
     return {
       organized_results: organized,
       intelligence_applied: false,
@@ -371,16 +273,23 @@ RESPOND WITH VALID JSON:
    */
   async queryLlama(prompt) {
     try {
+      // Add timeout for faster failures
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+      
       const response = await fetch('http://localhost:11434/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           model: 'llama3.2',
           prompt: prompt,
           stream: false,
-          options: { temperature: 0.3, top_p: 0.9, num_predict: 1000 }
+          options: { temperature: 0.3, top_p: 0.9, num_predict: 200 } // Reduced from 1000 to 200
         })
       });
+      
+      clearTimeout(timeoutId);
 
       if (!response.ok) return null;
       

@@ -86,7 +86,7 @@ export default function CouponEntry({ onApplyCoupon, onRemoveCoupon, appliedCoup
           <button
             type="submit"
             disabled={!couponCode.trim() || loading || disabled || validating}
-            className={styles.applyButton}
+            className="secondary"
           >
             {validating ? 'Validating...' : 'Apply'}
           </button>

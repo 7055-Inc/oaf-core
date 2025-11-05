@@ -493,7 +493,7 @@ application.media_urls = {
 ### Application Approval
 
 ### PUT /admin/marketplace/applications/:id/approve
-**Purpose:** Approve marketplace application and grant user marketplace permissions
+**Purpose:** Approve marketplace application and grant user vendor permissions
 
 **Authentication:** JWT token required + system management permissions
 
@@ -519,10 +519,10 @@ WHERE id = ?
 -- Get user ID for permission update
 SELECT user_id FROM marketplace_applications WHERE id = ?
 
--- Grant marketplace permissions to user
-INSERT INTO user_permissions (user_id, marketplace) 
-VALUES (?, 1) 
-ON DUPLICATE KEY UPDATE marketplace = 1
+-- Grant vendor and verified permissions to user
+INSERT INTO user_permissions (user_id, vendor, verified) 
+VALUES (?, 1, 1) 
+ON DUPLICATE KEY UPDATE vendor = 1, verified = 1
 ```
 
 **Audit Logging:**
@@ -579,10 +579,10 @@ SET
   updated_at = NOW()
 WHERE id = ?
 
--- Ensure user does NOT have marketplace permissions
-INSERT INTO user_permissions (user_id, marketplace) 
+-- Ensure user does NOT have vendor permissions (verified status remains unchanged)
+INSERT INTO user_permissions (user_id, vendor) 
 VALUES (?, 0) 
-ON DUPLICATE KEY UPDATE marketplace = 0
+ON DUPLICATE KEY UPDATE vendor = 0
 ```
 
 **Response Structure:**

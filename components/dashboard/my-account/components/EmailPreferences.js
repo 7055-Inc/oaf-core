@@ -77,7 +77,7 @@ const EmailPreferences = ({ userId }) => {
       console.log('Email history loading temporarily disabled');
       setHistoryLoading(false);
       return;
-      // const response = await authenticatedApiRequest('emails/log');
+      // const response = await authApiRequest('emails/log');
       
       if (!response.ok) {
         throw new Error('Failed to load email history');
@@ -105,8 +105,13 @@ const EmailPreferences = ({ userId }) => {
     setError(null);
     
     try {
-      const response = await authenticatedApiRequest('emails/bounce-status');
-      setBounceStatus(response);
+      const response = await authApiRequest('emails/bounce-status');
+      if (response.ok) {
+        const data = await response.json();
+        setBounceStatus(data);
+      } else {
+        throw new Error('Failed to load bounce status');
+      }
     } catch (err) {
       setError('Failed to load bounce status');
     } finally {
@@ -128,7 +133,7 @@ const EmailPreferences = ({ userId }) => {
         categories: preferences.categories
       };
       
-      const response = await authenticatedApiRequest('emails/preferences', {
+      const response = await authApiRequest('emails/preferences', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -155,13 +160,18 @@ const EmailPreferences = ({ userId }) => {
     setMessage('');
 
     try {
-      await authenticatedApiRequest('emails/reactivate', {
+      const response = await authApiRequest('emails/reactivate', {
         method: 'POST'
       });
-      setMessage('Email reactivated successfully!');
       
-      // Refresh bounce status
-      await loadBounceStatus();
+      if (response.ok) {
+        setMessage('Email reactivated successfully!');
+        
+        // Refresh bounce status
+        await loadBounceStatus();
+      } else {
+        throw new Error('Failed to reactivate email');
+      }
     } catch (err) {
       setError(`Failed to reactivate email: ${err.message}`);
     } finally {

@@ -98,7 +98,9 @@ export default function VendorProducts() {
 
   const getProductImage = (product) => {
     if (product.images && product.images.length > 0) {
-      const imageUrl = product.images[0];
+      const image = product.images[0];
+      // Handle new format: {url, is_primary} or old format: string
+      const imageUrl = typeof image === 'string' ? image : image.url;
       // Ensure absolute URL
       if (imageUrl.startsWith('http')) {
         return imageUrl;

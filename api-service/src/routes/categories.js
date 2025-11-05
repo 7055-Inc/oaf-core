@@ -4,6 +4,7 @@ const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
 const { requirePermission } = require('../middleware/permissions');
 const { secureLogger } = require('../middleware/secureLogger');
+const upload = require('../config/multer');
 
 /**
  * @fileoverview Category management routes
@@ -550,5 +551,64 @@ router.post('/seo/:category_id', verifyToken, requirePermission('manage_system')
     res.status(500).json({ error: 'Failed to save category SEO' });
   }
 });
+
+/**
+ * Upload category images
+ * @route POST /api/categories/upload
+ * @access Private (requires manage_system permission)
+ * @param {Object} req - Express request object
+ * @param {string} req.query.category_id - Category ID for existing categories or 'new' for creation
+ * @returns {Object} Object containing uploaded image URLs
+ * @description Uploads category images through the standard media processing system
+ */
+router.post('/upload', 
+  verifyToken,
+  requirePermission('manage_system'),
+  upload.array('images'),
+  async (req, res) => {
+    try {
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ error: 'No files uploaded' });
+      }
+
+      const { category_id } = req.query;
+      
+      // If category_id is provided and not 'new', verify it exists
+      if (category_id && category_id !== 'new') {
+        const [category] = await db.query('SELECT id FROM categories WHERE id = ?', [category_id]);
+        if (!category.length) {
+          return res.status(404).json({ error: 'Category not found' });
+        }
+      }
+
+      const urls = [];
+      
+      // Record temp image URLs through the standard media system
+      for (const file of req.files) {
+        const imagePath = `/temp_images/categories/${file.filename}`;
+        
+        // Insert into pending_images with original name and mime type
+        await db.query(
+          'INSERT INTO pending_images (user_id, image_path, original_name, mime_type, status) VALUES (?, ?, ?, ?, ?)',
+          [req.userId, imagePath, file.originalname, file.mimetype, 'pending']
+        );
+        
+        urls.push(imagePath);
+      }
+
+      secureLogger.info('Category images uploaded', {
+        categoryId: category_id,
+        userId: req.userId,
+        imageCount: urls.length,
+        images: urls
+      });
+
+      res.json({ urls });
+    } catch (err) {
+      secureLogger.error('Category image upload error', err);
+      res.status(500).json({ error: 'Failed to upload images' });
+    }
+  }
+);
 
 module.exports = router; 

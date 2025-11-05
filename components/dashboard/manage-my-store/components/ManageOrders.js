@@ -3,7 +3,7 @@ import { authenticatedApiRequest, handleCsrfError, refreshAuthToken } from '../.
 import { authApiRequest } from '../../../../lib/apiUtils';
 import { getApiUrl, getFrontendUrl } from '../../../../lib/config';
 import slideInStyles from '../../SlideIn.module.css';
-import ShipSubscriptions from '../../my-subscriptions/components/ShipSubscriptions';
+import ShippingLabelsSubscription from '../../my-subscriptions/components/ShippingLabelsSubscription';
 
 export default function ManageOrders({ userData }) {
   // Add defensive check for userData
@@ -2249,7 +2249,7 @@ export default function ManageOrders({ userData }) {
               >
                 ×
               </button>
-              <ShipSubscriptions 
+              <ShippingLabelsSubscription 
                 userData={userData} 
                 onComplete={handleShippingModalClose}
               />

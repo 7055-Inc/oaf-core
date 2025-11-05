@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import styles from './styles.module.css';
 
 export default function PromoterHeader({ 
-  logo = "/static_media/logo.png", 
+  logo = "/static_media/brakebee-logo.png", 
   logoLink = "/",
   title = "Promoter Landing", 
   navigation = [
@@ -14,7 +14,7 @@ export default function PromoterHeader({
     { label: "Contact Us", href: "#contact" }
   ], 
   primaryButton = { text: "Watch a Demo", href: "/demo" },
-  secondaryButton = { text: "Post your event FREE", href: "/events/create" },
+  secondaryButton = { text: "Post your event FREE", href: "/login" },
   backgroundColor = "#ffffff",
   textColor = "#333333",
   sticky = true 
@@ -224,8 +224,12 @@ export default function PromoterHeader({
             >
               <img 
                 src={logo} 
-                alt="Online Art Festival Logo" 
+                alt="Brakebee Logo" 
                 style={logoStyle}
+                onError={(e) => {
+                  // Fallback to existing logo if new one doesn't exist
+                  e.target.src = '/static_media/logo.png';
+                }}
                 onMouseEnter={(e) => {
                   e.target.style.transform = 'scale(1.05)';
                 }}
