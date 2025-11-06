@@ -51,6 +51,11 @@ export default function ArtistCarousel() {
 
   const getArtistImage = (artist) => {
     if (artist.profile_image_path) {
+      // If URL is already complete (starts with http), use it directly
+      if (artist.profile_image_path.startsWith('http')) {
+        return artist.profile_image_path;
+      }
+      // Otherwise, use getSmartMediaUrl to construct the full URL
       return getSmartMediaUrl(artist.profile_image_path);
     }
     return null;

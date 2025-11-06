@@ -22,6 +22,7 @@
     "mysql2": "^3.14.1",
     "next": "^15.3.2",
     "papaparse": "^5.5.3",
+    "php-unserialize": "^0.0.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-stateface": "^2.0.0",

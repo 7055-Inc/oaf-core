@@ -16,6 +16,7 @@ export async function checklist(req) {
       path.startsWith('/artist-storefront') ||
       path.startsWith('/redirects/') ||
       path === '/marketplace' ||
+      path === '/policies' ||
       path === '/login' || 
       path === '/signup' || 
       path === '/terms-acceptance' ||

@@ -28,7 +28,7 @@
   height: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 2rem;
   box-sizing: border-box;
 }
 
@@ -79,8 +79,14 @@
   align-items: center;
   gap: 1.5rem;
   margin-left: 2rem;
-  max-width: 50%;
-  overflow: hidden;
+  flex: 1;
+  overflow: visible;
+}
+
+.navLinkContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .navLink {
@@ -111,6 +117,118 @@
 
 .navLink:hover::after {
   width: 100%;
+}
+
+/* Collections Dropdown */
+.collectionsDropdown {
+  position: absolute;
+  top: calc(100% + 1rem);
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  border: 1px solid rgba(5, 84, 116, 0.15);
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  z-index: 1000;
+  min-width: 600px;
+  max-width: 800px;
+  animation: slideDown 0.2s ease-out;
+}
+
+.categoriesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 2rem;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.categoryColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.parentCategoryLink {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--primary-color);
+  text-decoration: none;
+  padding: 0.5rem 0;
+  border-bottom: 2px solid rgba(5, 84, 116, 0.2);
+  transition: all 0.2s ease;
+}
+
+.parentCategoryLink:hover {
+  color: var(--secondary-color);
+  border-bottom-color: var(--secondary-color);
+}
+
+.childCategories {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-left: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.childCategoryLink {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 0.875rem;
+  color: var(--text-color);
+  text-decoration: none;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.childCategoryLink:hover {
+  color: var(--primary-color);
+  background-color: rgba(5, 84, 116, 0.05);
+  padding-left: 0.75rem;
+}
+
+/* Right Side Container */
+.rightSideContainer {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Stacked Links Section */
+.stackedLinksSection {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  flex-shrink: 0;
+}
+
+.stackedButton {
+  background: transparent;
+  color: #595b5d;
+  border: 2px solid #595b5d;
+  padding: 0;
+  width: 160px;
+  height: 22px;
+  border-radius: 2px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.stackedButton:hover {
+  background: #595b5d;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* Brakebee Button Base Class */
@@ -176,15 +294,12 @@
   cursor: default;
 }
 
-.ctaLink {
-  /* Inherits from .bbBtn - no additional styles needed */
-}
-
 /* Utility Section */
 .utilitySection {
   display: flex;
   align-items: center;
   gap: 1.5rem;
+  flex-shrink: 0;
 }
 
 /* AI Search Button */
@@ -266,11 +381,6 @@
   font-size: 0.75rem;
   font-weight: bold;
   z-index: 10;
-}
-
-/* Sign In Button */
-.signInButton {
-  /* Inherits from .bbBtn - no additional styles needed */
 }
 
 /* User Menu */
@@ -441,6 +551,15 @@
   width: 100%;
 }
 
+.mobileStackedLinks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(5, 84, 116, 0.1);
+}
+
 /* Responsive Design */
 @media (max-width: 1400px) {
   .navigation {
@@ -466,6 +585,16 @@
   .aiSearchButton {
     width: 160px;
   }
+
+  .collectionsDropdown {
+    min-width: 500px;
+    max-width: 600px;
+  }
+
+  .categoriesGrid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1.5rem;
+  }
 }
 
 @media (max-width: 900px) {
@@ -484,6 +613,23 @@
   }
   
   .navigation {
+    display: none;
+  }
+
+  .navLinkContainer {
+    display: none;
+  }
+
+  .collectionsDropdown {
+    display: none;
+  }
+
+  .rightSideContainer {
+    display: flex;
+    margin-left: auto;
+  }
+
+  .stackedLinksSection {
     display: none;
   }
   

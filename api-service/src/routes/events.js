@@ -339,6 +339,68 @@ router.post('/', verifyToken, requirePermission('events'), async (req, res) => {
  * @returns {Object} Updated event details
  * @description Updates event information with comprehensive field support
  */
+/**
+ * PATCH - Partial update of event (only updates provided fields)
+ * @route PATCH /api/events/:id
+ * @access Private (requires authentication and events permission)
+ */
+router.patch('/:id', verifyToken, requirePermission('events'), async (req, res) => {
+  try {
+    const updates = [];
+    const values = [];
+    
+    // Build dynamic UPDATE query based on provided fields
+    const allowedFields = [
+      'title', 'description', 'event_type_id', 'start_date', 'end_date',
+      'venue_name', 'venue_address', 'venue_city', 'venue_state', 'venue_zip',
+      'venue_capacity', 'age_restrictions', 'age_minimum', 'dress_code',
+      'has_rsvp', 'has_tickets', 'rsvp_url', 'event_status', 'allow_applications',
+      'application_status', 'application_deadline', 'application_fee', 'booth_fee',
+      'jury_fee', 'max_applications', 'seo_title', 'meta_description', 'event_keywords',
+      'promoter_id', 'updated_by'
+    ];
+    
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updates.push(`${field} = ?`);
+        values.push(req.body[field]);
+      }
+    }
+    
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+    
+    // Always update updated_at
+    updates.push('updated_at = NOW()');
+    values.push(req.params.id);
+    
+    await db.execute(
+      `UPDATE events SET ${updates.join(', ')} WHERE id = ?`,
+      values
+    );
+
+    const [updatedEvent] = await db.execute(`
+      SELECT 
+        e.*,
+        et.name as event_type_name
+      FROM events e
+      LEFT JOIN event_types et ON e.event_type_id = et.id
+      WHERE e.id = ?
+    `, [req.params.id]);
+
+    res.json(updatedEvent[0]);
+  } catch (err) {
+    console.error('Error updating event:', err);
+    res.status(500).json({ error: 'Failed to update event', details: err.message });
+  }
+});
+
+/**
+ * PUT - Full replacement of event (updates all fields)
+ * @route PUT /api/events/:id
+ * @access Private (requires authentication and events permission)
+ */
 router.put('/:id', verifyToken, requirePermission('events'), async (req, res) => {
   try {
     const {

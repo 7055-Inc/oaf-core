@@ -15,6 +15,8 @@ export default function Header() {
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showCollectionsDropdown, setShowCollectionsDropdown] = useState(false);
+  const [categories, setCategories] = useState([]);
 
   // Handle opening search modal with query
   const handleSearchModalOpen = (query = '') => {
@@ -24,6 +26,7 @@ export default function Header() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const dropdownTimeoutRef = useRef(null);
+  const collectionsTimeoutRef = useRef(null);
   const { shouldHideCategories, shouldShowHamburger, isDashboardPage } = usePageType();
 
   // Scroll behavior for header transparency
@@ -96,11 +99,32 @@ export default function Header() {
     };
   }, []);
 
+  // Fetch categories for Collections dropdown
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const endpoint = `${process.env.NEXT_PUBLIC_API_BASE_URL}/categories`;
+        const response = await fetch(endpoint);
+        if (response.ok) {
+          const data = await response.json();
+          setCategories(data.categories || []);
+        }
+      } catch (err) {
+        console.log('Error fetching categories:', err.message);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (dropdownTimeoutRef.current) {
         clearTimeout(dropdownTimeoutRef.current);
+      }
+      if (collectionsTimeoutRef.current) {
+        clearTimeout(collectionsTimeoutRef.current);
       }
     };
   }, []);
@@ -170,6 +194,23 @@ export default function Header() {
     }, 300);
   };
 
+  const handleCollectionsEnter = () => {
+    if (collectionsTimeoutRef.current) {
+      clearTimeout(collectionsTimeoutRef.current);
+      collectionsTimeoutRef.current = null;
+    }
+    setShowCollectionsDropdown(true);
+  };
+
+  const handleCollectionsLeave = () => {
+    if (collectionsTimeoutRef.current) {
+      clearTimeout(collectionsTimeoutRef.current);
+    }
+    collectionsTimeoutRef.current = setTimeout(() => {
+      setShowCollectionsDropdown(false);
+    }, 300);
+  };
+
   const handleLogout = () => {
     // Clear all tokens
     clearAuthTokens();
@@ -201,29 +242,65 @@ export default function Header() {
           {/* Navigation Menu - Desktop */}
           <nav className={styles.navigation}>
             <Link href="/marketplace" className={styles.navLink}>
-              Browse Art
+              Shop
             </Link>
-            <Link href="/collections" className={styles.navLink}>
-              Collections
-            </Link>
+            
+            {/* Collections with Dropdown */}
+            <div 
+              className={styles.navLinkContainer}
+              onMouseEnter={handleCollectionsEnter}
+              onMouseLeave={handleCollectionsLeave}
+            >
+              <Link href="/collections" className={styles.navLink}>
+                Collections
+              </Link>
+              {showCollectionsDropdown && categories.length > 0 && (
+                <div 
+                  className={styles.collectionsDropdown}
+                  onMouseEnter={handleCollectionsEnter}
+                  onMouseLeave={handleCollectionsLeave}
+                >
+                  <div className={styles.categoriesGrid}>
+                    {categories.map(category => (
+                      <div key={category.id} className={styles.categoryColumn}>
+                        <Link 
+                          href={`/category/${category.id}`} 
+                          className={styles.parentCategoryLink}
+                        >
+                          {category.name}
+                        </Link>
+                        {category.children && category.children.length > 0 && (
+                          <div className={styles.childCategories}>
+                            {category.children.map(child => (
+                              <Link 
+                                key={child.id}
+                                href={`/category/${child.id}`} 
+                                className={styles.childCategoryLink}
+                              >
+                                {child.name}
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <Link href="/events" className={styles.navLink}>
               Events
             </Link>
             <Link href="/artists" className={styles.navLink}>
-              Artists
+              Meet the Artists
             </Link>
-            <Link href="/promoters" className={styles.navLink}>
-              Promoters
-            </Link>
-            {!isLoggedIn && (
-              <Link href="/signup" className={`${styles.bbBtn} ${styles.ctaLink}`}>
-                Join Brakebee
-              </Link>
-            )}
           </nav>
 
-          {/* Utility Section */}
-          <div className={styles.utilitySection}>
+          {/* Right Side Container */}
+          <div className={styles.rightSideContainer}>
+            {/* Utility Section */}
+            <div className={styles.utilitySection}>
             {/* AI Search Button */}
             <button 
               className={styles.aiSearchButton} 
@@ -307,6 +384,17 @@ export default function Header() {
               <span className={styles.hamburgerLine}></span>
               <span className={styles.hamburgerLine}></span>
             </button>
+            </div>
+
+            {/* Stacked Links Section */}
+            <div className={styles.stackedLinksSection}>
+              <button className={styles.stackedButton} onClick={() => window.location.href = '/artists/sell'}>
+                For Artists
+              </button>
+              <button className={styles.stackedButton} onClick={() => window.location.href = '/promoter'}>
+                For Festival Promoters
+              </button>
+            </div>
           </div>
         </div>
 
@@ -315,7 +403,7 @@ export default function Header() {
           <div className={`${styles.mobileMenuPanel} mobile-menu-container`}>
             <nav className={styles.mobileNavigation}>
               <Link href="/marketplace" className={styles.mobileNavLink}>
-                Browse Art
+                Shop
               </Link>
               <Link href="/collections" className={styles.mobileNavLink}>
                 Collections
@@ -324,16 +412,19 @@ export default function Header() {
                 Events
               </Link>
               <Link href="/artists" className={styles.mobileNavLink}>
-                Artists
+                Meet the Artists
               </Link>
-              <Link href="/promoters" className={styles.mobileNavLink}>
-                Promoters
-              </Link>
-              {!isLoggedIn && (
-                <Link href="/signup" className={styles.mobileCtaLink}>
-                  Join Brakebee
+              <div className={styles.mobileStackedLinks}>
+                <Link href="/collections" className={styles.mobileNavLink}>
+                  Shop Collections
                 </Link>
-              )}
+                <Link href="/artists/sell" className={styles.mobileNavLink}>
+                  For Artists
+                </Link>
+                <Link href="/promoter" className={styles.mobileNavLink}>
+                  For Festival Promoters
+                </Link>
+              </div>
               {!isLoggedIn && (
                 <button 
                   className={`${styles.bbBtn} ${styles.mobileSignInButton}`}

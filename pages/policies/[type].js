@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Header from '../../components/Header';
 import styles from './Policies.module.css';
-import { authApiRequest } from '../../lib/apiUtils';
+import { apiRequest } from '../../lib/apiUtils';
 
 export default function PolicyPage() {
   const [policy, setPolicy] = useState(null);
@@ -55,7 +55,7 @@ export default function PolicyPage() {
               break;
           }
 
-          const response = await authApiRequest(endpoint, {
+          const response = await apiRequest(endpoint, {
             method: 'GET'
           });
 

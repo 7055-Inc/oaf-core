@@ -1168,6 +1168,7 @@ router.get('/artists', async (req, res) => {
         up.last_name,
         up.bio,
         up.profile_image_path,
+        up.header_image_path,
         ap.business_name,
         ap.artist_biography,
         ap.studio_city,
@@ -1196,7 +1197,12 @@ router.get('/artists', async (req, res) => {
     
     const [artists] = await db.query(query);
     
-    res.json(artists);
+    // Enhance each artist profile with processed media URLs
+    const enhancedArtists = await Promise.all(
+      artists.map(artist => enhanceUserProfileWithMedia(artist))
+    );
+    
+    res.json(enhancedArtists);
   } catch (err) {
     console.error('Error fetching artists:', err.message, err.stack);
     res.setHeader('Content-Type', 'application/json');

@@ -571,6 +571,10 @@ export default function ManageUsers() {
             setShowEditModal(false);
             setEditingUser(null);
           }}
+          onDelete={() => {
+            setShowEditModal(false);
+            handleDelete(editingUser);
+          }}
         />
       )}
 
@@ -730,7 +734,7 @@ export default function ManageUsers() {
 }
 
 // User Edit Modal Component
-function UserEditModal({ user, onSave, onCancel, isCreating = false }) {
+function UserEditModal({ user, onSave, onCancel, onDelete, isCreating = false }) {
   const [formData, setFormData] = useState({ ...user });
   const [errors, setErrors] = useState({});
   const [activeTab, setActiveTab] = useState('basic');
@@ -1116,16 +1120,29 @@ function UserEditModal({ user, onSave, onCancel, isCreating = false }) {
         <div style={{ 
           display: 'flex', 
           gap: '10px', 
-          justifyContent: 'flex-end',
+          justifyContent: 'space-between',
           paddingTop: '20px',
           borderTop: '1px solid #e9ecef'
         }}>
-          <button onClick={onCancel} className="secondary">
-            Cancel
-          </button>
-          <button onClick={handleSave} className="primary">
-            {isCreating ? 'Create User' : 'Save Changes'}
-          </button>
+          <div>
+            {!isCreating && onDelete && (
+              <button 
+                onClick={onDelete} 
+                className="danger"
+                style={{ marginRight: 'auto' }}
+              >
+                Delete User
+              </button>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button onClick={onCancel} className="secondary">
+              Cancel
+            </button>
+            <button onClick={handleSave} className="primary">
+              {isCreating ? 'Create User' : 'Save Changes'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -132,11 +132,11 @@ export default function EventManagement() {
       }
       
       const url = editingEvent 
-        ? `api/events/${editingEvent.id}`
-        : 'api/events';
+        ? getApiUrl(`api/events/${editingEvent.id}`)
+        : getApiUrl('api/events');
       
       const response = await fetch(url, {
-        method: editingEvent ? 'PUT' : 'POST',
+        method: editingEvent ? 'PATCH' : 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
