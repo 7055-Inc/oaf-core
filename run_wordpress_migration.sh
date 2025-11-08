@@ -31,6 +31,21 @@ echo "Step 4: Importing artist images..."
 node import_artist_images.js
 echo ""
 
+# Step 5: Import product inventory quantities
+echo "Step 5: Importing product inventory..."
+mysql -h 10.128.0.31 -u oafuser -poafpass oaf < /var/www/main/import_product_inventory.sql
+echo ""
+
+# Step 6: Import product images
+echo "Step 6: Importing product images..."
+node import_product_images.js
+echo ""
+
+# Step 7: Import product variations (variation types, values, and links)
+echo "Step 7: Importing product variations..."
+node import_product_variations.js
+echo ""
+
 echo "========================================"
 echo "MIGRATION COMPLETE"
 echo "========================================"

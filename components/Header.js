@@ -5,6 +5,7 @@ import { SearchBar, SearchModal } from './search';
 import { usePageType } from '../hooks/usePageType';
 import { getAuthToken, clearAuthTokens } from '../lib/csrf';
 import { authApiRequest, apiGet, API_ENDPOINTS } from '../lib/apiUtils';
+import ImpersonationExitButton from './ImpersonationExitButton';
 import styles from './Header.module.css';
 
 export default function Header() {
@@ -448,6 +449,9 @@ export default function Header() {
         query={searchQuery}
         userId={userId}
       />
+
+      {/* Impersonation Exit Button (floats when active) */}
+      <ImpersonationExitButton />
     </>
   );
 }

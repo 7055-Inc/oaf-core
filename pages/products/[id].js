@@ -7,7 +7,7 @@ import AboutTheArtist from '../../components/AboutTheArtist';
 import VariationSelector from '../../components/VariationSelector';
 import ArtistProductCarousel from '../../components/ArtistProductCarousel';
 import WholesalePricing from '../../components/WholesalePricing';
-import { authenticatedApiRequest, getAuthToken } from '../../lib/csrf';
+import { getAuthToken } from '../../lib/csrf';
 import { apiRequest, authApiRequest } from '../../lib/apiUtils';
 import { isWholesaleCustomer } from '../../lib/userUtils';
 import styles from './styles/ProductView.module.css';
@@ -122,37 +122,49 @@ export default function ProductView() {
         
         // If this is a variable product with children, set up variation data from the response
         if (processedData.product_type === 'variable' && processedData.children && processedData.children.length > 0) {
-          // Create variation data structure from children for the VariationSelector
-          const variationTypes = [];
-          const variationOptions = {};
-          
-          // Extract variation info from children (if available)
-          processedData.children.forEach(child => {
-            if (child.variations) {
-              Object.keys(child.variations).forEach(typeName => {
-                if (!variationTypes.find(t => t.variation_name === typeName)) {
-                  variationTypes.push({ variation_name: typeName });
-                }
-                if (!variationOptions[typeName]) {
-                  variationOptions[typeName] = [];
-                }
-                child.variations[typeName].forEach(value => {
-                  if (!variationOptions[typeName].find(v => v.value_name === value.value_name)) {
-                    variationOptions[typeName].push(value);
+          // Use variation data from API if available, otherwise extract from children
+          if (processedData.variation_types && processedData.variation_options) {
+            // API already provided structured variation data
+            setVariationData({
+              variation_types: processedData.variation_types,
+              variation_options: processedData.variation_options,
+              child_products: processedData.children.map(child => ({
+                ...child,
+                inventory: child.inventory || { qty_available: 0 }
+              }))
+            });
+          } else {
+            // Fallback: Extract variation info from children
+            const variationTypes = [];
+            const variationOptions = {};
+            
+            processedData.children.forEach(child => {
+              if (child.variations) {
+                Object.keys(child.variations).forEach(typeName => {
+                  if (!variationTypes.find(t => t.variation_name === typeName)) {
+                    variationTypes.push({ variation_name: typeName });
                   }
+                  if (!variationOptions[typeName]) {
+                    variationOptions[typeName] = [];
+                  }
+                  child.variations[typeName].forEach(value => {
+                    if (!variationOptions[typeName].find(v => v.value_name === value.value_name)) {
+                      variationOptions[typeName].push(value);
+                    }
+                  });
                 });
-              });
-            }
-          });
-          
-          setVariationData({
-            variation_types: variationTypes,
-            variation_options: variationOptions,
-            child_products: processedData.children.map(child => ({
-              ...child,
-              inventory: child.inventory || { qty_available: 0 }
-            }))
-          });
+              }
+            });
+            
+            setVariationData({
+              variation_types: variationTypes,
+              variation_options: variationOptions,
+              child_products: processedData.children.map(child => ({
+                ...child,
+                inventory: child.inventory || { qty_available: 0 }
+              }))
+            });
+          }
         }
       } catch (err) {
         console.error('Error fetching product:', err);
@@ -209,7 +221,7 @@ export default function ProductView() {
       let cartId;
       
       // Try to get existing cart
-      const cartRes = await authenticatedApiRequest('cart');
+      const cartRes = await authApiRequest('cart');
 
       if (cartRes.ok) {
         const carts = await cartRes.json();
@@ -220,7 +232,7 @@ export default function ProductView() {
           cartId = activeCart.id;
         } else {
           // Create a new cart
-          const createCartRes = await authenticatedApiRequest('cart', {
+          const createCartRes = await authApiRequest('cart', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -240,7 +252,7 @@ export default function ProductView() {
       }
 
       // Now add the item to the cart
-      const addItemRes = await authenticatedApiRequest(`cart/${cartId}/items`, {
+      const addItemRes = await authApiRequest(`cart/${cartId}/items`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

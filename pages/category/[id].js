@@ -6,7 +6,7 @@ import Footer from '../../components/Footer';
 import WholesalePricing from '../../components/WholesalePricing';
 import { isWholesaleCustomer } from '../../lib/userUtils';
 import { getAuthToken } from '../../lib/csrf';
-import { getApiUrl, getFrontendUrl } from '../../lib/config';
+import { getApiUrl, getFrontendUrl, getSmartMediaUrl } from '../../lib/config';
 
 export default function CategoryLandingPage() {
   const router = useRouter();
@@ -42,7 +42,7 @@ export default function CategoryLandingPage() {
       fetch(getApiUrl(`categories/seo/${id}`)).then(res => res.json()),
       fetch(getApiUrl(`categories`)).then(res => res.json()), // Get all categories to find children
       // Use curated art marketplace API with category filter and images
-      fetch(getApiUrl(`curated/art/products/all?category_id=${id}&include=images`)).then(res => res.json())
+      fetch(getApiUrl(`api/curated/art/products/all?category_id=${id}&include=images`)).then(res => res.json())
     ])
       .then(([catData, contentData, seoData, allCatData, prodData]) => {
         setCategory(catData.category || null);
@@ -74,12 +74,16 @@ export default function CategoryLandingPage() {
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
+    // If it's a temp_images path, use API base URL directly
+    if (imagePath.startsWith('/temp_images/')) {
+      return `${getApiUrl()}${imagePath}`;
+    }
     // If it's a static media path, return as is (Next.js will serve from public)
     if (imagePath.startsWith('/static_media/')) {
       return imagePath;
     }
-    // Otherwise, assume it's a relative path and prepend the base URL
-    return getFrontendUrl(imagePath);
+    // Otherwise, use smart media proxy
+    return getSmartMediaUrl(imagePath);
   };
 
   // SEO meta tags
@@ -372,7 +376,7 @@ export default function CategoryLandingPage() {
                 {product.images && product.images.length > 0 ? (
                   <div style={{ 
                     height: '200px', 
-                    backgroundImage: `url(${typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url})`,
+                    backgroundImage: `url(${getImageUrl(typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url)})`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center'
                   }} />

@@ -129,7 +129,49 @@ router.get('/all', async (req, res) => {
             'SELECT * FROM products WHERE parent_id = ? ORDER BY name ASC',
             [product.id]
           );
-          response.children = children;
+          
+          // Process each child to add inventory and images if requested
+          const processedChildren = await Promise.all(
+            children.map(async (child) => {
+              const childResponse = { ...child };
+              
+              // Add inventory data for child
+              if (includes.includes('inventory')) {
+                const [childInventory] = await db.query(
+                  'SELECT * FROM product_inventory WHERE product_id = ?',
+                  [child.id]
+                );
+                childResponse.inventory = childInventory[0] || {
+                  qty_on_hand: 0,
+                  qty_on_order: 0,
+                  qty_available: 0,
+                  reorder_qty: 0
+                };
+              }
+              
+              // Add images for child
+              if (includes.includes('images')) {
+                const [childTempImages] = await db.query(
+                  'SELECT image_path FROM pending_images WHERE image_path LIKE ? AND status = ?',
+                  [`/temp_images/products/${child.vendor_id}-${child.id}-%`, 'pending']
+                );
+                
+                const [childPermanentImages] = await db.query(
+                  'SELECT image_url, is_primary FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, `order` ASC',
+                  [child.id]
+                );
+                
+                childResponse.images = [
+                  ...childPermanentImages.map(img => ({ url: img.image_url, is_primary: img.is_primary === 1 })),
+                  ...childTempImages.map(img => ({ url: img.image_path, is_primary: false }))
+                ];
+              }
+              
+              return childResponse;
+            })
+          );
+          
+          response.children = processedChildren;
         }
         
         // Add parent context if this is a child product
@@ -277,7 +319,49 @@ router.get('/my/:ids?', verifyToken, async (req, res) => {
             'SELECT * FROM products WHERE parent_id = ? ORDER BY name ASC',
             [product.id]
           );
-          response.children = children;
+          
+          // Process each child to add inventory and images if requested
+          const processedChildren = await Promise.all(
+            children.map(async (child) => {
+              const childResponse = { ...child };
+              
+              // Add inventory data for child
+              if (includes.includes('inventory')) {
+                const [childInventory] = await db.query(
+                  'SELECT * FROM product_inventory WHERE product_id = ?',
+                  [child.id]
+                );
+                childResponse.inventory = childInventory[0] || {
+                  qty_on_hand: 0,
+                  qty_on_order: 0,
+                  qty_available: 0,
+                  reorder_qty: 0
+                };
+              }
+              
+              // Add images for child
+              if (includes.includes('images')) {
+                const [childTempImages] = await db.query(
+                  'SELECT image_path FROM pending_images WHERE image_path LIKE ? AND status = ?',
+                  [`/temp_images/products/${child.vendor_id}-${child.id}-%`, 'pending']
+                );
+                
+                const [childPermanentImages] = await db.query(
+                  'SELECT image_url, is_primary FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, `order` ASC',
+                  [child.id]
+                );
+                
+                childResponse.images = [
+                  ...childPermanentImages.map(img => ({ url: img.image_url, is_primary: img.is_primary === 1 })),
+                  ...childTempImages.map(img => ({ url: img.image_path, is_primary: false }))
+                ];
+              }
+              
+              return childResponse;
+            })
+          );
+          
+          response.children = processedChildren;
         }
         
         // Add parent context if this is a child product

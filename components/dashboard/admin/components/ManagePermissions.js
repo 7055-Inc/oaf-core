@@ -32,35 +32,9 @@ export default function ManagePermissions() {
 
       const data = await response.json();
       
-      // Fetch permissions for each user
-      const usersWithPermissions = await Promise.all(
-        data.map(async (user) => {
-          const permissionsResponse = await authApiRequest(`admin/users/${user.id}/permissions`, {
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          });
-          
-          if (permissionsResponse.ok) {
-            const permissions = await permissionsResponse.json();
-            return { ...user, permissions };
-          }
-          
-          return { 
-            ...user, 
-            permissions: { 
-              vendor: false, 
-              events: false, 
-              stripe_connect: false, 
-              manage_sites: false, 
-              manage_content: false, 
-              manage_system: false 
-            } 
-          };
-        })
-      );
-
-      setUsers(usersWithPermissions);
+      // Users now come with permissions already included from the API
+      // No need for individual permission requests
+      setUsers(data);
       setLoading(false);
     } catch (err) {
       setError(err.message);

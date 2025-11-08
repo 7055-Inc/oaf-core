@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
 import { authApiRequest } from '../../../../lib/apiUtils';
-import { getSmartMediaUrl, config } from '../../../../lib/config';
+import { getSmartMediaUrl, config, getApiUrl } from '../../../../lib/config';
 import styles from '../../../../pages/dashboard/Dashboard.module.css';
 
 export default function MyProducts({ userData }) {
@@ -125,7 +125,7 @@ export default function MyProducts({ userData }) {
   const handleBulkDelete = async () => {
     setDeleting(true);
     try {
-      const response = await authenticatedApiRequest('products/bulk-delete', {
+      const response = await authenticatedApiRequest(getApiUrl('products/bulk-delete'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

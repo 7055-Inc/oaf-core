@@ -42,8 +42,45 @@ const emailService = new EmailService();
 router.get('/users', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('GET /admin/users request received, userId:', req.userId);
   try {
-    const [users] = await db.execute('SELECT id, username, status, user_type FROM users');
-    res.json(users);
+    // Fetch all users with their permissions in a single query
+    const [users] = await db.execute(`
+      SELECT 
+        u.id, 
+        u.username, 
+        u.status, 
+        u.user_type,
+        COALESCE(up.vendor, 0) as vendor,
+        COALESCE(up.events, 0) as events,
+        COALESCE(up.stripe_connect, 0) as stripe_connect,
+        COALESCE(up.manage_sites, 0) as manage_sites,
+        COALESCE(up.manage_content, 0) as manage_content,
+        COALESCE(up.manage_system, 0) as manage_system,
+        COALESCE(up.verified, 0) as verified,
+        COALESCE(up.marketplace, 0) as marketplace
+      FROM users u
+      LEFT JOIN user_permissions up ON u.id = up.user_id
+      ORDER BY u.id
+    `);
+    
+    // Structure the response with permissions nested
+    const usersWithPermissions = users.map(user => ({
+      id: user.id,
+      username: user.username,
+      status: user.status,
+      user_type: user.user_type,
+      permissions: {
+        vendor: Boolean(user.vendor),
+        events: Boolean(user.events),
+        stripe_connect: Boolean(user.stripe_connect),
+        manage_sites: Boolean(user.manage_sites),
+        manage_content: Boolean(user.manage_content),
+        manage_system: Boolean(user.manage_system),
+        verified: Boolean(user.verified),
+        marketplace: Boolean(user.marketplace)
+      }
+    }));
+    
+    res.json(usersWithPermissions);
   } catch (err) {
     console.error('Error fetching users:', err.message, err.stack);
     res.setHeader('Content-Type', 'application/json');
@@ -2528,6 +2565,203 @@ router.get('/promotions/analytics/overview', verifyToken, requirePermission('man
   } catch (error) {
     console.error('Error getting promotion analytics:', error);
     res.status(500).json({ error: 'Failed to get promotion analytics' });
+  }
+});
+
+// ============================================================================
+// USER IMPERSONATION ROUTES
+// ============================================================================
+
+/**
+ * POST /admin/impersonate/:userId
+ * Start impersonating a user
+ * Creates a special JWT token with impersonation context
+ * 
+ * @route POST /api/admin/impersonate/:userId
+ * @access Private (requires manage_system permission)
+ * @param {string} req.params.userId - ID of user to impersonate
+ * @param {string} req.body.reason - Optional reason for impersonation
+ * @returns {Object} Impersonation token and user details
+ */
+router.post('/impersonate/:userId', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  const jwt = require('jsonwebtoken');
+  const crypto = require('crypto');
+  
+  try {
+    const targetUserId = parseInt(req.params.userId);
+    const adminUserId = req.userId;
+    const { reason } = req.body;
+    
+    // Prevent impersonating yourself
+    if (targetUserId === adminUserId) {
+      return res.status(400).json({ error: 'Cannot impersonate yourself' });
+    }
+    
+    // Check if target user exists
+    const [targetUser] = await db.execute(
+      'SELECT id, username, user_type FROM users WHERE id = ?',
+      [targetUserId]
+    );
+    
+    if (!targetUser || targetUser.length === 0) {
+      return res.status(404).json({ error: 'Target user not found' });
+    }
+    
+    // Prevent impersonating another admin (safety feature)
+    const [targetTypes] = await db.query('SELECT type FROM user_types WHERE user_id = ?', [targetUserId]);
+    const targetRoles = [targetUser[0]?.user_type, ...(targetTypes?.map(t => t.type) || [])].filter(Boolean);
+    
+    if (targetRoles.includes('admin')) {
+      return res.status(403).json({ error: 'Cannot impersonate another administrator' });
+    }
+    
+    // Get target user's permissions
+    const [userPermissions] = await db.query('SELECT * FROM user_permissions WHERE user_id = ?', [targetUserId]);
+    const permissions = [];
+    if (userPermissions[0]) {
+      if (userPermissions[0].vendor) permissions.push('vendor');
+      if (userPermissions[0].events) permissions.push('events');
+      if (userPermissions[0].stripe_connect) permissions.push('stripe_connect');
+      if (userPermissions[0].manage_sites) permissions.push('manage_sites');
+      if (userPermissions[0].manage_content) permissions.push('manage_content');
+      if (userPermissions[0].manage_system) permissions.push('manage_system');
+      if (userPermissions[0].verified) permissions.push('verified');
+      if (userPermissions[0].marketplace) permissions.push('marketplace');
+      if (userPermissions[0].shipping) permissions.push('shipping');
+      if (userPermissions[0].sites) permissions.push('sites');
+      if (userPermissions[0].professional_sites) permissions.push('professional_sites');
+    }
+    
+    // Log impersonation start
+    const clientIp = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'] || 'unknown';
+    const userAgent = req.headers['user-agent'] || 'unknown';
+    
+    const [result] = await db.execute(
+      `INSERT INTO admin_impersonation_log 
+       (admin_user_id, impersonated_user_id, reason, ip_address, user_agent) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [adminUserId, targetUserId, reason || null, clientIp, userAgent]
+    );
+    
+    const impersonationLogId = result.insertId;
+    
+    // Generate impersonation token (1 hour expiration)
+    const impersonationToken = jwt.sign(
+      {
+        userId: targetUserId,
+        originalUserId: adminUserId,
+        isImpersonating: true,
+        impersonationLogId: impersonationLogId,
+        username: targetUser[0].username,
+        roles: targetRoles,
+        permissions: permissions
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+    
+    console.log(`Admin ${adminUserId} started impersonating user ${targetUserId}`);
+    
+    res.json({
+      success: true,
+      token: impersonationToken,
+      impersonatedUser: {
+        id: targetUserId,
+        username: targetUser[0].username,
+        user_type: targetUser[0].user_type
+      },
+      impersonationLogId: impersonationLogId,
+      expiresIn: 3600 // 1 hour in seconds
+    });
+    
+  } catch (error) {
+    console.error('Error starting impersonation:', error);
+    res.status(500).json({ error: 'Failed to start impersonation' });
+  }
+});
+
+/**
+ * POST /admin/stop-impersonation
+ * Stop impersonating and return to admin session
+ * Logs the end of the impersonation session
+ * 
+ * @route POST /api/admin/stop-impersonation
+ * @access Private (requires valid impersonation token)
+ * @returns {Object} Success confirmation
+ */
+router.post('/stop-impersonation', verifyToken, async (req, res) => {
+  try {
+    // Verify this is an impersonation session
+    if (!req.isImpersonating || !req.originalUserId) {
+      return res.status(400).json({ error: 'Not currently impersonating a user' });
+    }
+    
+    const impersonationLogId = req.impersonationLogId;
+    
+    // Update the impersonation log with end time
+    if (impersonationLogId) {
+      await db.execute(
+        'UPDATE admin_impersonation_log SET ended_at = NOW() WHERE id = ?',
+        [impersonationLogId]
+      );
+    }
+    
+    console.log(`Admin ${req.originalUserId} stopped impersonating user ${req.userId}`);
+    
+    res.json({
+      success: true,
+      message: 'Impersonation session ended',
+      adminUserId: req.originalUserId
+    });
+    
+  } catch (error) {
+    console.error('Error stopping impersonation:', error);
+    res.status(500).json({ error: 'Failed to stop impersonation' });
+  }
+});
+
+/**
+ * GET /admin/impersonation-history
+ * Get impersonation history logs
+ * 
+ * @route GET /api/admin/impersonation-history
+ * @access Private (requires manage_system permission)
+ * @param {number} req.query.limit - Number of records to return (default 50)
+ * @returns {Array} Impersonation log entries
+ */
+router.get('/impersonation-history', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    
+    const [logs] = await db.execute(
+      `SELECT 
+        l.id,
+        l.admin_user_id,
+        admin.username as admin_username,
+        l.impersonated_user_id,
+        impersonated.username as impersonated_username,
+        l.started_at,
+        l.ended_at,
+        l.duration_seconds,
+        l.reason,
+        l.ip_address,
+        l.session_active
+      FROM admin_impersonation_log l
+      JOIN users admin ON l.admin_user_id = admin.id
+      JOIN users impersonated ON l.impersonated_user_id = impersonated.id
+      ORDER BY l.started_at DESC
+      LIMIT ?`,
+      [limit]
+    );
+    
+    res.json({
+      success: true,
+      logs: logs
+    });
+    
+  } catch (error) {
+    console.error('Error fetching impersonation history:', error);
+    res.status(500).json({ error: 'Failed to fetch impersonation history' });
   }
 });
 

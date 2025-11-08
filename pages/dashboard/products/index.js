@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Header from '../../../components/Header';
-import { authenticatedApiRequest } from '../../../lib/csrf';
 import { authApiRequest } from '../../../lib/apiUtils';
-import { getSmartMediaUrl, config } from '../../../lib/config';
+import { getSmartMediaUrl, config, getApiUrl } from '../../../lib/config';
 import styles from '../Dashboard.module.css';
 
 export default function VendorProducts() {
@@ -48,7 +47,7 @@ export default function VendorProducts() {
         ? 'products/all?include=inventory,images,vendor'
         : 'products/my/?include=inventory,images';
         
-      const response = await authenticatedApiRequest(endpoint, {
+      const response = await authApiRequest(endpoint, {
         method: 'GET'
       });
 
@@ -126,7 +125,7 @@ export default function VendorProducts() {
   const handleBulkDelete = async () => {
     setDeleting(true);
     try {
-      const response = await authenticatedApiRequest('products/bulk-delete', {
+      const response = await authenticatedApiRequest(getApiUrl('products/bulk-delete'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

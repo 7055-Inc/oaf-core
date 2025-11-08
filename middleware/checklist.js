@@ -19,6 +19,8 @@ export async function checklist(req) {
       path === '/policies' ||
       path === '/login' || 
       path === '/signup' || 
+      path === '/forgot-password' ||
+      path.startsWith('/custom-sites/') ||
       path === '/terms-acceptance' ||
       path === '/profile-completion' ||
       path === '/profile/edit' ||

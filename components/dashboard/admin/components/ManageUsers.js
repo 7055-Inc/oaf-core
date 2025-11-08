@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { getAuthToken, authenticatedApiRequest } from '../../../../lib/csrf';
+import { getAuthToken, authenticatedApiRequest, startImpersonation } from '../../../../lib/csrf';
 import { getApiUrl } from '../../../../lib/config';
 import styles from '../../SlideIn.module.css';
 
@@ -261,6 +261,30 @@ export default function ManageUsers() {
   const handleDelete = (user) => {
     setUserToDelete(user);
     setShowDeleteModal(true);
+  };
+
+  const handleImpersonate = async (user) => {
+    // Confirm before impersonating
+    const confirmed = window.confirm(
+      `Are you sure you want to impersonate ${user.username}?\n\n` +
+      `You will be logged in as this user and all actions will be logged.\n` +
+      `Click OK to continue.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      await startImpersonation(user.id, 'Admin review from Manage Users');
+      
+      // Redirect to their dashboard/profile after impersonation starts
+      window.location.href = '/dashboard';
+    } catch (err) {
+      setError(`Failed to impersonate user: ${err.message}`);
+      setLoading(false);
+    }
   };
 
   const confirmDelete = async () => {
@@ -537,7 +561,21 @@ export default function ManageUsers() {
                 </td>
                 <td className={styles.tableCell}>{new Date(user.created_at).toLocaleDateString()}</td>
                 <td className={styles.tableCell}>
-                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <button 
+                      onClick={() => handleImpersonate(user)}
+                      className="secondary"
+                      title="Act as this user"
+                      style={{ 
+                        padding: '4px 8px', 
+                        fontSize: '12px',
+                        backgroundColor: '#ffc107',
+                        color: '#000',
+                        border: '1px solid #ffc107'
+                      }}
+                    >
+                      👤 Act As
+                    </button>
                     <button 
                       onClick={() => handleEdit(user)}
                       className="secondary"

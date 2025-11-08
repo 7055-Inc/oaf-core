@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import firebaseApp from '../../lib/firebase';
 import { clearAuthTokens } from '../../lib/csrf';
 import { apiPost, API_ENDPOINTS } from '../../lib/apiUtils';
@@ -13,6 +13,8 @@ export default function LoginModal() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [unverifiedUser, setUnverifiedUser] = useState(null);
+  const [resendMessage, setResendMessage] = useState(null);
   const router = useRouter();
   const auth = getAuth(firebaseApp);
 
@@ -35,10 +37,12 @@ export default function LoginModal() {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setResendMessage(null);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       if (!user.emailVerified) {
+        setUnverifiedUser(user);
         throw new Error('Please verify your email before logging in.');
       }
       const idToken = await user.getIdToken();
@@ -46,6 +50,29 @@ export default function LoginModal() {
     } catch (err) {
       console.error('Email login error:', err.message);
       setError(err.message);
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!unverifiedUser) return;
+    
+    setIsLoading(true);
+    setResendMessage(null);
+    setError(null);
+    
+    try {
+      await sendEmailVerification(unverifiedUser);
+      setResendMessage('Verification email sent! Please check your inbox and spam folder.');
+      setUnverifiedUser(null);
+    } catch (err) {
+      console.error('Error resending verification:', err);
+      if (err.code === 'auth/too-many-requests') {
+        setError('Too many requests. Please wait a few minutes before trying again.');
+      } else {
+        setError('Failed to resend verification email. Please try again.');
+      }
+    } finally {
       setIsLoading(false);
     }
   };
@@ -100,7 +127,59 @@ export default function LoginModal() {
   return (
     <div style={{ padding: '2rem', maxWidth: '400px', margin: '0 auto' }}>
       <h1 style={{ color: '#055474', marginBottom: '2rem', textAlign: 'center' }}>Login</h1>
-      {error && <p style={{ color: 'red', marginBottom: '1rem', textAlign: 'center' }}>Error: {error}</p>}
+      {/* Error Message */}
+      {error && (
+        <div style={{
+          backgroundColor: '#fee2e2',
+          border: '1px solid #fecaca',
+          color: '#dc2626',
+          padding: '1rem',
+          borderRadius: '4px',
+          marginBottom: '1rem',
+          textAlign: 'center'
+        }}>
+          <div style={{ marginBottom: unverifiedUser ? '0.75rem' : '0' }}>
+            {error}
+          </div>
+          {unverifiedUser && (
+            <button
+              onClick={handleResendVerification}
+              disabled={isLoading}
+              style={{
+                backgroundColor: '#dc2626',
+                color: 'white',
+                border: 'none',
+                padding: '0.5rem 1rem',
+                borderRadius: '4px',
+                fontSize: '0.875rem',
+                fontWeight: '500',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                transition: 'background-color 0.2s',
+                opacity: isLoading ? 0.7 : 1
+              }}
+              onMouseEnter={(e) => !isLoading && (e.target.style.backgroundColor = '#b91c1c')}
+              onMouseLeave={(e) => !isLoading && (e.target.style.backgroundColor = '#dc2626')}
+            >
+              {isLoading ? 'Sending...' : 'Resend Verification Email'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Success Message for Resend */}
+      {resendMessage && (
+        <div style={{
+          backgroundColor: '#d1fae5',
+          border: '1px solid #a7f3d0',
+          color: '#065f46',
+          padding: '1rem',
+          borderRadius: '4px',
+          marginBottom: '1rem',
+          textAlign: 'center'
+        }}>
+          {resendMessage}
+        </div>
+      )}
       
       {/* Google Sign-In Button */}
       <button 

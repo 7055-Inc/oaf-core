@@ -292,6 +292,21 @@ AND NOT EXISTS (
 )
 GROUP BY pv.ID, u.id, pv.post_title, pv.post_parent, pp.post_content, pv.post_status, pv.post_date, pv.post_modified, parent_product.id;
 
+-- Step 5d: Update parent products to 'variable' type and children to 'variant' type
+UPDATE oaf.products
+SET product_type = 'variable'
+WHERE id IN (
+    SELECT parent_id FROM (
+        SELECT DISTINCT parent_id 
+        FROM oaf.products 
+        WHERE parent_id IS NOT NULL
+    ) AS temp
+);
+
+UPDATE oaf.products
+SET product_type = 'variant'
+WHERE parent_id IS NOT NULL;
+
 -- Step 6: Insert orders
 INSERT INTO oaf.orders (
     user_id,

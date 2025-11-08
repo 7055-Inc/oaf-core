@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import ImpersonationExitButton from '../../components/ImpersonationExitButton';
 import styles from './styles.module.css';
 
 export default function PromoterHeader({ 
@@ -360,6 +361,9 @@ export default function PromoterHeader({
       {sticky && (
         <div style={{ height: isScrolled ? '70px' : '90px', transition: 'height 0.3s ease' }} />
       )}
+
+      {/* Impersonation Exit Button (floats when active) */}
+      <ImpersonationExitButton />
 
       <style jsx>{`
         @media (max-width: 768px) {

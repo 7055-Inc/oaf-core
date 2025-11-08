@@ -41,19 +41,26 @@ router.get('/art/products/all', async (req, res) => {
     const includes = include ? include.split(',').map(i => i.trim()) : [];
     
     // Build query with marketplace filters - PUBLIC ONLY (active, marketplace-enabled art products)
-    let query = 'SELECT * FROM products WHERE status = ? AND marketplace_enabled = 1 AND marketplace_category = ?';
+    let query = 'SELECT DISTINCT p.* FROM products p';
     let params = ['active', 'art'];
     
+    // Join with product_categories if category filter is requested
+    if (category_id) {
+      query += ' INNER JOIN product_categories pc ON p.id = pc.product_id';
+    }
+    
+    query += ' WHERE p.status = ? AND p.marketplace_enabled = 1 AND p.marketplace_category = ?';
+    
     if (vendor_id) {
-      query += ' AND vendor_id = ?';
+      query += ' AND p.vendor_id = ?';
       params.push(vendor_id);
     }
     if (category_id) {
-      query += ' AND category_id = ?';
+      query += ' AND pc.category_id = ?';
       params.push(category_id);
     }
     
-    query += ' ORDER BY created_at DESC';
+    query += ' ORDER BY p.created_at DESC';
     
     // Get products with marketplace filter
     const [products] = await db.query(query, params);
@@ -162,19 +169,26 @@ router.get('/crafts/products/all', async (req, res) => {
     const includes = include ? include.split(',').map(i => i.trim()) : [];
     
     // Build query with marketplace filters - PUBLIC ONLY (active, marketplace-enabled crafts products)
-    let query = 'SELECT * FROM products WHERE status = ? AND marketplace_enabled = 1 AND marketplace_category = ?';
+    let query = 'SELECT DISTINCT p.* FROM products p';
     let params = ['active', 'crafts'];
     
+    // Join with product_categories if category filter is requested
+    if (category_id) {
+      query += ' INNER JOIN product_categories pc ON p.id = pc.product_id';
+    }
+    
+    query += ' WHERE p.status = ? AND p.marketplace_enabled = 1 AND p.marketplace_category = ?';
+    
     if (vendor_id) {
-      query += ' AND vendor_id = ?';
+      query += ' AND p.vendor_id = ?';
       params.push(vendor_id);
     }
     if (category_id) {
-      query += ' AND category_id = ?';
+      query += ' AND pc.category_id = ?';
       params.push(category_id);
     }
     
-    query += ' ORDER BY created_at DESC';
+    query += ' ORDER BY p.created_at DESC';
     
     // Get products with marketplace filter
     const [products] = await db.query(query, params);
@@ -400,6 +414,69 @@ router.get('/art/products/:id', async (req, res) => {
       childProducts.map(child => addRelatedData(child))
     );
 
+    // Add variation data for variable products
+    let variationTypes = [];
+    let variationOptions = {};
+    if (parentProduct.product_type === 'variable' && childProducts.length > 0) {
+      const childIds = childProducts.map(child => child.id);
+      
+      // Get variations for all child products
+      const [variationData] = await db.query(`
+        SELECT 
+          pv.product_id,
+          pv.variation_type_id,
+          pv.variation_value_id,
+          vt.variation_name as type_name,
+          vv.value_name
+        FROM product_variations pv
+        JOIN user_variation_types vt ON pv.variation_type_id = vt.id
+        JOIN user_variation_values vv ON pv.variation_value_id = vv.id
+        WHERE pv.product_id IN (${childIds.map(() => '?').join(',')})
+        ORDER BY vt.variation_name, vv.value_name
+      `, childIds);
+
+      // Add variations to each child
+      processedChildren.forEach(child => {
+        const childVariations = variationData.filter(v => v.product_id === child.id);
+        const variationsByType = {};
+        
+        childVariations.forEach(variation => {
+          if (!variationsByType[variation.type_name]) {
+            variationsByType[variation.type_name] = [];
+          }
+          variationsByType[variation.type_name].push({
+            value_id: variation.variation_value_id,
+            value_name: variation.value_name
+          });
+        });
+
+        child.variations = variationsByType;
+      });
+
+      // Get all available variation types
+      const [types] = await db.query(`
+        SELECT DISTINCT vt.id, vt.variation_name
+        FROM user_variation_types vt
+        JOIN product_variations pv ON vt.id = pv.variation_type_id
+        WHERE pv.product_id IN (${childIds.map(() => '?').join(',')})
+        ORDER BY vt.variation_name
+      `, childIds);
+      variationTypes = types;
+
+      // Get all available variation values organized by type
+      for (const type of types) {
+        const [values] = await db.query(`
+          SELECT DISTINCT vv.id, vv.value_name
+          FROM user_variation_values vv
+          JOIN product_variations pv ON vv.id = pv.variation_value_id
+          WHERE pv.variation_type_id = ? AND pv.product_id IN (${childIds.map(() => '?').join(',')})
+          ORDER BY vv.value_name
+        `, [type.id, ...childIds]);
+        
+        variationOptions[type.variation_name] = values;
+      }
+    }
+
     // Add vendor data to parent (applies to whole family)
     if (includes.includes('vendor')) {
       const [vendor] = await db.query(`
@@ -419,6 +496,9 @@ router.get('/art/products/:id', async (req, res) => {
       // Add family structure
       product_type: parentProduct.product_type,
       children: processedChildren,
+      // Add variation data for variable products
+      variation_types: variationTypes,
+      variation_options: variationOptions,
       // Add metadata about the family
       family_size: processedChildren.length,
       requested_product_id: parseInt(id),
@@ -576,6 +656,69 @@ router.get('/crafts/products/:id', async (req, res) => {
       childProducts.map(child => addRelatedData(child))
     );
 
+    // Add variation data for variable products
+    let variationTypes = [];
+    let variationOptions = {};
+    if (parentProduct.product_type === 'variable' && childProducts.length > 0) {
+      const childIds = childProducts.map(child => child.id);
+      
+      // Get variations for all child products
+      const [variationData] = await db.query(`
+        SELECT 
+          pv.product_id,
+          pv.variation_type_id,
+          pv.variation_value_id,
+          vt.variation_name as type_name,
+          vv.value_name
+        FROM product_variations pv
+        JOIN user_variation_types vt ON pv.variation_type_id = vt.id
+        JOIN user_variation_values vv ON pv.variation_value_id = vv.id
+        WHERE pv.product_id IN (${childIds.map(() => '?').join(',')})
+        ORDER BY vt.variation_name, vv.value_name
+      `, childIds);
+
+      // Add variations to each child
+      processedChildren.forEach(child => {
+        const childVariations = variationData.filter(v => v.product_id === child.id);
+        const variationsByType = {};
+        
+        childVariations.forEach(variation => {
+          if (!variationsByType[variation.type_name]) {
+            variationsByType[variation.type_name] = [];
+          }
+          variationsByType[variation.type_name].push({
+            value_id: variation.variation_value_id,
+            value_name: variation.value_name
+          });
+        });
+
+        child.variations = variationsByType;
+      });
+
+      // Get all available variation types
+      const [types] = await db.query(`
+        SELECT DISTINCT vt.id, vt.variation_name
+        FROM user_variation_types vt
+        JOIN product_variations pv ON vt.id = pv.variation_type_id
+        WHERE pv.product_id IN (${childIds.map(() => '?').join(',')})
+        ORDER BY vt.variation_name
+      `, childIds);
+      variationTypes = types;
+
+      // Get all available variation values organized by type
+      for (const type of types) {
+        const [values] = await db.query(`
+          SELECT DISTINCT vv.id, vv.value_name
+          FROM user_variation_values vv
+          JOIN product_variations pv ON vv.id = pv.variation_value_id
+          WHERE pv.variation_type_id = ? AND pv.product_id IN (${childIds.map(() => '?').join(',')})
+          ORDER BY vv.value_name
+        `, [type.id, ...childIds]);
+        
+        variationOptions[type.variation_name] = values;
+      }
+    }
+
     // Add vendor data to parent (applies to whole family)
     if (includes.includes('vendor')) {
       const [vendor] = await db.query(`
@@ -595,6 +738,9 @@ router.get('/crafts/products/:id', async (req, res) => {
       // Add family structure
       product_type: parentProduct.product_type,
       children: processedChildren,
+      // Add variation data for variable products
+      variation_types: variationTypes,
+      variation_options: variationOptions,
       // Add metadata about the family
       family_size: processedChildren.length,
       requested_product_id: parseInt(id),
