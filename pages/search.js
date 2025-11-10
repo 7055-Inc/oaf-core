@@ -10,8 +10,8 @@ import { authApiRequest, API_ENDPOINTS } from '../lib/apiUtils';
 
 export default function SearchPage() {
   const router = useRouter();
-  const { q: query, category = 'all' } = router.query;
   const [userId, setUserId] = useState(null);
+  const [isReady, setIsReady] = useState(false);
 
   // Get user ID for personalized search
   useEffect(() => {
@@ -27,6 +27,15 @@ export default function SearchPage() {
     }
   }, []);
 
+  // Wait for router to be ready
+  useEffect(() => {
+    if (router.isReady) {
+      setIsReady(true);
+    }
+  }, [router.isReady]);
+
+  const { q: query, category = 'all' } = router.query;
+
   return (
     <>
       <Head>
@@ -37,11 +46,17 @@ export default function SearchPage() {
       <Header />
       
       <main style={{ minHeight: '100vh', paddingTop: '80px' }}>
-        <SearchResults 
-          initialQuery={query || ''}
-          initialCategory={category}
-          userId={userId}
-        />
+        {isReady ? (
+          <SearchResults 
+            initialQuery={query || ''}
+            initialCategory={category}
+            userId={userId}
+          />
+        ) : (
+          <div style={{ textAlign: 'center', padding: '3rem' }}>
+            <p style={{ color: '#666' }}>Loading search...</p>
+          </div>
+        )}
       </main>
 
       <Footer />

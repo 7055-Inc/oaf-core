@@ -36,6 +36,41 @@ class IntelligentVacuum {
     this.lockFile = path.join(__dirname, 'data/vacuum-running.lock');
     this.batchSize = 100;
     this.relationshipBreakMs = 2000;
+    
+    // TABLES HANDLED BY MANUAL INGESTION SCRIPTS - SKIP THESE!
+    this.EXCLUDED_TABLES = [
+      // User tables (handled by ingestion/ingest-users.js)
+      'users',
+      'user_profiles',
+      'artist_profiles',
+      'promoter_profiles',
+      'community_profiles',
+      'admin_profiles',
+      
+      // Product tables (handled by ingestion/ingest-products.js)
+      'products',
+      'product_images',
+      'product_inventory',
+      'product_variations',
+      'product_shipping',
+      'product_categories', // Junction table
+      // Note: categories table is JOINed in product ingestion, not excluded
+      
+      // Order tables (handled by ingestion/ingest-orders.js)
+      'orders',
+      'order_items',
+      'order_status_history',
+      
+      // Sensitive/system tables
+      'sessions',
+      'password_resets',
+      'api_tokens',
+      'refresh_tokens',
+      
+      // System/config tables
+      'migrations',
+      'schema_migrations'
+    ];
   }
 
   async initialize() {
@@ -308,7 +343,14 @@ class IntelligentVacuum {
       logger.info(`Last run: ${lastRun}`);
 
       // Get simple table list
-      const tableNames = await this.getTableList();
+      const allTables = await this.getTableList();
+      
+      // Filter out excluded tables (handled by manual ingestion scripts)
+      const tableNames = allTables.filter(table => !this.EXCLUDED_TABLES.includes(table));
+      
+      logger.info(`Found ${allTables.length} total tables`);
+      logger.info(`Excluding ${this.EXCLUDED_TABLES.length} tables (handled by manual ingestion)`);
+      logger.info(`Will process ${tableNames.length} tables with vacuum ingestion`);
       
       let totalProcessed = 0;
       const tableResults = {};
@@ -336,7 +378,15 @@ class IntelligentVacuum {
       await this.releaseLock();
 
       logger.info(`✅ Intelligent vacuum completed: ${totalProcessed} total records processed across ${tableNames.length} tables`);
-      return { success: true, totalProcessed, tableResults, tablesProcessed: tableNames.length };
+      logger.info(`ℹ️  Excluded ${this.EXCLUDED_TABLES.length} tables handled by manual ingestion scripts`);
+      return { 
+        success: true, 
+        totalProcessed, 
+        tableResults, 
+        tablesProcessed: tableNames.length,
+        tablesExcluded: this.EXCLUDED_TABLES.length,
+        excludedTables: this.EXCLUDED_TABLES
+      };
 
     } catch (error) {
       logger.error('❌ Intelligent vacuum failed:', error);

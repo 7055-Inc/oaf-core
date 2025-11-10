@@ -7,6 +7,7 @@ const CATEGORY_OPTIONS = [
   { label: 'All', value: 'all' },
   { label: 'Products', value: 'products' },
   { label: 'Artists', value: 'artists' },
+  { label: 'Promoters', value: 'promoters' },
   { label: 'Articles', value: 'articles' },
   { label: 'Events', value: 'events' }
 ];
@@ -80,7 +81,7 @@ export default function SearchModal({
           userId,
           options: { 
             limit: 20,
-            categories: ['products', 'artists', 'articles', 'events']
+            categories: ['products', 'artists', 'promoters', 'articles', 'events']
           }
         })
       });
@@ -105,12 +106,13 @@ export default function SearchModal({
 
   const enrichSearchResults = async (leoResults) => {
     try {
-      const enriched = {
-        products: [],
-        artists: [],
-        articles: [],
-        events: []
-      };
+    const enriched = {
+      products: [],
+      artists: [],
+      promoters: [],
+      articles: [],
+      events: []
+    };
 
       // Fetch product data
       if (leoResults.results?.products?.length > 0) {
@@ -181,6 +183,29 @@ export default function SearchModal({
         enriched.artists = artists.filter(a => a !== null);
       }
 
+      // Fetch promoters data
+      if (leoResults.results?.promoters?.length > 0) {
+        const promoterIds = leoResults.results.promoters.map(p => p.id);
+        const promoterPromises = promoterIds.map(async (id) => {
+          try {
+            const response = await fetch(getApiUrl(`users/profile/by-id/${id}`));
+            if (response.ok) {
+              const promoterData = await response.json();
+              return { 
+                ...promoterData, 
+                leoRelevance: leoResults.results.promoters.find(p => p.id === id)?.relevance 
+              };
+            }
+          } catch (error) {
+            console.warn(`Failed to fetch promoter ${id}:`, error);
+          }
+          return null;
+        });
+        
+        const promoters = await Promise.all(promoterPromises);
+        enriched.promoters = promoters.filter(p => p !== null);
+      }
+
       // Fetch articles data using the new by-id endpoint
       if (leoResults.results?.articles?.length > 0) {
         const articleIds = leoResults.results.articles.map(a => a.id);
@@ -221,7 +246,7 @@ export default function SearchModal({
     // Navigate to the appropriate page
     if (resultType === 'product') {
       router.push(`/products/${resultId}`);
-    } else if (resultType === 'artist') {
+    } else if (resultType === 'artist' || resultType === 'promoter') {
       router.push(`/profile/${resultId}`);
     } else if (resultType === 'article') {
       router.push(`/articles/${resultId}`);
@@ -464,7 +489,7 @@ export default function SearchModal({
                     gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
                     gap: '1.5rem' 
                   }}>
-                    {searchResults.results.products.slice(0, 5).map(product => (
+                    {enrichedResults.products.slice(0, 5).map(product => (
                       <div key={product.id} style={{
                         border: '1px solid #e9ecef',
                         borderRadius: '0px',
@@ -477,6 +502,19 @@ export default function SearchModal({
                       onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
                       onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
                       >
+                        {product.images?.[0]?.url && (
+                          <img 
+                            src={getApiUrl(product.images[0].url)} 
+                            alt={product.name}
+                            style={{
+                              width: '100%',
+                              height: '200px',
+                              objectFit: 'cover',
+                              marginBottom: '1rem',
+                              borderRadius: '4px'
+                            }}
+                          />
+                        )}
                         <h4 style={{ 
                           margin: '0 0 0.5rem 0', 
                           color: '#055474',
@@ -564,22 +602,124 @@ export default function SearchModal({
                       onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
                       onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
                       >
+                        {artist.profile_image_path && (
+                          <img 
+                            src={artist.profile_image_path} 
+                            alt={artist.display_name || artist.username}
+                            style={{
+                              width: '80px',
+                              height: '80px',
+                              borderRadius: '50%',
+                              objectFit: 'cover',
+                              marginBottom: '1rem',
+                              display: 'block',
+                              marginLeft: 'auto',
+                              marginRight: 'auto'
+                            }}
+                          />
+                        )}
                         <h4 style={{ 
                           margin: '0 0 0.5rem 0', 
                           color: '#055474',
                           fontSize: '1.1rem',
-                          fontWeight: '600'
+                          fontWeight: '600',
+                          textAlign: 'center'
                         }}>
-                          {artist.business_name || artist.name}
+                          {artist.display_name || artist.username}
                         </h4>
-                        <p style={{ 
-                          color: '#666', 
-                          fontSize: '0.9rem', 
-                          margin: '0.5rem 0',
-                          lineHeight: '1.4'
+                        {(artist.artist_biography || artist.bio) && (
+                          <p style={{ 
+                            color: '#666', 
+                            fontSize: '0.9rem', 
+                            margin: '0.5rem 0',
+                            lineHeight: '1.4'
+                          }}>
+                            {(artist.artist_biography || artist.bio).substring(0, 120)}...
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Promoters */}
+              {enrichedResults?.promoters && enrichedResults.promoters.length > 0 && (selectedCategory === 'all' || selectedCategory === 'promoters') && (
+                <div style={{ marginBottom: '2rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <h3 style={{ color: '#055474', margin: 0, fontSize: '1.5rem' }}>
+                      Promoters ({enrichedResults.promoters.length})
+                    </h3>
+                    {enrichedResults.promoters.length >= 5 && (
+                      <button
+                        onClick={() => router.push(`/search?q=${encodeURIComponent(query)}&category=promoters`)}
+                        style={{
+                          background: 'none',
+                          border: '1px solid #055474',
+                          color: '#055474',
+                          padding: '0.25rem 0.75rem',
+                          borderRadius: '0px',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem'
+                        }}
+                      >
+                        See All Promoters
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
+                    gap: '1.5rem' 
+                  }}>
+                    {enrichedResults.promoters.slice(0, 5).map(promoter => (
+                      <div key={promoter.id} style={{
+                        border: '1px solid #e9ecef',
+                        borderRadius: '0px',
+                        padding: '1rem',
+                        backgroundColor: 'white',
+                        cursor: 'pointer',
+                        transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                      }}
+                      onClick={() => handleResultClick(promoter.id, 'promoter')}
+                      onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+                      onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+                      >
+                        {promoter.profile_image_path && (
+                          <img 
+                            src={promoter.profile_image_path} 
+                            alt={promoter.display_name || promoter.username}
+                            style={{
+                              width: '80px',
+                              height: '80px',
+                              borderRadius: '50%',
+                              objectFit: 'cover',
+                              marginBottom: '1rem',
+                              display: 'block',
+                              marginLeft: 'auto',
+                              marginRight: 'auto'
+                            }}
+                          />
+                        )}
+                        <h4 style={{ 
+                          margin: '0 0 0.5rem 0', 
+                          color: '#055474',
+                          fontSize: '1.1rem',
+                          fontWeight: '600',
+                          textAlign: 'center'
                         }}>
-                          {artist.bio?.substring(0, 100) + '...'}
-                        </p>
+                          {promoter.display_name || promoter.username}
+                        </h4>
+                        {(promoter.promoter_biography || promoter.bio) && (
+                          <p style={{ 
+                            color: '#666', 
+                            fontSize: '0.9rem', 
+                            margin: '0.5rem 0',
+                            lineHeight: '1.4'
+                          }}>
+                            {(promoter.promoter_biography || promoter.bio).substring(0, 120)}...
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>

@@ -28,6 +28,7 @@ class VectorDatabase {
   async initializeCollections() {
     const collectionConfigs = [
       { name: 'art_metadata', description: 'Art and product metadata' },
+      { name: 'user_profiles', description: 'User profiles and preferences' },
       { name: 'user_interactions', description: 'User behavior and preferences' },
       { name: 'site_content', description: 'Website content and pages' },
       { name: 'event_data', description: 'Event and activity data' },
@@ -59,7 +60,8 @@ class VectorDatabase {
         throw new Error(`Collection '${collectionName}' not found`);
       }
 
-      const ids = documents.map((_, index) => `doc_${Date.now()}_${index}`);
+      // Use custom IDs if provided, otherwise auto-generate
+      const ids = documents.map((doc, index) => doc.id || `doc_${Date.now()}_${index}`);
       const texts = documents.map(doc => doc.content || JSON.stringify(doc));
       const metadatas = documents.map(doc => doc.metadata || {});
 
@@ -152,6 +154,47 @@ class VectorDatabase {
 
     } catch (error) {
       logger.error('Multi-search failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update metadata for an existing document
+   * Note: ChromaDB requires full document update (cannot partially update)
+   */
+  async updateDocumentMetadata(collectionName, documentId, newMetadata) {
+    try {
+      const collection = this.collections.get(collectionName);
+      if (!collection) {
+        throw new Error(`Collection '${collectionName}' not found`);
+      }
+
+      // Get existing document
+      const existing = await collection.get({ ids: [documentId] });
+      
+      if (!existing || !existing.ids || existing.ids.length === 0) {
+        throw new Error(`Document '${documentId}' not found in collection '${collectionName}'`);
+      }
+
+      // Merge existing metadata with new metadata
+      const existingMetadata = existing.metadatas[0] || {};
+      const mergedMetadata = { ...existingMetadata, ...newMetadata };
+      
+      // Keep existing content and embedding
+      const content = existing.documents[0];
+      
+      // Update the document
+      await collection.update({
+        ids: [documentId],
+        documents: [content],
+        metadatas: [mergedMetadata]
+      });
+
+      logger.info(`Updated metadata for document '${documentId}' in collection '${collectionName}'`);
+      return true;
+
+    } catch (error) {
+      logger.error(`Failed to update document metadata:`, error);
       throw error;
     }
   }

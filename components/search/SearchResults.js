@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import PaintbrushLoader from './PaintbrushLoader';
+import { getApiUrl } from '../../lib/config';
 
 const CATEGORY_OPTIONS = [
   { label: 'All', value: 'all' },
   { label: 'Products', value: 'products' },
   { label: 'Artists', value: 'artists' },
+  { label: 'Promoters', value: 'promoters' },
   { label: 'Articles', value: 'articles' },
   { label: 'Events', value: 'events' }
 ];
@@ -26,6 +28,7 @@ export default function SearchResults({
 }) {
   const router = useRouter();
   const [results, setResults] = useState(null);
+  const [enrichedResults, setEnrichedResults] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeFilter, setActiveFilter] = useState(initialCategory);
@@ -34,6 +37,13 @@ export default function SearchResults({
   const [searchQuery, setSearchQuery] = useState(initialQuery);
 
   const resultsPerPage = 20;
+
+  // Update search query when initialQuery changes (from URL)
+  useEffect(() => {
+    if (initialQuery && initialQuery !== searchQuery) {
+      setSearchQuery(initialQuery);
+    }
+  }, [initialQuery]);
 
   // Perform search when query, filter, or sort changes
   useEffect(() => {
@@ -59,7 +69,7 @@ export default function SearchResults({
           options: { 
             limit: resultsPerPage * page,
             categories: category === 'all' ? 
-              ['products', 'artists', 'articles', 'events'] : 
+              ['products', 'artists', 'promoters', 'articles', 'events'] : 
               [category],
             sort,
             page
@@ -73,10 +83,139 @@ export default function SearchResults({
 
       const data = await response.json();
       setResults(data);
+      
+      // Enrich results with full SQL data
+      await enrichSearchResults(data);
     } catch (err) {
       setError(err.message || 'Search failed. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const enrichSearchResults = async (leoResults) => {
+    try {
+      const enriched = {
+        products: [],
+        artists: [],
+        promoters: [],
+        articles: [],
+        events: []
+      };
+
+      // Fetch products
+      if (leoResults.results?.products?.length > 0) {
+        const productIds = leoResults.results.products.map(p => p.id);
+        const productPromises = productIds.map(async (id) => {
+          try {
+            const response = await fetch(getApiUrl(`products/${id}`));
+            if (response.ok) {
+              const productData = await response.json();
+              return { 
+                ...productData, 
+                leoRelevance: leoResults.results.products.find(p => p.id === id)?.relevance,
+                resultType: 'product'
+              };
+            }
+          } catch (error) {
+            console.warn(`Failed to fetch product ${id}:`, error);
+          }
+          return null;
+        });
+        enriched.products = (await Promise.all(productPromises)).filter(p => p !== null);
+      }
+
+      // Fetch artists
+      if (leoResults.results?.artists?.length > 0) {
+        const artistIds = leoResults.results.artists.map(a => a.id);
+        const artistPromises = artistIds.map(async (id) => {
+          try {
+            const response = await fetch(getApiUrl(`users/profile/by-id/${id}`));
+            if (response.ok) {
+              const artistData = await response.json();
+              return { 
+                ...artistData, 
+                leoRelevance: leoResults.results.artists.find(a => a.id === id)?.relevance,
+                resultType: 'artist'
+              };
+            }
+          } catch (error) {
+            console.warn(`Failed to fetch artist ${id}:`, error);
+          }
+          return null;
+        });
+        enriched.artists = (await Promise.all(artistPromises)).filter(a => a !== null);
+      }
+
+      // Fetch promoters
+      if (leoResults.results?.promoters?.length > 0) {
+        const promoterIds = leoResults.results.promoters.map(p => p.id);
+        const promoterPromises = promoterIds.map(async (id) => {
+          try {
+            const response = await fetch(getApiUrl(`users/profile/by-id/${id}`));
+            if (response.ok) {
+              const promoterData = await response.json();
+              return { 
+                ...promoterData, 
+                leoRelevance: leoResults.results.promoters.find(p => p.id === id)?.relevance,
+                resultType: 'promoter'
+              };
+            }
+          } catch (error) {
+            console.warn(`Failed to fetch promoter ${id}:`, error);
+          }
+          return null;
+        });
+        enriched.promoters = (await Promise.all(promoterPromises)).filter(p => p !== null);
+      }
+
+      // Fetch articles
+      if (leoResults.results?.articles?.length > 0) {
+        const articleIds = leoResults.results.articles.map(a => a.id);
+        const articlePromises = articleIds.map(async (id) => {
+          try {
+            const response = await fetch(getApiUrl(`articles/by-id/${id}`));
+            if (response.ok) {
+              const data = await response.json();
+              return { 
+                ...data.article, 
+                leoRelevance: leoResults.results.articles.find(a => a.id === id)?.relevance,
+                resultType: 'article'
+              };
+            }
+          } catch (error) {
+            console.warn(`Failed to fetch article ${id}:`, error);
+          }
+          return null;
+        });
+        enriched.articles = (await Promise.all(articlePromises)).filter(a => a !== null);
+      }
+
+      // Fetch events
+      if (leoResults.results?.events?.length > 0) {
+        const eventIds = leoResults.results.events.map(e => e.id);
+        const eventPromises = eventIds.map(async (id) => {
+          try {
+            const response = await fetch(getApiUrl(`events/${id}`));
+            if (response.ok) {
+              const eventData = await response.json();
+              return { 
+                ...eventData, 
+                leoRelevance: leoResults.results.events.find(e => e.id === id)?.relevance,
+                resultType: 'event'
+              };
+            }
+          } catch (error) {
+            console.warn(`Failed to fetch event ${id}:`, error);
+          }
+          return null;
+        });
+        enriched.events = (await Promise.all(eventPromises)).filter(e => e !== null);
+      }
+
+      setEnrichedResults(enriched);
+    } catch (error) {
+      console.error('Failed to enrich search results:', error);
     }
   };
 
@@ -95,7 +234,7 @@ export default function SearchResults({
   const handleResultClick = (resultId, resultType) => {
     if (resultType === 'product') {
       router.push(`/products/${resultId}`);
-    } else if (resultType === 'artist') {
+    } else if (resultType === 'artist' || resultType === 'promoter') {
       router.push(`/profile/${resultId}`);
     } else if (resultType === 'article') {
       router.push(`/articles/${resultId}`);
@@ -105,20 +244,18 @@ export default function SearchResults({
   };
 
   const getTotalResults = () => {
-    if (!results?.results) return 0;
-    return Object.values(results.results).reduce((total, arr) => total + arr.length, 0);
+    if (!enrichedResults) return 0;
+    return Object.values(enrichedResults).reduce((total, arr) => total + arr.length, 0);
   };
 
   const getAllResults = () => {
-    if (!results?.results) return [];
+    if (!enrichedResults) return [];
     
     let allResults = [];
     
-    // Combine all result types with their type information
-    Object.entries(results.results).forEach(([type, items]) => {
-      items.forEach(item => {
-        allResults.push({ ...item, resultType: type.slice(0, -1) }); // Remove 's' from type
-      });
+    // Combine all enriched result types
+    Object.values(enrichedResults).forEach(items => {
+      allResults.push(...items);
     });
 
     // Apply sorting
@@ -129,7 +266,7 @@ export default function SearchResults({
     } else if (sortBy === 'price_desc') {
       allResults.sort((a, b) => (parseFloat(b.price) || 0) - (parseFloat(a.price) || 0));
     } else if (sortBy === 'name_asc') {
-      allResults.sort((a, b) => (a.name || a.title || '').localeCompare(b.name || b.title || ''));
+      allResults.sort((a, b) => (a.name || a.title || a.display_name || '').localeCompare(b.name || b.title || b.display_name || ''));
     }
 
     return allResults;
@@ -137,6 +274,8 @@ export default function SearchResults({
 
   const renderResultItem = (item) => {
     const { resultType } = item;
+    const isArtistOrPromoter = resultType === 'artist' || resultType === 'promoter';
+    const isProduct = resultType === 'product';
     
     return (
       <div 
@@ -160,7 +299,37 @@ export default function SearchResults({
           e.currentTarget.style.boxShadow = 'none';
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+          {/* Image */}
+          {isArtistOrPromoter && item.profile_image_path && (
+            <img 
+              src={item.profile_image_path} 
+              alt={item.display_name || item.username}
+              style={{
+                width: '120px',
+                height: '120px',
+                borderRadius: '50%',
+                objectFit: 'cover',
+                flexShrink: 0
+              }}
+            />
+          )}
+          
+          {isProduct && item.images?.[0]?.url && (
+            <img 
+              src={getApiUrl(item.images[0].url)} 
+              alt={item.name}
+              style={{
+                width: '200px',
+                height: '150px',
+                objectFit: 'cover',
+                borderRadius: '4px',
+                flexShrink: 0
+              }}
+            />
+          )}
+          
+          {/* Content */}
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
               <span style={{
@@ -174,11 +343,6 @@ export default function SearchResults({
               }}>
                 {resultType}
               </span>
-              {item.relevance && (
-                <span style={{ fontSize: '0.8rem', color: '#666' }}>
-                  {Math.round(item.relevance * 100)}% match
-                </span>
-              )}
             </div>
             
             <h3 style={{ 
@@ -187,62 +351,69 @@ export default function SearchResults({
               fontSize: '1.3rem',
               fontWeight: '600'
             }}>
-              {item.name || item.title || item.business_name}
+              {item.name || item.title || item.display_name || item.username}
             </h3>
             
-            <p style={{ 
-              color: '#666', 
-              fontSize: '1rem', 
-              margin: '0.5rem 0 1rem 0',
-              lineHeight: '1.5'
-            }}>
-              {item.short_description || 
-               item.description?.substring(0, 200) + '...' ||
-               item.excerpt ||
-               item.content?.substring(0, 200) + '...' ||
-               item.bio?.substring(0, 200) + '...'}
-            </p>
+            {/* Description/Bio */}
+            {(item.short_description || item.description || item.artist_biography || item.promoter_biography || item.bio || item.excerpt || item.content) && (
+              <p style={{ 
+                color: '#666', 
+                fontSize: '1rem', 
+                margin: '0.5rem 0 1rem 0',
+                lineHeight: '1.5'
+              }}>
+                {(
+                  item.short_description || 
+                  item.description?.substring(0, 200) ||
+                  item.artist_biography?.substring(0, 200) ||
+                  item.promoter_biography?.substring(0, 200) ||
+                  item.bio?.substring(0, 200) ||
+                  item.excerpt ||
+                  item.content?.substring(0, 200) ||
+                  ''
+                ) + (
+                  (item.short_description || item.description || item.artist_biography || item.promoter_biography || item.bio || item.content)?.length > 200 ? '...' : ''
+                )}
+              </p>
+            )}
 
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
-              {item.price && (
-                <span style={{ 
-                  fontSize: '1.3rem', 
-                  fontWeight: 'bold', 
-                  color: '#055474' 
-                }}>
-                  ${item.price}
-                </span>
-              )}
-              
-              {item.artist_business_name && (
-                <span style={{ 
-                  fontSize: '0.9rem', 
-                  color: '#666',
-                  fontStyle: 'italic'
-                }}>
-                  by {item.artist_business_name}
-                </span>
-              )}
-              
-              {item.start_date && (
-                <span style={{ 
-                  fontSize: '0.9rem', 
-                  color: '#055474',
-                  fontWeight: '500'
-                }}>
-                  📅 {new Date(item.start_date).toLocaleDateString()}
-                </span>
-              )}
-              
-              {(item.created_at || item.date) && (
-                <span style={{ 
-                  fontSize: '0.85rem', 
-                  color: '#999'
-                }}>
-                  {new Date(item.created_at || item.date).toLocaleDateString()}
-                </span>
-              )}
-            </div>
+            {/* Product-specific details */}
+            {isProduct && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
+                {item.price && (
+                  <span style={{ 
+                    fontSize: '1.3rem', 
+                    fontWeight: 'bold', 
+                    color: '#055474' 
+                  }}>
+                    ${item.price}
+                  </span>
+                )}
+                
+                {item.vendor_name && (
+                  <span style={{ 
+                    fontSize: '0.9rem', 
+                    color: '#666',
+                    fontStyle: 'italic'
+                  }}>
+                    by {item.vendor_name}
+                  </span>
+                )}
+              </div>
+            )}
+            
+            {/* Event-specific details */}
+            {resultType === 'event' && item.start_date && (
+              <span style={{ 
+                fontSize: '0.9rem', 
+                color: '#055474',
+                fontWeight: '500',
+                display: 'block',
+                marginTop: '0.5rem'
+              }}>
+                📅 {new Date(item.start_date).toLocaleDateString()}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -256,12 +427,16 @@ export default function SearchResults({
         <h1 style={{ color: '#055474', fontSize: '2rem', marginBottom: '0.5rem' }}>
           Search Results
         </h1>
-        {searchQuery && (
+        {searchQuery ? (
           <p style={{ color: '#666', fontSize: '1.1rem' }}>
             Showing results for "{searchQuery}"
             {getTotalResults() > 0 && (
               <span> ({getTotalResults()} results found)</span>
             )}
+          </p>
+        ) : (
+          <p style={{ color: '#999', fontSize: '1rem', fontStyle: 'italic' }}>
+            No search query provided. Try searching from the header.
           </p>
         )}
       </div>
@@ -344,7 +519,7 @@ export default function SearchResults({
       )}
 
       {/* Results */}
-      {results && !isLoading && (
+      {enrichedResults && !isLoading && (
         <div>
           {getTotalResults() > 0 ? (
             <div>

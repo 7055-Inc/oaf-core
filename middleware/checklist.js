@@ -17,6 +17,7 @@ export async function checklist(req) {
       path.startsWith('/redirects/') ||
       path === '/marketplace' ||
       path === '/policies' ||
+      path.startsWith('/promoter') ||
       path === '/login' || 
       path === '/signup' || 
       path === '/forgot-password' ||
@@ -26,6 +27,7 @@ export async function checklist(req) {
       path === '/profile/edit' ||
       path === '/user-type-selection' ||
       path === '/announcement-acknowledgment' ||
+      path === '/api/leo-search' ||  // Leo AI search endpoint
       path === '/favicon.ico') {
       return NextResponse.next();
     }

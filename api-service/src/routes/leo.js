@@ -1,13 +1,41 @@
 const express = require('express');
 const router = express.Router();
+const path = require('path');
 
 /**
- * Leo AI Routes
- * Handles all Leo AI features: search, recommendations, and future AI capabilities
- * Named after Leonardo da Vinci - Master of Art and Innovation
+ * Leo AI Routes - V2 (Direct SearchService)
+ * 
+ * FAST, classification-based intelligent search
+ * No LLM needed for real-time search (~70ms)
+ * 
+ * Central Brain is for batch jobs (truth extraction, deep analysis)
  */
 
-// Leo AI Search endpoint
+// Initialize SearchServiceV2 (singleton)
+let searchService = null;
+let vectorDB = null;
+
+async function initializeSearchService() {
+  if (searchService) return searchService;
+  
+  // Lazy load to avoid startup issues
+  const VectorDatabase = require(path.join(__dirname, '../../../leo/src/core/vectorDatabase'));
+  const SearchServiceV2 = require(path.join(__dirname, '../../../leo/src/services/searchService-v2'));
+  
+  vectorDB = new VectorDatabase();
+  await vectorDB.initialize();
+  
+  searchService = new SearchServiceV2(vectorDB);
+  await searchService.initialize();
+  
+  console.log('✅ SearchServiceV2 initialized for API routes');
+  return searchService;
+}
+
+/**
+ * Leo AI Search - Fast, personalized, classification-based
+ * Uses SearchServiceV2 directly (no Central Brain needed)
+ */
 router.post('/search', async (req, res) => {
   try {
     const { query, userId, options = {} } = req.body;
@@ -19,110 +47,68 @@ router.post('/search', async (req, res) => {
       });
     }
 
-    // Prepare context for Central Brain
+    // Initialize search service if needed
+    const service = await initializeSearchService();
+
+    // Prepare context
     const context = {
       userId: userId || 'anonymous',
-      requestType: options.recommendationMode ? 'sitewide_search' : 'search',
-      limit: options.limit || 20,
       categories: options.categories || ['products', 'artists', 'articles', 'events'],
-      recommendationMode: options.recommendationMode || false,
-      page: 'search'
+      limit: options.limit || 20,
+      page: options.page || 1,
+      sort: options.sort || 'relevance'
     };
 
-    // Make request to Leo AI Central Brain
-    const leoResponse = await fetch('http://localhost:3003/api/brain/process', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query,
-        context
-      })
-    });
+    // Call SearchServiceV2 directly
+    const results = await service.search(query, context);
 
-    if (!leoResponse.ok) {
-      throw new Error(`Leo AI responded with status: ${leoResponse.status}`);
-    }
-
-    const leoData = await leoResponse.json();
-
-    // Extract the organized results from Central Brain response
-    const organizedResults = leoData.response?.organized_results || {
-      products: [],
-      artists: [],
-      articles: [],
-      events: []
-    };
-
-    // Return in the format expected by frontend components
+    // Return results in format frontend expects
     res.json({
-      success: true,
-      results: organizedResults,
-      metadata: {
-        query,
-        userId: context.userId,
-        intelligence_applied: leoData.response?.intelligence_applied || false,
-        confidence: leoData.response?.confidence || 0.5,
-        response_time: leoData.metadata?.responseTime || 0,
-        search_service_used: leoData.metadata?.searchServiceUsed || false
-      }
+      success: results.success,
+      results: results.results,
+      metadata: results.metadata
     });
 
   } catch (error) {
     console.error('Leo AI search error:', error);
     res.status(500).json({
       success: false,
-      error: 'Leo AI search service unavailable',
+      error: 'Search service unavailable',
       message: error.message
     });
   }
 });
 
-// Homepage recommendations endpoint
+/**
+ * Homepage Recommendations - Personalized product feed
+ * Uses SearchServiceV2.getRecommendations()
+ */
 router.post('/recommendations', async (req, res) => {
   try {
-    const { userId = 'anonymous', limit = 6 } = req.body;
+    const { userId = 'anonymous', limit = 6, category = 'products' } = req.body;
 
-    // Prepare context for homepage recommendations
-    const context = {
+    // Initialize search service if needed
+    const service = await initializeSearchService();
+
+    // Get personalized recommendations
+    const results = await service.getRecommendations({
       userId,
-      requestType: 'sitewide_search',
-      limit,
-      categories: ['products'],
-      recommendationMode: true,
-      page: 'homepage'
-    };
-
-    // Request recommendations from Central Brain
-    const leoResponse = await fetch('http://localhost:3003/api/brain/process', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: 'homepage recommendations',
-        context
-      })
+      category,
+      limit
     });
 
-    if (!leoResponse.ok) {
-      throw new Error(`Leo AI responded with status: ${leoResponse.status}`);
-    }
-
-    const leoData = await leoResponse.json();
-
-    // Extract product recommendations
-    const products = leoData.response?.organized_results?.products || [];
+    // Extract products from results
+    const recommendations = results.results?.[category] || [];
 
     res.json({
       success: true,
-      recommendations: products,
+      recommendations,
       metadata: {
         userId,
-        intelligence_applied: leoData.response?.intelligence_applied || false,
-        confidence: leoData.response?.confidence || 0.5,
-        response_time: leoData.metadata?.responseTime || 0
+        personalization_applied: results.metadata?.personalization_applied || false,
+        confidence: results.metadata?.confidence || 0.5,
+        response_time: results.metadata?.response_time_ms || 0,
+        source: results.metadata?.preferences_source || 'global_trends'
       }
     });
 
@@ -130,8 +116,74 @@ router.post('/recommendations', async (req, res) => {
     console.error('Leo AI recommendations error:', error);
     res.status(500).json({
       success: false,
-      error: 'Leo AI recommendation service unavailable',
+      error: 'Recommendation service unavailable',
       message: error.message
+    });
+  }
+});
+
+/**
+ * Discover Feed - TikTok-style endless personalized feed
+ * Uses SearchServiceV2.getDiscoverFeed()
+ */
+router.post('/discover', async (req, res) => {
+  try {
+    const { userId = 'anonymous', offset = 0, limit = 20 } = req.body;
+
+    // Initialize search service if needed
+    const service = await initializeSearchService();
+
+    // Get discover feed
+    const results = await service.getDiscoverFeed({
+      userId,
+      offset,
+      limit
+    });
+
+    res.json({
+      success: results.success,
+      feed: results.feed,
+      next_offset: results.next_offset,
+      has_more: results.has_more
+    });
+
+  } catch (error) {
+    console.error('Leo AI discover feed error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Discover feed unavailable',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Health check endpoint
+ */
+router.get('/health', async (req, res) => {
+  try {
+    if (!searchService || !vectorDB) {
+      return res.json({
+        healthy: false,
+        message: 'Search service not initialized yet',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const health = await vectorDB.healthCheck();
+    
+    res.json({
+      healthy: health.healthy,
+      search_service: 'v2',
+      vector_db: health,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      healthy: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
     });
   }
 });
