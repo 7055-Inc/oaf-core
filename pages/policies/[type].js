@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import Header from '../../components/Header';
 import styles from './Policies.module.css';
 import { apiRequest } from '../../lib/apiUtils';
 
@@ -85,7 +84,6 @@ export default function PolicyPage() {
   if (!params?.type) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.content}>
           <h1>Policies</h1>
           <p>Please select a policy to view.</p>
@@ -98,7 +96,6 @@ export default function PolicyPage() {
 
   return (
     <div className={styles.container}>
-      <Header />
       <div className={styles.content}>
         <h1>{title}</h1>
         

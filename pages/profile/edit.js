@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Header from '../../components/Header';
 import styles from './Edit.module.css';
 import { authApiRequest } from '../../lib/apiUtils';
 import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
@@ -480,7 +479,6 @@ export default function ProfileEdit() {
   if (!user) {
     return (
       <div>
-        <Header />
         <div className={styles.container}>
           <div className={styles.loadingContainer}>
             <div className={styles.spinner}></div>
@@ -493,7 +491,6 @@ export default function ProfileEdit() {
 
   return (
     <div>
-      <Header />
       <div className={styles.container}>
         <div className={styles.header}>
           <h1 className={styles.title}>Edit Profile</h1>

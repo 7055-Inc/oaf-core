@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Script from 'next/script';
-import Header from '../../components/Header';
 import { authenticatedApiRequest, handleCsrfError } from '../../lib/csrf';
 import { authApiRequest } from '../../lib/apiUtils';
 import styles from '../../styles/EventPayment.module.css';
@@ -208,7 +207,6 @@ export default function EventPayment() {
   if (loading) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.loadingContainer}>
           <div className={styles.loading}>
             <div className={styles.spinner}></div>
@@ -222,7 +220,6 @@ export default function EventPayment() {
   if (error) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.errorContainer}>
           <div className={styles.error}>
             <h2>Payment Error</h2>
@@ -253,7 +250,6 @@ export default function EventPayment() {
         strategy="lazyOnload"
       />
 
-      <Header />
 
       <div className={styles.paymentContainer}>
         <div className={styles.paymentHeader}>

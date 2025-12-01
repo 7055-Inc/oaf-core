@@ -3,8 +3,6 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { getApiUrl } from '../../../lib/config';
 import { getAuthToken, authenticatedApiRequest } from '../../../lib/csrf';
-import Header from '../../../components/Header';
-import Footer from '../../../components/Footer';
 import styles from './claim.module.css';
 
 export default function ClaimEvent() {
@@ -161,14 +159,12 @@ export default function ClaimEvent() {
         <Head>
           <title>Claim Event - Brakebee</title>
         </Head>
-        <Header />
         <div className={styles.container}>
           <div className={styles.loading}>
             <div className={styles.spinner}></div>
             <p>Verifying claim link...</p>
           </div>
         </div>
-        <Footer />
       </>
     );
   }
@@ -179,7 +175,6 @@ export default function ClaimEvent() {
         <Head>
           <title>Claim Event - Brakebee</title>
         </Head>
-        <Header />
         <div className={styles.container}>
           <div className={styles.errorCard}>
             <div className={styles.errorIcon}>⚠️</div>
@@ -190,7 +185,6 @@ export default function ClaimEvent() {
             </p>
           </div>
         </div>
-        <Footer />
       </>
     );
   }
@@ -200,7 +194,6 @@ export default function ClaimEvent() {
       <Head>
         <title>Claim Event - {eventData?.event_name} - Brakebee</title>
       </Head>
-      <Header />
       <div className={styles.container}>
         <div className={styles.card}>
           <div className={styles.header}>
@@ -352,8 +345,6 @@ export default function ClaimEvent() {
           </div>
         </div>
       )}
-
-      <Footer />
     </>
   );
 }

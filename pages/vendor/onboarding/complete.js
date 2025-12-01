@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import Header from '../../../components/Header';
 import { authenticatedApiRequest, getAuthToken } from '../../../lib/csrf';
 import { authApiRequest } from '../../../lib/apiUtils';
 import styles from '../../../styles/ProfileCompletion.module.css';
@@ -103,7 +102,6 @@ export default function StripeOnboardingComplete() {
         <Head>
           <title>Setting up your payment account...</title>
         </Head>
-        <Header />
         <div className="section-box">
           <div>
             <div>
@@ -123,7 +121,6 @@ export default function StripeOnboardingComplete() {
         <Head>
           <title>Payment Setup - Error</title>
         </Head>
-        <Header />
         <div className="section-box">
           <div>
             <div className="error-alert">
@@ -151,7 +148,6 @@ export default function StripeOnboardingComplete() {
       <Head>
         <title>Payment Setup Complete</title>
       </Head>
-      <Header />
       <div className="section-box">
         <div>
           <div>

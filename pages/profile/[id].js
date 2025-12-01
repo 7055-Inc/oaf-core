@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { getApiUrl } from '../../lib/config';
-import Header from '../../components/Header';
 import ProfileDisplay from '../../components/shared/ProfileDisplay';
 import { authenticatedApiRequest } from '../../lib/csrf';
 import styles from './Profile.module.css';
@@ -68,7 +67,6 @@ export default function ProfileView() {
   if (error) {
     return (
       <div>
-        <Header />
         <div className={styles.container}>
           <h1 className={styles.title}>Profile Not Found</h1>
           <p className={styles.error}>Error: {error}</p>
@@ -79,7 +77,6 @@ export default function ProfileView() {
 
   return (
     <div>
-      <Header />
       <ProfileDisplay 
         userProfile={userProfile}
         showEditButton={true}

@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
 import firebaseApp from '../lib/firebase';
-import Header from '../components/Header';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -52,9 +51,7 @@ export default function ForgotPassword() {
 
 
   return (
-    <div>
-      <Header />
-      <div style={{ 
+    <div style={{ 
         padding: '2rem', 
         maxWidth: '500px', 
         margin: '2rem auto',
@@ -202,6 +199,5 @@ export default function ForgotPassword() {
           </a>
         </div>
       </div>
-    </div>
   );
 }

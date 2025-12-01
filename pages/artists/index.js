@@ -1,8 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Header from '../../components/Header';
-import Footer from '../../components/Footer';
 import styles from './Artists.module.css';
 import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
 
@@ -90,7 +88,6 @@ export default function Artists() {
 
   return (
     <div className={styles.pageContainer}>
-      <Header />
       
       <main className={styles.main}>
 
@@ -214,7 +211,6 @@ export default function Artists() {
         </section>
       </main>
 
-      <Footer />
     </div>
   );
 }

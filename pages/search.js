@@ -2,8 +2,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import Header from '../components/Header';
-import Footer from '../components/Footer';
 import { SearchResults } from '../components/search';
 import { getAuthToken } from '../lib/csrf';
 import { authApiRequest, API_ENDPOINTS } from '../lib/apiUtils';
@@ -42,8 +40,6 @@ export default function SearchPage() {
         <title>{query ? `Search Results for "${query}"` : 'Search'} | Brakebee</title>
         <meta name="description" content={query ? `Search results for "${query}" on Brakebee` : 'Search for products, artists, articles, and events on Brakebee'} />
       </Head>
-
-      <Header />
       
       <main style={{ minHeight: '100vh', paddingTop: '80px' }}>
         {isReady ? (
@@ -58,8 +54,6 @@ export default function SearchPage() {
           </div>
         )}
       </main>
-
-      <Footer />
     </>
   );
 }

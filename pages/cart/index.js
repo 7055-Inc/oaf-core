@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import Header from '../../components/Header';
 import { authApiRequest } from '../../lib/apiUtils';
 import { handleCsrfError } from '../../lib/csrf';
 import { getApiUrl } from '../../lib/config';
@@ -245,7 +244,6 @@ export default function Cart() {
   if (loading) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.loading}>Loading cart...</div>
       </div>
     );
@@ -254,7 +252,6 @@ export default function Cart() {
   if (error) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.error}>{error}</div>
       </div>
     );
@@ -262,7 +259,6 @@ export default function Cart() {
 
   return (
     <div className={styles.container}>
-      <Header />
       <div className={styles.content} style={{marginTop: '120px'}}>
           {cartItems.length > 0 && (
             <div className="section-box">

@@ -1,8 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Header from '../components/Header';
-import Footer from '../components/Footer';
 import LoginModal from '../components/login/LoginModal';
 import EventsCarousel from '../components/EventsCarousel';
 import ArtistCarousel from '../components/ArtistCarousel';
@@ -49,26 +47,20 @@ export default function Home() {
 
   if (isLoading) {
     return (
-      <div>
-        <Header />
-        <div style={{ 
-          height: '100vh', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          backgroundColor: '#f5f5f5'
-        }}>
-          <p>Loading...</p>
-        </div>
-        <Footer />
+      <div style={{ 
+        height: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        backgroundColor: '#f5f5f5'
+      }}>
+        <p>Loading...</p>
       </div>
     );
   }
 
   return (
-    <div>
-      <Header />
-      
+    <>
       {/* === NEW HOMEPAGE SECTIONS === */}
       {/* Section 1: Visual Discovery Band */}
       {/* <VisualDiscoveryBand /> */}
@@ -201,8 +193,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Footer */}
-      <Footer />
-    </div>
+    </>
   );
 }

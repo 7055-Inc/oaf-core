@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getApiUrl } from '../../lib/config';
-import Header from '../../components/Header';
 
 export default function ProfileSetup() {
   const [user, setUser] = useState(null);
@@ -183,7 +182,6 @@ export default function ProfileSetup() {
 
   return (
     <div>
-      <Header />
       <div style={{ padding: '2rem', maxWidth: '600px', margin: '0 auto' }}>
         <h1>Complete Your Profile - Step {step} of 3</h1>
         {error && <p style={{ color: 'red' }}>Error: {error}</p>}

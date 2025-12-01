@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import { getAuth, createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import firebaseApp from '../lib/firebase';
 import { getApiUrl } from '../lib/config';
-import Header from '../components/Header';
 import { clearAuthTokens } from '../lib/csrf';
 import CookieConsentModal from '../components/CookieConsentModal';
 
@@ -146,9 +145,7 @@ export default function Signup() {
   };
 
   return (
-    <div>
-      <Header />
-      
+    <>
       {/* Cookie Consent Modal - blocks everything until consent */}
       {showConsentModal && (
         <CookieConsentModal 
@@ -341,6 +338,6 @@ export default function Signup() {
           <p>Please accept cookies to access the signup form.</p>
         </div>
       ) : null}
-    </div>
+    </>
   );
 }

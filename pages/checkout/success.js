@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import Header from '../../components/Header';
 import { authenticatedApiRequest } from '../../lib/csrf';
 import { authApiRequest } from '../../lib/apiUtils';
 import styles from '../../styles/CheckoutSuccess.module.css';
@@ -64,7 +63,6 @@ export default function CheckoutSuccess() {
   if (loading) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.loading}>
           <div className={styles.spinner}></div>
           <h2>Confirming your payment...</h2>
@@ -76,7 +74,6 @@ export default function CheckoutSuccess() {
   if (error) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.error}>
           <h2>Payment Confirmation Error</h2>
           <p>{error}</p>
@@ -95,8 +92,6 @@ export default function CheckoutSuccess() {
       </Head>
       
       <div className={styles.container}>
-        <Header />
-        
         <div className={styles.success}>
           <div className={styles.successIcon}>✅</div>
           <h1>Payment Successful!</h1>

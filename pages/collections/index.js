@@ -1,8 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Header from '../../components/Header';
-import Footer from '../../components/Footer';
 import styles from './Collections.module.css';
 import { getApiUrl } from '../../lib/config';
 
@@ -117,7 +115,6 @@ export default function Collections() {
 
   return (
     <div className={styles.pageContainer}>
-      <Header />
       
       <main className={styles.main}>
         <section className={styles.collectionsSection}>
@@ -176,7 +173,6 @@ export default function Collections() {
         </section>
       </main>
 
-      <Footer />
     </div>
   );
 }

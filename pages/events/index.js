@@ -1,8 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Header from '../../components/Header';
-import Footer from '../../components/Footer';
 import styles from './Events.module.css';
 import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
 
@@ -109,8 +107,6 @@ export default function Events() {
 
   return (
     <div className={styles.pageContainer}>
-      <Header />
-      
       <main className={styles.main}>
         {/* Events Grid Section */}
         <section className={styles.eventsSection}>
@@ -232,8 +228,6 @@ export default function Events() {
           </div>
         </section>
       </main>
-
-      <Footer />
     </div>
   );
 }

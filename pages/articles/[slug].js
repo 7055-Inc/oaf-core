@@ -3,7 +3,6 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import { getApiUrl, getFrontendUrl } from '../../lib/config';
-import Header from '../../components/Header';
 import SocialShare from '../../components/SocialShare';
 import styles from './styles/ArticleView.module.css';
 
@@ -316,7 +315,6 @@ export default function ArticlePage() {
   if (loading) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.loading}>Loading article...</div>
       </div>
     );
@@ -325,7 +323,6 @@ export default function ArticlePage() {
   if (error) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.error}>{error}</div>
       </div>
     );
@@ -334,7 +331,6 @@ export default function ArticlePage() {
   if (!article) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.error}>Article not found</div>
       </div>
     );
@@ -369,7 +365,6 @@ export default function ArticlePage() {
       </Head>
 
       <div className={styles.container}>
-        <Header />
         
         <div className={styles.content}>
           <div className={styles.navigation}>

@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Script from 'next/script';
-import Header from '../components/Header';
 import { authenticatedApiRequest, handleCsrfError } from '../lib/csrf';
 import { authApiRequest } from '../lib/apiUtils';
 import CouponEntry from '../components/coupons/CouponEntry';
@@ -363,7 +362,6 @@ export default function Checkout() {
   if (loading) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.loading}>Loading checkout...</div>
       </div>
     );
@@ -372,7 +370,6 @@ export default function Checkout() {
   if (error && !orderSummary) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.error}>
           <h2>Checkout Error</h2>
           <p>{error}</p>
@@ -396,8 +393,6 @@ export default function Checkout() {
       />
       
       <div className={styles.container}>
-        <Header />
-        
         <div className={styles.content}>
           <h1 className={styles.title}>Checkout</h1>
           

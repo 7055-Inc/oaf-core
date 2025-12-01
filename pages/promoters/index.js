@@ -1,8 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Header from '../../components/Header';
-import Footer from '../../components/Footer';
 import styles from './Promoters.module.css';
 import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
 
@@ -94,7 +92,6 @@ export default function Promoters() {
 
   return (
     <div className={styles.pageContainer}>
-      <Header />
       
       <main className={styles.main}>
         {/* Promoters Grid Section */}
@@ -214,7 +211,6 @@ export default function Promoters() {
         </section>
       </main>
 
-      <Footer />
     </div>
   );
 }

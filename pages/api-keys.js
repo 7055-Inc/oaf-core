@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getApiUrl } from '../lib/config';
-import Header from '../components/Header';
 
 export default function ApiKeys() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -65,9 +64,7 @@ export default function ApiKeys() {
   }
 
   return (
-    <div>
-      <Header />
-      <div style={{ padding: '2rem' }}>
+    <div style={{ padding: '2rem' }}>
         <h1>API Keys</h1>
         <div>
           <h2>Generate New API Key</h2>
@@ -102,6 +99,5 @@ export default function ApiKeys() {
           )}
         </div>
       </div>
-    </div>
   );
 }

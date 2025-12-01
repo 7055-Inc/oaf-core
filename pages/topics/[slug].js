@@ -3,7 +3,6 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import { getApiUrl, getFrontendUrl } from '../../lib/config';
-import Header from '../../components/Header';
 import styles from '../articles/styles/ArticleArchive.module.css';
 
 export default function TopicPage() {
@@ -73,7 +72,6 @@ export default function TopicPage() {
   if (loading) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.loading}>Loading topic...</div>
       </div>
     );
@@ -82,7 +80,6 @@ export default function TopicPage() {
   if (error) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.error}>{error}</div>
       </div>
     );
@@ -91,7 +88,6 @@ export default function TopicPage() {
   if (!topic) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.error}>Topic not found</div>
       </div>
     );
@@ -115,7 +111,6 @@ export default function TopicPage() {
       </Head>
 
       <div className={styles.container}>
-        <Header />
         
         <div className={styles.content}>
           <div className={styles.heroSection}>

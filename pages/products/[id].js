@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
-import Header from '../../components/Header';
 import AboutTheArtist from '../../components/AboutTheArtist';
 import VariationSelector from '../../components/VariationSelector';
 import ArtistProductCarousel from '../../components/ArtistProductCarousel';
@@ -357,34 +356,25 @@ export default function ProductView() {
 
   if (loading) {
     return (
-      <>
-        <Header />
-        <div className={styles.container}>
-          <div className={styles.loading}>Loading...</div>
-        </div>
-      </>
+      <div className={styles.container}>
+        <div className={styles.loading}>Loading...</div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <>
-        <Header />
-        <div className={styles.container}>
-          <div className={styles.error}>{error}</div>
-        </div>
-      </>
+      <div className={styles.container}>
+        <div className={styles.error}>{error}</div>
+      </div>
     );
   }
 
   if (!product) {
     return (
-      <>
-        <Header />
-        <div className={styles.container}>
-          <div className={styles.error}>Product not found</div>
-        </div>
-      </>
+      <div className={styles.container}>
+        <div className={styles.error}>Product not found</div>
+      </div>
     );
   }
 
@@ -395,7 +385,6 @@ export default function ProductView() {
 
   return (
     <>
-      <Header />
       {isOwnProduct && (
         <div className={styles.floatingEditButtons}>
           <a href={`/dashboard/products/${product.id}`} className={styles.floatingEditLink}>

@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { getApiUrl, getFrontendUrl } from '../../../lib/config';
-import Header from '../../../components/Header';
 import styles from '../styles/ArticleArchive.module.css';
 
 export default function TagArchivePage() {
@@ -57,21 +56,18 @@ export default function TagArchivePage() {
 
   if (loading) return (
     <div className={styles.container}>
-      <Header />
       <div className={styles.loading}>Loading tag...</div>
     </div>
   );
 
   if (error) return (
     <div className={styles.container}>
-      <Header />
       <div className={styles.error}>{error}</div>
     </div>
   );
 
   if (!tag) return (
     <div className={styles.container}>
-      <Header />
       <div className={styles.error}>Tag not found</div>
     </div>
   );
@@ -136,7 +132,6 @@ export default function TagArchivePage() {
       </Head>
 
       <div className={styles.container}>
-        <Header />
         
         <div className={styles.content}>
           {/* Tag Archive Hero Section */}

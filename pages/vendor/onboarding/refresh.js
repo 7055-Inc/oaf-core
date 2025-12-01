@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import Header from '../../../components/Header';
 import { authenticatedApiRequest, getAuthToken } from '../../../lib/csrf';
 import { authApiRequest } from '../../../lib/apiUtils';
 import styles from '../../../styles/ProfileCompletion.module.css';
@@ -69,7 +68,6 @@ export default function StripeOnboardingRefresh() {
         <Head>
           <title>Refreshing payment setup...</title>
         </Head>
-        <Header />
         <div className="section-box">
           <div>
             <div>
@@ -89,7 +87,6 @@ export default function StripeOnboardingRefresh() {
         <Head>
           <title>Redirecting to Stripe...</title>
         </Head>
-        <Header />
         <div className={styles.container}>
           <div className={styles.card}>
             <div className={styles.loadingContainer}>
@@ -109,7 +106,6 @@ export default function StripeOnboardingRefresh() {
         <Head>
           <title>Payment Setup - Error</title>
         </Head>
-        <Header />
         <div className={styles.container}>
           <div className={styles.card}>
             <div className={styles.errorContainer}>

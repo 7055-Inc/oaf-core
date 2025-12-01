@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import Header from '../../components/Header';
 import { authApiRequest } from '../../lib/apiUtils';
 import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
 import CouponEntry from '../../components/coupons/CouponEntry';
@@ -186,7 +185,6 @@ export default function UnifiedCart() {
           <title>My Cart - Digital Art Mall</title>
         </Head>
         <div className={styles.container}>
-          <Header />
           <div className={styles.loading}>
             <div className={styles.spinner}></div>
             <p>Loading your art collection...</p>
@@ -203,7 +201,6 @@ export default function UnifiedCart() {
           <title>My Cart - Digital Art Mall</title>
         </Head>
         <div className={styles.container}>
-          <Header />
           <div className={styles.error}>
             <h2>Unable to Load Cart</h2>
             <p>{error}</p>
@@ -226,8 +223,6 @@ export default function UnifiedCart() {
       </Head>
       
       <div className={styles.container}>
-        <Header />
-        
         <div className={styles.content} style={{marginTop: '120px'}}>
           <div className="section-box">
             <p style={{color: 'var(--secondary-color)', fontWeight: '600', marginBottom: '1rem'}}>

@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
-import Header from '../components/Header';
-import Footer from '../components/Footer';
 import { getApiUrl, getSmartMediaUrl } from '../lib/config';
 
 export default function Marketplace() {
@@ -132,8 +130,6 @@ export default function Marketplace() {
         <title>Browse Art - Marketplace | Brakebee</title>
         <meta name="description" content="Discover and shop unique handmade art from talented artists. Browse our curated marketplace of paintings, sculptures, photography, and more." />
       </Head>
-
-      <Header />
 
       <div className="container" style={{ paddingTop: '120px', paddingBottom: '80px' }}>
 
@@ -290,8 +286,6 @@ export default function Marketplace() {
           </div>
         )}
       </div>
-
-      <Footer />
     </>
   );
 }

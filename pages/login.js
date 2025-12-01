@@ -1,6 +1,5 @@
 'use client';
 import { useState, useEffect } from 'react';
-import Header from '../components/Header';
 import LoginModal from '../components/login/LoginModal';
 import CookieConsentModal from '../components/CookieConsentModal';
 
@@ -25,9 +24,7 @@ export default function Login() {
   }, []);
 
   return (
-    <div>
-      <Header />
-      
+    <>
       {/* Cookie Consent Modal - blocks everything until consent */}
       {showConsentModal && (
         <CookieConsentModal 
@@ -58,6 +55,6 @@ export default function Login() {
           </div>
         ) : null}
       </div>
-    </div>
+    </>
   );
 } 

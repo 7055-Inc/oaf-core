@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { getApiUrl, getFrontendUrl } from '../../lib/config';
-import Header from '../../components/Header';
 import styles from './styles/ArticlesList.module.css';
 
 export default function ArticlesPage() {
@@ -84,7 +83,6 @@ export default function ArticlesPage() {
   if (loading && articles.length === 0) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.loading}>Loading articles...</div>
       </div>
     );
@@ -93,7 +91,6 @@ export default function ArticlesPage() {
   if (error) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.error}>{error}</div>
       </div>
     );
@@ -118,7 +115,6 @@ export default function ArticlesPage() {
       </Head>
 
       <div className={styles.container}>
-        <Header />
         
         <div className={styles.content}>
           <div className={styles.heroSection}>

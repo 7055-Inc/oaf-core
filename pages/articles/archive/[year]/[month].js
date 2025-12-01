@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { getApiUrl, getFrontendUrl } from '../../../../lib/config';
-import Header from '../../../../components/Header';
 import styles from '../../styles/ArticleArchive.module.css';
 
 export default function DateArchivePage() {
@@ -61,14 +60,12 @@ export default function DateArchivePage() {
 
   if (loading) return (
     <div className={styles.container}>
-      <Header />
       <div className={styles.loading}>Loading articles...</div>
     </div>
   );
 
   if (error) return (
     <div className={styles.container}>
-      <Header />
       <div className={styles.error}>{error}</div>
     </div>
   );
@@ -132,7 +129,6 @@ export default function DateArchivePage() {
       </Head>
 
       <div className={styles.container}>
-        <Header />
         
         <div className={styles.content}>
           {/* Date Archive Hero Section */}

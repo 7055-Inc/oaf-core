@@ -3,7 +3,6 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import { getApiUrl, getFrontendUrl } from '../../lib/config';
-import Header from '../../components/Header';
 import styles from './Series.module.css';
 
 export default function SeriesPage() {
@@ -91,7 +90,6 @@ export default function SeriesPage() {
   if (loading) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.loading}>Loading series...</div>
       </div>
     );
@@ -100,7 +98,6 @@ export default function SeriesPage() {
   if (error) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.error}>{error}</div>
       </div>
     );
@@ -109,7 +106,6 @@ export default function SeriesPage() {
   if (!series) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.error}>Series not found</div>
       </div>
     );
@@ -139,7 +135,6 @@ export default function SeriesPage() {
       </Head>
       
       <div className={styles.container}>
-        <Header />
         
         <div className={styles.seriesContent}>
           <div className={styles.seriesHeader}>

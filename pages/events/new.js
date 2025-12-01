@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSmartMediaUrl } from '../../lib/config';
-import Header from '../../components/Header';
 import { authApiRequest } from '../../lib/apiUtils';
 import styles from './styles/EventForm.module.css';
 
@@ -587,12 +586,9 @@ export default function NewEvent() {
 
   if (!userData) {
     return (
-      <div>
-        <Header />
-        <div className={styles.container}>
+      <div className={styles.container}>
         <div className={styles.content}>
           <h1>Loading...</h1>
-          </div>
         </div>
       </div>
     );
@@ -600,22 +596,17 @@ export default function NewEvent() {
 
   if (userData.user_type !== 'promoter' && userData.user_type !== 'admin') {
     return (
-      <div>
-        <Header />
-        <div className={styles.container}>
+      <div className={styles.container}>
         <div className={styles.content}>
           <h1>Access Denied</h1>
-            <p>Only promoters and admins can create events.</p>
-          </div>
+          <p>Only promoters and admins can create events.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div>
-      <Header />
-      <div className={styles.container}>
+    <div className={styles.container}>
       <div className={styles.content}>
         <h1>
           {claimedEventId ? 'Complete Your Claimed Event' : 
@@ -1584,6 +1575,5 @@ export default function NewEvent() {
         </form>
       </div>
       </div>
-    </div>
   );
 } 

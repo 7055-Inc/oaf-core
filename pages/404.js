@@ -3,8 +3,6 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { getApiUrl } from '../lib/config';
-import Header from '../components/Header';
-import Footer from '../components/Footer';
 import { SearchBar } from '../components/search';
 import RandomProductCarousel from '../components/RandomProductCarousel';
 import styles from '../styles/404.module.css';
@@ -66,8 +64,6 @@ const Custom404 = () => {
         <link rel="icon" href="/favicon.ico" />
         <meta name="robots" content="noindex, nofollow" />
       </Head>
-
-      <Header />
 
       <main className={styles.container}>
         <div className={styles.heroSection}>
@@ -248,8 +244,6 @@ const Custom404 = () => {
           </div>
         )}
       </main>
-
-      <Footer />
 
       {/* Search Modal */}
       {showSearch && (

@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import { authenticatedApiRequest } from '../../lib/csrf';
 import { authApiRequest } from '../../lib/apiUtils';
 import { getFrontendUrl, getSmartMediaUrl } from '../../lib/config';
-import Header from '../../components/Header';
 import ProductTypeModal from '../../components/ProductTypeModal';
 import AddCategoryModal from '../../components/AddCategoryModal';
 import VariationManager from '../../components/VariationManager';
@@ -645,7 +644,6 @@ export default function NewProduct() {
 
   return (
     <>
-      <Header />
       <ProductTypeModal 
         isOpen={showModal} 
         onSelectType={handleProductTypeSelection} 

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import Header from '../../components/Header';
 import { authenticatedApiRequest } from '../../lib/csrf';
 import { authApiRequest } from '../../lib/apiUtils';
 import styles from '../../styles/EventPaymentSuccess.module.css';
@@ -62,7 +61,6 @@ export default function EventPaymentSuccess() {
   if (loading) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.loadingContainer}>
           <div className={styles.loading}>
             <div className={styles.spinner}></div>
@@ -76,7 +74,6 @@ export default function EventPaymentSuccess() {
   if (error) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.errorContainer}>
           <div className={styles.error}>
             <h2>Payment Confirmation Error</h2>
@@ -101,7 +98,6 @@ export default function EventPaymentSuccess() {
         <meta name="robots" content="noindex, nofollow" />
       </Head>
 
-      <Header />
 
       <div className={styles.successContainer}>
         <div className={styles.successHeader}>

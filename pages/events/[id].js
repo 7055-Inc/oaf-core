@@ -4,7 +4,6 @@ import Head from 'next/head';
 import Script from 'next/script';
 import Link from 'next/link';
 import { getFrontendUrl, getApiUrl, getSmartMediaUrl } from '../../lib/config';
-import Header from '../../components/Header';
 import ApplicationForm from '../../components/applications/ApplicationForm';
 import ApplicationStatus from '../../components/applications/ApplicationStatus';
 import EventReviews from '../../components/EventReviews';
@@ -725,7 +724,6 @@ export default function EventPage() {
   if (loading) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.loading}>Loading event details...</div>
       </div>
     );
@@ -734,7 +732,6 @@ export default function EventPage() {
   if (error) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.error}>{error}</div>
       </div>
     );
@@ -743,7 +740,6 @@ export default function EventPage() {
   if (!event) {
     return (
       <div className={styles.container}>
-        <Header />
         <div className={styles.error}>Event not found</div>
       </div>
     );
@@ -777,8 +773,6 @@ export default function EventPage() {
 
 
       <div className={styles.container}>
-        <Header />
-        
         <div className={styles.content}>
           {/* Hero Section */}
           <div className={styles.heroSection}>

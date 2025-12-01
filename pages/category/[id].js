@@ -1,8 +1,6 @@
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
-import Header from '../../components/Header';
-import Footer from '../../components/Footer';
 import WholesalePricing from '../../components/WholesalePricing';
 import { isWholesaleCustomer } from '../../lib/userUtils';
 import { getAuthToken } from '../../lib/csrf';
@@ -126,7 +124,6 @@ export default function CategoryLandingPage() {
         )}
       </Head>
 
-      <Header />
 
         {/* Grey header section that bleeds to top */}
         <div style={{ 
@@ -505,7 +502,6 @@ export default function CategoryLandingPage() {
         </div>
       </div>
 
-      <Footer />
     </>
   );
 } 

@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { getApiUrl, getFrontendUrl } from '../../../lib/config';
-import Header from '../../../components/Header';
 import styles from '../styles/ArticleArchive.module.css';
 
 export default function AuthorArchivePage() {
@@ -75,21 +74,18 @@ export default function AuthorArchivePage() {
 
   if (loading) return (
     <div className={styles.container}>
-      <Header />
       <div className={styles.loading}>Loading author...</div>
     </div>
   );
 
   if (error) return (
     <div className={styles.container}>
-      <Header />
       <div className={styles.error}>{error}</div>
     </div>
   );
 
   if (!author) return (
     <div className={styles.container}>
-      <Header />
       <div className={styles.error}>Author not found</div>
     </div>
   );
@@ -176,7 +172,6 @@ export default function AuthorArchivePage() {
       </Head>
 
       <div className={styles.container}>
-        <Header />
         
         <div className={styles.content}>
           {/* Author Hero Section */}
