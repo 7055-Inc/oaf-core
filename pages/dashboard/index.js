@@ -6,6 +6,7 @@ import Head from 'next/head';
 import dynamic from 'next/dynamic';
 import { authApiRequest } from '../../lib/apiUtils';
 import DashboardHeader from '../../components/dashboard/DashboardHeader';
+import DashboardFooter from '../../components/dashboard/DashboardFooter';
 
 
 
@@ -26,6 +27,8 @@ import ManageEmailCore from '../../components/dashboard/manage-system/components
 import ManageTermsCore from '../../components/dashboard/manage-system/components/ManageTermsCore';
 import ManageCategories from '../../components/dashboard/manage-system/components/ManageCategories';
 import ManageCustomPolicies from '../../components/dashboard/manage-system/components/ManageCustomPolicies';
+import AddPromoter from '../../components/dashboard/manage-system/components/AddPromoter';
+import UnclaimedEvents from '../../components/dashboard/manage-system/components/UnclaimedEvents';
 import DashboardGrid from '../../components/dashboard/DashboardGrid';
 import { getAuthToken, authenticatedApiRequest } from '../../lib/csrf';
 import styles from './Dashboard.module.css';
@@ -78,6 +81,7 @@ import VerifiedApplications from '../../components/dashboard/admin/components/Ve
 import WholesaleApplications from '../../components/dashboard/admin/components/WholesaleApplications';
 import AdminReturns from '../../components/dashboard/admin/components/AdminReturns';
 import AdminPromotions from '../../components/dashboard/admin/components/AdminPromotions';
+import AdminEventReviews from '../../components/dashboard/admin/AdminEventReviews';
 import MaintenanceControl from '../../components/dashboard/admin/components/MaintenanceControl';
 
 
@@ -644,6 +648,14 @@ export default function Dashboard() {
       );
     }
     
+    if (slideInContent.type === 'event-reviews') {
+      return (
+        <AdminEventReviews
+          userData={userData}
+        />
+      );
+    }
+    
     if (slideInContent.type === 'maintenance-control') {
       return (
         <MaintenanceControl
@@ -655,6 +667,22 @@ export default function Dashboard() {
     if (slideInContent.type === 'manage-custom-policies') {
       return (
         <ManageCustomPolicies
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'add-promoter') {
+      return (
+        <AddPromoter
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'unclaimed-events') {
+      return (
+        <UnclaimedEvents
           userData={userData}
         />
       );
@@ -824,6 +852,7 @@ export default function Dashboard() {
         )}
       </div>
     </div>
+    <DashboardFooter />
     </>
   );
 } 

@@ -23,8 +23,36 @@ export default function WebsitesDashboard({ subscriptionData, userData, onUpdate
   const canAccessPremiumAddons = userTier !== 'Starter Plan';
 
   useEffect(() => {
-    fetchUserSites();
+    if (userData) {
+      checkAndEnforceSiteLimits();
+    }
   }, [userData]);
+
+  const checkAndEnforceSiteLimits = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch sites first
+      await fetchUserSites();
+      
+      // Check if user is over their tier limit
+      const response = await authApiRequest('api/sites/enforce-limits');
+      const result = await response.json();
+      
+      if (response.ok && result.sites_deactivated > 0) {
+        alert(`⚠️ Tier Limit Enforced\n\nWe've deactivated ${result.sites_deactivated} site${result.sites_deactivated === 1 ? '' : 's'} to match your ${result.tier} plan.\n\nYour plan allows ${result.site_limit} active site${result.site_limit === 1 ? '' : 's'}. You may deactivate one site and reactivate another if you'd like to change which sites are active.`);
+        
+        // Refresh sites list to show the changes
+        await fetchUserSites();
+      }
+    } catch (error) {
+      console.error('Error checking site limits:', error);
+      // Don't block the UI if this fails, just continue
+      await fetchUserSites();
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchUserSites = async () => {
     try {
@@ -128,11 +156,40 @@ export default function WebsitesDashboard({ subscriptionData, userData, onUpdate
         alert('Site activated successfully! Your website is now live and publicly accessible.');
       } else {
         const errorData = await response.json();
-        alert(`Failed to activate site: ${errorData.error}`);
+        alert(`Failed to activate site: ${errorData.message || errorData.error}`);
       }
     } catch (error) {
       console.error('Error activating site:', error);
       alert('Error activating site. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleDeactivateSite = async (siteId) => {
+    if (!confirm('Are you sure you want to deactivate this site? It will no longer be publicly accessible.')) {
+      return;
+    }
+
+    try {
+      setProcessing(true);
+      
+      const response = await authApiRequest(`api/sites/${siteId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'draft' })
+      });
+
+      if (response.ok) {
+        fetchUserSites();
+        alert('Site deactivated successfully. The site is now in draft mode and not publicly accessible.');
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to deactivate site: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error deactivating site:', error);
+      alert('Error deactivating site. Please try again.');
     } finally {
       setProcessing(false);
     }
@@ -157,34 +214,65 @@ export default function WebsitesDashboard({ subscriptionData, userData, onUpdate
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
           <h3 style={{ margin: '0', color: '#495057' }}>Your Websites</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
           {(() => {
             const isAdmin = userData?.user_type === 'admin';
             const isPromoter = userData?.user_type === 'promoter';
             
-            // Tier-based button visibility (NEW UNIVERSAL PATTERN)
-            const canAddSite = isAdmin || isPromoter || canCreateMultipleSites || userSites.length === 0;
-            
-            if (canAddSite) {
+              // Tier-based site limits
+              const siteLimit = canCreateMultipleSites || isAdmin ? 999 : 1;
+              const currentCount = userSites.length;
+              const canAddSite = currentCount < siteLimit;
+              
               return (
+                <>
                 <button
                   onClick={handleAddSite}
+                    disabled={!canAddSite}
                   style={{
                     padding: '8px 16px',
-                    background: '#055474',
+                      background: canAddSite ? '#055474' : '#ccc',
                     color: 'white',
                     border: 'none',
                     borderRadius: '2px',
-                    cursor: 'pointer',
+                      cursor: canAddSite ? 'pointer' : 'not-allowed',
                     fontSize: '14px',
                     fontWeight: 'bold'
                   }}
                 >
                   + Add Site
                 </button>
+                  
+                  {/* Show site count and limit */}
+                  <span style={{ 
+                    fontSize: '14px', 
+                    color: currentCount > siteLimit ? '#dc3545' : '#6c757d',
+                    fontWeight: currentCount > siteLimit ? 'bold' : 'normal'
+                  }}>
+                    {currentCount} of {siteLimit === 999 ? 'unlimited' : siteLimit} site{siteLimit === 1 ? '' : 's'}
+                    {currentCount > siteLimit && ' (grandfathered)'}
+                  </span>
+
+                  {/* Upgrade hint if at or over limit */}
+                  {!canAddSite && siteLimit < 999 && (
+                    <span style={{ 
+                      fontSize: '12px', 
+                      color: currentCount > siteLimit ? '#856404' : '#dc3545',
+                      backgroundColor: currentCount > siteLimit ? '#fff3cd' : '#f8d7da',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      border: `1px solid ${currentCount > siteLimit ? '#ffc107' : '#f5c6cb'}`
+                    }}>
+                      {currentCount > siteLimit 
+                        ? 'Delete sites or upgrade to create more'
+                        : 'Upgrade to Business or Promoter Business for multiple sites'
+                      }
+                    </span>
+                  )}
+                </>
               );
-            }
-            return null;
           })()}
+          </div>
         </div>
         
         {userSites.length > 0 ? (
@@ -237,6 +325,23 @@ export default function WebsitesDashboard({ subscriptionData, userData, onUpdate
                         }}
                       >
                         Activate Site
+                      </button>
+                    )}
+                    {site.status === 'active' && (
+                      <button 
+                        onClick={() => handleDeactivateSite(site.id)}
+                        style={{
+                          padding: '6px 12px',
+                          background: '#ffc107',
+                          color: '#212529',
+                          border: 'none',
+                          borderRadius: '2px',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        Deactivate Site
                       </button>
                     )}
                     <a 
@@ -301,23 +406,208 @@ export default function WebsitesDashboard({ subscriptionData, userData, onUpdate
               <h4 style={{ margin: '0', color: '#2c3e50' }}>Create New Website</h4>
             </div>
             <div style={{ padding: '20px' }}>
-              <p style={{ color: '#6c757d' }}>Site creation form coming soon...</p>
+              {processing && (
+                <div style={{ 
+                  padding: '10px', 
+                  backgroundColor: '#fff3cd', 
+                  border: '1px solid #ffc107',
+                  borderRadius: '4px',
+                  marginBottom: '15px',
+                  color: '#856404'
+                }}>
+                  Creating your website...
+                </div>
+              )}
+
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                setProcessing(true);
+
+                try {
+                  const formData = {
+                    site_name: siteForm.site_name,
+                    subdomain: siteForm.subdomain,
+                    site_title: siteForm.site_title || siteForm.site_name,
+                    site_description: siteForm.site_description || '',
+                    theme_name: 'default'
+                  };
+
+                  const response = await authApiRequest('api/sites', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                  });
+
+                  const result = await response.json();
+
+                  if (response.ok) {
+                    alert('Website created successfully!');
+                    setSiteForm({});
+                    setExpandedSite(null);
+                    setIsEditingSite(false);
+                    fetchUserSites(); // Reload sites list
+                  } else {
+                    if (result.message) {
+                      alert(`Error: ${result.message}`);
+                    } else {
+                      alert(`Error: ${result.error || 'Failed to create site'}`);
+                    }
+                  }
+                } catch (error) {
+                  console.error('Error creating site:', error);
+                  alert('An error occurred while creating your site');
+                } finally {
+                  setProcessing(false);
+                }
+              }}>
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#495057' }}>
+                    Site Name <span style={{ color: 'red' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={siteForm.site_name || ''}
+                    onChange={(e) => setSiteForm({ ...siteForm, site_name: e.target.value })}
+                    placeholder="My Art Portfolio"
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      border: '1px solid #ced4da',
+                      borderRadius: '4px',
+                      fontSize: '14px'
+                    }}
+                  />
+                  <small style={{ color: '#6c757d' }}>Internal name for your site</small>
+                </div>
+
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#495057' }}>
+                    Subdomain <span style={{ color: 'red' }}>*</span>
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      required
+                      value={siteForm.subdomain || ''}
+                      onChange={(e) => {
+                        // Clean input: lowercase, alphanumeric and hyphens only
+                        const cleaned = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+                        setSiteForm({ ...siteForm, subdomain: cleaned });
+                      }}
+                      placeholder="myportfolio"
+                      pattern="^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
+                      minLength="3"
+                      maxLength="63"
+                      style={{
+                        flex: 1,
+                        padding: '8px',
+                        border: '1px solid #ced4da',
+                        borderRadius: '4px 0 0 4px',
+                        fontSize: '14px'
+                      }}
+                    />
+                    <span style={{
+                      padding: '8px 12px',
+                      backgroundColor: '#e9ecef',
+                      border: '1px solid #ced4da',
+                      borderLeft: 'none',
+                      borderRadius: '0 4px 4px 0',
+                      fontSize: '14px',
+                      color: '#495057'
+                    }}>
+                      .brakebee.com
+                    </span>
+                  </div>
+                  <small style={{ color: '#6c757d' }}>3-63 characters, letters, numbers, and hyphens only</small>
+                </div>
+
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#495057' }}>
+                    Site Title
+                  </label>
+                  <input
+                    type="text"
+                    value={siteForm.site_title || ''}
+                    onChange={(e) => setSiteForm({ ...siteForm, site_title: e.target.value })}
+                    placeholder="Artist Portfolio - John Doe"
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      border: '1px solid #ced4da',
+                      borderRadius: '4px',
+                      fontSize: '14px'
+                    }}
+                  />
+                  <small style={{ color: '#6c757d' }}>Public title shown in browser tabs (defaults to site name)</small>
+                </div>
+
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#495057' }}>
+                    Site Description
+                  </label>
+                  <textarea
+                    value={siteForm.site_description || ''}
+                    onChange={(e) => setSiteForm({ ...siteForm, site_description: e.target.value })}
+                    placeholder="A beautiful portfolio showcasing my artwork..."
+                    rows="3"
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      border: '1px solid #ced4da',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                      resize: 'vertical'
+                    }}
+                  />
+                  <small style={{ color: '#6c757d' }}>Brief description for search engines (optional)</small>
+                </div>
+
+                <div style={{ 
+                  display: 'flex', 
+                  gap: '10px',
+                  marginTop: '20px'
+                }}>
+                  <button
+                    type="submit"
+                    disabled={processing}
+                    style={{
+                      padding: '10px 20px',
+                      backgroundColor: processing ? '#6c757d' : '#28a745',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      cursor: processing ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {processing ? 'Creating...' : 'Create Website'}
+                  </button>
               <button
+                    type="button"
                 onClick={() => {
                   setExpandedSite(null);
                   setIsEditingSite(false);
+                      setSiteForm({});
                 }}
+                    disabled={processing}
                 style={{
-                  padding: '8px 16px',
+                      padding: '10px 20px',
                   background: '#6c757d',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '2px',
-                  cursor: 'pointer'
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                      cursor: processing ? 'not-allowed' : 'pointer'
                 }}
               >
                 Cancel
               </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
@@ -335,7 +625,8 @@ export default function WebsitesDashboard({ subscriptionData, userData, onUpdate
           display: 'grid', 
           gridTemplateColumns: 'auto 1fr', 
           gap: '10px 20px',
-          fontSize: '14px'
+          fontSize: '14px',
+          marginBottom: '15px'
         }}>
           <div style={{ color: '#6c757d' }}>Plan:</div>
           <div style={{ color: '#2c3e50', fontWeight: 'bold' }}>
@@ -352,7 +643,243 @@ export default function WebsitesDashboard({ subscriptionData, userData, onUpdate
             •••• •••• •••• {subscriptionData?.subscription?.cardLast4 || 'None on file'}
           </div>
         </div>
+
+        <UpgradeTierButton 
+          currentTier={subscriptionData?.subscription?.tier}
+          currentPrice={subscriptionData?.subscription?.tierPrice}
+          onUpgradeComplete={onUpdate}
+        />
       </div>
+    </div>
+  );
+}
+
+// Upgrade Tier Button Component
+function UpgradeTierButton({ currentTier, currentPrice, onUpgradeComplete }) {
+  const [showUpgradeOptions, setShowUpgradeOptions] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [message, setMessage] = useState(null);
+
+  // Define all available tiers
+  const allTiers = [
+    { name: "Starter Plan", price: 14.99, description: "Basic features for getting started" },
+    { name: "Professional Plan", price: 24.95, description: "Professional brand building tools" },
+    { name: "Business Plan", price: 49.95, description: "Advanced business features" },
+    { name: "Promoter Plan", price: 49.95, description: "Event promotion tools" },
+    { name: "Promoter Business Plan", price: 79.95, description: "Full event business suite" }
+  ];
+
+  // Filter to show all tiers except current (allow both upgrades and downgrades)
+  const availableTiers = allTiers.filter(tier => {
+    if (tier.name === currentTier) return false;
+    
+    // Show all other tiers (upgrades, downgrades, and track switches)
+    return true;
+  });
+
+  const handleChangeTier = async (newTier) => {
+    // Build confirmation message
+    let confirmMessage = `Switch to ${newTier.name} for $${newTier.price}/month?\n\nYou'll be charged a prorated amount for the remainder of this billing cycle.`;
+    
+    // Check if this is a downgrade that might affect site limits
+    const tierLimits = {
+      "Starter Plan": 1,
+      "Professional Plan": 1,
+      "Business Plan": 999,
+      "Promoter Plan": 1,
+      "Promoter Business Plan": 999
+    };
+    
+    const newTierLimit = tierLimits[newTier.name] || 1;
+    const currentTierLimit = tierLimits[currentTier] || 1;
+    
+    if (newTierLimit < currentTierLimit) {
+      confirmMessage += `\n\n⚠️ NOTE: This plan allows ${newTierLimit} site${newTierLimit === 1 ? '' : 's'}. Your existing sites will remain active, but you won't be able to create new sites if you exceed the limit.`;
+    }
+    
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    setProcessing(true);
+    setMessage(null);
+
+    try {
+      const response = await authApiRequest('api/subscriptions/websites/change-tier', {
+        method: 'POST',
+        body: JSON.stringify({
+          new_tier_name: newTier.name,
+          new_tier_price: newTier.price
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        let successMessage = `Successfully changed to ${newTier.name}! ${result.billing_note}`;
+        
+        setMessage({
+          type: 'success',
+          text: successMessage
+        });
+        setShowUpgradeOptions(false);
+        
+        // Refresh subscription data
+        if (onUpgradeComplete) {
+          setTimeout(() => onUpgradeComplete(), 2000);
+        }
+      } else {
+        setMessage({
+          type: 'error',
+          text: result.error || 'Failed to change tier'
+        });
+      }
+    } catch (error) {
+      console.error('Error changing tier:', error);
+      setMessage({
+        type: 'error',
+        text: 'An error occurred while changing your tier'
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  if (availableTiers.length === 0) {
+    return (
+      <div style={{ 
+        padding: '10px', 
+        backgroundColor: '#d4edda', 
+        border: '1px solid #c3e6cb',
+        borderRadius: '4px',
+        color: '#155724',
+        fontSize: '14px'
+      }}>
+        ✅ You're on the highest tier available!
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {message && (
+        <div style={{
+          padding: '10px',
+          marginBottom: '10px',
+          backgroundColor: message.type === 'success' ? '#d4edda' : message.type === 'warning' ? '#fff3cd' : '#f8d7da',
+          border: `1px solid ${message.type === 'success' ? '#c3e6cb' : message.type === 'warning' ? '#ffc107' : '#f5c6cb'}`,
+          borderRadius: '4px',
+          color: message.type === 'success' ? '#155724' : message.type === 'warning' ? '#856404' : '#721c24',
+          fontSize: '14px',
+          whiteSpace: 'pre-line'
+        }}>
+          {message.text}
+        </div>
+      )}
+
+      {!showUpgradeOptions ? (
+        <button
+          onClick={() => setShowUpgradeOptions(true)}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            width: '100%'
+          }}
+          onMouseOver={(e) => e.target.style.backgroundColor = '#0056b3'}
+          onMouseOut={(e) => e.target.style.backgroundColor = '#007bff'}
+        >
+          🚀 Upgrade or Change Plan
+        </button>
+      ) : (
+        <div style={{ 
+          border: '1px solid #dee2e6',
+          borderRadius: '4px',
+          padding: '15px',
+          backgroundColor: 'white'
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            marginBottom: '15px'
+          }}>
+            <h4 style={{ margin: 0, color: '#495057' }}>Available Plans</h4>
+            <button
+              onClick={() => setShowUpgradeOptions(false)}
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: '20px',
+                cursor: 'pointer',
+                color: '#6c757d'
+              }}
+            >
+              ✕
+            </button>
+          </div>
+
+          {availableTiers.map((tier) => {
+            const isUpgrade = tier.price > (currentPrice || 0);
+            const isDowngrade = tier.price < (currentPrice || 0);
+            const buttonColor = isUpgrade ? '#28a745' : isDowngrade ? '#fd7e14' : '#007bff';
+            const buttonHoverColor = isUpgrade ? '#218838' : isDowngrade ? '#e67700' : '#0056b3';
+            
+            return (
+              <div 
+                key={tier.name}
+                style={{
+                  padding: '12px',
+                  border: '1px solid #dee2e6',
+                  borderRadius: '4px',
+                  marginBottom: '10px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 'bold', color: '#2c3e50', marginBottom: '4px' }}>
+                    {tier.name}
+                    {isUpgrade && <span style={{ marginLeft: '8px', fontSize: '12px', color: '#28a745' }}>⬆️ Upgrade</span>}
+                    {isDowngrade && <span style={{ marginLeft: '8px', fontSize: '12px', color: '#fd7e14' }}>⬇️ Downgrade</span>}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#6c757d', marginBottom: '4px' }}>
+                    {tier.description}
+                  </div>
+                  <div style={{ fontSize: '16px', color: '#28a745', fontWeight: 'bold' }}>
+                    ${tier.price}/month
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleChangeTier(tier)}
+                  disabled={processing}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: processing ? '#6c757d' : buttonColor,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    cursor: processing ? 'not-allowed' : 'pointer',
+                    marginLeft: '15px'
+                  }}
+                  onMouseOver={(e) => !processing && (e.target.style.backgroundColor = buttonHoverColor)}
+                  onMouseOut={(e) => !processing && (e.target.style.backgroundColor = buttonColor)}
+                >
+                  {processing ? 'Processing...' : 'Select'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -5,21 +5,25 @@ import { getApiUrl } from '../../../../lib/config';
 import styles from '../../SlideIn.module.css';
 
 // Custom Event Modal Component
-function CustomEventModal({ onSave, onCancel }) {
-  const [formData, setFormData] = useState({
+function CustomEventModal({ onSave, onCancel, initialData = null }) {
+  const [formData, setFormData] = useState(initialData || {
     event_name: '',
     event_start_date: '',
     event_end_date: '',
     venue_name: '',
     city: '',
     state: '',
-    website: ''
+    website: '',
+    promoter_name: '',
+    promoter_email: '',
+    notify_promoter: false
   });
 
   const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: type === 'checkbox' ? checked : value
     });
   };
 
@@ -31,7 +35,7 @@ function CustomEventModal({ onSave, onCancel }) {
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
       <div className="form-card" style={{ width: '90%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto' }}>
-        <h3 style={{ margin: '0 0 20px 0' }}>Add Custom Event</h3>
+        <h3 style={{ margin: '0 0 20px 0' }}>{initialData ? 'Edit Custom Event' : 'Add Custom Event'}</h3>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <div className="form-group">
             <label>Event Name *</label>
@@ -115,6 +119,48 @@ function CustomEventModal({ onSave, onCancel }) {
             />
           </div>
 
+          <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #eee' }}>
+            <h4 style={{ margin: '0 0 15px 0', fontSize: '16px', fontWeight: '600' }}>Promoter Information (Optional)</h4>
+            
+            <div className="form-group">
+              <label>Promoter Name</label>
+              <input
+                type="text"
+                name="promoter_name"
+                value={formData.promoter_name}
+                onChange={handleChange}
+                className="form-input"
+                placeholder="Name of the event organizer"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Promoter Email</label>
+              <input
+                type="email"
+                name="promoter_email"
+                value={formData.promoter_email}
+                onChange={handleChange}
+                className="form-input"
+                placeholder="promoter@example.com"
+              />
+            </div>
+
+            <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <input
+                type="checkbox"
+                name="notify_promoter"
+                id="notify_promoter"
+                checked={formData.notify_promoter}
+                onChange={handleChange}
+                style={{ width: 'auto', margin: 0 }}
+              />
+              <label htmlFor="notify_promoter" style={{ margin: 0, cursor: 'pointer', fontWeight: 'normal' }}>
+                Notify promoter to add this event to Brakebee
+              </label>
+            </div>
+          </div>
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #eee' }}>
             <button type="button" onClick={onCancel} className="secondary">
               Cancel
@@ -135,6 +181,8 @@ export default function MyCalendar({ userData }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showAddCustomEvent, setShowAddCustomEvent] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     fetchCalendarData();
@@ -209,6 +257,60 @@ export default function MyCalendar({ userData }) {
       }
     } catch (err) {
       alert('Error adding custom event: ' + err.message);
+    }
+  };
+
+  const handleEditEvent = (event) => {
+    setEditingEvent(event);
+    setShowEditModal(true);
+  };
+
+  const updateCustomEvent = async (eventData) => {
+    try {
+      const token = getAuthToken();
+      const response = await fetch(getApiUrl(`api/events/custom/${editingEvent.id}`), {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(eventData)
+      });
+
+      if (response.ok) {
+        fetchCalendarData(); // Refresh data
+        setShowEditModal(false);
+        setEditingEvent(null);
+      } else {
+        throw new Error('Failed to update custom event');
+      }
+    } catch (err) {
+      alert('Error updating custom event: ' + err.message);
+    }
+  };
+
+  const handleDeleteEvent = async (eventId) => {
+    if (!confirm('Are you sure you want to delete this custom event?')) {
+      return;
+    }
+
+    try {
+      const token = getAuthToken();
+      const response = await fetch(getApiUrl(`api/events/custom/${eventId}`), {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        fetchCalendarData(); // Refresh data
+      } else {
+        throw new Error('Failed to delete custom event');
+      }
+    } catch (err) {
+      alert('Error deleting custom event: ' + err.message);
     }
   };
 
@@ -368,8 +470,8 @@ export default function MyCalendar({ userData }) {
                   </p>
                   <p style={{ margin: '5px 0', fontSize: '14px', color: '#666' }}>
                     {event.venue_name}
-                    {event.venue_city && `, ${event.venue_city}`}
-                    {event.venue_state && `, ${event.venue_state}`}
+                    {event.city && `, ${event.city}`}
+                    {event.state && `, ${event.state}`}
                   </p>
                   {event.website && (
                     <p style={{ margin: '5px 0', fontSize: '14px' }}>
@@ -378,6 +480,22 @@ export default function MyCalendar({ userData }) {
                       </a>
                     </p>
                   )}
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                  <button 
+                    onClick={() => handleEditEvent(event)}
+                    className="secondary"
+                    style={{ fontSize: '14px', padding: '6px 12px' }}
+                  >
+                    Edit
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteEvent(event.id)}
+                    className="danger"
+                    style={{ fontSize: '14px', padding: '6px 12px' }}
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
             ))}
@@ -390,6 +508,18 @@ export default function MyCalendar({ userData }) {
         <CustomEventModal 
           onSave={addCustomEvent}
           onCancel={() => setShowAddCustomEvent(false)}
+        />
+      )}
+
+      {/* Edit Custom Event Modal */}
+      {showEditModal && editingEvent && (
+        <CustomEventModal 
+          initialData={editingEvent}
+          onSave={updateCustomEvent}
+          onCancel={() => {
+            setShowEditModal(false);
+            setEditingEvent(null);
+          }}
         />
       )}
     </div>

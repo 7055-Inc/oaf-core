@@ -77,7 +77,14 @@ export default function Signup() {
     setMessage(null);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await sendEmailVerification(userCredential.user);
+      
+      // Configure action code settings to redirect to our verification handler
+      const actionCodeSettings = {
+        url: `${window.location.origin}/custom-sites/signup`,
+        handleCodeInApp: true
+      };
+      
+      await sendEmailVerification(userCredential.user, actionCodeSettings);
       setMessage('Signup successful! Please check your email to verify your account before logging in.');
       setEmail('');
       setPassword('');
@@ -124,8 +131,10 @@ export default function Signup() {
         // Wait a moment for the cookies to be set
         await new Promise(resolve => setTimeout(resolve, 100));
         
-        // Redirect to dashboard (middleware will handle user type selection)
-        window.location.href = '/dashboard';
+        // Check for redirect parameter, otherwise go to dashboard (middleware will handle user type selection)
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectUrl = urlParams.get('redirect') || '/dashboard';
+        window.location.href = redirectUrl;
       } else {
         throw new Error('Invalid response: missing tokens');
       }

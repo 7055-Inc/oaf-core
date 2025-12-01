@@ -11,6 +11,8 @@ export default function EventsIOwn({ userData }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('current');
+  const [reviewTokens, setReviewTokens] = useState({});
+  const [copiedToken, setCopiedToken] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -46,6 +48,10 @@ export default function EventsIOwn({ userData }) {
       
       setCurrentEvents(currentData);
       setArchivedEvents(archivedData);
+      
+      // Fetch review tokens for all events
+      const allEvents = [...currentData, ...archivedData];
+      fetchReviewTokens(allEvents, token);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -53,14 +59,73 @@ export default function EventsIOwn({ userData }) {
     }
   };
 
+  const fetchReviewTokens = async (events, token) => {
+    const tokens = {};
+    
+    for (const event of events) {
+      try {
+        const response = await fetch(getApiUrl(`api/reviews/event-token/${event.id}`), {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          tokens[event.id] = data.url;
+        }
+      } catch (err) {
+        // Silently fail for individual token fetches
+        console.error(`Failed to fetch token for event ${event.id}`, err);
+      }
+    }
+    
+    setReviewTokens(tokens);
+  };
+
+  const handleCopyToken = (eventId) => {
+    const url = reviewTokens[eventId];
+    if (url) {
+      navigator.clipboard.writeText(url);
+      setCopiedToken(eventId);
+      setTimeout(() => setCopiedToken(null), 2000);
+    }
+  };
+
   const handleEdit = (eventId) => {
-    // For now, redirect to admin event management - we can create a promoter edit page later
-    router.push(`/dashboard?section=event-management`);
+    router.push(`/events/new?edit_event_id=${eventId}`);
   };
 
   const handleView = (eventId) => {
     // Future: redirect to public event page
     router.push(`/events/${eventId}`);
+  };
+
+  const handleDelete = async (eventId, eventTitle) => {
+    if (!confirm(`Are you sure you want to delete "${eventTitle}"? This will archive the event.`)) {
+      return;
+    }
+
+    try {
+      const token = getAuthToken();
+      const response = await fetch(getApiUrl(`api/events/${eventId}`), {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete event');
+      }
+
+      // Refresh the events list
+      fetchEvents();
+    } catch (err) {
+      alert(`Error deleting event: ${err.message}`);
+    }
   };
 
   const getStatusBadgeClass = (status) => {
@@ -156,6 +221,7 @@ export default function EventsIOwn({ userData }) {
                 <th className={styles.tableHeaderCell}>Status</th>
                 <th className={styles.tableHeaderCell}>Applications</th>
                 <th className={styles.tableHeaderCell}>Location</th>
+                <th className={styles.tableHeaderCell}>Artist Review Link</th>
                 <th className={styles.tableHeaderCell}>Actions</th>
               </tr>
             </thead>
@@ -186,11 +252,47 @@ export default function EventsIOwn({ userData }) {
                     }
                   </td>
                   <td className={styles.tableCell}>
+                    {reviewTokens[event.id] ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="text"
+                          value={reviewTokens[event.id]}
+                          readOnly
+                          style={{ 
+                            fontSize: '12px', 
+                            padding: '4px 8px',
+                            width: '200px',
+                            border: '1px solid #ddd',
+                            borderRadius: '3px'
+                          }}
+                        />
+                        <button
+                          onClick={() => handleCopyToken(event.id)}
+                          title="Copy review link"
+                          style={{ 
+                            fontSize: '12px', 
+                            padding: '4px 12px',
+                            background: copiedToken === event.id ? '#4caf50' : '#3E1C56',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '3px',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {copiedToken === event.id ? '✓ Copied!' : 'Copy'}
+                        </button>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: '12px', color: '#999' }}>Loading...</span>
+                    )}
+                  </td>
+                  <td className={styles.tableCell}>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                       <button
                         className="secondary"
                         onClick={() => handleView(event.id)}
-                        title="View Event (Coming Soon)"
+                        title="View Event"
                         style={{ fontSize: '14px', padding: '6px 12px' }}
                       >
                         View
@@ -203,6 +305,24 @@ export default function EventsIOwn({ userData }) {
                       >
                         {activeTab === 'archived' ? 'Renew' : 'Edit'}
                       </button>
+                      {activeTab === 'current' && (
+                        <button
+                          className="danger"
+                          onClick={() => handleDelete(event.id, event.title)}
+                          title="Delete Event (Archive)"
+                          style={{ 
+                            fontSize: '14px', 
+                            padding: '6px 12px',
+                            background: '#d32f2f',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Delete
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

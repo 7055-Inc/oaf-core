@@ -6,6 +6,7 @@ export async function checklist(req) {
   // Allow static files, login, and artist storefront pages
   if (path.startsWith('/_next') || 
       path.startsWith('/static') || 
+      path.startsWith('/feeds/') ||  // Public feeds (Google Merchant, etc.)
       path === '/' ||
       (path.startsWith('/products/') && !path.includes('/new') && !path.includes('/edit') && !path.includes('/delete')) ||
       path.startsWith('/category/') ||

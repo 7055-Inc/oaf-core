@@ -137,13 +137,23 @@ const SignupCallbackPage = () => {
       // Confirm the password reset
       await confirmPasswordReset(auth, oobCode, newPassword);
       
-      setStatus('success');
-      setMessage('Password reset successfully! You can now log in with your new password.');
+      // Sign out from Firebase to ensure clean state
+      try {
+        await auth.signOut();
+      } catch (signOutErr) {
+        console.log('Sign out not needed or failed:', signOutErr);
+      }
       
-      // Redirect to login after 3 seconds
+      // Clear any existing tokens
+      clearAuthTokens();
+      
+      setStatus('success');
+      setMessage('Password reset successfully! Redirecting to login page...');
+      
+      // Redirect to login after 2 seconds
       setTimeout(() => {
         window.location.href = getFrontendUrl('/login');
-      }, 3000);
+      }, 2000);
       
     } catch (err) {
       console.error('Password reset error:', err);
@@ -251,18 +261,26 @@ const SignupCallbackPage = () => {
         localStorage.setItem('token', data.token);
         localStorage.setItem('refreshToken', data.refreshToken);
         
-        // Set secure cookies for middleware
-        document.cookie = `token=${data.token}; path=/; domain=${process.env.NEXT_PUBLIC_COOKIE_DOMAIN || '.brakebee.com'}; secure; samesite=lax; max-age=3600`;
-        document.cookie = `refreshToken=${data.refreshToken}; path=/; domain=${process.env.NEXT_PUBLIC_COOKIE_DOMAIN || '.brakebee.com'}; secure; samesite=lax; max-age=604800`;
+        // Set secure cookies for middleware with mobile-friendly settings
+        const cookieDomain = process.env.NEXT_PUBLIC_COOKIE_DOMAIN || '.brakebee.com';
+        const isSecure = window.location.protocol === 'https:';
+        const secureFlag = isSecure ? '; secure' : '';
+        
+        document.cookie = `token=${data.token}; path=/; domain=${cookieDomain}${secureFlag}; samesite=lax; max-age=3600`;
+        document.cookie = `refreshToken=${data.refreshToken}; path=/; domain=${cookieDomain}${secureFlag}; samesite=lax; max-age=604800`;
         
         setStatus('success');
-        setMessage('Authentication successful! Redirecting to main site...');
+        setMessage('Authentication successful! Redirecting...');
         
         // Wait a moment for the cookies to be set
         await new Promise(resolve => setTimeout(resolve, 500));
         
-        // Redirect to main site dashboard
-        window.location.href = '/dashboard';
+        // Check for redirect parameter, otherwise go to dashboard
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectUrl = urlParams.get('redirect') || urlParams.get('continueUrl') || '/dashboard';
+        
+        // Use a full URL redirect to ensure cookies are properly sent
+        window.location.href = redirectUrl.startsWith('http') ? redirectUrl : `${window.location.origin}${redirectUrl}`;
       } else {
         throw new Error('Invalid response: missing tokens');
       }

@@ -237,7 +237,7 @@ export default function Footer() {
         <div className={styles.bbFooterPolicy}>
           <span>© Brakebee — Curated by Leo Art AI</span>
           <span className={styles.dot}>•</span>
-          <Link href="/help">Help Center</Link>
+          <a href="mailto:marketplace@brakebee.com">Email Us</a>
           <span className={styles.dot}>•</span>
           <Link href="/policies/shipping">Shipping</Link>
           <span className={styles.dot}>•</span>
@@ -253,6 +253,19 @@ export default function Footer() {
         </div>
 
       </div>
+
+      {/* ActiveCampaign Tracking */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+(function(e,t,o,n,p,r,i){e.visitorGlobalObjectAlias=n;e[e.visitorGlobalObjectAlias]=e[e.visitorGlobalObjectAlias]||function(){(e[e.visitorGlobalObjectAlias].q=e[e.visitorGlobalObjectAlias].q||[]).push(arguments)};e[e.visitorGlobalObjectAlias].l=(new Date).getTime();r=t.createElement("script");r.src=o;r.async=true;i=t.getElementsByTagName("script")[0];i.parentNode.insertBefore(r,i)})(window,document,"https://diffuser-cdn.app-us1.com/diffuser/diffuser.js","vgo");
+vgo('setAccount', '612842666');
+vgo('setTrackByDefault', true);
+vgo('process');
+          `,
+        }}
+      />
+      {/* End ActiveCampaign Tracking */}
     </footer>
   );
 }

@@ -84,6 +84,22 @@ export default function ManageSystemMenu({
               Maintenance Control
             </button>
           </li>
+          <li>
+            <button 
+              className={styles.sidebarLink}
+              onClick={() => openSlideIn('add-promoter', { title: 'Add Promoter' })}
+            >
+              Add Promoter
+            </button>
+          </li>
+          <li>
+            <button 
+              className={styles.sidebarLink}
+              onClick={() => openSlideIn('unclaimed-events', { title: 'Unclaimed Events' })}
+            >
+              Unclaimed Events
+            </button>
+          </li>
         </ul>
       )}
     </div>

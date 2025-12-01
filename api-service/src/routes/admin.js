@@ -8,6 +8,7 @@ const discountService = require('../services/discountService');
 
 // Import maintenance control routes
 const maintenanceRoutes = require('./admin/maintenance');
+const promoterOnboardingRoutes = require('./admin/promoter-onboarding');
 
 /**
  * @fileoverview Admin management routes
@@ -2767,5 +2768,8 @@ router.get('/impersonation-history', verifyToken, requirePermission('manage_syst
 
 // Mount maintenance control routes
 router.use('/maintenance', maintenanceRoutes);
+
+// Mount promoter onboarding routes
+router.use('/promoters', promoterOnboardingRoutes);
 
 module.exports = router;

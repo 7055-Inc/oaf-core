@@ -1,12 +1,62 @@
 'use client';
+import { useState, useEffect } from 'react';
 import styles from '../../pages/profile/Profile.module.css';
-import { getSmartMediaUrl } from '../../lib/config';
+import { getSmartMediaUrl, getApiUrl } from '../../lib/config';
+import ContactArtistModal from './ContactArtistModal';
 
 export default function ProfileDisplay({ 
   userProfile, 
   showEditButton = false, 
   currentUserId = null 
 }) {
+  const [products, setProducts] = useState([]);
+  const [artistEvents, setArtistEvents] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [loadingEvents, setLoadingEvents] = useState(true);
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+
+  // Fetch artist's products if they're a vendor
+  useEffect(() => {
+    if (!userProfile?.id) return;
+    
+    const fetchProducts = async () => {
+      try {
+        const response = await fetch(getApiUrl(`products/all?vendor_id=${userProfile.id}&include=images,inventory`));
+        if (response.ok) {
+          const data = await response.json();
+          setProducts(data.products || data);
+        }
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+
+    fetchProducts();
+  }, [userProfile?.id]);
+
+  // Fetch artist's event applications
+  useEffect(() => {
+    if (!userProfile?.id || userProfile?.user_type !== 'artist') return;
+    
+    const fetchArtistEvents = async () => {
+      try {
+        const response = await fetch(getApiUrl(`api/events/artist/${userProfile.id}/applications`));
+        if (response.ok) {
+          const data = await response.json();
+          setArtistEvents(data);
+        }
+      } catch (error) {
+        console.error('Error fetching artist events:', error);
+      } finally {
+        setLoadingEvents(false);
+      }
+    };
+
+    fetchArtistEvents();
+  }, [userProfile?.id, userProfile?.user_type]);
+
   if (!userProfile) {
     return (
       <div className={styles.container}>
@@ -119,80 +169,19 @@ export default function ProfileDisplay({
             <p>{userProfile.bio}</p>
           </div>
         )}
-      </div>
-
-      {/* Personal Information Section */}
-      <div className={styles.section}>
-        <h2 className={styles.subtitle}>Personal Information</h2>
-        <div className={styles.infoGrid}>
-          {userProfile.phone && (
-            <div className={styles.infoItem}>
-              <strong>Phone:</strong> {userProfile.phone}
-            </div>
-          )}
-          {userProfile.birth_date && (
-            <div className={styles.infoItem}>
-              <strong>Birth Date:</strong> {new Date(userProfile.birth_date).toLocaleDateString()}
-            </div>
-          )}
-          {userProfile.gender && (
-            <div className={styles.infoItem}>
-              <strong>Gender:</strong> {userProfile.gender}
-            </div>
-          )}
-          {userProfile.nationality && (
-            <div className={styles.infoItem}>
-              <strong>Nationality:</strong> {userProfile.nationality}
-            </div>
-          )}
-          {userProfile.languages_known && userProfile.languages_known.length > 0 && (
-            <div className={styles.infoItem}>
-              <strong>Languages:</strong> {Array.isArray(userProfile.languages_known) ? userProfile.languages_known.join(', ') : userProfile.languages_known}
-            </div>
-          )}
-          {userProfile.education && (
-            <div className={styles.infoItem}>
-              <strong>Education:</strong> {userProfile.education}
-            </div>
-          )}
-          {userProfile.timezone && (
-            <div className={styles.infoItem}>
-              <strong>Timezone:</strong> {userProfile.timezone}
-            </div>
-          )}
-        </div>
         
-        {/* Address Information */}
-        {(userProfile.address_line1 || userProfile.address_line2) && (
-          <div className={styles.addressSection}>
-            <h3>Address</h3>
-            <div className={styles.address}>
-              {userProfile.address_line1 && <div>{userProfile.address_line1}</div>}
-              {userProfile.address_line2 && <div>{userProfile.address_line2}</div>}
-              {(userProfile.city || userProfile.state || userProfile.postal_code) && (
-                <div>
-                  {userProfile.city && `${userProfile.city}, `}
-                  {userProfile.state && `${userProfile.state} `}
-                  {userProfile.postal_code}
-                </div>
-              )}
-              {userProfile.country && <div>{userProfile.country}</div>}
-            </div>
-          </div>
-        )}
-
-        {/* Awards and Memberships */}
-        {userProfile.awards && (
-          <div className={styles.infoItem}>
-            <strong>Awards:</strong> {userProfile.awards}
-          </div>
-        )}
-        {userProfile.memberships && (
-          <div className={styles.infoItem}>
-            <strong>Memberships:</strong> {userProfile.memberships}
-          </div>
+        {/* Contact Artist Button - only show for artist profiles that aren't the viewer's own */}
+        {userProfile.user_type === 'artist' && !isOwnProfile && (
+          <button 
+            className={styles.contactButton}
+            onClick={() => setIsContactModalOpen(true)}
+          >
+            <i className="fa-solid fa-envelope"></i>
+            Contact Artist
+          </button>
         )}
       </div>
+
 
       {userProfile.user_type === 'artist' && (
         <div className={styles.section}>
@@ -453,6 +442,120 @@ export default function ProfileDisplay({
           )}
         </div>
       )}
+
+      {/* Products Section - Only show if artist has products */}
+      {!loadingProducts && products.length > 0 && (
+        <div className={styles.section}>
+          <h2 className={styles.subtitle}>Products</h2>
+          <div className={styles.productsGrid}>
+            {products.map((product) => {
+              // Process image URL the same way as marketplace
+              let primaryImage = null;
+              if (product.images && product.images.length > 0) {
+                const imageUrl = typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url;
+                
+                // If it's already a full URL, use as-is
+                if (imageUrl && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
+                  primaryImage = imageUrl;
+                }
+                // If it's a temp_images path, use API base URL directly
+                else if (imageUrl && imageUrl.startsWith('/temp_images/')) {
+                  primaryImage = `${getApiUrl()}${imageUrl}`;
+                }
+                // Otherwise, use smart media proxy
+                else if (imageUrl) {
+                  primaryImage = getSmartMediaUrl(imageUrl);
+                }
+              }
+              
+              const isOutOfStock = product.inventory && product.inventory.stock_quantity <= 0;
+              
+              return (
+                <a 
+                  key={product.id} 
+                  href={`/products/${product.id}`}
+                  className={styles.productCard}
+                >
+                  <div className={styles.productImageWrapper}>
+                    {primaryImage ? (
+                      <img 
+                        src={primaryImage} 
+                        alt={product.title || product.name}
+                        className={styles.productImage}
+                      />
+                    ) : (
+                      <div className={styles.productImagePlaceholder}>
+                        <i className="fa-solid fa-image"></i>
+                      </div>
+                    )}
+                    {isOutOfStock && (
+                      <div className={styles.outOfStockBadge}>Out of Stock</div>
+                    )}
+                  </div>
+                  <div className={styles.productInfo}>
+                    <h3 className={styles.productTitle}>{product.title}</h3>
+                    {product.description && (
+                      <p className={styles.productDescription}>
+                        {product.description.length > 80 
+                          ? product.description.substring(0, 80) + '...' 
+                          : product.description}
+                      </p>
+                    )}
+                    <div className={styles.productFooter}>
+                      <p className={styles.productPrice}>${parseFloat(product.price).toFixed(2)}</p>
+                      {product.inventory && product.inventory.stock_quantity > 0 && product.inventory.stock_quantity <= 5 && (
+                        <span className={styles.lowStockBadge}>Only {product.inventory.stock_quantity} left</span>
+                      )}
+                    </div>
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Artist Calendar - Only show for artists */}
+      {userProfile.user_type === 'artist' && !loadingEvents && artistEvents.length > 0 && (
+        <div className={styles.section}>
+          <h2 className={styles.subtitle}>Event Calendar</h2>
+          <div className={styles.eventsTimeline}>
+            {artistEvents.map((event) => (
+              <div key={event.id} className={styles.eventItem}>
+                <div className={styles.eventDate}>
+                  {new Date(event.start_date).toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric',
+                    year: 'numeric'
+                  })}
+                </div>
+                <div className={styles.eventDetails}>
+                  <h3 className={styles.eventTitle}>
+                    <a href={`/events/${event.event_id}`}>{event.event_title}</a>
+                  </h3>
+                  <p className={styles.eventLocation}>
+                    {event.venue_city && event.venue_state && `${event.venue_city}, ${event.venue_state}`}
+                  </p>
+                  <span className={`${styles.eventStatus} ${styles['status-' + event.status]}`}>
+                    {event.status === 'submitted' && '📝 Applied'}
+                    {event.status === 'accepted' && '✅ Accepted'}
+                    {event.status === 'rejected' && '❌ Not Selected'}
+                    {event.status === 'waitlisted' && '⏳ Waitlisted'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Contact Artist Modal */}
+      <ContactArtistModal
+        isOpen={isContactModalOpen}
+        onClose={() => setIsContactModalOpen(false)}
+        artistId={userProfile.id}
+        artistName={userProfile.display_name || `${userProfile.first_name} ${userProfile.last_name}`}
+      />
     </div>
   );
 }

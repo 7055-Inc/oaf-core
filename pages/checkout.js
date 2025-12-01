@@ -252,7 +252,10 @@ export default function Checkout() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ cart_items })
+        body: JSON.stringify({ 
+          cart_items,
+          billing_info: billingDetails
+        })
       });
 
       if (response.ok) {
@@ -489,28 +492,11 @@ export default function Checkout() {
           
           {/* Payment Section */}
           <div className={styles.paymentSection}>
-            <h2>Payment</h2>
+            <h2>Billing & Payment</h2>
             
-            {/* Payment Intent Creation */}
-            {!paymentIntent && (
-              <div className={styles.paymentStep}>
-                <button 
-                  onClick={createPaymentIntent}
-                  disabled={processing}
-                  className={styles.createIntentButton}
-                >
-                  {processing ? 'Setting up payment...' : 'Continue to Payment'}
-                </button>
-              </div>
-            )}
-            
-            {/* Payment Form */}
-            {paymentIntent && stripeLoaded && (
-              <div className={styles.paymentForm}>
-                <form onSubmit={handlePayment}>
-                  {/* Billing Details */}
-                  <div className={styles.billingDetails}>
-                    <h3>Billing Information</h3>
+            {/* Billing Details - Always shown first */}
+            <div className={styles.billingDetails}>
+              <h3>Billing Information</h3>
                     <div className={styles.formRow}>
                       <div className={styles.formGroup}>
                         <label htmlFor="billing-name">Full Name</label>
@@ -587,8 +573,61 @@ export default function Checkout() {
                         />
                       </div>
                     </div>
-                  </div>
-                  
+                    
+                    <div className={styles.formGroup}>
+                      <label htmlFor="billing-country">Country</label>
+                      <select
+                        id="billing-country"
+                        value={billingDetails.address.country}
+                        onChange={(e) => handleBillingDetailsChange('address.country', e.target.value)}
+                        required
+                      >
+                        <option value="US">United States</option>
+                        <option value="CA">Canada</option>
+                        <option value="GB">United Kingdom</option>
+                        <option value="AU">Australia</option>
+                        <option value="NZ">New Zealand</option>
+                        <option value="DE">Germany</option>
+                        <option value="FR">France</option>
+                        <option value="IT">Italy</option>
+                        <option value="ES">Spain</option>
+                        <option value="NL">Netherlands</option>
+                        <option value="BE">Belgium</option>
+                        <option value="AT">Austria</option>
+                        <option value="IE">Ireland</option>
+                        <option value="SE">Sweden</option>
+                        <option value="DK">Denmark</option>
+                        <option value="FI">Finland</option>
+                        <option value="NO">Norway</option>
+                        <option value="CH">Switzerland</option>
+                        <option value="JP">Japan</option>
+                        <option value="SG">Singapore</option>
+                      </select>
+                    </div>
+            </div>
+            
+            {/* Continue to Payment Button - Only show if payment intent not created */}
+            {!paymentIntent && (
+              <div className={styles.paymentStep}>
+                <button 
+                  onClick={createPaymentIntent}
+                  disabled={processing || !billingDetails.name || !billingDetails.email || !billingDetails.address.line1 || !billingDetails.address.city || !billingDetails.address.state || !billingDetails.address.postal_code}
+                  className={styles.createIntentButton}
+                >
+                  {processing ? 'Setting up payment...' : 'Continue to Payment'}
+                </button>
+                {(!billingDetails.name || !billingDetails.email || !billingDetails.address.line1) && (
+                  <p style={{color: '#666', fontSize: '14px', marginTop: '10px'}}>
+                    Please fill in all required billing information above
+                  </p>
+                )}
+              </div>
+            )}
+            
+            {/* Payment Form - Only show after payment intent is created */}
+            {paymentIntent && stripeLoaded && (
+              <div className={styles.paymentForm}>
+                <form onSubmit={handlePayment}>
                   {/* Stripe Payment Element */}
                   <div className={styles.paymentElement}>
                     <h3>Payment Method</h3>

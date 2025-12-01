@@ -722,6 +722,106 @@ router.get('/me', verifyToken, requirePermission('manage_sites'), async (req, re
 });
 
 /**
+ * GET /sites/enforce-limits
+ * Enforce tier-based site limits by deactivating excess sites
+ * Called on dashboard load to ensure users don't exceed their tier limits
+ * Deactivates oldest sites first when over limit
+ * 
+ * @route GET /sites/enforce-limits
+ * @middleware verifyToken - Requires valid JWT token
+ * @returns {Object} Enforcement result with count of deactivated sites
+ */
+router.get('/enforce-limits', verifyToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    // Check if user is admin (admins have unlimited sites)
+    const [user] = await db.query(
+      'SELECT user_type FROM users WHERE id = ?',
+      [userId]
+    );
+
+    if (user[0]?.user_type === 'admin') {
+      return res.json({
+        success: true,
+        sites_deactivated: 0,
+        tier: 'Admin',
+        site_limit: 999,
+        message: 'Admin accounts have unlimited sites'
+      });
+    }
+
+    // Get user's subscription tier
+    const [subscription] = await db.query(
+      'SELECT tier FROM user_subscriptions WHERE user_id = ? AND subscription_type = "websites" AND status = "active" LIMIT 1',
+      [userId]
+    );
+
+    // Define tier-based limits
+    const tierLimits = {
+      'Starter Plan': 1,
+      'Professional Plan': 1,
+      'Business Plan': 999,
+      'Promoter Plan': 1,
+      'Promoter Business Plan': 999
+    };
+
+    const userTier = subscription[0]?.tier || 'Starter Plan';
+    const siteLimit = tierLimits[userTier] || 1;
+
+    // Count active sites
+    const [activeSites] = await db.query(
+      'SELECT COUNT(*) as count FROM sites WHERE user_id = ? AND status = "active"',
+      [userId]
+    );
+
+    const activeSiteCount = activeSites[0].count;
+
+    // If within limit, no action needed
+    if (activeSiteCount <= siteLimit) {
+      return res.json({
+        success: true,
+        sites_deactivated: 0,
+        tier: userTier,
+        site_limit: siteLimit,
+        active_sites: activeSiteCount
+      });
+    }
+
+    // User is over limit - deactivate excess sites (oldest first)
+    const sitesToDeactivate = activeSiteCount - siteLimit;
+
+    // Get the oldest active sites to deactivate
+    const [sitesToUpdate] = await db.query(
+      'SELECT id FROM sites WHERE user_id = ? AND status = "active" ORDER BY created_at ASC LIMIT ?',
+      [userId, sitesToDeactivate]
+    );
+
+    // Deactivate them
+    const siteIds = sitesToUpdate.map(s => s.id);
+    if (siteIds.length > 0) {
+      await db.query(
+        `UPDATE sites SET status = 'draft' WHERE id IN (${siteIds.map(() => '?').join(',')})`,
+        siteIds
+      );
+    }
+
+    res.json({
+      success: true,
+      sites_deactivated: sitesToDeactivate,
+      tier: userTier,
+      site_limit: siteLimit,
+      active_sites: siteLimit,
+      message: `Deactivated ${sitesToDeactivate} site${sitesToDeactivate === 1 ? '' : 's'} to match tier limit`
+    });
+
+  } catch (err) {
+    console.error('Error enforcing site limits:', err);
+    res.status(500).json({ error: 'Failed to enforce site limits' });
+  }
+});
+
+/**
  * GET /sites/all
  * Get all sites in the system (admin only)
  * Returns all sites with user information for administrative purposes
@@ -803,14 +903,50 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'Subdomain already exists' });
     }
 
-    // Check if user already has a site (limit 1 per artist, unlimited for admins)
+    // Check site limits based on tier (admins unlimited)
     if (user[0].user_type !== 'admin') {
-      const [existingSite] = await db.query(
-        'SELECT id FROM sites WHERE user_id = ?',
+      // Get user's subscription tier
+      const [subscription] = await db.query(
+        'SELECT tier FROM user_subscriptions WHERE user_id = ? AND subscription_type = "websites" AND status = "active" LIMIT 1',
         [req.userId]
       );
-      if (existingSite.length > 0) {
-        return res.status(400).json({ error: 'You already have a site. Multiple sites coming soon!' });
+
+      // Define tier-based limits
+      const tierLimits = {
+        'Starter Plan': 1,
+        'Professional Plan': 1,
+        'Business Plan': 999, // Unlimited (practical limit)
+        'Promoter Plan': 1,
+        'Promoter Business Plan': 999 // Unlimited
+      };
+
+      const userTier = subscription[0]?.tier || 'Starter Plan';
+      const siteLimit = tierLimits[userTier] || 1;
+
+      // Count existing sites
+      const [existingSites] = await db.query(
+        'SELECT COUNT(*) as count FROM sites WHERE user_id = ?',
+        [req.userId]
+      );
+
+      const currentSiteCount = existingSites[0].count;
+
+      if (currentSiteCount >= siteLimit) {
+        if (siteLimit === 1) {
+          return res.status(400).json({ 
+            error: 'Site limit reached',
+            message: 'Your current plan allows 1 site. Upgrade to Business Plan or Promoter Business Plan for multiple sites.',
+            current_tier: userTier,
+            site_limit: siteLimit
+          });
+        } else {
+          return res.status(400).json({ 
+            error: 'Site limit reached',
+            message: `You've reached your site limit of ${siteLimit} sites.`,
+            current_tier: userTier,
+            site_limit: siteLimit
+          });
+        }
       }
     }
 
@@ -872,6 +1008,55 @@ router.put('/:id', verifyToken, async (req, res) => {
       const domainRegex = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
       if (!domainRegex.test(custom_domain)) {
         return res.status(400).json({ error: 'Invalid custom domain format' });
+      }
+    }
+
+    // If activating a site, check tier limits (admins exempt)
+    if (status === 'active' && user[0].user_type !== 'admin') {
+      // Get current site status
+      const [currentSite] = await db.query(
+        'SELECT status FROM sites WHERE id = ?',
+        [id]
+      );
+
+      // Only check limit if site is currently not active
+      if (currentSite[0]?.status !== 'active') {
+        // Get user's subscription tier
+        const [subscription] = await db.query(
+          'SELECT tier FROM user_subscriptions WHERE user_id = ? AND subscription_type = "websites" AND status = "active" LIMIT 1',
+          [req.userId]
+        );
+
+        // Define tier-based limits
+        const tierLimits = {
+          'Starter Plan': 1,
+          'Professional Plan': 1,
+          'Business Plan': 999,
+          'Promoter Plan': 1,
+          'Promoter Business Plan': 999
+        };
+
+        const userTier = subscription[0]?.tier || 'Starter Plan';
+        const siteLimit = tierLimits[userTier] || 1;
+
+        // Count currently active sites
+        const [activeSites] = await db.query(
+          'SELECT COUNT(*) as count FROM sites WHERE user_id = ? AND status = "active"',
+          [req.userId]
+        );
+
+        const activeSiteCount = activeSites[0].count;
+
+        // If at limit, prevent activation
+        if (activeSiteCount >= siteLimit) {
+          return res.status(400).json({
+            error: 'Active site limit reached',
+            message: `Your ${userTier} allows ${siteLimit} active site${siteLimit === 1 ? '' : 's'}. Please deactivate another site first, or upgrade your plan.`,
+            current_tier: userTier,
+            site_limit: siteLimit,
+            active_sites: activeSiteCount
+          });
+        }
       }
     }
 

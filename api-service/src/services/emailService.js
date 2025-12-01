@@ -695,6 +695,78 @@ class EmailService {
       return {};
     }
   }
+
+  /**
+   * Send email to external address (non-user)
+   * Bypasses user preference checks and sends directly to provided email
+   * Used for promoter notifications and other external communications
+   * 
+   * @param {string} toEmail - Recipient email address
+   * @param {string} templateKey - Email template identifier
+   * @param {Object} templateData - Data for template rendering
+   * @param {Object} options - Additional email options (replyTo, etc.)
+   * @returns {Promise<Object>} Send result with success status
+   * @throws {Error} If email sending fails
+   */
+  async sendExternalEmail(toEmail, templateKey, templateData = {}, options = {}) {
+    try {
+      // Validate email address
+      if (!toEmail || !toEmail.includes('@')) {
+        throw new Error('Invalid email address');
+      }
+
+      // Check if email is blacklisted
+      const isBlacklisted = await this.isEmailBlacklisted(toEmail);
+      if (isBlacklisted) {
+        throw new Error('Email address is blacklisted due to bounces');
+      }
+
+      // Get template
+      const template = await this.getTemplate(templateKey);
+      if (!template) {
+        throw new Error(`Template '${templateKey}' not found`);
+      }
+
+      // Render template
+      const renderedSubject = this.renderTemplate(template.subject_template, templateData);
+      const renderedBodyContent = this.renderTemplate(template.body_template, templateData);
+      const renderedBody = await this.renderEmailWithLayout(renderedBodyContent, templateData, template);
+
+      // Send email
+      const result = await this.sendSMTPEmail({
+        to: toEmail,
+        subject: renderedSubject,
+        html: renderedBody,
+        replyTo: options.replyTo || undefined
+      });
+
+      // Log send (without user_id)
+      await db.execute(
+        'INSERT INTO email_log (user_id, email_address, template_id, subject, status, attempts, sent_at) VALUES (NULL, ?, ?, ?, ?, ?, NOW())',
+        [toEmail, template.id, renderedSubject, 'sent', 1]
+      );
+
+      return { success: true, messageId: result.messageId };
+
+    } catch (error) {
+      console.error('External email send error:', error);
+      
+      // Log failed send
+      try {
+        const template = await this.getTemplate(templateKey);
+        if (template) {
+          await db.execute(
+            'INSERT INTO email_log (user_id, email_address, template_id, subject, status, attempts, error_message, sent_at) VALUES (NULL, ?, ?, ?, ?, ?, ?, NOW())',
+            [toEmail, template.id, 'Failed to render', 'failed', 1, error.message]
+          );
+        }
+      } catch (logError) {
+        console.error('Failed to log external email error:', logError);
+      }
+
+      throw error;
+    }
+  }
 }
 
 module.exports = EmailService; 

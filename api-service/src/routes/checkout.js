@@ -2,10 +2,14 @@ const express = require('express');
 const stripeService = require('../services/stripeService');
 const shippingService = require('../services/shippingService');
 const discountService = require('../services/discountService');
+const EmailService = require('../services/emailService');
 const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
 const { orderHistoryLimiter } = require('../middleware/rateLimiter');
 const router = express.Router();
+
+// Initialize email service
+const emailService = new EmailService();
 
 /**
  * @fileoverview Checkout process management routes
@@ -278,6 +282,20 @@ router.post('/confirm-payment', verifyToken, async (req, res) => {
 
     // Update order with payment intent ID
     await updateOrderPaymentIntent(order_id, payment_intent_id);
+    
+    // Update order status to 'paid' after successful payment confirmation
+    await db.execute(
+      'UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      ['paid', order_id]
+    );
+    
+    // Send order confirmation emails
+    try {
+      await sendOrderConfirmationEmails(order_id, userId);
+    } catch (emailError) {
+      console.error('Error sending order confirmation emails:', emailError);
+      // Don't fail the order if email fails
+    }
     
     // Create tax transaction if tax was calculated
     try {
@@ -1041,5 +1059,147 @@ router.get('/validate-coupon/:code', verifyToken, async (req, res) => {
     res.status(500).json({ error: 'Failed to validate coupon' });
   }
 });
+
+/**
+ * Send order confirmation emails to buyer and vendors
+ * @param {number} orderId - Order ID
+ * @param {number} userId - Buyer user ID
+ * @returns {Promise<void>}
+ */
+async function sendOrderConfirmationEmails(orderId, userId) {
+  try {
+    // Get order details with items and vendor info
+    const [orderData] = await db.execute(`
+      SELECT 
+        o.id as order_id,
+        o.total_amount,
+        o.shipping_amount,
+        o.tax_amount,
+        o.platform_fee_amount,
+        o.created_at,
+        u.username as buyer_email,
+        COALESCE(up.first_name, u.username) as buyer_name
+      FROM orders o
+      JOIN users u ON o.user_id = u.id
+      LEFT JOIN user_profiles up ON u.id = up.user_id
+      WHERE o.id = ?
+    `, [orderId]);
+
+    if (orderData.length === 0) {
+      throw new Error('Order not found');
+    }
+
+    const order = orderData[0];
+
+    // Get order items with product and vendor details
+    const [items] = await db.execute(`
+      SELECT 
+        oi.product_id,
+        oi.vendor_id,
+        oi.quantity,
+        oi.price,
+        oi.shipping_cost,
+        oi.commission_amount,
+        p.name as product_name,
+        u.username as vendor_email,
+        COALESCE(up.first_name, u.username) as vendor_name
+      FROM order_items oi
+      JOIN products p ON oi.product_id = p.id
+      JOIN users u ON oi.vendor_id = u.id
+      LEFT JOIN user_profiles up ON u.id = up.user_id
+      WHERE oi.order_id = ?
+    `, [orderId]);
+
+    // Format items for email template
+    const itemList = items.map(item => 
+      `${item.product_name} - Qty: ${item.quantity} @ $${parseFloat(item.price).toFixed(2)} each`
+    ).join('<br>');
+
+    // Format items as invoice line items HTML
+    const invoiceItemsHtml = items.map(item => {
+      const lineTotal = parseFloat(item.price) * item.quantity;
+      return `
+    <tr>
+      <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">${item.product_name}</td>
+      <td style="padding: 12px; text-align: center; border-bottom: 1px solid #dee2e6;">${item.quantity}</td>
+      <td style="padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6;">$${parseFloat(item.price).toFixed(2)}</td>
+      <td style="padding: 12px; text-align: right; border-bottom: 1px solid #dee2e6;">$${lineTotal.toFixed(2)}</td>
+    </tr>`;
+    }).join('');
+
+    // Send buyer confirmation email
+    const buyerTemplateData = {
+      buyer_name: order.buyer_name,
+      order_number: order.order_id,
+      order_date: new Date(order.created_at).toLocaleDateString('en-US', {
+        year: 'numeric', month: 'long', day: 'numeric'
+      }),
+      invoice_items_html: invoiceItemsHtml, // Pre-rendered HTML rows
+      item_count: items.length,
+      subtotal: (parseFloat(order.total_amount) - parseFloat(order.shipping_amount) - parseFloat(order.tax_amount || 0) - parseFloat(order.platform_fee_amount || 0)).toFixed(2),
+      shipping_amount: parseFloat(order.shipping_amount).toFixed(2),
+      tax_amount: parseFloat(order.tax_amount || 0).toFixed(2),
+      total_amount: parseFloat(order.total_amount).toFixed(2),
+      order_url: `${process.env.FRONTEND_URL || 'https://brakebee.com'}/dashboard?tab=orders`,
+      support_email: 'marketplace@brakebee.com'
+    };
+
+    await emailService.queueEmail(userId, 'order_confirmation', buyerTemplateData, {
+      priority: 2 // High priority for transactional emails
+    });
+
+    console.log(`Order confirmation email queued for buyer (user ${userId})`);
+
+    // Group items by vendor and send vendor notifications
+    const vendorGroups = {};
+    items.forEach(item => {
+      if (!vendorGroups[item.vendor_id]) {
+        vendorGroups[item.vendor_id] = {
+          vendor_id: item.vendor_id,
+          vendor_email: item.vendor_email,
+          vendor_name: item.vendor_name,
+          items: []
+        };
+      }
+      vendorGroups[item.vendor_id].items.push(item);
+    });
+
+    // Send notification to each vendor
+    for (const vendorId in vendorGroups) {
+      const vendor = vendorGroups[vendorId];
+      const vendorTotal = vendor.items.reduce((sum, item) => 
+        sum + (parseFloat(item.price) * item.quantity - parseFloat(item.commission_amount)), 0
+      );
+      
+      const vendorItemList = vendor.items.map(item =>
+        `${item.product_name} - Qty: ${item.quantity} @ $${parseFloat(item.price).toFixed(2)} each`
+      ).join('<br>');
+
+      const vendorTemplateData = {
+        vendor_name: vendor.vendor_name,
+        order_id: order.order_id,
+        order_date: new Date(order.created_at).toLocaleDateString('en-US', {
+          year: 'numeric', month: 'long', day: 'numeric'
+        }),
+        buyer_name: order.buyer_name,
+        items: vendorItemList,
+        item_count: vendor.items.length,
+        vendor_earnings: vendorTotal.toFixed(2),
+        orders_url: `${process.env.FRONTEND_URL || 'https://brakebee.com'}/dashboard?tab=manage-store`,
+        support_email: 'marketplace@brakebee.com'
+      };
+
+      await emailService.queueEmail(parseInt(vendorId), 'vendor_order_notification', vendorTemplateData, {
+        priority: 3 // Normal priority for vendor notifications
+      });
+
+      console.log(`Vendor notification email queued for vendor ${vendorId}`);
+    }
+
+  } catch (error) {
+    console.error('Error sending order confirmation emails:', error);
+    throw error;
+  }
+}
 
 module.exports = router; 

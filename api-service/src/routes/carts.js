@@ -255,10 +255,20 @@ router.delete('/:id', verifyToken, async (req, res) => {
  * @param {Object} req - Express request object
  * @param {string} req.params.cartId - Cart ID
  * @param {Object} res - Express response object
- * @returns {Array} Array of cart items
+ * @returns {Array} Array of cart items with product details
  */
 router.get('/:cartId/items', verifyToken, async (req, res) => {
-  const [rows] = await db.query('SELECT * FROM cart_items WHERE cart_id = ?', [req.params.cartId]);
+  const [rows] = await db.query(`
+    SELECT ci.*, p.name as product_name, p.price as current_price, 
+           pi.image_url as image_path, u.username as vendor_name,
+           COALESCE(up.first_name, u.username) as vendor_display_name
+    FROM cart_items ci
+    JOIN products p ON ci.product_id = p.id
+    JOIN users u ON ci.vendor_id = u.id
+    LEFT JOIN user_profiles up ON u.id = up.user_id
+    LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.order = 0
+    WHERE ci.cart_id = ?
+  `, [req.params.cartId]);
   res.json(rows);
 });
 

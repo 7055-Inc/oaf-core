@@ -60,6 +60,9 @@ export default function NewEvent() {
     addon_price: '',
     display_order: 0
   });
+  const [claimedEventId, setClaimedEventId] = useState(null);
+  const [claimedEventData, setClaimedEventData] = useState(null);
+  const [editingEventId, setEditingEventId] = useState(null);
 
   // Application Fields Management
   const [applicationFields, setApplicationFields] = useState([]);
@@ -98,6 +101,17 @@ export default function NewEvent() {
   const router = useRouter();
 
   useEffect(() => {
+    // Check for claimed event ID (from artist suggestion) or regular edit
+    const urlParams = new URLSearchParams(window.location.search);
+    const claimedId = urlParams.get('claimed_event_id');
+    const editId = urlParams.get('edit_event_id');
+    
+    if (claimedId) {
+      setClaimedEventId(claimedId);
+    } else if (editId) {
+      setEditingEventId(editId);
+    }
+
     // Check authentication and user type
     const token = document.cookie.split('token=')[1]?.split(';')[0];
     if (!token) {
@@ -142,6 +156,44 @@ export default function NewEvent() {
     // Fetch event types
     fetchEventTypes();
   }, [router]);
+
+  // Load event data (for both claimed and editing)
+  useEffect(() => {
+    const eventId = claimedEventId || editingEventId;
+    if (eventId && userData) {
+      authApiRequest(`api/events/${eventId}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch event');
+        return res.json();
+      })
+      .then(eventData => {
+        // Only set claimedEventData if this is actually a claimed event (not just editing)
+        if (claimedEventId) {
+          setClaimedEventData(eventData);
+        }
+        // Pre-fill form with event data
+        setFormData(prev => ({
+          ...prev,
+          title: eventData.title || '',
+          start_date: eventData.start_date ? eventData.start_date.split('T')[0] : '',
+          end_date: eventData.end_date ? eventData.end_date.split('T')[0] : '',
+          venue_name: eventData.venue_name || '',
+          venue_address: eventData.venue_address || '',
+          venue_city: eventData.venue_city || '',
+          venue_state: eventData.venue_state || '',
+          venue_zip: eventData.venue_zip || '',
+          event_type_id: eventData.event_type_id || ''
+        }));
+      })
+      .catch(err => {
+        console.error('Failed to load event:', err);
+        setError('Failed to load event details');
+      });
+    }
+  }, [claimedEventId, editingEventId, userData]);
 
   const fetchEventTypes = async () => {
     try {
@@ -375,8 +427,13 @@ export default function NewEvent() {
         max_applications: formData.max_applications ? parseInt(formData.max_applications) : null
       };
 
-      const res = await authApiRequest('api/events', {
-        method: 'POST',
+      // Use PATCH to update if editing or claiming, otherwise POST to create
+      const isUpdating = claimedEventId || editingEventId;
+      const method = isUpdating ? 'PATCH' : 'POST';
+      const endpoint = isUpdating ? `api/events/${claimedEventId || editingEventId}` : 'api/events';
+      
+      const res = await authApiRequest(endpoint, {
+        method: method,
         headers: {
           'Content-Type': 'application/json'
         },
@@ -385,16 +442,17 @@ export default function NewEvent() {
       
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to create event');
+        throw new Error(errorData.error || `Failed to ${isUpdating ? 'update' : 'create'} event`);
       }
       
       const result = await res.json();
+      const eventId = claimedEventId || editingEventId || result.id;
       
       // Save add-ons if any were defined
       if (availableAddons.length > 0) {
         try {
           for (const addon of availableAddons) {
-            await authApiRequest(`api/events/${result.id}/available-addons`, {
+            await authApiRequest(`api/events/${eventId}/available-addons`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
@@ -417,7 +475,7 @@ export default function NewEvent() {
       if (applicationFields.length > 0) {
         try {
           for (const field of applicationFields) {
-            await authApiRequest(`api/events/${result.id}/application-fields`, {
+            await authApiRequest(`api/events/${eventId}/application-fields`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
@@ -465,7 +523,7 @@ export default function NewEvent() {
                 fieldType = 'url';
               }
 
-              await authApiRequest(`api/events/${result.id}/application-fields`, {
+              await authApiRequest(`api/events/${eventId}/application-fields`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json'
@@ -496,7 +554,7 @@ export default function NewEvent() {
                 booth_2: 'Booth Setup Photo #2'
               };
 
-              await authApiRequest(`api/events/${result.id}/application-fields`, {
+              await authApiRequest(`api/events/${eventId}/application-fields`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json'
@@ -519,7 +577,7 @@ export default function NewEvent() {
         }
       }
       
-      router.push(`/events/${result.id}`);
+      router.push(`/events/${eventId}`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -559,8 +617,32 @@ export default function NewEvent() {
       <Header />
       <div className={styles.container}>
       <div className={styles.content}>
-        <h1>Create New Event</h1>
+        <h1>
+          {claimedEventId ? 'Complete Your Claimed Event' : 
+           editingEventId ? 'Edit Event' : 
+           'Create New Event'}
+        </h1>
         {error && <div className={styles.error}>{error}</div>}
+        
+        {claimedEventData && (
+          <div style={{
+            background: '#e3f2fd',
+            border: '2px solid #2196F3',
+            borderRadius: '8px',
+            padding: '20px',
+            marginBottom: '25px'
+          }}>
+            <h3 style={{ margin: '0 0 10px 0', color: '#1976D2' }}>
+              🎉 Event Claimed from Artist Suggestion
+            </h3>
+            <p style={{ margin: '0 0 10px 0', color: '#333' }}>
+              You've successfully claimed this event! We've pre-filled the basic details, but please review and complete all fields before publishing.
+            </p>
+            <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>
+              <strong>Note:</strong> The artist who suggested this event has been added as an applicant and will be notified once you save.
+            </p>
+          </div>
+        )}
         
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.formGrid}>

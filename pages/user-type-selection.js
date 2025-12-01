@@ -36,8 +36,10 @@ export default function UserTypeSelection() {
         throw new Error(errorData.error || 'Failed to update user type');
       }
 
-      // Redirect to dashboard after successful selection
-      router.push('/dashboard');
+      // Check for redirect parameter, otherwise go to dashboard
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectUrl = urlParams.get('redirect') || '/dashboard';
+      router.push(redirectUrl);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -48,12 +50,12 @@ export default function UserTypeSelection() {
   return (
     <div className={styles.container}>
       <Head>
-        <title>Choose Your Role - Online Art Festival</title>
+        <title>Choose Your Role - Brakebee</title>
       </Head>
       
       <div className={styles.modal}>
         <div className={styles.header}>
-          <h1>Welcome to Online Art Festival!</h1>
+          <h1>Welcome to Brakebee!</h1>
           <p className={styles.subtitle}>
             Please select your role to get started with your personalized experience.
           </p>

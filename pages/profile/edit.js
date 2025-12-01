@@ -1127,28 +1127,28 @@ export default function ProfileEdit() {
                 </div>
 
               <div className={styles.formGroup}>
-                  <label className={styles.label}>Art Interests (JSON format)</label>
-                <input
-                  type="text"
+                  <label className={styles.label}>Art Interests</label>
+                  <textarea
                   name="art_interests"
                   value={formData.art_interests}
                   onChange={handleChange}
-                  placeholder='["modern art", "photography"]'
-                  className={styles.input}
+                    placeholder="List your art interests (e.g., modern art, photography, sculpture...)"
+                    rows="3"
+                    className={styles.textarea}
                 />
-                  <small className={styles.helpText}>Enter as JSON array, e.g., ["modern art", "photography"]</small>
+                  <small className={styles.helpText}>Describe your art interests in plain text, separated by commas</small>
               </div>
               <div className={styles.formGroup}>
-                  <label className={styles.label}>Wishlist (JSON format)</label>
-                <input
-                  type="text"
+                  <label className={styles.label}>Wishlist</label>
+                  <textarea
                   name="wishlist"
                   value={formData.wishlist}
                   onChange={handleChange}
-                  placeholder='[]'
-                  className={styles.input}
+                    placeholder="Add items to your wishlist..."
+                    rows="3"
+                    className={styles.textarea}
                 />
-                  <small className={styles.helpText}>Enter as JSON array</small>
+                  <small className={styles.helpText}>List artworks or items you're interested in</small>
               </div>
               </div>
             </div>
@@ -1163,7 +1163,7 @@ export default function ProfileEdit() {
               </h2>
               <div className={styles.sectionContent}>
               <div className={styles.formGroup}>
-                  <label className={styles.label}>Business Name</label>
+                  <label className={styles.label}>Business Name (DBA)</label>
                 <input
                   type="text"
                   name="business_name"
@@ -1172,19 +1172,6 @@ export default function ProfileEdit() {
                     placeholder="Your organization or business name"
                   className={styles.input}
                 />
-              </div>
-                
-              <div className={styles.formGroup}>
-                  <label className={styles.label}>Upcoming Events (JSON format)</label>
-                <input
-                  type="text"
-                  name="upcoming_events"
-                  value={formData.upcoming_events}
-                  onChange={handleChange}
-                  placeholder='[{"name": "Art Fair 2025", "date": "2025-12-01"}]'
-                  className={styles.input}
-                />
-                  <small className={styles.helpText}>Enter as JSON array with event objects</small>
               </div>
                 
               <div className={styles.formGroup}>
@@ -1217,12 +1204,26 @@ export default function ProfileEdit() {
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Sponsorship Options</label>
+                  <label className={styles.label}>Upcoming Events</label>
+                  <textarea
+                    name="upcoming_events"
+                    value={formData.upcoming_events}
+                    onChange={handleChange}
+                    placeholder="List your upcoming events and dates..."
+                    rows="4"
+                    className={styles.textarea}
+                  />
+                  <small className={styles.helpText}>Describe your upcoming events in plain text</small>
+              </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Sponsorship Options & Packages</label>
                   <textarea
                     name="sponsorship_options"
                     value={formData.sponsorship_options}
                     onChange={handleChange}
                     placeholder="Describe available sponsorship opportunities, benefits, and pricing..."
+                    rows="4"
                     className={styles.textarea}
                   />
                 </div>

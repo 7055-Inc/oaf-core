@@ -56,7 +56,7 @@ router.get('/my', verifyToken, async (req, res) => {
       SELECT uta.id, uta.accepted_at
       FROM user_terms_acceptance uta
       JOIN terms_versions tv ON uta.terms_version_id = tv.id
-      WHERE uta.user_id = ? AND uta.subscription_type = 'sites' AND tv.is_current = 1
+      WHERE uta.user_id = ? AND uta.subscription_type = 'websites' AND tv.is_current = 1
       LIMIT 1
     `, [userId]);
     
@@ -195,17 +195,17 @@ router.get('/terms-check', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
     
-    // Get latest sites terms version
+    // Get latest websites terms version
     const [latestTerms] = await db.query(`
       SELECT id, title, content, version, created_at
       FROM terms_versions 
-      WHERE subscription_type = 'sites' AND is_current = 1
+      WHERE subscription_type = 'websites' AND is_current = 1
       ORDER BY created_at DESC 
       LIMIT 1
     `);
 
     if (latestTerms.length === 0) {
-      return res.status(404).json({ error: 'No sites terms found' });
+      return res.status(404).json({ error: 'No websites terms found' });
     }
 
     const terms = latestTerms[0];
@@ -214,7 +214,7 @@ router.get('/terms-check', verifyToken, async (req, res) => {
     const [acceptance] = await db.query(`
       SELECT id, accepted_at
       FROM user_terms_acceptance 
-      WHERE user_id = ? AND subscription_type = 'sites' AND terms_version_id = ?
+      WHERE user_id = ? AND subscription_type = 'websites' AND terms_version_id = ?
     `, [userId, terms.id]);
 
     const termsAccepted = acceptance.length > 0;
@@ -255,10 +255,10 @@ router.post('/terms-accept', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'terms_version_id is required' });
     }
 
-    // Verify the terms version exists and is for sites
+    // Verify the terms version exists and is for websites
     const [termsCheck] = await db.query(`
       SELECT id FROM terms_versions 
-      WHERE id = ? AND subscription_type = 'sites'
+      WHERE id = ? AND subscription_type = 'websites'
     `, [terms_version_id]);
 
     if (termsCheck.length === 0) {
@@ -268,7 +268,7 @@ router.post('/terms-accept', verifyToken, async (req, res) => {
     // Record acceptance (INSERT IGNORE to handle duplicate attempts)
     await db.query(`
       INSERT IGNORE INTO user_terms_acceptance (user_id, subscription_type, terms_version_id, accepted_at)
-      VALUES (?, 'sites', ?, NOW())
+      VALUES (?, 'websites', ?, NOW())
     `, [userId, terms_version_id]);
 
     res.json({
@@ -279,6 +279,88 @@ router.post('/terms-accept', verifyToken, async (req, res) => {
   } catch (error) {
     console.error('Error recording sites terms acceptance:', error);
     res.status(500).json({ error: 'Failed to record terms acceptance' });
+  }
+});
+
+
+/**
+ * Change subscription tier (upgrade/downgrade)
+ * @route POST /api/subscriptions/websites/change-tier
+ * @access Private
+ * @param {Object} req - Express request object
+ * @param {string} req.body.new_tier_name - New tier name
+ * @param {number} req.body.new_tier_price - New tier price
+ * @param {Object} res - Express response object
+ * @returns {Object} Tier change confirmation with proration details
+ */
+router.post('/change-tier', verifyToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { new_tier_name, new_tier_price } = req.body;
+
+    if (!new_tier_name || new_tier_price === undefined) {
+      return res.status(400).json({ error: 'new_tier_name and new_tier_price are required' });
+    }
+
+    // Validate tier name
+    const validTiers = ['Starter Plan', 'Professional Plan', 'Business Plan', 'Promoter Plan', 'Promoter Business Plan'];
+    if (!validTiers.includes(new_tier_name)) {
+      return res.status(400).json({ error: 'Invalid tier name' });
+    }
+
+    // Get current subscription
+    const [subscription] = await db.query(`
+      SELECT id, tier, tier_price, stripe_subscription_id, status
+      FROM user_subscriptions
+      WHERE user_id = ? AND subscription_type = 'websites' AND status = 'active'
+      LIMIT 1
+    `, [userId]);
+
+    if (subscription.length === 0) {
+      return res.status(404).json({ error: 'No active subscription found' });
+    }
+
+    const currentSub = subscription[0];
+
+    // Check if already on this tier
+    if (currentSub.tier === new_tier_name) {
+      return res.status(400).json({ error: 'Already on this tier' });
+    }
+
+    // Calculate proration amount (simple calculation - days remaining in month)
+    const now = new Date();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const daysRemaining = daysInMonth - now.getDate();
+    const dailyOldRate = parseFloat(currentSub.tier_price) / daysInMonth;
+    const dailyNewRate = parseFloat(new_tier_price) / daysInMonth;
+    const proratedCredit = dailyOldRate * daysRemaining;
+    const proratedCharge = dailyNewRate * daysRemaining;
+    const proratedAmount = proratedCharge - proratedCredit;
+
+    // Update subscription in database
+    await db.execute(`
+      UPDATE user_subscriptions
+      SET tier = ?, tier_price = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `, [new_tier_name, new_tier_price, currentSub.id]);
+
+    // TODO: If there's a Stripe subscription, update it with proration
+    // For now, the billing will be handled on the monthly billing cycle
+
+    res.json({
+      success: true,
+      message: 'Tier changed successfully',
+      old_tier: currentSub.tier,
+      new_tier: new_tier_name,
+      old_price: parseFloat(currentSub.tier_price),
+      new_price: parseFloat(new_tier_price),
+      prorated_amount: parseFloat(proratedAmount.toFixed(2)),
+      billing_note: 'Your new tier is now active. The prorated difference will be reflected in your next monthly billing cycle on the 20th. If you exceed your new site limit, excess sites will be deactivated on your next visit to the dashboard.'
+    });
+
+  } catch (error) {
+    console.error('Error changing tier:', error);
+    res.status(500).json({ error: 'Failed to change tier' });
   }
 });
 

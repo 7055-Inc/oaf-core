@@ -72,27 +72,31 @@ export default function ImpersonationExitButton() {
         const originalToken = localStorage.getItem('originalAdminToken');
         const originalRefreshToken = localStorage.getItem('originalAdminRefreshToken');
         
+        // Import cookie config once
+        const { getCookieConfig } = await import('../lib/config');
+        const cookieSettings = getCookieConfig();
+        
         if (originalToken) {
           localStorage.setItem('token', originalToken);
           localStorage.removeItem('originalAdminToken');
           
           // Update cookie as well
-          const { getCookieConfig } = await import('../lib/config');
-          const cookieConfig = getCookieConfig();
-          document.cookie = `token=${originalToken}; path=/; domain=${cookieConfig.domain}; ${cookieConfig.secure ? 'secure;' : ''} samesite=${cookieConfig.sameSite}`;
+          document.cookie = `token=${originalToken}; ${cookieSettings}; max-age=3600`;
         }
         
         if (originalRefreshToken) {
           localStorage.setItem('refreshToken', originalRefreshToken);
           localStorage.removeItem('originalAdminRefreshToken');
           
-          const { getCookieConfig } = await import('../lib/config');
-          const cookieConfig = getCookieConfig();
-          document.cookie = `refreshToken=${originalRefreshToken}; path=/; domain=${cookieConfig.domain}; ${cookieConfig.secure ? 'secure;' : ''} samesite=${cookieConfig.sameSite}`;
+          // Update cookie as well
+          document.cookie = `refreshToken=${originalRefreshToken}; ${cookieSettings}; max-age=604800`;
         }
         
-        // Refresh the page to reset state
-        window.location.reload();
+        // Small delay to ensure tokens are saved before redirect
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Redirect to dashboard after exiting impersonation
+        window.location.href = '/dashboard';
       } else {
         alert('Failed to exit impersonation: ' + (data.error || 'Unknown error'));
         setLoading(false);

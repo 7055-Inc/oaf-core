@@ -7,6 +7,7 @@ import AboutTheArtist from '../../components/AboutTheArtist';
 import VariationSelector from '../../components/VariationSelector';
 import ArtistProductCarousel from '../../components/ArtistProductCarousel';
 import WholesalePricing from '../../components/WholesalePricing';
+import ProductReviews from '../../components/ProductReviews';
 import { getAuthToken } from '../../lib/csrf';
 import { apiRequest, authApiRequest } from '../../lib/apiUtils';
 import { isWholesaleCustomer } from '../../lib/userUtils';
@@ -206,9 +207,14 @@ export default function ProductView() {
   }, []);
 
   const handleAddToCart = async (productToAdd = null, quantityToAdd = null) => {
+    // Check if first parameter is a React event (has nativeEvent property)
+    // If so, ignore it - this happens when called directly from onClick
+    const isEvent = productToAdd && productToAdd.nativeEvent;
+    const actualProductToAdd = isEvent ? null : productToAdd;
+    
     // For variable products, use the selected variation product
     // For simple products, use the main product
-    const targetProduct = productToAdd || (product?.product_type === 'variable' ? selectedVariationProduct : product);
+    const targetProduct = actualProductToAdd || (product?.product_type === 'variable' ? selectedVariationProduct : product);
     const targetQuantity = quantityToAdd || quantity;
 
     if (!targetProduct?.id) {
@@ -636,14 +642,14 @@ export default function ProductView() {
 
                     <button 
                       onClick={handleAddToCart}
-                      disabled={(product.inventory?.qty_available || 0) === 0}
+                      disabled={loading || !product || (product.inventory?.qty_available || 0) === 0}
                       className="secondary"
                       style={{ 
                         marginLeft: '10px',
                         padding: '10px 20px'
                       }}
                     >
-                      Add to Cart
+                      {loading ? 'Loading...' : 'Add to Cart'}
                     </button>
                     
                     {(product.inventory?.qty_available || 0) === 0 && (
@@ -746,6 +752,14 @@ export default function ProductView() {
               )}
             </div>
           </div>
+
+          {/* Reviews Section */}
+          {product && (
+            <ProductReviews 
+              productId={product.id} 
+              currentUserId={currentUserId}
+            />
+          )}
 
           {/* About the Artist Section - 2/3 width, centered */}
           {product && (product.vendor_id || product.user_id) && (

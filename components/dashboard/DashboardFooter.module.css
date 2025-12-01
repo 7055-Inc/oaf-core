@@ -1,0 +1,42 @@
+/* Dashboard Footer - Minimal & Clean */
+
+.dashboardFooter {
+  width: 100%;
+  background-color: white;
+  border-top: 1px solid rgba(5, 84, 116, 0.1);
+  padding: 1.5rem 0;
+  margin-top: auto;
+}
+
+.footerContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.copyright {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #666;
+  text-align: center;
+  font-family: var(--font-body);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .dashboardFooter {
+    padding: 1rem 0;
+  }
+
+  .footerContainer {
+    padding: 0 1rem;
+  }
+
+  .copyright {
+    font-size: 0.8125rem;
+  }
+}
+

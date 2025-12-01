@@ -44,8 +44,10 @@ export async function subdomainRouter(req) {
     // Handle custom subdomains with special routing
     // Add more custom subdomains here as needed
     if (subdomain === 'signup') {
-      // Route signup subdomain to custom redirect page
-      return NextResponse.rewrite(new URL(`/custom-sites/signup?subdomain=${subdomain}`, req.url));
+      // Route signup subdomain to custom redirect page, preserving all query parameters
+      const rewriteUrl = new URL('/custom-sites/signup', req.url);
+      rewriteUrl.searchParams.set('subdomain', subdomain);
+      return NextResponse.rewrite(rewriteUrl);
     }
     
     if (subdomain === 'crafts') {

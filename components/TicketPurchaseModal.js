@@ -49,14 +49,8 @@ export default function TicketPurchaseModal({ event, isOpen, onClose }) {
         }
       });
 
-      const cardElementInstance = elementsInstance.create('card', {
-        style: {
-          base: {
-            fontSize: '16px',
-            fontFamily: 'system-ui, sans-serif',
-            '::placeholder': { color: '#6c757d' }
-          }
-        }
+      const cardElementInstance = elementsInstance.create('payment', {
+        layout: 'tabs'
       });
 
       setElements(elementsInstance);

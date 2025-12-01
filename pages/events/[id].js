@@ -7,6 +7,7 @@ import { getFrontendUrl, getApiUrl, getSmartMediaUrl } from '../../lib/config';
 import Header from '../../components/Header';
 import ApplicationForm from '../../components/applications/ApplicationForm';
 import ApplicationStatus from '../../components/applications/ApplicationStatus';
+import EventReviews from '../../components/EventReviews';
 import styles from './styles/EventView.module.css';
 import TicketPurchaseModal from '../../components/TicketPurchaseModal';
 
@@ -527,7 +528,7 @@ export default function EventPage() {
 
   const loadUserApplication = async (token) => {
     try {
-      const response = await fetch('api/applications/', {
+      const response = await fetch(getApiUrl('api/applications/'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -613,7 +614,7 @@ export default function EventPage() {
             <p style="margin: 0 0 5px 0; font-size: 14px;">${event.venue_name}</p>
             <p style="margin: 0; font-size: 12px; color: #666;">
               ${event.venue_address}<br/>
-              ${event.venue_city}, ${event.venue_state} ${event.venue_zip}
+              ${event.venue_city}, ${event.venue_state}${event.venue_zip ? ' ' + event.venue_zip : ''}
             </p>
           </div>
         `
@@ -638,7 +639,8 @@ export default function EventPage() {
     if (imagePath.startsWith('/static_media/')) {
       return imagePath;
     }
-    return `${imagePath}`;
+    // Use getSmartMediaUrl to handle relative paths correctly
+    return getSmartMediaUrl(imagePath);
   };
 
   // Format date for display
@@ -679,6 +681,14 @@ export default function EventPage() {
       const message = `Directions to ${event.title}: ${getDirectionsUrl()}`;
       const smsUrl = `sms:${phoneNumber}?body=${encodeURIComponent(message)}`;
       window.open(smsUrl);
+    }
+  };
+
+  // Scroll to reviews section
+  const scrollToReviews = () => {
+    const reviewsSection = document.getElementById('event-reviews-section');
+    if (reviewsSection) {
+      reviewsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
@@ -842,7 +852,7 @@ export default function EventPage() {
                 )}
                 
                 <div className={styles.actionButtons}>
-                  {event.has_tickets && (
+                  {!!event.has_tickets && (
                     <button 
                       onClick={() => setShowTicketModal(true)}
                       className={styles.buyTicketsBtn}
@@ -851,6 +861,15 @@ export default function EventPage() {
                       Buy Tickets
                     </button>
                   )}
+                  
+                  <button 
+                    onClick={scrollToReviews}
+                    className={styles.reviewBtn}
+                    title="Leave a review"
+                  >
+                    <i className="fas fa-star"></i>
+                    Did you attend this event? Leave a review
+                  </button>
                   
                   <a 
                     href={getDirectionsUrl()} 
@@ -913,11 +932,11 @@ export default function EventPage() {
                   </div>
                 </div>
 
+                {!!event.has_tickets && (
                 <div className={styles.infoCard}>
                   <h3><i className="fas fa-ticket-alt"></i> Event Tickets</h3>
                   <div className={styles.infoContent}>
-                    {event.has_tickets ? (
-                      new Date(event.end_date) < new Date() ? (
+                      {new Date(event.end_date) < new Date() ? (
                         <p><strong>Event has ended</strong> - Tickets are no longer available</p>
                       ) : new Date(event.start_date) < new Date() ? (
                         <p><strong>Event in progress</strong> - Contact organizers for availability</p>
@@ -934,12 +953,10 @@ export default function EventPage() {
                             Buy Tickets
                           </button>
                         </>
-                      )
-                    ) : (
-                      <p>This event has no tickets.</p>
                     )}
                   </div>
                 </div>
+                )}
 
                 {(event.parking_info || event.accessibility_info) && (
                   <div className={styles.infoCard}>
@@ -961,7 +978,7 @@ export default function EventPage() {
                   </div>
                 )}
 
-                {event.allow_applications && (
+                {!!event.allow_applications && (
                   <div className={styles.infoCard}>
                     <h3><i className="fas fa-users"></i> Artist Applications</h3>
                     <div className={styles.infoContent}>
@@ -1005,20 +1022,19 @@ export default function EventPage() {
                     <p><strong>Expected Capacity:</strong> {event.venue_capacity || 'Contact Promoter'}</p>
                     <p><strong>Age Requirements:</strong> 
                       {event.age_restrictions === 'all_ages' ? 'All ages welcome' :
-                       event.age_restrictions === 'custom' ? `${event.age_minimum}+ years old` :
-                       event.age_restrictions || 'Contact Promoter'}
+                       event.age_restrictions === 'custom' && event.age_minimum ? `${event.age_minimum}+ years old` :
+                       event.age_restrictions || 'All ages welcome'}
                     </p>
                     <p><strong>Dress Code:</strong> {event.dress_code || 'Contact Promoter'}</p>
                   </div>
                 </div>
 
                 {/* RSVP & Tickets */}
+                {(!!event.has_rsvp || !!event.has_tickets) && (
                 <div className={styles.infoCard}>
                   <h3><i className="fas fa-ticket-alt"></i> Registration & Tickets</h3>
                   <div className={styles.infoContent}>
-                    {event.has_rsvp || event.has_tickets ? (
-                      <>
-                        {event.has_rsvp && (
+                      {!!event.has_rsvp && (
                           <div>
                             <p><strong>RSVP Required</strong></p>
                             {event.rsvp_url ? (
@@ -1030,18 +1046,15 @@ export default function EventPage() {
                             )}
                           </div>
                         )}
-                        {event.has_tickets && (
+                      {!!event.has_tickets && (
                           <div>
                             <p><strong>Tickets Required</strong></p>
                             <p>Tickets are available for purchase</p>
                           </div>
-                        )}
-                      </>
-                    ) : (
-                      <p>This event is open to the public. No RSVP or tickets needed.</p>
                     )}
                   </div>
                 </div>
+                )}
               </div>
 
               {/* Exhibiting Artists Section */}
@@ -1139,7 +1152,7 @@ export default function EventPage() {
                     <h3>{event.venue_name}</h3>
                     <p>
                       {event.venue_address}<br/>
-                      {event.venue_city}, {event.venue_state} {event.venue_zip}
+                      {event.venue_city}, {event.venue_state}{event.venue_zip ? ` ${event.venue_zip}` : ''}
                     </p>
                   </div>
                   
@@ -1184,17 +1197,24 @@ export default function EventPage() {
             </div>
           </div>
 
-
+          {/* Event Reviews Section */}
+          <div id="event-reviews-section" className={styles.reviewsSection}>
+            <EventReviews 
+              eventId={id} 
+              currentUserId={user?.id || null}
+              userType={user?.user_type || null}
+            />
+          </div>
 
           {/* HR Separator */}
-          {event.allow_applications && (
+          {!!event.allow_applications && (
             <div className={styles.sectionSeparator}>
               <hr className={styles.separator} />
             </div>
           )}
 
           {/* Full Width Artist Application Section */}
-          {event.allow_applications && (
+          {!!event.allow_applications && (
             <div className={styles.applicationSectionFullWidth}>
               <div className={styles.applicationContainer}>
                 <h2><i className="fas fa-palette"></i> Artist Application</h2>
@@ -1256,12 +1276,12 @@ export default function EventPage() {
                       <div className={styles.applicationClosed}>
                         <p>
                           {!event.allow_applications && 'Applications are not enabled for this event.'}
-                          {event.allow_applications && event.application_deadline && new Date(event.application_deadline) < new Date() && 'The application deadline has passed.'}
-                          {event.allow_applications && event.application_status === 'not_accepting' && 'Applications are not currently being accepted for this event.'}
-                          {event.allow_applications && event.application_status === 'closed' && 'Applications are closed for this event.'}
-                          {event.allow_applications && event.application_status === 'jurying' && 'Applications are currently under review.'}
-                          {event.allow_applications && event.application_status === 'artists_announced' && 'Artists have been selected for this event.'}
-                          {event.allow_applications && event.application_status === 'event_completed' && 'This event has been completed.'}
+                          {!!event.allow_applications && event.application_deadline && new Date(event.application_deadline) < new Date() && 'The application deadline has passed.'}
+                          {!!event.allow_applications && event.application_status === 'not_accepting' && 'Applications are not currently being accepted for this event.'}
+                          {!!event.allow_applications && event.application_status === 'closed' && 'Applications are closed for this event.'}
+                          {!!event.allow_applications && event.application_status === 'jurying' && 'Applications are currently under review.'}
+                          {!!event.allow_applications && event.application_status === 'artists_announced' && 'Artists have been selected for this event.'}
+                          {!!event.allow_applications && event.application_status === 'event_completed' && 'This event has been completed.'}
                         </p>
                       </div>
                     )}

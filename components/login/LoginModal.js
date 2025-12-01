@@ -62,7 +62,13 @@ export default function LoginModal() {
     setError(null);
     
     try {
-      await sendEmailVerification(unverifiedUser);
+      // Configure action code settings to redirect to our verification handler
+      const actionCodeSettings = {
+        url: `${window.location.origin}/custom-sites/signup`,
+        handleCodeInApp: true
+      };
+      
+      await sendEmailVerification(unverifiedUser, actionCodeSettings);
       setResendMessage('Verification email sent! Please check your inbox and spam folder.');
       setUnverifiedUser(null);
     } catch (err) {
@@ -112,8 +118,10 @@ export default function LoginModal() {
         // Wait a moment for the cookies to be set
         await new Promise(resolve => setTimeout(resolve, 100));
         
-        // Redirect to dashboard
-        window.location.href = '/dashboard';
+        // Check for redirect parameter, otherwise go to dashboard
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectUrl = urlParams.get('redirect') || '/dashboard';
+        window.location.href = redirectUrl;
       } else {
         throw new Error('Invalid response: missing tokens');
       }

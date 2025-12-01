@@ -14,14 +14,10 @@ export default function EventsCarousel() {
 
   const loadUpcomingEvents = async () => {
     try {
-      const response = await fetch(getApiUrl('api/events?event_status=active&limit=10'));
+      const response = await fetch(getApiUrl('api/events/upcoming?limit=10'));
       if (response.ok) {
         const eventsData = await response.json();
-        // Filter for upcoming events only
-        const upcomingEvents = eventsData.filter(event => new Date(event.start_date) >= new Date());
-        // Sort by start date
-        upcomingEvents.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
-        setEvents(upcomingEvents);
+        setEvents(eventsData);
       }
     } catch (err) {
       console.error('Error loading events:', err);

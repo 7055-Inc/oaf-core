@@ -291,9 +291,9 @@ export default function Cart() {
               {cartItems.map(item => (
                 <div key={item.id} className={styles.cartItem}>
                   <div className={styles.itemInfo}>
-                    <h3 className={styles.itemName}>Product Title</h3>
+                    <h3 className={styles.itemName}>{item.product_name || 'Product'}</h3>
                     <p style={{fontFamily: 'var(--font-body)', fontSize: '14px', color: '#666', margin: '5px 0'}}>
-                      Product ID: {item.product_id}
+                      Sold by: {item.vendor_display_name || item.vendor_name || 'Unknown'}
                     </p>
                     <p className={styles.itemPrice}>${(parseFloat(item.price) || 0).toFixed(2)}</p>
                   </div>

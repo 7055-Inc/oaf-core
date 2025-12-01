@@ -103,6 +103,14 @@ export default function AdminMenu({
           <li>
             <button 
               className={styles.sidebarLink}
+              onClick={() => openSlideIn('event-reviews', { title: 'Event Reviews' })}
+            >
+              Event Reviews
+            </button>
+          </li>
+          <li>
+            <button 
+              className={styles.sidebarLink}
               onClick={() => openSlideIn('manage-articles', { title: 'Articles & Pages' })}
             >
               Articles & Pages

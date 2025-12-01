@@ -272,7 +272,11 @@ try {
   // Event management
   app.use('/api/events', require('./routes/events'));
   // Event types route consolidated into events.js
+  app.use('/api/artist-contact', require('./routes/artist-contact'));
   app.use('/api/applications', require('./routes/applications'));
+  
+  // Promoter claim routes (public - no auth required, token is auth)
+  app.use('/api/promoters', require('./routes/promoter-claim'));
   
   // Event series management and automation
   app.use('/api/series', require('./routes/series'));
@@ -330,6 +334,9 @@ try {
 
   // Returns management
   app.use('/api/returns', csrfProtection(), require('./routes/returns'));
+
+  // Reviews system
+  app.use('/api/reviews', csrfProtection(), require('./routes/reviews'));
 
   secureLogger.info('All routes loaded successfully with CSRF protection');
 } catch (err) {
