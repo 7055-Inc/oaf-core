@@ -1,0 +1,57 @@
+.breadcrumb {
+  padding: 1rem 0;
+  font-size: 0.875rem;
+}
+
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 0.25rem;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.link {
+  color: var(--primary-color, #055474);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.link:hover {
+  color: var(--secondary-color, #3E1C56);
+  text-decoration: underline;
+}
+
+.current {
+  color: #666;
+  font-weight: 500;
+}
+
+.separator {
+  color: #999;
+  margin: 0 0.25rem;
+}
+
+/* Truncate long breadcrumb labels on mobile */
+@media (max-width: 768px) {
+  .breadcrumb {
+    font-size: 0.8rem;
+  }
+  
+  .link,
+  .current {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+

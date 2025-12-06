@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import Head from 'next/head';
+import Breadcrumb from '../../components/Breadcrumb';
 import { getApiUrl } from '../../lib/config';
 import ProfileDisplay from '../../components/shared/ProfileDisplay';
 import { authenticatedApiRequest } from '../../lib/csrf';
@@ -75,13 +77,75 @@ export default function ProfileView() {
     );
   }
 
+  // Build dynamic SEO with fallbacks
+  const artistName = userProfile?.display_name || userProfile?.username || 'Artist';
+  const artistBio = userProfile?.artist_biography || userProfile?.bio || `Discover artwork by ${artistName} on Brakebee.`;
+  const profileImage = userProfile?.profile_picture_url || null;
+
+  // Generate Person Schema for Google Rich Results
+  const personSchema = userProfile ? {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": artistName,
+    "description": artistBio.substring(0, 500),
+    "url": `https://brakebee.com/profile/${id}`,
+    ...(profileImage && { "image": profileImage }),
+    ...(userProfile.studio_city && {
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": userProfile.studio_city,
+        "addressRegion": userProfile.studio_state
+      }
+    }),
+    "sameAs": [
+      userProfile.website_url,
+      userProfile.instagram_url,
+      userProfile.facebook_url,
+      userProfile.twitter_url
+    ].filter(Boolean),
+    "jobTitle": "Artist",
+    "worksFor": {
+      "@type": "Organization",
+      "name": "Brakebee",
+      "url": "https://brakebee.com"
+    }
+  } : null;
+
   return (
-    <div>
+    <>
+      <Head>
+        <title>{artistName} - Artist Profile | Brakebee</title>
+        <meta name="description" content={artistBio.substring(0, 160)} />
+        <meta property="og:title" content={`${artistName} | Brakebee Artist`} />
+        <meta property="og:description" content={artistBio.substring(0, 160)} />
+        <meta property="og:type" content="profile" />
+        {profileImage && <meta property="og:image" content={profileImage} />}
+        <meta name="twitter:card" content="summary_large_image" />
+        <link rel="canonical" href={`https://brakebee.com/profile/${id}`} />
+        
+        {/* Person Schema for Google Rich Results */}
+        {personSchema && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(personSchema) }}
+          />
+        )}
+      </Head>
+      
+      {/* SEO Breadcrumb */}
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 1rem' }}>
+        <Breadcrumb items={[
+          { label: 'Home', href: '/' },
+          { label: 'Artists', href: '/artists' },
+          { label: artistName }
+        ]} />
+      </div>
+      
       <ProfileDisplay 
         userProfile={userProfile}
         showEditButton={true}
         currentUserId={currentUserId}
       />
-    </div>
+    </>
   );
 }

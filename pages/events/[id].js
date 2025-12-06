@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Script from 'next/script';
 import Link from 'next/link';
+import Breadcrumb from '../../components/Breadcrumb';
 import { getFrontendUrl, getApiUrl, getSmartMediaUrl } from '../../lib/config';
 import ApplicationForm from '../../components/applications/ApplicationForm';
 import ApplicationStatus from '../../components/applications/ApplicationStatus';
@@ -770,9 +771,14 @@ export default function EventPage() {
         )}
       </Head>
 
-
-
       <div className={styles.container}>
+        {/* SEO Breadcrumb */}
+        <Breadcrumb items={[
+          { label: 'Home', href: '/' },
+          { label: 'Events', href: '/events' },
+          { label: event.title }
+        ]} />
+        
         <div className={styles.content}>
           {/* Hero Section */}
           <div className={styles.heroSection}>

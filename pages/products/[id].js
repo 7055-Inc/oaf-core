@@ -1,7 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import Head from 'next/head';
 import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
+import Breadcrumb from '../../components/Breadcrumb';
 import AboutTheArtist from '../../components/AboutTheArtist';
 import VariationSelector from '../../components/VariationSelector';
 import ArtistProductCarousel from '../../components/ArtistProductCarousel';
@@ -383,8 +385,61 @@ export default function ProductView() {
     currentUserId.toString() === (product.vendor_id || product.user_id)?.toString()
   );
 
+  // Generate Product Schema for Google Rich Results
+  const productSchema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "name": product.name,
+    "description": product.description?.replace(/<[^>]*>/g, '').substring(0, 500) || '',
+    "image": product.images?.map(img => typeof img === 'string' ? img : img.url) || [],
+    "sku": product.sku || `PROD-${product.id}`,
+    "brand": {
+      "@type": "Brand",
+      "name": product.vendor_name || product.artist_name || "Brakebee Artist"
+    },
+    "offers": {
+      "@type": "Offer",
+      "url": `https://brakebee.com/products/${product.id}`,
+      "priceCurrency": "USD",
+      "price": product.price || product.base_price || 0,
+      "availability": product.stock_quantity > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      "seller": {
+        "@type": "Organization",
+        "name": product.vendor_name || "Brakebee"
+      }
+    },
+    ...(product.average_rating && {
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": product.average_rating,
+        "reviewCount": product.review_count || 1
+      }
+    })
+  };
+
   return (
     <>
+      <Head>
+        <title>{product.name} | Brakebee Marketplace</title>
+        <meta name="description" content={product.description?.replace(/<[^>]*>/g, '').substring(0, 160) || `Shop ${product.name} on Brakebee`} />
+        <meta property="og:title" content={product.name} />
+        <meta property="og:description" content={product.description?.replace(/<[^>]*>/g, '').substring(0, 160) || ''} />
+        <meta property="og:type" content="product" />
+        <meta property="og:url" content={`https://brakebee.com/products/${product.id}`} />
+        {product.images?.[0] && (
+          <meta property="og:image" content={typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url} />
+        )}
+        <meta property="product:price:amount" content={product.price || product.base_price || 0} />
+        <meta property="product:price:currency" content="USD" />
+        <link rel="canonical" href={`https://brakebee.com/products/${product.id}`} />
+        
+        {/* Product Schema for Google Rich Results */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
+        />
+      </Head>
+      
       {isOwnProduct && (
         <div className={styles.floatingEditButtons}>
           <a href={`/dashboard/products/${product.id}`} className={styles.floatingEditLink}>
@@ -398,6 +453,14 @@ export default function ProductView() {
         </div>
       )}
       <div className={styles.container}>
+        {/* SEO Breadcrumb with JSON-LD structured data */}
+        <Breadcrumb items={[
+          { label: 'Home', href: '/' },
+          { label: 'Marketplace', href: '/marketplace' },
+          ...(product.category_name ? [{ label: product.category_name, href: `/category/${product.category_id}` }] : []),
+          { label: product.name }
+        ]} />
+        
         <div className={styles.content}>
           
           {/* Product Card - Full Width */}

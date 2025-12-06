@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import styles from './Footer.module.css';
 
 // Transform API response to flat items array
@@ -183,14 +184,14 @@ export default function Footer() {
           {/* Left: Logo */}
           <div className={styles.bbRailLeft}>
             <Link href="/">
-              <img 
+              <Image 
                 src="/static_media/brakebee-logo.png" 
                 alt="Brakebee Logo" 
+                width={140}
+                height={52}
                 className={styles.bbLogoB}
-                onError={(e) => {
-                  // Fallback to existing logo if new one doesn't exist
-                  e.target.src = '/static_media/logo.png';
-                }}
+                quality={75}
+                priority={false}
               />
             </Link>
           </div>

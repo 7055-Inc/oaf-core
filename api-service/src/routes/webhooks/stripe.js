@@ -220,15 +220,32 @@ async function handleEcommercePayment(paymentIntent, orderId) {
     // Update order status
     await updateOrderStatus(orderId, 'paid', paymentIntent.id);
     
-    // Process vendor transfers
-    const transfers = await stripeService.processVendorTransfers(orderId, paymentIntent.id);
+    // Get the charge ID from the payment intent (required for source_transaction)
+    // In newer Stripe API versions, latest_charge contains the charge ID
+    const chargeId = paymentIntent.latest_charge || paymentIntent.charges?.data?.[0]?.id;
     
-    // Record platform commission
+    if (!chargeId) {
+      console.error(`No charge ID found for payment intent ${paymentIntent.id}`);
+      return;
+    }
+    
+    // Store the charge ID for later transfer (when tracking is added)
+    // DON'T transfer immediately - wait for vendor to add tracking
+    await db.execute(`
+      UPDATE orders 
+      SET stripe_charge_id = ?, 
+          transfer_status = 'pending_fulfillment'
+      WHERE id = ?
+    `, [chargeId, orderId]);
+    
+    // Record platform commission (this happens immediately)
     await recordPlatformCommission(orderId, paymentIntent.id);
+    
+    console.log(`Order ${orderId} paid - transfer pending until tracking added`);
     
   } catch (error) {
     console.error('Error handling e-commerce payment:', error);
-    throw error;
+    // Don't throw - payment was successful, transfer issue should be logged for admin
   }
 }
 
@@ -734,19 +751,31 @@ async function recordSubscriptionTransaction(invoice) {
  * Updates transaction status when vendor payouts are completed
  * 
  * @param {string} payoutId - Stripe Payout ID
- * @param {string} arrivalDate - Payout arrival date
+ * @param {number} arrivalDate - Payout arrival date (Unix timestamp)
  * @returns {Promise<Object>} Database execution result
  */
 async function markTransactionsAsPaidOut(payoutId, arrivalDate) {
-  // This would need more complex logic to match transactions to specific payouts
-  // For now, we'll update based on payout date
+  try {
+    // Convert Unix timestamp to MySQL date format
+    const arrivalDateFormatted = new Date(arrivalDate * 1000).toISOString().split('T')[0];
+    
+    // Mark all completed transactions with payout_date <= arrival date as paid_out
+    // This ensures vendors see their balance decrease after Stripe pays out
   const query = `
     UPDATE vendor_transactions 
-    SET status = 'completed', updated_at = CURRENT_TIMESTAMP
-    WHERE status = 'processing' AND payout_date <= ?
+      SET status = 'paid_out', updated_at = CURRENT_TIMESTAMP
+      WHERE status = 'completed' 
+        AND payout_date IS NOT NULL 
+        AND payout_date <= ?
   `;
   
-  return db.execute(query, [arrivalDate]);
+    const result = await db.execute(query, [arrivalDateFormatted]);
+    console.log(`Marked ${result[0].affectedRows} transactions as paid_out for payout ${payoutId}`);
+    return result;
+  } catch (error) {
+    console.error('Error marking transactions as paid out:', error);
+    throw error;
+  }
 }
 
 /**

@@ -22,6 +22,44 @@ const nextConfig = {
   compress: true,
   poweredByHeader: false,
   
+  // Image optimization - enables next/image auto-optimization
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'api.brakebee.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'api.beemeeart.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.brakebee.com',
+        pathname: '/**',
+      },
+    ],
+    // Modern formats for better compression
+    formats: ['image/avif', 'image/webp'],
+    // Device sizes for responsive images
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+  },
+  
+  // Redirects for old URL patterns
+  async redirects() {
+    return [
+      // Old /c/[slug] category URLs → redirect to marketplace
+      {
+        source: '/c/:slug',
+        destination: '/marketplace',
+        permanent: true, // 301 redirect for SEO
+      },
+    ];
+  },
+
   // Configure API routes and CORS
   async headers() {
     const corsOrigins = process.env.NEXT_PUBLIC_ENVIRONMENT === 'production' 
@@ -137,7 +175,37 @@ const nextConfig = {
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=3600, must-revalidate',
+            value: 'public, max-age=31536000, immutable', // 1 year - files have hashed names
+          },
+        ],
+      },
+      // Static media caching (videos, images, etc.)
+      {
+        source: '/static_media/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=2592000, stale-while-revalidate=86400', // 30 days, revalidate after 1 day
+          },
+        ],
+      },
+      // Public images and assets
+      {
+        source: '/images/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=2592000, stale-while-revalidate=86400', // 30 days
+          },
+        ],
+      },
+      // Favicon and other root assets
+      {
+        source: '/:path(.ico|.png|.jpg|.jpeg|.gif|.webp|.svg|.mp4|.webm)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=2592000, stale-while-revalidate=86400', // 30 days
           },
         ],
       },

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
+import Breadcrumb from '../../components/Breadcrumb';
 import { getApiUrl, getFrontendUrl } from '../../lib/config';
 import SocialShare from '../../components/SocialShare';
 import styles from './styles/ArticleView.module.css';
@@ -365,6 +366,13 @@ export default function ArticlePage() {
       </Head>
 
       <div className={styles.container}>
+        {/* SEO Breadcrumb */}
+        <Breadcrumb items={[
+          { label: 'Home', href: '/' },
+          { label: 'Articles', href: '/articles' },
+          ...(article.primary_topic_name ? [{ label: article.primary_topic_name, href: `/topics/${article.primary_topic_slug}` }] : []),
+          { label: article.title }
+        ]} />
         
         <div className={styles.content}>
           <div className={styles.navigation}>

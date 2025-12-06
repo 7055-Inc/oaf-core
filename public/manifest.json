@@ -1,0 +1,22 @@
+{
+  "name": "Brakebee - Art Marketplace",
+  "short_name": "Brakebee",
+  "description": "Discover & support independent artists. Shop unique artwork, attend live events.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#055474",
+  "icons": [
+    {
+      "src": "/static_media/brakebee-logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static_media/brakebee-logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+

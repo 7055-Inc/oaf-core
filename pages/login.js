@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Head from 'next/head';
 import LoginModal from '../components/login/LoginModal';
 import CookieConsentModal from '../components/CookieConsentModal';
 
@@ -25,6 +26,11 @@ export default function Login() {
 
   return (
     <>
+      <Head>
+        <title>Login | Brakebee</title>
+        <meta name="description" content="Sign in to your Brakebee account to access your dashboard, manage your art collection, and connect with artists." />
+      </Head>
+      
       {/* Cookie Consent Modal - blocks everything until consent */}
       {showConsentModal && (
         <CookieConsentModal 

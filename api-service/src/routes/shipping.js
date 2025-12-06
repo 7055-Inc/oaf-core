@@ -1,9 +1,66 @@
 const express = require('express');
 const router = express.Router();
 const shippingService = require('../services/shippingService');
+const stripeService = require('../services/stripeService');
 const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
 const { requirePermission } = require('../middleware/permissions');
+
+/**
+ * Queue vendor transfer after tracking is added
+ * Transfer will be created 3 days after all items are shipped (industry standard)
+ * This protects buyers while still being fair to vendors
+ * 
+ * @param {number} orderId - Order ID to queue transfer for
+ * @param {Object} connection - Database connection for transaction
+ */
+async function queueVendorTransferAfterTracking(orderId, connection) {
+  try {
+    // Check if all items for this order are shipped
+    const [unshippedItems] = await connection.execute(`
+      SELECT COUNT(*) as count FROM order_items 
+      WHERE order_id = ? AND status != 'shipped'
+    `, [orderId]);
+    
+    if (unshippedItems[0].count > 0) {
+      // Not all items shipped yet, wait for full fulfillment
+      return { queued: false, reason: 'pending_items' };
+    }
+    
+    // Get order details including charge ID
+    const [orders] = await connection.execute(`
+      SELECT id, stripe_charge_id, transfer_status, transfer_eligible_date
+      FROM orders 
+      WHERE id = ? AND transfer_status = 'pending_fulfillment'
+    `, [orderId]);
+    
+    if (orders.length === 0 || !orders[0].stripe_charge_id) {
+      return { queued: false, reason: 'no_charge_id_or_already_transferred' };
+    }
+    
+    // Set transfer_eligible_date to 3 days from now
+    // Transfer will be processed by cron job after this date
+    const TRANSFER_DELAY_DAYS = 3; // Industry standard (Shopify uses 3 days)
+    
+    await connection.execute(`
+      UPDATE orders 
+      SET transfer_status = 'pending_transfer',
+          transfer_eligible_date = DATE_ADD(NOW(), INTERVAL ? DAY)
+      WHERE id = ?
+    `, [TRANSFER_DELAY_DAYS, orderId]);
+    
+    console.log(`Order ${orderId} fully shipped - transfer queued for ${TRANSFER_DELAY_DAYS} days from now`);
+    
+    return { 
+      queued: true, 
+      transfer_eligible_date: new Date(Date.now() + TRANSFER_DELAY_DAYS * 24 * 60 * 60 * 1000)
+    };
+    
+  } catch (error) {
+    console.error(`Error queuing vendor transfer for order ${orderId}:`, error);
+    return { queued: false, reason: error.message };
+  }
+}
 
 /**
  * @fileoverview Shipping management routes
@@ -443,17 +500,40 @@ router.post('/process-batch', verifyToken, async (req, res) => {
       const itemIds = entry.isGroup ? mergedGroups[entry.id] : [entry.id]; // Assume mergedGroups from frontend or fetch
       if (entry.type === 'tracking') {
         const { carrier, trackingNumber } = entry.data;
+        let orderId = null;
+        
         for (const itemId of itemIds) {
+          // Get order_id from the item
+          const [itemInfo] = await connection.execute(
+            'SELECT order_id FROM order_items WHERE id = ?',
+            [itemId]
+          );
+          if (itemInfo.length > 0) {
+            orderId = itemInfo[0].order_id;
+          }
+          
           await connection.execute(
             'INSERT INTO order_item_tracking (item_id, carrier, tracking_number, updated_at) VALUES (?, ?, ?, NOW())',
             [itemId, carrier, trackingNumber]
           );
           await connection.execute(
-            'UPDATE order_items SET status = "shipped" WHERE id = ?',
+            'UPDATE order_items SET status = "shipped", shipped_at = NOW() WHERE id = ?',
             [itemId]
           );
         }
+        
+        // After tracking is added, queue the vendor transfer (3-day delay)
+        if (orderId) {
+          const transferResult = await queueVendorTransferAfterTracking(orderId, connection);
+          results.push({ 
+            id: entry.id, 
+            status: 'success', 
+            tracking: trackingNumber,
+            transfer_queued: transferResult 
+          });
+        } else {
         results.push({ id: entry.id, status: 'success', tracking: trackingNumber });
+        }
       } else if (entry.type === 'label') {
         const { selected_rate, packages, force_card_payment = false } = entry.data;
         

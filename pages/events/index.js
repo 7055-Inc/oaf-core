@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Head from 'next/head';
 import Link from 'next/link';
 import styles from './Events.module.css';
 import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
@@ -106,11 +107,20 @@ export default function Events() {
   };
 
   return (
-    <div className={styles.pageContainer}>
-      <main className={styles.main}>
-        {/* Events Grid Section */}
-        <section className={styles.eventsSection}>
-          <div className={styles.container}>
+    <>
+      <Head>
+        <title>Art Events & Exhibitions | Brakebee</title>
+        <meta name="description" content="Discover upcoming art events, exhibitions, and festivals near you. Connect with artists, attend live shows, and experience unique artwork in person." />
+        <meta property="og:title" content="Art Events & Exhibitions | Brakebee" />
+        <meta property="og:description" content="Discover upcoming art events, exhibitions, and festivals. Connect with artists and experience unique artwork." />
+        <meta property="og:type" content="website" />
+      </Head>
+      
+      <div className={styles.pageContainer}>
+        <main className={styles.main}>
+          {/* Events Grid Section */}
+          <section className={styles.eventsSection}>
+            <div className={styles.container}>
             
             {error && (
               <div className={styles.errorMessage}>
@@ -228,6 +238,7 @@ export default function Events() {
           </div>
         </section>
       </main>
-    </div>
+      </div>
+    </>
   );
 }

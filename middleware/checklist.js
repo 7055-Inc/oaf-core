@@ -3,36 +3,47 @@ import { NextResponse } from 'next/server';
 export async function checklist(req) {
   const path = req.nextUrl.pathname;
   
-  // Allow static files, login, and artist storefront pages
+  // ===========================================
+  // DENYLIST APPROACH: Everything is PUBLIC except these protected paths
+  // This ensures new pages are SEO-friendly by default
+  // ===========================================
+  
+  // Always allow static assets (no auth needed)
   if (path.startsWith('/_next') || 
       path.startsWith('/static') || 
-      path.startsWith('/feeds/') ||  // Public feeds (Google Merchant, etc.)
-      path === '/' ||
-      (path.startsWith('/products/') && !path.includes('/new') && !path.includes('/edit') && !path.includes('/delete')) ||
-      path.startsWith('/category/') ||
-      path.startsWith('/search') ||
-      path.startsWith('/events') ||
-      path.startsWith('/articles') ||
-      path.startsWith('/topics') ||
-      path.startsWith('/artist-storefront') ||
-      path.startsWith('/redirects/') ||
-      path === '/marketplace' ||
-      path === '/policies' ||
-      path.startsWith('/promoter') ||
-      path === '/login' || 
-      path === '/signup' || 
-      path === '/forgot-password' ||
-      path.startsWith('/custom-sites/') ||
-      path === '/terms-acceptance' ||
-      path === '/profile-completion' ||
-      path === '/profile/edit' ||
-      path === '/user-type-selection' ||
-      path === '/announcement-acknowledgment' ||
-      path === '/api/leo-search' ||  // Leo AI search endpoint
+      path.startsWith('/static_media') ||
+      path.startsWith('/api/') ||  // API routes handle their own auth
       path === '/favicon.ico') {
       return NextResponse.next();
     }
 
+  // PROTECTED PATHS - these require authentication
+  const protectedPaths = [
+    '/dashboard',           // User dashboard (all subpaths)
+    '/checkout',            // Checkout flow
+    '/cart',                // Shopping cart
+    '/profile/edit',        // Editing your own profile
+    '/products/new',        // Creating products
+    '/products/edit',       // Editing products
+    '/products/delete',     // Deleting products
+    '/vendor',              // Vendor-specific pages
+    '/profile-completion',  // Onboarding: complete profile
+    '/terms-acceptance',    // Onboarding: accept terms
+    '/user-type-selection', // Onboarding: select user type
+    '/announcement-acknowledgment', // Onboarding: acknowledge announcements
+  ];
+  
+  // Check if current path requires authentication
+  const requiresAuth = protectedPaths.some(protectedPath => 
+    path === protectedPath || path.startsWith(protectedPath + '/')
+  );
+  
+  // If path doesn't require auth, allow through (PUBLIC)
+  if (!requiresAuth) {
+    return NextResponse.next();
+  }
+  
+  // === PROTECTED PATH - Check authentication ===
     const token = req.cookies.get('token')?.value;
     if (!token) {
     return NextResponse.redirect(new URL('/login', req.url));

@@ -26,6 +26,7 @@ import ManageHeroSettings from '../../components/dashboard/manage-system/compone
 import ManageEmailCore from '../../components/dashboard/manage-system/components/ManageEmailCore';
 import ManageTermsCore from '../../components/dashboard/manage-system/components/ManageTermsCore';
 import ManageCategories from '../../components/dashboard/manage-system/components/ManageCategories';
+import WalmartFeedManagement from '../../components/dashboard/manage-system/components/WalmartFeedManagement';
 import ManageCustomPolicies from '../../components/dashboard/manage-system/components/ManageCustomPolicies';
 import AddPromoter from '../../components/dashboard/manage-system/components/AddPromoter';
 import UnclaimedEvents from '../../components/dashboard/manage-system/components/UnclaimedEvents';
@@ -57,6 +58,7 @@ import ManageInventory from '../../components/dashboard/manage-my-store/componen
 import InventoryLog from '../../components/dashboard/manage-my-store/components/InventoryLog';
 import ManageOrders from '../../components/dashboard/manage-my-store/components/ManageOrders';
 import TikTokConnector from '../../components/dashboard/manage-my-store/components/TikTokConnector';
+import WalmartConnector from '../../components/dashboard/manage-my-store/components/WalmartConnector';
 import ManagePromotions from '../../components/dashboard/manage-my-store/components/ManagePromotions';
 import MyFinancesMenu from '../../components/dashboard/my-finances/MyFinancesMenu';
 import TransactionHistory from '../../components/dashboard/my-finances/components/TransactionHistory';
@@ -390,6 +392,14 @@ export default function Dashboard() {
       );
     }
     
+    if (slideInContent.type === 'walmart-connector') {
+      return (
+        <WalmartConnector
+          userData={userData}
+        />
+      );
+    }
+    
     if (slideInContent.type === 'transaction-history') {
       return (
         <TransactionHistory
@@ -635,6 +645,14 @@ export default function Dashboard() {
     if (slideInContent.type === 'manage-categories') {
       return (
         <ManageCategories
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'walmart-feed') {
+      return (
+        <WalmartFeedManagement
           userData={userData}
         />
       );

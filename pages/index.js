@@ -1,10 +1,23 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import LoginModal from '../components/login/LoginModal';
-import EventsCarousel from '../components/EventsCarousel';
-import ArtistCarousel from '../components/ArtistCarousel';
-import { VisualDiscoveryBand } from '../components/index';
+import dynamic from 'next/dynamic';
+
+// Lazy load below-the-fold components
+const EventsCarousel = dynamic(() => import('../components/EventsCarousel'), {
+  ssr: false,
+  loading: () => <div style={{ height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading events...</div>
+});
+
+const ArtistCarousel = dynamic(() => import('../components/ArtistCarousel'), {
+  ssr: false,
+  loading: () => <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading artists...</div>
+});
+
+const LoginModal = dynamic(() => import('../components/login/LoginModal'), {
+  ssr: false,
+  loading: () => null
+});
 
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -119,14 +132,15 @@ export default function Home() {
                 </h1>
               )}
               {heroData.h3Text && (
-                <h3 style={{ 
+                <h2 style={{ 
                   fontSize: 'clamp(1.2rem, 2.5vw, 1.8rem)', 
                   marginBottom: '2rem',
                   textShadow: '1px 1px 2px rgba(255,255,255,0.8)',
-                  lineHeight: 1.4
+                  lineHeight: 1.4,
+                  fontWeight: 'normal'
                 }}>
                   {heroData.h3Text}
-                </h3>
+                </h2>
               )}
               {heroData.buttonText && (
                 <button 

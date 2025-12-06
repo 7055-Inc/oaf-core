@@ -132,6 +132,107 @@ router.get('/change-log', verifyToken, requirePermission('manage_system'), async
 });
 
 /**
+ * Search vendors (artists with vendor permission) for featuring in categories
+ * @route GET /api/categories/search-vendors
+ * @access Private (requires manage_system permission)
+ * @param {string} req.query.q - Search query (name or username)
+ * @param {number} req.query.limit - Number of results (default: 20)
+ * @returns {Object} List of matching vendors with basic info
+ */
+router.get('/search-vendors', async (req, res) => {
+  try {
+    const { q = '', limit = 20 } = req.query;
+    
+    if (!q || q.length < 2) {
+      return res.json({ success: true, vendors: [] });
+    }
+    
+    const searchTerm = `%${q}%`;
+    const [vendors] = await db.query(`
+      SELECT 
+        u.id,
+        u.username,
+        u.status,
+        up.display_name,
+        up.first_name,
+        up.last_name,
+        up.profile_image_path,
+        (SELECT COUNT(*) FROM products WHERE vendor_id = u.id AND status = 'active') as product_count
+      FROM users u
+      JOIN user_permissions perm ON u.id = perm.user_id AND perm.vendor = 1
+      LEFT JOIN user_profiles up ON u.id = up.user_id
+      WHERE u.status = 'active'
+        AND (
+          u.username LIKE ? 
+          OR up.display_name LIKE ? 
+          OR up.first_name LIKE ? 
+          OR up.last_name LIKE ?
+          OR CONCAT(COALESCE(up.first_name, ''), ' ', COALESCE(up.last_name, '')) LIKE ?
+        )
+      ORDER BY COALESCE(up.display_name, u.username) ASC
+      LIMIT ?
+    `, [searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, parseInt(limit)]);
+    
+    res.json({ success: true, vendors });
+  } catch (err) {
+    secureLogger.error('Error searching vendors', err);
+    res.status(500).json({ error: 'Failed to search vendors' });
+  }
+});
+
+/**
+ * Search products for adding to categories (admin)
+ * @route GET /api/categories/search-products
+ * @access Private (requires manage_system permission)
+ * @param {string} req.query.q - Search query (name or SKU)
+ * @param {number} req.query.category_id - Optional: exclude products already in this category
+ * @param {number} req.query.limit - Number of results (default: 20)
+ * @returns {Object} List of matching products with basic info
+ */
+router.get('/search-products', async (req, res) => {
+  try {
+    const { q = '', category_id, limit = 20 } = req.query;
+    
+    if (!q || q.length < 2) {
+      return res.json({ success: true, products: [] });
+    }
+    
+    const searchTerm = `%${q}%`;
+    let query = `
+      SELECT 
+        p.id, 
+        p.name, 
+        p.sku,
+        p.price,
+        p.status,
+        u.username as vendor_username,
+        (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY \`order\` ASC LIMIT 1) as image_url
+      FROM products p
+      JOIN users u ON p.vendor_id = u.id
+      WHERE (p.name LIKE ? OR p.sku LIKE ?)
+        AND p.parent_id IS NULL
+    `;
+    const params = [searchTerm, searchTerm];
+    
+    // Exclude products already in the specified category
+    if (category_id) {
+      query += ` AND p.id NOT IN (SELECT product_id FROM product_categories WHERE category_id = ?)`;
+      params.push(category_id);
+    }
+    
+    query += ` ORDER BY p.name ASC LIMIT ?`;
+    params.push(parseInt(limit));
+    
+    const [products] = await db.query(query, params);
+    
+    res.json({ success: true, products });
+  } catch (err) {
+    secureLogger.error('Error searching products', err);
+    res.status(500).json({ error: 'Failed to search products' });
+  }
+});
+
+/**
  * Get single category by ID
  * @route GET /api/categories/:id
  * @access Public
@@ -239,7 +340,7 @@ router.post('/', verifyToken, async (req, res) => {
     );
 
     const category_id = result.insertId;
-    const updated_by = req.user.userId || req.user.id;
+    const updated_by = req.userId;
 
     // Log the change
     await db.query('INSERT INTO category_change_log (category_id, action, before_json, after_json, changed_by) VALUES (?, ?, ?, ?, ?)', 
@@ -347,7 +448,7 @@ router.put('/:id', verifyToken, async (req, res) => {
     `, [id]);
 
     // Log the change
-    await db.query('INSERT INTO category_change_log (category_id, action, before_json, after_json, changed_by) VALUES (?, ?, ?, ?, ?)', [id, 'update', JSON.stringify(beforeState), JSON.stringify(req.body), req.user.id]);
+    await db.query('INSERT INTO category_change_log (category_id, action, before_json, after_json, changed_by) VALUES (?, ?, ?, ?, ?)', [id, 'update', JSON.stringify(beforeState), JSON.stringify(req.body), req.userId]);
 
     res.json({
       success: true,
@@ -413,7 +514,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
 
     // Log the change
     await db.query('INSERT INTO category_change_log (category_id, action, before_json, after_json, changed_by) VALUES (?, ?, ?, ?, ?)', 
-      [id, 'delete', JSON.stringify(beforeState), null, req.user.userId || req.user.id]);
+      [id, 'delete', JSON.stringify(beforeState), null, req.userId]);
 
     res.json({
       success: true,
@@ -465,7 +566,7 @@ router.post('/content/:category_id', verifyToken, requirePermission('manage_syst
   try {
     const { category_id } = req.params;
     const { hero_image, description, banner, featured_products, featured_artists } = req.body;
-    const updated_by = req.user.id;
+    const updated_by = req.userId;
     // Get before state
     const [beforeRows] = await db.query('SELECT * FROM category_content WHERE category_id = ?', [category_id]);
     if (beforeRows.length === 0) {
@@ -528,7 +629,7 @@ router.post('/seo/:category_id', verifyToken, requirePermission('manage_system')
   try {
     const { category_id } = req.params;
     const { meta_title, meta_description, meta_keywords, canonical_url, json_ld } = req.body;
-    const updated_by = req.user.id;
+    const updated_by = req.userId;
     // Get before state
     const [beforeRows] = await db.query('SELECT * FROM category_seo WHERE category_id = ?', [category_id]);
     if (beforeRows.length === 0) {
@@ -610,5 +711,158 @@ router.post('/upload',
     }
   }
 );
+
+/**
+ * Get products in a category
+ * @route GET /api/categories/:id/products
+ * @access Public
+ * @param {string} req.params.id - Category ID
+ * @returns {Object} List of products in the category
+ */
+router.get('/:id/products', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const [products] = await db.query(`
+      SELECT 
+        p.id, 
+        p.name, 
+        p.sku,
+        p.price,
+        p.status,
+        u.username as vendor_username,
+        (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY \`order\` ASC LIMIT 1) as image_url
+      FROM product_categories pc
+      JOIN products p ON pc.product_id = p.id
+      JOIN users u ON p.vendor_id = u.id
+      WHERE pc.category_id = ?
+      ORDER BY p.name ASC
+    `, [id]);
+    
+    res.json({ success: true, products });
+  } catch (err) {
+    secureLogger.error('Error fetching category products', err);
+    res.status(500).json({ error: 'Failed to fetch category products' });
+  }
+});
+
+/**
+ * Add a product to a category
+ * @route POST /api/categories/:id/products
+ * @access Private (requires manage_system permission)
+ * @param {string} req.params.id - Category ID
+ * @param {number} req.body.product_id - Product ID to add
+ * @returns {Object} Success confirmation
+ */
+router.post('/:id/products', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { product_id } = req.body;
+    
+    if (!product_id) {
+      return res.status(400).json({ error: 'Product ID is required' });
+    }
+    
+    // Check if category exists
+    const [category] = await db.query('SELECT id, name FROM categories WHERE id = ?', [id]);
+    if (category.length === 0) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
+    
+    // Check if product exists
+    const [product] = await db.query('SELECT id, name FROM products WHERE id = ?', [product_id]);
+    if (product.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    // Check if already associated
+    const [existing] = await db.query(
+      'SELECT product_id FROM product_categories WHERE category_id = ? AND product_id = ?', 
+      [id, product_id]
+    );
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'Product is already in this category' });
+    }
+    
+    // Add the association
+    await db.query(
+      'INSERT INTO product_categories (category_id, product_id) VALUES (?, ?)',
+      [id, product_id]
+    );
+    
+    // Log the change (using 'update' action since ENUM only allows create/update/delete)
+    await db.query(
+      'INSERT INTO category_change_log (category_id, action, before_json, after_json, changed_by) VALUES (?, ?, ?, ?, ?)',
+      [id, 'update', null, JSON.stringify({ action: 'add_product', product_id, product_name: product[0].name }), req.userId]
+    );
+    
+    secureLogger.info('Product added to category', {
+      categoryId: id,
+      categoryName: category[0].name,
+      productId: product_id,
+      productName: product[0].name,
+      adminId: req.userId
+    });
+    
+    res.json({ 
+      success: true, 
+      message: `Added "${product[0].name}" to category "${category[0].name}"`
+    });
+  } catch (err) {
+    secureLogger.error('Error adding product to category', err);
+    res.status(500).json({ error: 'Failed to add product to category' });
+  }
+});
+
+/**
+ * Remove a product from a category
+ * @route DELETE /api/categories/:id/products/:productId
+ * @access Private (requires manage_system permission)
+ * @param {string} req.params.id - Category ID
+ * @param {string} req.params.productId - Product ID to remove
+ * @returns {Object} Success confirmation
+ */
+router.delete('/:id/products/:productId', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const { id, productId } = req.params;
+    
+    // Check if association exists
+    const [existing] = await db.query(
+      'SELECT p.name as product_name, c.name as category_name FROM product_categories pc JOIN products p ON pc.product_id = p.id JOIN categories c ON pc.category_id = c.id WHERE pc.category_id = ? AND pc.product_id = ?',
+      [id, productId]
+    );
+    if (existing.length === 0) {
+      return res.status(404).json({ error: 'Product not found in this category' });
+    }
+    
+    // Remove the association
+    await db.query(
+      'DELETE FROM product_categories WHERE category_id = ? AND product_id = ?',
+      [id, productId]
+    );
+    
+    // Log the change (using 'update' action since ENUM only allows create/update/delete)
+    await db.query(
+      'INSERT INTO category_change_log (category_id, action, before_json, after_json, changed_by) VALUES (?, ?, ?, ?, ?)',
+      [id, 'update', JSON.stringify({ action: 'remove_product', product_id: productId, product_name: existing[0].product_name }), null, req.userId]
+    );
+    
+    secureLogger.info('Product removed from category', {
+      categoryId: id,
+      categoryName: existing[0].category_name,
+      productId: productId,
+      productName: existing[0].product_name,
+      adminId: req.userId
+    });
+    
+    res.json({ 
+      success: true, 
+      message: `Removed "${existing[0].product_name}" from category "${existing[0].category_name}"`
+    });
+  } catch (err) {
+    secureLogger.error('Error removing product from category', err);
+    res.status(500).json({ error: 'Failed to remove product from category' });
+  }
+});
 
 module.exports = router; 

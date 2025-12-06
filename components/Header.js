@@ -1,12 +1,27 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { SearchBar, SearchModal } from './search';
+import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { usePageType } from '../hooks/usePageType';
 import { getAuthToken, clearAuthTokens } from '../lib/csrf';
 import { authApiRequest, apiGet, API_ENDPOINTS } from '../lib/apiUtils';
-import ImpersonationExitButton from './ImpersonationExitButton';
 import styles from './Header.module.css';
+
+// Lazy load heavy components - only loaded when needed
+const SearchModal = dynamic(() => import('./search').then(mod => ({ default: mod.SearchModal })), {
+  ssr: false,
+  loading: () => null
+});
+
+const ImpersonationExitButton = dynamic(() => import('./ImpersonationExitButton'), {
+  ssr: false,
+  loading: () => null
+});
+
+// Cache keys and duration
+const CATEGORIES_CACHE_KEY = 'header_categories_cache';
+const CATEGORIES_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
 export default function Header() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -100,18 +115,36 @@ export default function Header() {
     };
   }, []);
 
-  // Fetch categories for Collections dropdown
+  // Fetch categories for Collections dropdown (with localStorage cache)
   useEffect(() => {
     const fetchCategories = async () => {
       try {
+        // Check localStorage cache first
+        const cached = localStorage.getItem(CATEGORIES_CACHE_KEY);
+        if (cached) {
+          const { data, timestamp } = JSON.parse(cached);
+          if (Date.now() - timestamp < CATEGORIES_CACHE_DURATION) {
+            setCategories(data);
+            return; // Use cached data, skip API call
+          }
+        }
+
+        // Fetch fresh data
         const endpoint = `${process.env.NEXT_PUBLIC_API_BASE_URL}/categories`;
         const response = await fetch(endpoint);
         if (response.ok) {
           const data = await response.json();
-          setCategories(data.categories || []);
+          const categoriesData = data.categories || [];
+          setCategories(categoriesData);
+          
+          // Cache the result
+          localStorage.setItem(CATEGORIES_CACHE_KEY, JSON.stringify({
+            data: categoriesData,
+            timestamp: Date.now()
+          }));
         }
       } catch (err) {
-        console.log('Error fetching categories:', err.message);
+        // Silent fail - categories dropdown just won't show
       }
     };
 
@@ -225,17 +258,17 @@ export default function Header() {
     <>
       <header className={`${styles.header} ${isScrolled ? styles.scrolled : ''}`}>
         <div className={styles.headerContainer}>
-          {/* Logo Section */}
+          {/* Logo Section - Using next/image for auto-optimization */}
           <div className={styles.logoSection}>
             <Link href="/" className={styles.logoLink}>
-              <img
+              <Image
                 src="/static_media/brakebee-logo.png"
                 alt="Brakebee Logo"
+                width={200}
+                height={75}
                 className={styles.logoImage}
-                onError={(e) => {
-                  // Fallback to existing logo if new one doesn't exist
-                  e.target.src = '/static_media/logo.png';
-                }}
+                priority={true}
+                quality={85}
               />
             </Link>
           </div>
@@ -439,7 +472,8 @@ export default function Header() {
         )}
       </header>
 
-      {/* Search Modal */}
+      {/* Search Modal - only loads when opened */}
+      {showSearchModal && (
       <SearchModal 
         isOpen={showSearchModal}
         onClose={() => {
@@ -449,6 +483,7 @@ export default function Header() {
         query={searchQuery}
         userId={userId}
       />
+      )}
 
       {/* Impersonation Exit Button (floats when active) */}
       <ImpersonationExitButton />

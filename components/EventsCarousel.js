@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import styles from './EventsCarousel.module.css';
 import { getApiUrl, getSmartMediaUrl } from '../lib/config';
+
+// Cache config
+const EVENTS_CACHE_KEY = 'events_carousel_cache';
+const EVENTS_CACHE_DURATION = 60 * 60 * 1000; // 1 hour (events change frequently)
 
 export default function EventsCarousel() {
   const [events, setEvents] = useState([]);
@@ -14,13 +19,31 @@ export default function EventsCarousel() {
 
   const loadUpcomingEvents = async () => {
     try {
+      // Check cache first
+      const cached = localStorage.getItem(EVENTS_CACHE_KEY);
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached);
+        if (Date.now() - timestamp < EVENTS_CACHE_DURATION) {
+          setEvents(data);
+          setEventsLoading(false);
+          return;
+        }
+      }
+
+      // Fetch fresh data
       const response = await fetch(getApiUrl('api/events/upcoming?limit=10'));
       if (response.ok) {
         const eventsData = await response.json();
         setEvents(eventsData);
+        
+        // Cache the result
+        localStorage.setItem(EVENTS_CACHE_KEY, JSON.stringify({
+          data: eventsData,
+          timestamp: Date.now()
+        }));
       }
     } catch (err) {
-      console.error('Error loading events:', err);
+      // Silent fail
     } finally {
       setEventsLoading(false);
     }
@@ -113,9 +136,14 @@ export default function EventsCarousel() {
               <Link href={`/events/${event.id}`} key={event.id} className={styles.eventCard}>
                 <div className={styles.eventImage}>
                   {event.featured_image ? (
-                    <img 
+                    <Image 
                       src={getSmartMediaUrl(event.featured_image)} 
                       alt={event.title}
+                      width={400}
+                      height={200}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      loading="lazy"
+                      quality={60}
                     />
                   ) : (
                     <div className={styles.imagePlaceholder}>

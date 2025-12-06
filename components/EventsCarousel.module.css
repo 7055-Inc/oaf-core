@@ -107,7 +107,7 @@
 
 .promoterName {
   font-size: 0.8rem;
-  color: #888;
+  color: #595959; /* WCAG AA compliant contrast ratio */
   margin: 0;
   font-style: italic;
 }

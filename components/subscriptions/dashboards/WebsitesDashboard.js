@@ -18,9 +18,10 @@ export default function WebsitesDashboard({ subscriptionData, userData, onUpdate
 
   // Tier-based feature gating (NEW UNIVERSAL PATTERN)
   const userTier = subscriptionData?.subscription?.tier;
-  const canUseCustomDomain = ['Professional Plan', 'Business Plan', 'Promoter Plan', 'Promoter Business Plan'].includes(userTier);
-  const canCreateMultipleSites = ['Business Plan', 'Promoter Business Plan'].includes(userTier);
-  const canAccessPremiumAddons = userTier !== 'Starter Plan';
+  const isAdminTier = userTier === 'Admin Plan';
+  const canUseCustomDomain = isAdminTier || ['Professional Plan', 'Business Plan', 'Promoter Plan', 'Promoter Business Plan'].includes(userTier);
+  const canCreateMultipleSites = isAdminTier || ['Business Plan', 'Promoter Business Plan'].includes(userTier);
+  const canAccessPremiumAddons = isAdminTier || userTier !== 'Starter Plan';
 
   useEffect(() => {
     if (userData) {
@@ -378,10 +379,621 @@ export default function WebsitesDashboard({ subscriptionData, userData, onUpdate
                   </div>
                 </div>
 
-                {/* TODO: Add expandable site management when needed */}
+                {/* Site Management Panel */}
                 {expandedSite === site.id && (
                   <div style={{ padding: '20px' }}>
-                    <p style={{ color: '#6c757d' }}>Site management details coming soon...</p>
+                    {/* Tab Navigation */}
+                    <div style={{ 
+                      display: 'flex', 
+                      borderBottom: '2px solid #dee2e6', 
+                      marginBottom: '20px',
+                      gap: '5px'
+                    }}>
+                      <button
+                        onClick={() => setSiteForm({ ...siteForm, activeTab: 'settings' })}
+                        style={{
+                          padding: '10px 20px',
+                          background: (siteForm.activeTab || 'settings') === 'settings' ? '#055474' : 'transparent',
+                          color: (siteForm.activeTab || 'settings') === 'settings' ? 'white' : '#495057',
+                          border: 'none',
+                          borderRadius: '4px 4px 0 0',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                          fontSize: '14px'
+                        }}
+                      >
+                        ⚙️ Site Settings
+                      </button>
+                      {canUseCustomDomain && (
+                        <button
+                          onClick={() => setSiteForm({ ...siteForm, activeTab: 'domain' })}
+                          style={{
+                            padding: '10px 20px',
+                            background: siteForm.activeTab === 'domain' ? '#055474' : 'transparent',
+                            color: siteForm.activeTab === 'domain' ? 'white' : '#495057',
+                            border: 'none',
+                            borderRadius: '4px 4px 0 0',
+                            cursor: 'pointer',
+                            fontWeight: 'bold',
+                            fontSize: '14px'
+                          }}
+                        >
+                          🌐 Custom Domain
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setSiteForm({ ...siteForm, activeTab: 'customize' })}
+                        style={{
+                          padding: '10px 20px',
+                          background: siteForm.activeTab === 'customize' ? '#055474' : 'transparent',
+                          color: siteForm.activeTab === 'customize' ? 'white' : '#495057',
+                          border: 'none',
+                          borderRadius: '4px 4px 0 0',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                          fontSize: '14px'
+                        }}
+                      >
+                        🎨 Customize
+                      </button>
+                      <button
+                        onClick={() => setSiteForm({ ...siteForm, activeTab: 'templates' })}
+                        style={{
+                          padding: '10px 20px',
+                          background: siteForm.activeTab === 'templates' ? '#055474' : 'transparent',
+                          color: siteForm.activeTab === 'templates' ? 'white' : '#495057',
+                          border: 'none',
+                          borderRadius: '4px 4px 0 0',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                          fontSize: '14px'
+                        }}
+                      >
+                        📋 Templates
+                      </button>
+                      <button
+                        onClick={() => setSiteForm({ ...siteForm, activeTab: 'addons' })}
+                        style={{
+                          padding: '10px 20px',
+                          background: siteForm.activeTab === 'addons' ? '#055474' : 'transparent',
+                          color: siteForm.activeTab === 'addons' ? 'white' : '#495057',
+                          border: 'none',
+                          borderRadius: '4px 4px 0 0',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                          fontSize: '14px'
+                        }}
+                      >
+                        🧩 Addons
+                      </button>
+                    </div>
+
+                    {/* Settings Tab */}
+                    {(siteForm.activeTab || 'settings') === 'settings' && (
+                      <div>
+                        <h4 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>Site Settings</h4>
+                        
+                        <div style={{ marginBottom: '15px' }}>
+                          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#495057' }}>
+                            Site Name
+                          </label>
+                          <input
+                            type="text"
+                            value={siteForm.site_name || ''}
+                            onChange={(e) => setSiteForm({ ...siteForm, site_name: e.target.value })}
+                            style={{
+                              width: '100%',
+                              padding: '8px',
+                              border: '1px solid #ced4da',
+                              borderRadius: '4px',
+                              fontSize: '14px'
+                            }}
+                          />
+                        </div>
+
+                        <div style={{ marginBottom: '15px' }}>
+                          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#495057' }}>
+                            Site Title (shown in browser tab)
+                          </label>
+                          <input
+                            type="text"
+                            value={siteForm.site_title || ''}
+                            onChange={(e) => setSiteForm({ ...siteForm, site_title: e.target.value })}
+                            style={{
+                              width: '100%',
+                              padding: '8px',
+                              border: '1px solid #ced4da',
+                              borderRadius: '4px',
+                              fontSize: '14px'
+                            }}
+                          />
+                        </div>
+
+                        <div style={{ marginBottom: '15px' }}>
+                          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#495057' }}>
+                            Site Description (for SEO)
+                          </label>
+                          <textarea
+                            value={siteForm.site_description || ''}
+                            onChange={(e) => setSiteForm({ ...siteForm, site_description: e.target.value })}
+                            rows="3"
+                            style={{
+                              width: '100%',
+                              padding: '8px',
+                              border: '1px solid #ced4da',
+                              borderRadius: '4px',
+                              fontSize: '14px',
+                              resize: 'vertical'
+                            }}
+                          />
+                        </div>
+
+                        <button
+                          onClick={async () => {
+                            try {
+                              setProcessing(true);
+                              const response = await authApiRequest(`api/sites/${site.id}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  site_name: siteForm.site_name,
+                                  site_title: siteForm.site_title,
+                                  site_description: siteForm.site_description
+                                })
+                              });
+                              if (response.ok) {
+                                alert('Site settings saved!');
+                                fetchUserSites();
+                              } else {
+                                const err = await response.json();
+                                alert(`Error: ${err.error || 'Failed to save'}`);
+                              }
+                            } catch (err) {
+                              alert('Error saving settings');
+                            } finally {
+                              setProcessing(false);
+                            }
+                          }}
+                          disabled={processing}
+                          style={{
+                            padding: '10px 20px',
+                            background: processing ? '#6c757d' : '#28a745',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: processing ? 'not-allowed' : 'pointer',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          {processing ? 'Saving...' : 'Save Settings'}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Custom Domain Tab */}
+                    {siteForm.activeTab === 'domain' && canUseCustomDomain && (
+                      <div>
+                        <h4 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>Custom Domain</h4>
+                        <CustomDomainSection site={site} />
+                      </div>
+                    )}
+
+                    {/* Customize Tab */}
+                    {siteForm.activeTab === 'customize' && (
+                      <div>
+                        <h4 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>Site Customization</h4>
+                        <SiteCustomizer 
+                          site={site} 
+                          userData={userData} 
+                          onUpdate={fetchUserSites}
+                        />
+                      </div>
+                    )}
+
+                    {/* Templates Tab */}
+                    {siteForm.activeTab === 'templates' && (
+                      <div>
+                        <h4 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>Choose Template</h4>
+                        <p style={{ color: '#6c757d', marginBottom: '20px', fontSize: '14px' }}>
+                          Select a template to change the look and feel of your site. Your content will be preserved.
+                        </p>
+                        
+                        {availableTemplates.length === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '40px', color: '#6c757d' }}>
+                            Loading templates...
+                          </div>
+                        ) : (
+                          <div style={{ 
+                            display: 'grid', 
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', 
+                            gap: '20px' 
+                          }}>
+                            {availableTemplates.map(template => {
+                              const isCurrentTemplate = site.template_id === template.id;
+                              const tierLocked = template.tier_required && 
+                                !isAdminTier &&
+                                !['Professional Plan', 'Business Plan', 'Promoter Plan', 'Promoter Business Plan'].includes(userTier) &&
+                                template.tier_required !== 'Starter Plan';
+                              
+                              return (
+                                <div 
+                                  key={template.id}
+                                  style={{
+                                    border: isCurrentTemplate ? '3px solid #055474' : '1px solid #dee2e6',
+                                    borderRadius: '8px',
+                                    overflow: 'hidden',
+                                    background: 'white',
+                                    opacity: tierLocked ? 0.7 : 1
+                                  }}
+                                >
+                                  {/* Template Preview */}
+                                  <div style={{ 
+                                    height: '150px', 
+                                    background: template.preview_image_url 
+                                      ? `url(${template.preview_image_url}) center/cover` 
+                                      : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                  }}>
+                                    {!template.preview_image_url && (
+                                      <span style={{ color: 'white', fontSize: '2rem' }}>📋</span>
+                                    )}
+                                    {isCurrentTemplate && (
+                                      <div style={{
+                                        position: 'absolute',
+                                        top: '10px',
+                                        right: '10px',
+                                        background: '#055474',
+                                        color: 'white',
+                                        padding: '4px 8px',
+                                        borderRadius: '4px',
+                                        fontSize: '11px',
+                                        fontWeight: 'bold'
+                                      }}>
+                                        CURRENT
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  {/* Template Info */}
+                                  <div style={{ padding: '15px' }}>
+                                    <h5 style={{ margin: '0 0 8px 0', color: '#2c3e50' }}>
+                                      {template.template_name}
+                                      {tierLocked && <span style={{ marginLeft: '8px', fontSize: '12px' }}>🔒</span>}
+                                    </h5>
+                                    <p style={{ 
+                                      margin: '0 0 12px 0', 
+                                      fontSize: '13px', 
+                                      color: '#6c757d',
+                                      minHeight: '40px'
+                                    }}>
+                                      {template.description || 'A beautiful template for your site.'}
+                                    </p>
+                                    
+                                    {tierLocked ? (
+                                      <div style={{
+                                        padding: '8px',
+                                        background: '#fff3cd',
+                                        borderRadius: '4px',
+                                        fontSize: '12px',
+                                        color: '#856404',
+                                        textAlign: 'center'
+                                      }}>
+                                        Requires {template.tier_required}
+                                      </div>
+                                    ) : isCurrentTemplate ? (
+                                      <button
+                                        disabled
+                                        style={{
+                                          width: '100%',
+                                          padding: '8px',
+                                          background: '#e9ecef',
+                                          color: '#6c757d',
+                                          border: 'none',
+                                          borderRadius: '4px',
+                                          cursor: 'not-allowed',
+                                          fontWeight: 'bold'
+                                        }}
+                                      >
+                                        ✓ Active
+                                      </button>
+                                    ) : (
+                                      <button
+                                        onClick={async () => {
+                                          if (!confirm(`Switch to "${template.template_name}" template? Your content will be preserved.`)) return;
+                                          try {
+                                            setProcessing(true);
+                                            const response = await authApiRequest(`api/sites/${site.id}`, {
+                                              method: 'PUT',
+                                              headers: { 'Content-Type': 'application/json' },
+                                              body: JSON.stringify({ template_id: template.id })
+                                            });
+                                            if (response.ok) {
+                                              alert('Template updated successfully!');
+                                              fetchUserSites();
+                                            } else {
+                                              const err = await response.json();
+                                              alert(`Error: ${err.error || 'Failed to update template'}`);
+                                            }
+                                          } catch (err) {
+                                            alert('Error updating template');
+                                          } finally {
+                                            setProcessing(false);
+                                          }
+                                        }}
+                                        disabled={processing}
+                                        style={{
+                                          width: '100%',
+                                          padding: '8px',
+                                          background: processing ? '#6c757d' : '#055474',
+                                          color: 'white',
+                                          border: 'none',
+                                          borderRadius: '4px',
+                                          cursor: processing ? 'not-allowed' : 'pointer',
+                                          fontWeight: 'bold'
+                                        }}
+                                      >
+                                        {processing ? 'Applying...' : 'Use This Template'}
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Addons Tab */}
+                    {siteForm.activeTab === 'addons' && (
+                      <div>
+                        <h4 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>Site Addons</h4>
+                        <p style={{ color: '#6c757d', marginBottom: '20px', fontSize: '14px' }}>
+                          Enhance your site with powerful addons. Some addons apply to your account, others are site-specific.
+                        </p>
+
+                        {!canAccessPremiumAddons && (
+                          <div style={{
+                            padding: '15px',
+                            background: '#fff3cd',
+                            border: '1px solid #ffc107',
+                            borderRadius: '4px',
+                            marginBottom: '20px'
+                          }}>
+                            <strong>🔒 Premium Addons</strong>
+                            <p style={{ margin: '10px 0 0 0', fontSize: '14px' }}>
+                              Upgrade from Starter Plan to access premium addons.
+                            </p>
+                          </div>
+                        )}
+                        
+                        {availableAddons.length === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '40px', color: '#6c757d' }}>
+                            Loading addons...
+                          </div>
+                        ) : (
+                          <div>
+                            {/* Group addons by category */}
+                            {['site_features', 'user_features', 'marketplace', 'other'].map(category => {
+                              const categoryAddons = availableAddons.filter(a => 
+                                (a.category || 'other').toLowerCase() === category.toLowerCase()
+                              );
+                              if (categoryAddons.length === 0) return null;
+                              
+                              const categoryLabels = {
+                                'site_features': '🌐 Site Features',
+                                'user_features': '👤 Account Features', 
+                                'marketplace': '🛒 Marketplace Connectors',
+                                'other': '📦 Other'
+                              };
+                              
+                              return (
+                                <div key={category} style={{ marginBottom: '25px' }}>
+                                  <h5 style={{ 
+                                    margin: '0 0 15px 0', 
+                                    color: '#495057',
+                                    borderBottom: '1px solid #dee2e6',
+                                    paddingBottom: '8px'
+                                  }}>
+                                    {categoryLabels[category] || category}
+                                  </h5>
+                                  
+                                  <div style={{ 
+                                    display: 'grid', 
+                                    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
+                                    gap: '15px' 
+                                  }}>
+                                    {categoryAddons.map(addon => {
+                                      const tierLocked = addon.tier_required && 
+                                        !canAccessPremiumAddons &&
+                                        addon.tier_required !== 'Starter Plan';
+                                      const alreadyHas = addon.user_already_has;
+                                      
+                                      return (
+                                        <div 
+                                          key={addon.id}
+                                          style={{
+                                            border: alreadyHas ? '2px solid #28a745' : '1px solid #dee2e6',
+                                            borderRadius: '8px',
+                                            padding: '15px',
+                                            background: 'white',
+                                            opacity: tierLocked ? 0.7 : 1
+                                          }}
+                                        >
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                                            <div>
+                                              <h6 style={{ margin: '0 0 4px 0', color: '#2c3e50' }}>
+                                                {addon.addon_name}
+                                                {tierLocked && <span style={{ marginLeft: '6px' }}>🔒</span>}
+                                              </h6>
+                                              <span style={{
+                                                fontSize: '11px',
+                                                padding: '2px 6px',
+                                                borderRadius: '10px',
+                                                background: addon.addon_scope === 'user' ? '#e3f2fd' : '#f3e5f5',
+                                                color: addon.addon_scope === 'user' ? '#1565c0' : '#7b1fa2'
+                                              }}>
+                                                {addon.addon_scope === 'user' ? '👤 Account-wide' : '🌐 Site-specific'}
+                                              </span>
+                                            </div>
+                                            {addon.monthly_price > 0 && (
+                                              <div style={{ 
+                                                fontSize: '14px', 
+                                                fontWeight: 'bold', 
+                                                color: '#28a745' 
+                                              }}>
+                                                ${addon.monthly_price}/mo
+                                              </div>
+                                            )}
+                                            {addon.monthly_price === 0 && (
+                                              <div style={{ 
+                                                fontSize: '12px', 
+                                                fontWeight: 'bold', 
+                                                color: '#6c757d',
+                                                background: '#e9ecef',
+                                                padding: '2px 8px',
+                                                borderRadius: '10px'
+                                              }}>
+                                                FREE
+                                              </div>
+                                            )}
+                                          </div>
+                                          
+                                          <p style={{ 
+                                            margin: '0 0 12px 0', 
+                                            fontSize: '13px', 
+                                            color: '#6c757d',
+                                            minHeight: '36px'
+                                          }}>
+                                            {addon.description || 'Enhance your site with this addon.'}
+                                          </p>
+                                          
+                                          {tierLocked ? (
+                                            <div style={{
+                                              padding: '6px',
+                                              background: '#fff3cd',
+                                              borderRadius: '4px',
+                                              fontSize: '12px',
+                                              color: '#856404',
+                                              textAlign: 'center'
+                                            }}>
+                                              Requires {addon.tier_required}
+                                            </div>
+                                          ) : alreadyHas ? (
+                                            <button
+                                              onClick={async () => {
+                                                if (!confirm(`Disable "${addon.addon_name}"?`)) return;
+                                                try {
+                                                  setProcessing(true);
+                                                  const endpoint = addon.addon_scope === 'user' 
+                                                    ? `api/sites/user-addons/${addon.id}`
+                                                    : `api/sites/${site.id}/addons/${addon.id}`;
+                                                  const response = await authApiRequest(endpoint, {
+                                                    method: 'DELETE'
+                                                  });
+                                                  if (response.ok) {
+                                                    alert('Addon disabled!');
+                                                    fetchTemplatesAndAddons();
+                                                  } else {
+                                                    const err = await response.json();
+                                                    alert(`Error: ${err.error || 'Failed to disable addon'}`);
+                                                  }
+                                                } catch (err) {
+                                                  alert('Error disabling addon');
+                                                } finally {
+                                                  setProcessing(false);
+                                                }
+                                              }}
+                                              disabled={processing}
+                                              style={{
+                                                width: '100%',
+                                                padding: '8px',
+                                                background: '#dc3545',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                cursor: processing ? 'not-allowed' : 'pointer',
+                                                fontWeight: 'bold',
+                                                fontSize: '13px'
+                                              }}
+                                            >
+                                              ✓ Enabled - Click to Disable
+                                            </button>
+                                          ) : (
+                                            <button
+                                              onClick={async () => {
+                                                const priceNote = addon.monthly_price > 0 
+                                                  ? ` This will add $${addon.monthly_price}/month to your subscription.` 
+                                                  : '';
+                                                if (!confirm(`Enable "${addon.addon_name}"?${priceNote}`)) return;
+                                                try {
+                                                  setProcessing(true);
+                                                  const endpoint = addon.addon_scope === 'user' 
+                                                    ? `api/sites/user-addons/${addon.id}`
+                                                    : `api/sites/${site.id}/addons/${addon.id}`;
+                                                  const response = await authApiRequest(endpoint, {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ addon_id: addon.id })
+                                                  });
+                                                  if (response.ok) {
+                                                    alert('Addon enabled!');
+                                                    fetchTemplatesAndAddons();
+                                                  } else {
+                                                    const err = await response.json();
+                                                    alert(`Error: ${err.error || 'Failed to enable addon'}`);
+                                                  }
+                                                } catch (err) {
+                                                  alert('Error enabling addon');
+                                                } finally {
+                                                  setProcessing(false);
+                                                }
+                                              }}
+                                              disabled={processing}
+                                              style={{
+                                                width: '100%',
+                                                padding: '8px',
+                                                background: processing ? '#6c757d' : '#28a745',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                cursor: processing ? 'not-allowed' : 'pointer',
+                                                fontWeight: 'bold',
+                                                fontSize: '13px'
+                                              }}
+                                            >
+                                              {processing ? 'Processing...' : 'Enable Addon'}
+                                            </button>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Upgrade prompt for non-Pro users trying to access domain */}
+                    {!canUseCustomDomain && (
+                      <div style={{
+                        marginTop: '20px',
+                        padding: '15px',
+                        background: '#fff3cd',
+                        border: '1px solid #ffc107',
+                        borderRadius: '4px'
+                      }}>
+                        <strong>🔒 Custom Domain</strong>
+                        <p style={{ margin: '10px 0 0 0', fontSize: '14px' }}>
+                          Upgrade to Professional Plan or higher to use your own custom domain.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

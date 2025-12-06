@@ -1,6 +1,7 @@
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
+import Breadcrumb from '../../components/Breadcrumb';
 import WholesalePricing from '../../components/WholesalePricing';
 import { isWholesaleCustomer } from '../../lib/userUtils';
 import { getAuthToken } from '../../lib/csrf';
@@ -115,17 +116,71 @@ export default function CategoryLandingPage() {
           <meta name="twitter:image" content={getImageUrl(categoryContent.hero_image)} />
         )}
         
-        {/* JSON-LD Structured Data */}
-        {categorySEO?.json_ld && (
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: categorySEO.json_ld }}
-          />
-        )}
+        {/* JSON-LD Structured Data - Auto-generated (Google compliant) */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "CollectionPage",
+              "name": category.name,
+              "description": metaDescription,
+              "url": canonicalUrl,
+              ...(categoryContent?.hero_image && {
+                "image": getImageUrl(categoryContent.hero_image)
+              }),
+              "mainEntity": {
+                "@type": "ItemList",
+                "numberOfItems": products.length,
+                "itemListElement": products.slice(0, 20).map((product, index) => ({
+                  "@type": "ListItem",
+                  "position": index + 1,
+                  "item": {
+                    "@type": "Product",
+                    "name": product.name,
+                    "description": product.description ? product.description.slice(0, 200) : product.short_description || `${product.name} - available on our marketplace`,
+                    "url": getFrontendUrl(`/products/${product.id}`),
+                    ...(product.sku && { "sku": product.sku }),
+                    ...(product.images && product.images.length > 0 && {
+                      "image": getImageUrl(typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url)
+                    }),
+                    ...(product.price && {
+                      "offers": {
+                        "@type": "Offer",
+                        "price": product.price,
+                        "priceCurrency": "USD",
+                        "availability": product.status === 'active' ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+                        "url": getFrontendUrl(`/products/${product.id}`)
+                      }
+                    })
+                  }
+                }))
+              },
+              "breadcrumb": {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                  { "@type": "ListItem", "position": 1, "name": "Home", "item": getFrontendUrl('/') },
+                  { "@type": "ListItem", "position": 2, "name": "Marketplace", "item": getFrontendUrl('/marketplace') },
+                  ...(category.parent_name ? [{ "@type": "ListItem", "position": 3, "name": category.parent_name, "item": getFrontendUrl(`/category/${category.parent_id}`) }] : []),
+                  { "@type": "ListItem", "position": category.parent_name ? 4 : 3, "name": category.name, "item": canonicalUrl }
+                ]
+              }
+            })
+          }}
+        />
       </Head>
 
+      {/* SEO Breadcrumb */}
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '1rem 2rem 0' }}>
+        <Breadcrumb items={[
+          { label: 'Home', href: '/' },
+          { label: 'Marketplace', href: '/marketplace' },
+          ...(category.parent_name ? [{ label: category.parent_name, href: `/category/${category.parent_id}` }] : []),
+          { label: category.name }
+        ]} />
+      </div>
 
-        {/* Grey header section that bleeds to top */}
+      {/* Grey header section that bleeds to top */}
         <div style={{ 
           backgroundColor: '#cccccc', 
           color: 'white',

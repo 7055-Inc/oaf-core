@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import Head from 'next/head';
 import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
 import firebaseApp from '../lib/firebase';
 
@@ -51,7 +52,13 @@ export default function ForgotPassword() {
 
 
   return (
-    <div style={{ 
+    <>
+      <Head>
+        <title>Reset Password | Brakebee</title>
+        <meta name="description" content="Reset your Brakebee account password. Enter your email to receive a password reset link." />
+      </Head>
+      
+      <div style={{ 
         padding: '2rem', 
         maxWidth: '500px', 
         margin: '2rem auto',
@@ -199,5 +206,6 @@ export default function ForgotPassword() {
           </a>
         </div>
       </div>
+    </>
   );
 }

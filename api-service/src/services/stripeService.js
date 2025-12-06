@@ -379,6 +379,90 @@ class StripeService {
     }
   }
 
+  /**
+   * Process vendor transfers with delayed payout (after fulfillment)
+   * Creates transfers to vendor Connect accounts with specified payout delay
+   * This is the secure flow: payment → fulfillment → transfer → delayed payout
+   * 
+   * @param {number} orderId - Order ID for transfer processing
+   * @param {string} chargeId - Stripe charge ID (ch_xxx) for source_transaction
+   * @param {number} payoutDelayDays - Days to delay payout after transfer (default: 3)
+   * @returns {Promise<Array>} Array of transfer objects
+   * @throws {Error} If transfer processing fails
+   */
+  async processVendorTransfersWithDelay(orderId, chargeId, payoutDelayDays = 3) {
+    try {
+      // Get order items with vendor and commission info
+      const orderItems = await this.getOrderItemsWithCommissions(orderId);
+      const transfers = [];
+
+      for (const item of orderItems) {
+        const vendorAmount = item.price - item.commission_amount;
+        
+        if (vendorAmount > 0 && item.stripe_account_id) {
+          // Create transfer to vendor's Connect account
+          const transfer = await this.stripe.transfers.create({
+            amount: Math.round(vendorAmount * 100), // Convert to cents
+            currency: 'usd',
+            destination: item.stripe_account_id,
+            source_transaction: chargeId, // Use charge ID, not payment intent ID
+            metadata: {
+              order_id: orderId.toString(),
+              vendor_id: item.vendor_id.toString(),
+              commission_rate: (item.commission_rate || 0).toString(),
+              commission_amount: (item.commission_amount || 0).toString(),
+              payout_delay_days: payoutDelayDays.toString()
+            }
+          });
+
+          transfers.push(transfer);
+
+          // Record transaction with payout delay from TODAY (not from order date)
+          await this.recordVendorTransactionWithDelay({
+            vendor_id: item.vendor_id,
+            order_id: orderId,
+            transaction_type: 'sale',
+            amount: vendorAmount,
+            commission_rate: item.commission_rate || 0,
+            commission_amount: item.commission_amount || 0,
+            stripe_transfer_id: transfer.id,
+            status: 'completed',
+            payout_delay_days: payoutDelayDays
+          });
+        }
+      }
+
+      return transfers;
+    } catch (error) {
+      console.error('Error processing vendor transfers with delay:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Record vendor transaction with specific payout delay
+   * Used for fulfillment-triggered transfers
+   */
+  async recordVendorTransactionWithDelay(transactionData) {
+    const query = `
+      INSERT INTO vendor_transactions 
+      (vendor_id, order_id, transaction_type, amount, commission_rate, commission_amount, stripe_transfer_id, status, payout_date)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(CURDATE(), INTERVAL ? DAY))
+    `;
+    
+    return db.execute(query, [
+      transactionData.vendor_id,
+      transactionData.order_id,
+      transactionData.transaction_type,
+      transactionData.amount,
+      transactionData.commission_rate,
+      transactionData.commission_amount,
+      transactionData.stripe_transfer_id,
+      transactionData.status,
+      transactionData.payout_delay_days
+    ]);
+  }
+
   // ===== COMMISSION CALCULATIONS =====
 
   /**

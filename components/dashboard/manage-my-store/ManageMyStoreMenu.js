@@ -243,6 +243,18 @@ export default function ManageMyStoreMenu({
             </li>
           )}
           
+          {/* Walmart Connector - only show if user has purchased the walmart-connector addon */}
+          {hasAddon(userData, 'walmart-connector') && (
+            <li>
+              <button 
+                className={styles.sidebarLink}
+                onClick={() => openSlideIn('walmart-connector', { title: 'Walmart Marketplace' })}
+              >
+                Walmart Marketplace
+              </button>
+            </li>
+          )}
+          
           {/* Articles & Pages - sites permission only */}
           {hasPermission(userData, 'sites') && (
             <li>

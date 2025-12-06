@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import styles from './ArtistCarousel.module.css';
 import { getApiUrl, getSmartMediaUrl } from '../lib/config';
+
+// Cache config
+const ARTISTS_CACHE_KEY = 'artists_carousel_cache';
+const ARTISTS_CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours
 
 export default function ArtistCarousel() {
   const [artists, setArtists] = useState([]);
@@ -13,26 +18,37 @@ export default function ArtistCarousel() {
 
   const loadArtists = async () => {
     try {
-      // Get 50 random active artists for the carousel
+      // Check cache first
+      const cached = localStorage.getItem(ARTISTS_CACHE_KEY);
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached);
+        if (Date.now() - timestamp < ARTISTS_CACHE_DURATION) {
+          // Use cached data and duplicate for infinite scroll (2 copies for seamless loop)
+          const duplicatedArtists = [...data, ...data];
+          setArtists(duplicatedArtists);
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // Fetch fresh data - get 50 random active artists
       const response = await fetch(getApiUrl('users/artists?limit=50&random=true'));
       if (response.ok) {
         const artistsData = await response.json();
         if (artistsData.length > 0) {
-          // Duplicate the data multiple times to create seamless infinite scroll
-          // We need enough copies to ensure smooth looping without gaps
-          const duplicatedArtists = [
-            ...artistsData, 
-            ...artistsData, 
-            ...artistsData, 
-            ...artistsData,
-            ...artistsData,
-            ...artistsData
-          ];
+          // Cache the raw data (not duplicated)
+          localStorage.setItem(ARTISTS_CACHE_KEY, JSON.stringify({
+            data: artistsData,
+            timestamp: Date.now()
+          }));
+          
+          // Duplicate for infinite scroll (2 copies for seamless loop)
+          const duplicatedArtists = [...artistsData, ...artistsData];
           setArtists(duplicatedArtists);
         }
       }
     } catch (err) {
-      console.error('Error loading artists:', err);
+      // Silent fail
     } finally {
       setIsLoading(false);
     }
@@ -122,9 +138,15 @@ export default function ArtistCarousel() {
               >
                 <div className={styles.artistImage}>
                   {getArtistImage(artist) ? (
-                    <img 
+                    <Image 
                       src={getArtistImage(artist)} 
                       alt={getDisplayName(artist)}
+                      width={120}
+                      height={140}
+                      style={{ objectFit: 'cover' }}
+                      loading="lazy"
+                      quality={60}
+                      unoptimized={getArtistImage(artist)?.toLowerCase().endsWith('.bmp')}
                     />
                   ) : (
                     <div className={styles.imagePlaceholder}>
@@ -165,9 +187,15 @@ export default function ArtistCarousel() {
               >
                 <div className={styles.artistImage}>
                   {getArtistImage(artist) ? (
-                    <img 
+                    <Image 
                       src={getArtistImage(artist)} 
                       alt={getDisplayName(artist)}
+                      width={120}
+                      height={140}
+                      style={{ objectFit: 'cover' }}
+                      loading="lazy"
+                      quality={60}
+                      unoptimized={getArtistImage(artist)?.toLowerCase().endsWith('.bmp')}
                     />
                   ) : (
                     <div className={styles.imagePlaceholder}>

@@ -269,6 +269,9 @@ try {
   // TikTok marketplace connector
   app.use('/api/tiktok', require('./routes/tiktok'));
   
+  // Walmart marketplace connector (Brakebee-as-seller)
+  app.use('/api/walmart', require('./routes/walmart'));
+  
   // Event management
   app.use('/api/events', require('./routes/events'));
   // Event types route consolidated into events.js

@@ -100,6 +100,29 @@ export default function ManageSystemMenu({
               Unclaimed Events
             </button>
           </li>
+          
+          {/* Feeds Section */}
+          <li style={{ marginTop: '15px' }}>
+            <span style={{ 
+              display: 'block', 
+              padding: '5px 0', 
+              fontSize: '11px', 
+              fontWeight: 'bold', 
+              color: '#999',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              Marketplace Feeds
+            </span>
+          </li>
+          <li>
+            <button 
+              className={styles.sidebarLink}
+              onClick={() => openSlideIn('walmart-feed', { title: 'Walmart Feed Management' })}
+            >
+              🏪 Walmart Feed
+            </button>
+          </li>
         </ul>
       )}
     </div>

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Head from 'next/head';
 import { getAuth, createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import firebaseApp from '../lib/firebase';
 import { getApiUrl } from '../lib/config';
@@ -146,6 +147,11 @@ export default function Signup() {
 
   return (
     <>
+      <Head>
+        <title>Sign Up | Brakebee</title>
+        <meta name="description" content="Create your free Brakebee account. Join our community of artists and art lovers to discover, create, and share unique artwork." />
+      </Head>
+      
       {/* Cookie Consent Modal - blocks everything until consent */}
       {showConsentModal && (
         <CookieConsentModal 

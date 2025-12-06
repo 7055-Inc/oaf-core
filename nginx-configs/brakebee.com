@@ -26,25 +26,39 @@ server {
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     add_header Cross-Origin-Opener-Policy "same-origin-allow-popups" always;
-    add_header Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://accounts.google.com https://www.gstatic.com https://js.stripe.com https://www.googletagmanager.com https://diffuser-cdn.app-us1.com https://prism.app-us1.com; connect-src 'self' https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://www.googleapis.com https://accounts.google.com https://firestore.googleapis.com https://firebasestorage.googleapis.com https://firebase.googleapis.com https://apis.google.com https://www.google.com https://api.brakebee.com https://api.stripe.com https://www.googletagmanager.com https://diffuser-cdn.app-us1.com https://prism.app-us1.com; frame-src 'self' https://accounts.google.com https://apis.google.com https://www.gstatic.com https://*.firebaseapp.com https://*.firebaseapp.com/ https://js.stripe.com; worker-src 'self' blob:;" always;
+    add_header Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://accounts.google.com https://www.gstatic.com https://js.stripe.com https://www.googletagmanager.com https://diffuser-cdn.app-us1.com https://prism.app-us1.com https://trackcmp.net; connect-src 'self' https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://www.googleapis.com https://accounts.google.com https://firestore.googleapis.com https://firebasestorage.googleapis.com https://firebase.googleapis.com https://apis.google.com https://www.google.com https://api.brakebee.com https://api.stripe.com https://www.googletagmanager.com https://diffuser-cdn.app-us1.com https://prism.app-us1.com https://trackcmp.net; frame-src 'self' https://accounts.google.com https://apis.google.com https://www.gstatic.com https://*.firebaseapp.com https://*.firebaseapp.com/ https://js.stripe.com; worker-src 'self' blob:;" always;
     
     access_log /var/log/nginx/brakebee_access.log;
     error_log /var/log/nginx/brakebee_error.log debug;
     
-    # Serve static media files directly
+    # Serve static media files directly with aggressive caching
     location /static_media/ {
         alias /var/www/main/public/static_media/;
-        add_header Cache-Control "public, max-age=31536000";
-        add_header Access-Control-Allow-Origin "*";
-        add_header Access-Control-Allow-Methods "GET, OPTIONS";
-        add_header Access-Control-Allow-Headers "Range";
         
-
+        # Default caching for all static media (images, etc.)
+        add_header Cache-Control "public, max-age=2592000, stale-while-revalidate=86400" always;
+        add_header Access-Control-Allow-Origin "*" always;
+        add_header Access-Control-Allow-Methods "GET, OPTIONS" always;
+        add_header Access-Control-Allow-Headers "Range" always;
         
-        # Handle video files
+        # Handle video files - include cache headers!
         location ~* \.(mp4|webm|ogg)$ {
-            add_header Accept-Ranges bytes;
-            add_header Content-Type video/mp4;
+            add_header Cache-Control "public, max-age=2592000, stale-while-revalidate=86400" always;
+            add_header Access-Control-Allow-Origin "*" always;
+            add_header Accept-Ranges bytes always;
+            
+            # Proper MIME types
+            types {
+                video/mp4 mp4;
+                video/webm webm;
+                video/ogg ogg;
+            }
+        }
+        
+        # Handle images with longer cache
+        location ~* \.(jpg|jpeg|png|gif|webp|svg|ico)$ {
+            add_header Cache-Control "public, max-age=2592000, immutable" always;
+            add_header Access-Control-Allow-Origin "*" always;
         }
     }
     

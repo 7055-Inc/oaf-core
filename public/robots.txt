@@ -1,0 +1,15 @@
+# *
+User-agent: *
+Allow: /
+Disallow: /dashboard/
+Disallow: /api/
+Disallow: /checkout/
+Disallow: /cart/
+Disallow: /profile-completion
+Disallow: /terms-acceptance
+
+# Host
+Host: https://brakebee.com
+
+# Sitemaps
+Sitemap: https://brakebee.com/sitemap.xml
