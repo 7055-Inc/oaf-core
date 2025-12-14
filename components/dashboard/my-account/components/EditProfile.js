@@ -2,26 +2,17 @@ import { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
 import { authApiRequest, API_ENDPOINTS } from '../../../../lib/apiUtils';
 
-// Get all supported timezones with US timezones prioritized
+// USA timezones only
 const getTimezones = () => {
-  try {
-    const allTimezones = Intl.supportedValuesOf('timeZone');
-    
-    // Separate US and non-US timezones
-    const usTimezones = allTimezones.filter(tz => tz.startsWith('America/')).sort();
-    const otherTimezones = allTimezones.filter(tz => !tz.startsWith('America/')).sort();
-    
-    // Return US timezones first, then others
-    return [...usTimezones, ...otherTimezones];
-  } catch (error) {
-    // Fallback for older browsers - US timezones first
-    return [
-      'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
-      'America/Phoenix', 'America/Anchorage', 'Pacific/Honolulu',
-      'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Rome',
-      'Asia/Tokyo', 'Asia/Shanghai', 'Asia/Kolkata', 'Australia/Sydney'
-    ];
-  }
+  return [
+    { value: 'America/New_York', label: 'Eastern Time (ET)' },
+    { value: 'America/Chicago', label: 'Central Time (CT)' },
+    { value: 'America/Denver', label: 'Mountain Time (MT)' },
+    { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
+    { value: 'America/Phoenix', label: 'Arizona (No DST)' },
+    { value: 'America/Anchorage', label: 'Alaska Time (AKT)' },
+    { value: 'Pacific/Honolulu', label: 'Hawaii Time (HST)' },
+  ];
 };
 
 // Common world languages for multi-select
@@ -707,9 +698,9 @@ export default function EditProfile({ userData }) {
                 onChange={handleChange}
               >
                 <option value="">Select timezone...</option>
-                {getTimezones().map(timezone => (
-                  <option key={timezone} value={timezone}>
-                    {timezone.replace(/_/g, ' ')}
+                {getTimezones().map(tz => (
+                  <option key={tz.value} value={tz.value}>
+                    {tz.label}
                   </option>
                 ))}
               </select>

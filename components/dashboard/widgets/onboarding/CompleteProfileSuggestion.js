@@ -1,13 +1,13 @@
 import React from 'react';
-import { useRouter } from 'next/router';
 import styles from './onboarding.module.css';
 
-export default function CompleteProfileSuggestion({ suggestionData, onSnooze }) {
-  const router = useRouter();
+export default function CompleteProfileSuggestion({ suggestionData, onSnooze, openSlideIn }) {
   const missingFields = suggestionData?.missingFields || [];
 
-  const handleGoToProfile = () => {
-    router.push('/profile/edit');
+  const handleEditProfile = () => {
+    if (openSlideIn) {
+      openSlideIn('edit-profile', { title: 'Edit Profile' });
+    }
   };
 
   // Show up to 3 missing items in the description
@@ -32,7 +32,7 @@ export default function CompleteProfileSuggestion({ suggestionData, onSnooze }) 
 
       <div className={styles.actions}>
         <button 
-          onClick={handleGoToProfile}
+          onClick={handleEditProfile}
           className={styles.primaryAction}
         >
           Edit Profile

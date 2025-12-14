@@ -51,7 +51,8 @@ const SUGGESTIONS = [
     condition: (user) => getMissingFields(user).length > 0,
     cooldownHours: 48,
     Component: CompleteProfileSuggestion,
-    getData: (user) => ({ missingFields: getMissingFields(user) })
+    getData: (user) => ({ missingFields: getMissingFields(user) }),
+    needsSlideIn: true
   },
   {
     id: 'website-subscription',
