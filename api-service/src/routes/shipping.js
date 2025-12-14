@@ -532,7 +532,7 @@ router.post('/process-batch', verifyToken, async (req, res) => {
             transfer_queued: transferResult 
           });
         } else {
-        results.push({ id: entry.id, status: 'success', tracking: trackingNumber });
+          results.push({ id: entry.id, status: 'success', tracking: trackingNumber });
         }
       } else if (entry.type === 'label') {
         const { selected_rate, packages, force_card_payment = false } = entry.data;

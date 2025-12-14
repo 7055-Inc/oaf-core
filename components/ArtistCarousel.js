@@ -23,8 +23,8 @@ export default function ArtistCarousel() {
       if (cached) {
         const { data, timestamp } = JSON.parse(cached);
         if (Date.now() - timestamp < ARTISTS_CACHE_DURATION) {
-          // Use cached data and duplicate for infinite scroll (2 copies for seamless loop)
-          const duplicatedArtists = [...data, ...data];
+          // Use cached data and triplicate for infinite scroll (3 copies for seamless loop)
+          const duplicatedArtists = [...data, ...data, ...data];
           setArtists(duplicatedArtists);
           setIsLoading(false);
           return;
@@ -42,8 +42,8 @@ export default function ArtistCarousel() {
             timestamp: Date.now()
           }));
           
-          // Duplicate for infinite scroll (2 copies for seamless loop)
-          const duplicatedArtists = [...artistsData, ...artistsData];
+          // Triplicate for infinite scroll (3 copies for seamless loop)
+          const duplicatedArtists = [...artistsData, ...artistsData, ...artistsData];
           setArtists(duplicatedArtists);
         }
       }

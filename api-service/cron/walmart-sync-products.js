@@ -92,7 +92,7 @@ async function syncProductsToWalmart() {
       try {
         // Calculate price using our pricing utility
         const walmartPrice = product.walmart_price || 
-          calculateWalmartPrice(product.retail_price, product.wholesale_price);
+          calculateWalmartPrice({ price: product.retail_price, wholesale_price: product.wholesale_price });
         
         // Build Walmart item structure
         const walmartItem = {
