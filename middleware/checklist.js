@@ -17,7 +17,7 @@ export async function checklist(req) {
       return NextResponse.next();
     }
 
-  // PROTECTED PATHS - these require authentication
+  // PROTECTED PATHS - these require authentication and gate checks
   const protectedPaths = [
     '/dashboard',           // User dashboard (all subpaths)
     '/checkout',            // Checkout flow
@@ -27,10 +27,6 @@ export async function checklist(req) {
     '/products/edit',       // Editing products
     '/products/delete',     // Deleting products
     '/vendor',              // Vendor-specific pages
-    '/profile-completion',  // Onboarding: complete profile
-    '/terms-acceptance',    // Onboarding: accept terms
-    '/user-type-selection', // Onboarding: select user type
-    '/announcement-acknowledgment', // Onboarding: acknowledge announcements
   ];
   
   // Check if current path requires authentication
@@ -43,10 +39,17 @@ export async function checklist(req) {
     return NextResponse.next();
   }
   
+  // Helper to create login redirect with return path
+  const loginRedirect = () => {
+    const loginUrl = new URL('/login', req.url);
+    loginUrl.searchParams.set('redirect', path);
+    return NextResponse.redirect(loginUrl);
+  };
+
   // === PROTECTED PATH - Check authentication ===
-    const token = req.cookies.get('token')?.value;
-    if (!token) {
-    return NextResponse.redirect(new URL('/login', req.url));
+  const token = req.cookies.get('token')?.value;
+  if (!token) {
+    return loginRedirect();
   }
 
   try {
@@ -64,18 +67,17 @@ export async function checklist(req) {
     });
 
     if (!response.ok) {
-      return NextResponse.redirect(new URL('/login', req.url));
+      return loginRedirect();
     }
 
     const { roles, permissions } = await response.json();
     if (!roles || !roles.length) {
-      return NextResponse.redirect(new URL('/login', req.url));
+      return loginRedirect();
     }
 
     // Check if user is Draft and needs to select user type
     if (roles.includes('Draft')) {
-      const userTypeSelectionUrl = new URL('/user-type-selection', req.url);
-      return NextResponse.redirect(userTypeSelectionUrl);
+      return NextResponse.redirect(new URL('/user-type-selection', req.url));
     }
 
     // Check if user has accepted current terms
@@ -111,7 +113,7 @@ export async function checklist(req) {
         // Handle non-200 responses
         // If it's a client error (4xx), redirect to login
         if (termsResponse.status >= 400 && termsResponse.status < 500) {
-          return NextResponse.redirect(new URL('/login', req.url));
+          return loginRedirect();
         }
         
         // For server errors (5xx), allow access silently
@@ -178,7 +180,7 @@ export async function checklist(req) {
           // Handle non-200 responses
           // If it's a client error (4xx), redirect to login
           if (announcementsResponse.status >= 400 && announcementsResponse.status < 500) {
-            return NextResponse.redirect(new URL('/login', req.url));
+            return loginRedirect();
           }
           
           // For server errors (5xx), allow access silently
@@ -205,9 +207,16 @@ export async function checklist(req) {
       }
     }
 
-    return NextResponse.next();
+    // Set a flag indicating middleware ran - used by client-side to detect bypassed middleware
+    const nextResponse = NextResponse.next();
+    nextResponse.cookies.set('middleware_checked', Date.now().toString(), {
+      path: '/',
+      maxAge: 5, // 5 seconds - just needs to survive the page load
+      httpOnly: false // Client needs to read this
+    });
+    return nextResponse;
   } catch (error) {
-    return NextResponse.redirect(new URL('/login', req.url));
+    return loginRedirect();
   }
 }
 

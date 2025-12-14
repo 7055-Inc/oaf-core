@@ -31,6 +31,7 @@ import ManageCustomPolicies from '../../components/dashboard/manage-system/compo
 import AddPromoter from '../../components/dashboard/manage-system/components/AddPromoter';
 import UnclaimedEvents from '../../components/dashboard/manage-system/components/UnclaimedEvents';
 import DashboardGrid from '../../components/dashboard/DashboardGrid';
+import OnboardingBanner from '../../components/dashboard/widgets/OnboardingWidget';
 import { getAuthToken, authenticatedApiRequest } from '../../lib/csrf';
 import styles from './Dashboard.module.css';
 import '../../components/dashboard/SlideIn.module.css';
@@ -122,6 +123,14 @@ export default function Dashboard() {
   // MOVED: This useEffect is now at the top of the component
 
   useEffect(() => {
+    // Check if middleware ran (prevents client-side navigation from bypassing checklist)
+    const middlewareChecked = document.cookie.includes('middleware_checked');
+    if (!middlewareChecked) {
+      // Force hard reload to trigger middleware checklist
+      window.location.reload();
+      return;
+    }
+    
     const token = getAuthToken();
     if (!token) {
       router.push('/');
@@ -220,7 +229,12 @@ export default function Dashboard() {
   const renderContent = () => {
     switch (activeSection) {
       case 'dashboard-widgets':
-        return <div className={styles.contentSection}><DashboardGrid /></div>;
+        return (
+          <div className={styles.contentSection}>
+            <OnboardingBanner userData={userData} openSlideIn={openSlideIn} />
+            <DashboardGrid />
+          </div>
+        );
       case 'profile':
         return (
           <div className={styles.contentSection}>

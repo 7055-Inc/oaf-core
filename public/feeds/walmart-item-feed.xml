@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ItemFeed xmlns="http://walmart.com/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <ItemFeedHeader>
+    <version>3.2</version>
+    <feedDate>2025-12-07T23:47:58.900Z</feedDate>
+    <mart>WALMART_US</mart>
+  </ItemFeedHeader>
+    <Item>
+      <productIdentifiers>
+        <productIdType>UPC</productIdType>
+        <productId></productId>
+      </productIdentifiers>
+      <sku>PAINTING-OF-A-MOUSE-598458</sku>
+      <productName>This is a painting and ai guess its on glass</productName>
+      <brand>Brakebee</brand>
+      <shortDescription>This si about the painted glass</shortDescription>
+      <mainImageUrl>https://api.brakebee.com/temp_images/products/1000000007-9224-1765067709634-380429326.png</mainImageUrl>
+      <productType>ArtAndCraftItem</productType>
+      <price>
+        <currency>USD</currency>
+        <amount>15.00</amount>
+      </price>
+      <shippingWeight>
+        <unit>LB</unit>
+        <measure>4.00</measure>
+      </shippingWeight>
+      <productCategory>Home &gt; Picture &amp; Art Décor</productCategory>
+    </Item>
+</ItemFeed>

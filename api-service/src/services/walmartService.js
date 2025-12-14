@@ -71,14 +71,15 @@ class WalmartService {
 
   /**
    * Get common headers for API requests
+   * Note: Walmart uses WM_SEC.ACCESS_TOKEN header, not Bearer token
    */
   async getHeaders() {
     const token = await this.getAccessToken();
     return {
-      'Authorization': `Bearer ${token}`,
+      'WM_SEC.ACCESS_TOKEN': token,
       'Accept': 'application/json',
       'Content-Type': 'application/json',
-      'WM_SVC.NAME': 'Walmart Marketplace',
+      'WM_SVC.NAME': 'Brakebee Marketplace',
       'WM_QOS.CORRELATION_ID': this.generateCorrelationId()
     };
   }
@@ -220,9 +221,50 @@ class WalmartService {
     }
   }
 
+  /**
+   * Get inventory for a specific SKU
+   */
+  async getInventory(sku) {
+    const headers = await this.getHeaders();
+    
+    try {
+      const response = await axios.get(
+        `${this.baseUrl}/v3/inventory?sku=${encodeURIComponent(sku)}`,
+        { headers }
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error(`Failed to get inventory: ${error.response?.data?.error || JSON.stringify(error.response?.data) || error.message}`);
+    }
+  }
+
   // ============================================
   // ORDER MANAGEMENT
   // ============================================
+
+  /**
+   * Get all orders with flexible filtering
+   */
+  async getOrders(options = {}) {
+    const headers = await this.getHeaders();
+    const params = new URLSearchParams({
+      limit: options.limit || 100
+    });
+    
+    if (options.status) params.append('status', options.status);
+    if (options.createdStartDate) params.append('createdStartDate', options.createdStartDate);
+    if (options.createdEndDate) params.append('createdEndDate', options.createdEndDate);
+    
+    try {
+      const response = await axios.get(
+        `${this.baseUrl}/v3/orders?${params}`,
+        { headers }
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error(`Failed to get orders: ${error.response?.data?.error || JSON.stringify(error.response?.data) || error.message}`);
+    }
+  }
 
   /**
    * Get released orders (ready to fulfill)
@@ -337,6 +379,33 @@ class WalmartService {
       return response.data;
     } catch (error) {
       throw new Error(`Failed to cancel order: ${error.response?.data?.error || error.message}`);
+    }
+  }
+
+  // ============================================
+  // RETURNS MANAGEMENT
+  // ============================================
+
+  /**
+   * Get returns
+   */
+  async getReturns(options = {}) {
+    const headers = await this.getHeaders();
+    const params = new URLSearchParams({
+      limit: options.limit || 100
+    });
+    
+    if (options.returnCreationStartDate) params.append('returnCreationStartDate', options.returnCreationStartDate);
+    if (options.returnCreationEndDate) params.append('returnCreationEndDate', options.returnCreationEndDate);
+    
+    try {
+      const response = await axios.get(
+        `${this.baseUrl}/v3/returns?${params}`,
+        { headers }
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error(`Failed to get returns: ${error.response?.data?.error || JSON.stringify(error.response?.data) || error.message}`);
     }
   }
 

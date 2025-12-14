@@ -1,0 +1,68 @@
+{
+  "MPItemFeedHeader": {
+    "businessUnit": "WALMART_US",
+    "locale": "en",
+    "version": "5.0.20240517-04_08_27-api"
+  },
+  "MPItem": [
+    {
+      "Orderable": {
+        "sku": "PAINTING-OF-A-MOUSE-598458",
+        "productIdentifiers": {
+          "productIdType": "UPC",
+          "productId": "817865021107"
+        },
+        "price": 15,
+        "ShippingWeight": 4,
+        "startDate": "2024-01-01T00:00:00+00:00",
+        "endDate": "2032-12-31T00:00:00+00:00",
+        "fulfillmentLagTime": 1,
+        "MustShipAlone": "No"
+      },
+      "Visible": {
+        "Paintings": {
+          "productName": "This is a painting and ai guess its on glass",
+          "brand": "Brakebee",
+          "shortDescription": "This si about the painted glass",
+          "mainImageUrl": "https://api.brakebee.com/temp_images/products/1000000007-9224-1765067709634-380429326.png",
+          "countPerPack": 1,
+          "multipackQuantity": 1,
+          "isProp65WarningRequired": "No",
+          "condition": "New",
+          "has_written_warranty": "No",
+          "color": "Multicolor",
+          "framed": "No",
+          "recommendedRooms": [
+            "Living Room"
+          ],
+          "keyFeatures": [
+            "Original artwork",
+            "Perfect for home or office decor",
+            "Ready to display"
+          ],
+          "netContent": {
+            "productNetContentMeasure": 1,
+            "productNetContentUnit": "Each"
+          },
+          "assembledProductLength": {
+            "measure": 12,
+            "unit": "in"
+          },
+          "assembledProductWidth": {
+            "measure": 12,
+            "unit": "in"
+          },
+          "assembledProductHeight": {
+            "measure": 12,
+            "unit": "in"
+          },
+          "assembledProductWeight": {
+            "measure": 4,
+            "unit": "lb"
+          },
+          "manufacturerPartNumber": "817865021107"
+        }
+      }
+    }
+  ]
+}

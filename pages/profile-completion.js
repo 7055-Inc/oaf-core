@@ -8,7 +8,6 @@ import styles from '../styles/ProfileCompletion.module.css';
 export default function ProfileCompletion() {
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showInlineForm, setShowInlineForm] = useState(false);
   const [formData, setFormData] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -45,10 +44,6 @@ export default function ProfileCompletion() {
 
   const handleGoToProfile = () => {
     router.push('/profile/edit');
-  };
-
-  const handleShowInlineForm = () => {
-    setShowInlineForm(true);
   };
 
   const handleInputChange = (e) => {
@@ -225,11 +220,16 @@ export default function ProfileCompletion() {
     }
   };
 
+  // Fields that should span full width in the grid
+  const isFullWidthField = (fieldName) => {
+    return ['address_line1', 'business_name'].includes(fieldName);
+  };
+
   if (loading) {
     return (
       <div className={styles.container}>
         <Head>
-          <title>Complete Your Profile - Online Art Festival</title>
+          <title>Complete Your Profile - Brakebee</title>
         </Head>
         <div className={styles.loading}>
           <div className={styles.spinner}></div>
@@ -239,18 +239,25 @@ export default function ProfileCompletion() {
     );
   }
 
-  if (error) {
+  if (error && !profileData) {
     return (
       <div className={styles.container}>
         <Head>
-          <title>Profile Completion - Online Art Festival</title>
+          <title>Profile Completion - Brakebee</title>
         </Head>
-        <div className={styles.error}>
-          <h2>Error</h2>
-          <p>{error}</p>
-          <button onClick={() => router.push('/')} className={styles.backButton}>
-            Go Back
-          </button>
+        <div className={`section-box ${styles.modal}`}>
+          <div className={styles.header}>
+            <div className={styles.headerIcon}>
+              <i className="fa-solid fa-circle-exclamation"></i>
+            </div>
+            <h1>Something Went Wrong</h1>
+            <p className={styles.subtitle}>{error}</p>
+          </div>
+          <div className={styles.actions}>
+            <button onClick={() => router.push('/')} className={styles.secondaryButton}>
+              Go Back
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -260,12 +267,15 @@ export default function ProfileCompletion() {
     return (
       <div className={styles.container}>
         <Head>
-          <title>Profile Complete - Online Art Festival</title>
+          <title>Profile Complete - Brakebee</title>
         </Head>
-        <div className={styles.modal}>
+        <div className={`section-box ${styles.modal}`}>
           <div className={styles.header}>
-            <h1>Profile Complete!</h1>
-            <p>Your profile is already complete. Redirecting...</p>
+            <div className={styles.headerIcon + ' ' + styles.successIcon}>
+              <i className="fa-solid fa-circle-check"></i>
+            </div>
+            <h1>All Set!</h1>
+            <p className={styles.subtitle}>Your profile is complete. Redirecting...</p>
           </div>
         </div>
       </div>
@@ -276,21 +286,22 @@ export default function ProfileCompletion() {
     return (
       <div className={styles.container}>
         <Head>
-          <title>Profile Updated - Online Art Festival</title>
+          <title>Profile Updated - Brakebee</title>
         </Head>
-        <div className={styles.modal}>
+        <div className={`section-box ${styles.modal}`}>
           <div className={styles.header}>
-            <h1>✅ Success!</h1>
-            <p className={styles.subtitle}>
-              Your profile has been updated successfully.
-            </p>
+            <div className={styles.headerIcon + ' ' + styles.successIcon}>
+              <i className="fa-solid fa-circle-check"></i>
+            </div>
+            <h1>Success!</h1>
+            <p className={styles.subtitle}>Your profile has been updated.</p>
           </div>
-          <div className={styles.successActions}>
+          <div className={styles.actions}>
             <button 
               onClick={verifyAndCompleteLogin}
-              className={styles.completeButton}
+              className={styles.primaryButton}
             >
-              Complete Login
+              Continue
             </button>
           </div>
         </div>
@@ -301,105 +312,66 @@ export default function ProfileCompletion() {
   return (
     <div className={styles.container}>
       <Head>
-        <title>Complete Your Profile - Online Art Festival</title>
+        <title>Complete Your Profile - Brakebee</title>
       </Head>
       
-      <div className={styles.modal}>
+      <div className={`section-box ${styles.modal}`}>
         <div className={styles.header}>
-          <h1>Complete Your Profile</h1>
-          <p className={styles.subtitle}>
-            Please complete your profile to continue using Online Art Festival.
-          </p>
+          <div className={styles.headerIcon}>
+            <i className="fa-solid fa-user-pen"></i>
+          </div>
+          <h1>Almost There!</h1>
+          <p className={styles.subtitle}>We just need a few basics to get you started. You can complete the rest of your profile from your dashboard.</p>
         </div>
 
-        {!showInlineForm ? (
-          <div className={styles.optionsContainer}>
-            <div className={styles.missingFieldsInfo}>
-              <h3>Missing Required Information:</h3>
-              <ul className={styles.missingFieldsList}>
-                {profileData?.missingFields?.map((field, index) => (
-                  <li key={index}>{field.label}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div className={styles.options}>
-              <button 
-                onClick={handleGoToProfile}
-                className={styles.profileButton}
+        <form onSubmit={handleSubmitInlineForm} className={styles.form}>
+          <div className={styles.formGrid}>
+            {profileData?.missingFields?.map((field, index) => (
+              <div 
+                key={index} 
+                className={`${styles.formGroup} ${isFullWidthField(field.field) ? styles.fullWidth : ''}`}
               >
-                <span className={styles.buttonIcon}>👤</span>
-                Take me to my profile to complete setup
-              </button>
-              
-              <button 
-                onClick={handleShowInlineForm}
-                className={styles.inlineButton}
-              >
-                <span className={styles.buttonIcon}>📝</span>
-                Show me the missing fields
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className={styles.inlineFormContainer}>
-            <div className={styles.formHeader}>
-              <h3>Complete Missing Information</h3>
-              <p>Fill in the required fields below:</p>
-            </div>
-
-            <form onSubmit={handleSubmitInlineForm} className={styles.inlineForm}>
-              {profileData?.missingFields?.map((field, index) => (
-                <div key={index} className={styles.formGroup}>
-                  <label htmlFor={field.field} className={styles.label}>
-                    {field.label} *
-                  </label>
-                  <input
-                    type={getFieldType(field.field)}
-                    id={field.field}
-                    name={field.field}
-                    value={formData[field.field] || ''}
-                    onChange={handleInputChange}
-                    placeholder={getFieldPlaceholder(field.field)}
-                    className={styles.input}
-                    required
-                  />
-                </div>
-              ))}
-
-              {error && (
-                <div className={styles.errorMessage}>
-                  <p>{error}</p>
-                </div>
-              )}
-
-              <div className={styles.formActions}>
-                <button 
-                  type="button"
-                  onClick={() => setShowInlineForm(false)}
-                  className={styles.backButton}
-                  disabled={submitting}
-                >
-                  Back to Options
-                </button>
-                <button 
-                  type="submit"
-                  className={styles.submitButton}
-                  disabled={submitting}
-                >
-                  {submitting ? (
-                    <>
-                      <span className={styles.spinner}></span>
-                      Updating...
-                    </>
-                  ) : (
-                    'Complete Profile'
-                  )}
-                </button>
+                <label htmlFor={field.field} className={styles.label}>
+                  {field.label}
+                </label>
+                <input
+                  type={getFieldType(field.field)}
+                  id={field.field}
+                  name={field.field}
+                  value={formData[field.field] || ''}
+                  onChange={handleInputChange}
+                  placeholder={getFieldPlaceholder(field.field)}
+                  className={styles.input}
+                  required
+                />
               </div>
-            </form>
+            ))}
           </div>
-        )}
+
+          {error && (
+            <div className={styles.errorMessage}>
+              <p>{error}</p>
+            </div>
+          )}
+
+          <div className={styles.actions}>
+            <button 
+              type="submit"
+              className={styles.primaryButton}
+              disabled={submitting}
+            >
+              {submitting ? 'Saving...' : 'Complete Profile'}
+            </button>
+            <button 
+              type="button"
+              onClick={handleGoToProfile}
+              className={styles.secondaryButton}
+              disabled={submitting}
+            >
+              Edit Full Profile Instead
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

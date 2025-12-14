@@ -266,7 +266,7 @@ const SignupCallbackPage = () => {
         const isSecure = window.location.protocol === 'https:';
         const secureFlag = isSecure ? '; secure' : '';
         
-        document.cookie = `token=${data.token}; path=/; domain=${cookieDomain}${secureFlag}; samesite=lax; max-age=3600`;
+        document.cookie = `token=${data.token}; path=/; domain=${cookieDomain}${secureFlag}; samesite=lax; max-age=7200`;
         document.cookie = `refreshToken=${data.refreshToken}; path=/; domain=${cookieDomain}${secureFlag}; samesite=lax; max-age=604800`;
         
         setStatus('success');
@@ -339,29 +339,14 @@ const SignupCallbackPage = () => {
                 <p className={styles.text}>{message}</p>
                 
                 {error && (
-                  <div style={{
-                    backgroundColor: '#fee2e2',
-                    border: '1px solid #fecaca',
-                    color: '#dc2626',
-                    padding: '1rem',
-                    borderRadius: '4px',
-                    marginBottom: '1rem',
-                    textAlign: 'center'
-                  }}>
+                  <div className="error-alert" style={{ textAlign: 'center' }}>
                     {error}
                   </div>
                 )}
                 
-                <form onSubmit={handlePasswordSubmit} style={{ maxWidth: '400px', margin: '0 auto' }}>
-                  <div style={{ marginBottom: '1rem' }}>
-                    <label style={{ 
-                      display: 'block', 
-                      marginBottom: '0.5rem', 
-                      color: '#333', 
-                      fontWeight: '500' 
-                    }}>
-                      New Password:
-                    </label>
+                <form onSubmit={handlePasswordSubmit} className="form-grid-1">
+                  <div>
+                    <label>New Password:</label>
                     <input
                       type="password"
                       value={newPassword}
@@ -369,26 +354,11 @@ const SignupCallbackPage = () => {
                       required
                       minLength="6"
                       placeholder="Enter new password (minimum 6 characters)"
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem',
-                        border: '1px solid #e9ecef',
-                        borderRadius: '4px',
-                        fontSize: '1rem',
-                        boxSizing: 'border-box'
-                      }}
                     />
                   </div>
                   
-                  <div style={{ marginBottom: '1.5rem' }}>
-                    <label style={{ 
-                      display: 'block', 
-                      marginBottom: '0.5rem', 
-                      color: '#333', 
-                      fontWeight: '500' 
-                    }}>
-                      Confirm Password:
-                    </label>
+                  <div>
+                    <label>Confirm Password:</label>
                     <input
                       type="password"
                       value={confirmPassword}
@@ -396,33 +366,10 @@ const SignupCallbackPage = () => {
                       required
                       minLength="6"
                       placeholder="Confirm your new password"
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem',
-                        border: '1px solid #e9ecef',
-                        borderRadius: '4px',
-                        fontSize: '1rem',
-                        boxSizing: 'border-box'
-                      }}
                     />
                   </div>
                   
-                  <button 
-                    type="submit"
-                    className={styles.button}
-                    style={{
-                      width: '100%',
-                      backgroundColor: '#055474',
-                      color: 'white',
-                      border: 'none',
-                      padding: '0.75rem 1rem',
-                      borderRadius: '4px',
-                      fontSize: '1rem',
-                      fontWeight: '500',
-                      cursor: 'pointer',
-                      transition: 'background-color 0.2s'
-                    }}
-                  >
+                  <button type="submit" style={{ width: '100%', marginTop: '0.5rem' }}>
                     Update Password
                   </button>
                 </form>
@@ -434,13 +381,10 @@ const SignupCallbackPage = () => {
                 <h2 className={styles.headingError}>
                   {mode === 'verifyEmail' ? 'Verification Error' : 'Authentication Error'}
                 </h2>
-                <p className={styles.textError}>
+                <div className="error-alert">
                   {error || 'Something went wrong.'}
-                </p>
-                <button 
-                  onClick={handleRetry}
-                  className={styles.button}
-                >
+                </div>
+                <button onClick={handleRetry}>
                   {mode === 'verifyEmail' ? 'Go to Login' : 'Try Again'}
                 </button>
               </>
@@ -449,12 +393,12 @@ const SignupCallbackPage = () => {
           
           {status !== 'error' && (
             <div className={styles.actions}>
-              <a 
-                href="" 
-                className={styles.linkButton}
+              <button 
+                className="secondary"
+                onClick={() => window.location.href = getFrontendUrl('/')}
               >
                 Continue to Main Site
-              </a>
+              </button>
             </div>
           )}
         </div>

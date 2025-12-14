@@ -81,7 +81,7 @@ export default function ImpersonationExitButton() {
           localStorage.removeItem('originalAdminToken');
           
           // Update cookie as well
-          document.cookie = `token=${originalToken}; ${cookieSettings}; max-age=3600`;
+          document.cookie = `token=${originalToken}; ${cookieSettings}; max-age=7200`;
         }
         
         if (originalRefreshToken) {

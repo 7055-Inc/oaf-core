@@ -67,45 +67,33 @@ export default function UserTypeSelection() {
               className={`${styles.option} ${selectedType === 'artist' ? styles.selected : ''}`}
               onClick={() => setSelectedType('artist')}
             >
-              <div className={styles.optionIcon}>🎨</div>
+              <div className={styles.optionIcon}>
+                <i className="fa-solid fa-palette"></i>
+              </div>
               <h3>Artist</h3>
-              <p>Create and sell your artwork, build your artist profile, and connect with art enthusiasts.</p>
-              <ul>
-                <li>Upload and showcase your artwork</li>
-                <li>Set up your artist storefront</li>
-                <li>Accept commissions and custom orders</li>
-                <li>Manage your art business</li>
-              </ul>
+              <p>Create, showcase, and sell your artwork</p>
             </div>
 
             <div 
               className={`${styles.option} ${selectedType === 'promoter' ? styles.selected : ''}`}
               onClick={() => setSelectedType('promoter')}
             >
-              <div className={styles.optionIcon}>📢</div>
+              <div className={styles.optionIcon}>
+                <i className="fa-solid fa-bullhorn"></i>
+              </div>
               <h3>Promoter</h3>
-              <p>Organize art events, galleries, and exhibitions to promote artists and their work.</p>
-              <ul>
-                <li>Create and manage art events</li>
-                <li>Organize exhibitions and galleries</li>
-                <li>Connect artists with opportunities</li>
-                <li>Build your promoter network</li>
-              </ul>
+              <p>Organize events and connect artists</p>
             </div>
 
             <div 
               className={`${styles.option} ${selectedType === 'community' ? styles.selected : ''}`}
               onClick={() => setSelectedType('community')}
             >
-              <div className={styles.optionIcon}>❤️</div>
-              <h3>Art Enthusiast</h3>
-              <p>Discover, collect, and support amazing artists and their artwork.</p>
-              <ul>
-                <li>Browse and purchase artwork</li>
-                <li>Follow your favorite artists</li>
-                <li>Attend art events and exhibitions</li>
-                <li>Build your art collection</li>
-              </ul>
+              <div className={styles.optionIcon}>
+                <i className="fa-solid fa-heart"></i>
+              </div>
+              <h3>Art Lover</h3>
+              <p>Discover and collect amazing art</p>
             </div>
           </div>
 

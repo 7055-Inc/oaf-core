@@ -22,7 +22,6 @@ export default function ProductView() {
   const [error, setError] = useState(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [showArtistModal, setShowArtistModal] = useState(false);
   const [activeTab, setActiveTab] = useState('description');
   const [showPolicyModal, setShowPolicyModal] = useState(false);
   const [policyModalContent, setPolicyModalContent] = useState({ type: '', content: '', loading: false });
@@ -420,10 +419,20 @@ export default function ProductView() {
   return (
     <>
       <Head>
-        <title>{product.name} | Brakebee Marketplace</title>
-        <meta name="description" content={product.description?.replace(/<[^>]*>/g, '').substring(0, 160) || `Shop ${product.name} on Brakebee`} />
+        <title>{product.name} | Brakebee</title>
+        <meta name="description" content={
+          product.feed_metadata?.meta_description || 
+          product.meta_description || 
+          product.description?.replace(/<[^>]*>/g, '').substring(0, 160) || 
+          `Shop ${product.name} on Brakebee`
+        } />
         <meta property="og:title" content={product.name} />
-        <meta property="og:description" content={product.description?.replace(/<[^>]*>/g, '').substring(0, 160) || ''} />
+        <meta property="og:description" content={
+          product.feed_metadata?.meta_description || 
+          product.meta_description || 
+          product.description?.replace(/<[^>]*>/g, '').substring(0, 160) || 
+          ''
+        } />
         <meta property="og:type" content="product" />
         <meta property="og:url" content={`https://brakebee.com/products/${product.id}`} />
         {product.images?.[0] && (
@@ -442,7 +451,7 @@ export default function ProductView() {
       
       {isOwnProduct && (
         <div className={styles.floatingEditButtons}>
-          <a href={`/dashboard/products/${product.id}`} className={styles.floatingEditLink}>
+          <a href={`/dashboard/products/edit/${product.id}`} className={styles.floatingEditLink}>
             <i className="fa-solid fa-edit"></i>
             Edit Product
           </a>
@@ -561,7 +570,7 @@ export default function ProductView() {
                     {product.category_name && `, ${product.category_name}`}
                   </h1>
                   
-                  {/* Artist Info Icon */}
+                  {/* Sold By - Artist/Seller Info */}
                   <div style={{ 
                     fontSize: '14px', 
                     color: '#666', 
@@ -569,31 +578,35 @@ export default function ProductView() {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px',
-                    fontFamily: 'var(--font-body)',
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => setShowArtistModal(true)}
-                  >
-                    <span style={{ 
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: '16px',
-                      height: '16px',
-                      borderRadius: '50%',
-                      border: '1.5px solid #666',
-                      fontSize: '11px',
-                      fontWeight: 'bold'
-                    }}>i</span>
-                    Learn about the artist
+                    fontFamily: 'var(--font-body)'
+                  }}>
+                    <span>Sold by:</span>
+                    <a 
+                      href={`/profile/${product.vendor_id || product.user_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ 
+                        color: '#333',
+                        fontWeight: '500',
+                        textDecoration: 'underline',
+                        textDecorationColor: '#999',
+                        textUnderlineOffset: '2px'
+                      }}
+                    >
+                      {product.vendor?.business_name || 
+                       (product.vendor?.first_name && product.vendor?.last_name 
+                         ? `${product.vendor.first_name} ${product.vendor.last_name}` 
+                         : product.vendor?.username || 'Artist')}
+                    </a>
                   </div>
                 </div>
 
                 {/* Short Description */}
                 {product.short_description && (
-                  <div className={styles.shortDescription}>
-                    {product.short_description}
-                  </div>
+                  <div 
+                    className={styles.shortDescription}
+                    dangerouslySetInnerHTML={{ __html: product.short_description }}
+                  />
                 )}
 
                 {/* Show price for simple products only */}
@@ -746,9 +759,12 @@ export default function ProductView() {
             
             <div className={styles.tabContent}>
               {activeTab === 'description' && (
-                <div className={styles.fullDescription}>
-                  {product.description || 'No description available.'}
-                </div>
+                <div 
+                  className={styles.fullDescription}
+                  dangerouslySetInnerHTML={{ 
+                    __html: product.description || '<p>No description available.</p>' 
+                  }}
+                />
               )}
               
               {activeTab === 'dimensions' && (
@@ -834,28 +850,6 @@ export default function ProductView() {
           
         </div>
       </div>
-      
-      {/* Artist Info Modal */}
-      {showArtistModal && (
-        <div className={styles.modalOverlay} onClick={() => setShowArtistModal(false)}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2>About the Artist</h2>
-              <button 
-                onClick={() => setShowArtistModal(false)}
-                className={styles.modalCloseButton}
-              >
-                ×
-              </button>
-            </div>
-            <div className={styles.modalBody}>
-              {product && (product.vendor_id || product.user_id) && (
-                <AboutTheArtist vendorId={product.vendor_id || product.user_id} vendorData={product.vendor} />
-              )}
-            </div>
-          </div>
-        </div>
-      )}
       
       {/* Policy Modal */}
       {showPolicyModal && (

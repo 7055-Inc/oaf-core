@@ -234,6 +234,11 @@ export default function Footer() {
 
         </div>
 
+        {/* Disclaimer */}
+        <div className={styles.bbFooterDisclaimer}>
+          The Brakebee marketplace is a curated marketplace connecting verified artists and studios with buyers. All products are fulfilled either by Brakebee or by the individual artist listed as the seller on each product page.
+        </div>
+
         {/* Row 2: Policy Bar */}
         <div className={styles.bbFooterPolicy}>
           <span>© Brakebee — Curated by Leo Art AI</span>
@@ -251,6 +256,8 @@ export default function Footer() {
           <Link href="/policies/cookies">Cookie Preferences</Link>
           <span className={styles.dot}>•</span>
           <Link href="/policies/copyright">Copyright Policy</Link>
+          <span className={styles.dot}>•</span>
+          <Link href="/policies/transparency">Marketplace Transparency</Link>
         </div>
 
       </div>

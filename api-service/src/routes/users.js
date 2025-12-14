@@ -1649,4 +1649,64 @@ async function getVendorReturnPolicy(vendorId) {
   return null;
 }
 
+// ============================================================================
+// USER ADDONS
+// ============================================================================
+
+/**
+ * GET /users/addons
+ * Get current user's active addons
+ * Used by product form to determine which connector sections to show
+ */
+router.get('/addons', verifyToken, async (req, res) => {
+  try {
+    const [addons] = await db.query(`
+      SELECT 
+        ua.id,
+        ua.addon_slug,
+        ua.is_active,
+        ua.activated_at,
+        ua.subscription_source,
+        wa.addon_name,
+        wa.description,
+        wa.category
+      FROM user_addons ua
+      JOIN website_addons wa ON ua.addon_slug = wa.addon_slug
+      WHERE ua.user_id = ? AND ua.is_active = 1
+      ORDER BY wa.addon_name ASC
+    `, [req.userId]);
+    
+    res.json({ success: true, addons });
+  } catch (error) {
+    console.error('Error fetching user addons:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch addons' });
+  }
+});
+
+/**
+ * GET /users/addons/:slug
+ * Check if user has a specific addon active
+ */
+router.get('/addons/:slug', verifyToken, async (req, res) => {
+  try {
+    const { slug } = req.params;
+    
+    const [addon] = await db.query(`
+      SELECT ua.*, wa.addon_name, wa.description
+      FROM user_addons ua
+      JOIN website_addons wa ON ua.addon_slug = wa.addon_slug
+      WHERE ua.user_id = ? AND ua.addon_slug = ? AND ua.is_active = 1
+    `, [req.userId, slug]);
+    
+    res.json({ 
+      success: true, 
+      hasAddon: addon.length > 0,
+      addon: addon[0] || null
+    });
+  } catch (error) {
+    console.error('Error checking addon:', error);
+    res.status(500).json({ success: false, error: 'Failed to check addon' });
+  }
+});
+
 module.exports = router;

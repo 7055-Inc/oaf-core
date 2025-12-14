@@ -4,7 +4,7 @@ import StateDisplay from './StateDisplay';
 import { getApiUrl, getSmartMediaUrl } from '../lib/config';
 import styles from './AboutTheArtist.module.css';
 
-const AboutTheArtist = ({ vendorId }) => {
+const AboutTheArtist = ({ vendorId, vendorData }) => {
   const [vendor, setVendor] = useState(null);
   const [policies, setPolicies] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -13,41 +13,66 @@ const AboutTheArtist = ({ vendorId }) => {
   const [policyModalContent, setPolicyModalContent] = useState({ type: '', content: '', loading: false });
 
   useEffect(() => {
-    if (!vendorId) return;
+    if (!vendorId) {
+      setLoading(false);
+      return;
+    }
 
     const fetchVendorData = async () => {
       try {
-        const token = document.cookie.split('token=')[1]?.split(';')[0];
-        if (!token) {
-          setError('Authentication required');
+        // Always fetch full profile for complete data (image, bio, state, etc.)
+        // Try public profile endpoint first (no auth required)
+        const publicRes = await fetch(getApiUrl(`users/profile/by-id/${vendorId}`));
+        
+        if (publicRes.ok) {
+          const data = await publicRes.json();
+          // Merge with any vendorData passed from parent
+          setVendor({ ...vendorData, ...data });
           setLoading(false);
           return;
         }
+        
+        // Fallback: try authenticated endpoint
+        const token = localStorage.getItem('token') || document.cookie.split('token=')[1]?.split(';')[0];
+        if (token) {
+          const authRes = await fetch(getApiUrl(`users/profile/by-id/${vendorId}`), {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
 
-        // Fetch vendor profile
-        const vendorRes = await fetch(getApiUrl(`users/profile/by-id/${vendorId}`), {
-          headers: {
-            'Authorization': `Bearer ${token}`
+          if (authRes.ok) {
+            const vendorResult = await authRes.json();
+            setVendor({ ...vendorData, ...vendorResult });
+            setLoading(false);
+            return;
           }
-        });
-
-        if (!vendorRes.ok) {
-          throw new Error('Failed to fetch vendor profile');
         }
-
-        const vendorData = await vendorRes.json();
-        setVendor(vendorData);
+        
+        // Last fallback: use vendorData from props if available
+        if (vendorData) {
+          setVendor(vendorData);
+          setLoading(false);
+          return;
+        }
+        
+        setError('Could not load artist profile');
+        setLoading(false);
 
       } catch (err) {
         console.error('Error fetching vendor data:', err);
-        setError(err.message);
-      } finally {
+        // Fallback to vendorData if fetch fails
+        if (vendorData) {
+          setVendor(vendorData);
+        } else {
+          setError(err.message);
+        }
         setLoading(false);
       }
     };
 
     fetchVendorData();
-  }, [vendorId]);
+  }, [vendorId, vendorData]);
 
   const handlePolicyClick = async (policyType) => {
     if (!vendorId) {
@@ -64,7 +89,7 @@ const AboutTheArtist = ({ vendorId }) => {
       
       if (!policiesData) {
         // Fetch all policies at once
-        const res = await fetch(`users/${vendorId}/policies`);
+        const res = await fetch(getApiUrl(`users/${vendorId}/policies`));
         
         if (!res.ok) {
           throw new Error('Failed to fetch policies');
@@ -139,9 +164,16 @@ const AboutTheArtist = ({ vendorId }) => {
     );
   }
 
-  const businessName = vendor.business_name || vendor.display_name;
-  const bio = vendor.artist_biography || vendor.bio;
+  const businessName = vendor.business_name || vendor.display_name || 
+    (vendor.first_name && vendor.last_name ? `${vendor.first_name} ${vendor.last_name}` : null) ||
+    vendor.username || 'Artist';
+  const bio = vendor.artist_biography || vendor.bio || vendor.about;
   const displayState = vendor.studio_state || vendor.state;
+  const displayCity = vendor.studio_city || vendor.city;
+  const location = [displayCity, displayState].filter(Boolean).join(', ');
+  const website = vendor.website || vendor.portfolio_url;
+  const instagram = vendor.instagram || vendor.social_instagram;
+  const memberSince = vendor.created_at ? new Date(vendor.created_at).getFullYear() : null;
 
   return (
     <div className={styles.aboutArtist}>
@@ -173,21 +205,47 @@ const AboutTheArtist = ({ vendorId }) => {
         <div className={styles.artistDetails}>
           <div className={styles.nameAndState}>
             <h4 className={styles.businessName}>{businessName}</h4>
-            {displayState && (
-              <StateDisplay state={displayState} />
+            {location && (
+              <div className={styles.location}>
+                <span className={styles.locationIcon}>📍</span>
+                {location}
+              </div>
             )}
           </div>
-
-          {bio && (
-            <div className={styles.bioSection}>
-              <p className={styles.bioText}>
-                {truncateBio(bio)}
-              </p>
-              <Link href={`/profile/${vendor.id}`} className={styles.readMoreLink}>
-                Read more →
-              </Link>
+          
+          {memberSince && (
+            <div className={styles.memberSince}>
+              Selling on Brakebee since {memberSince}
             </div>
           )}
+
+          <div className={styles.bioSection}>
+            <p className={styles.bioText}>
+              {bio ? truncateBio(bio, 300) : 'This artist hasn\'t added a bio yet.'}
+            </p>
+          </div>
+          
+          <div className={styles.artistLinks}>
+            <Link href={`/profile/${vendor.id || vendorId}`} className={styles.viewProfileBtn}>
+              View Full Profile
+            </Link>
+            {website && (
+              <a href={website.startsWith('http') ? website : `https://${website}`} 
+                 target="_blank" 
+                 rel="noopener noreferrer"
+                 className={styles.websiteLink}>
+                🌐 Website
+              </a>
+            )}
+            {instagram && (
+              <a href={`https://instagram.com/${instagram.replace('@', '')}`} 
+                 target="_blank" 
+                 rel="noopener noreferrer"
+                 className={styles.socialLink}>
+                📷 Instagram
+              </a>
+            )}
+          </div>
         </div>
       </div>
 

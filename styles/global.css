@@ -231,11 +231,12 @@ a:hover {
 
 /* Standard Box/Frame Styling */
 .section-box {
-  border: 5px solid var(--primary-color);
+  border: 5px solid transparent;
   border-radius: 2px;
   padding: 20px;
   margin-bottom: 20px;
-  background: var(--background-color);
+  background: linear-gradient(var(--background-color), var(--background-color)) padding-box,
+              var(--gradient-primary) border-box;
 }
 
 /* Global Tab Navigation Styles */

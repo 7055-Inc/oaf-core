@@ -1,0 +1,14 @@
+{
+  "InventoryHeader": {
+    "version": "1.4"
+  },
+  "Inventory": [
+    {
+      "sku": "PAINTING-OF-A-MOUSE-598458",
+      "quantity": {
+        "unit": "EACH",
+        "amount": 4
+      }
+    }
+  ]
+}

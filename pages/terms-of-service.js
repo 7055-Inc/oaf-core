@@ -41,8 +41,8 @@ export default function TermsOfService() {
     return (
       <div className={styles.container}>
         <Head>
-          <title>Terms of Service - Online Art Festival</title>
-          <meta name="description" content="Terms of Service for Online Art Festival" />
+          <title>Terms of Service | Brakebee</title>
+          <meta name="description" content="Terms of Service for Brakebee" />
         </Head>
         <div className={styles.loadingContainer}>
           <div className={styles.spinner}></div>
@@ -56,8 +56,8 @@ export default function TermsOfService() {
     return (
       <div className={styles.container}>
         <Head>
-          <title>Terms of Service - Online Art Festival</title>
-          <meta name="description" content="Terms of Service for Online Art Festival" />
+          <title>Terms of Service | Brakebee</title>
+          <meta name="description" content="Terms of Service for Brakebee" />
         </Head>
         <div className={styles.errorContainer}>
           <h1>Error Loading Terms</h1>
@@ -74,8 +74,8 @@ export default function TermsOfService() {
     return (
       <div className={styles.container}>
         <Head>
-          <title>Terms of Service - Online Art Festival</title>
-          <meta name="description" content="Terms of Service for Online Art Festival" />
+          <title>Terms of Service | Brakebee</title>
+          <meta name="description" content="Terms of Service for Brakebee" />
         </Head>
         <div className={styles.errorContainer}>
           <h1>No Terms Available</h1>
@@ -88,8 +88,8 @@ export default function TermsOfService() {
   return (
     <div className={styles.container}>
       <Head>
-        <title>{terms.title} - Online Art Festival</title>
-        <meta name="description" content={`${terms.title} for Online Art Festival`} />
+        <title>{terms.title} | Brakebee</title>
+        <meta name="description" content={`${terms.title} for Brakebee`} />
       </Head>
       
       <div className={styles.termsContainer}>
@@ -124,8 +124,8 @@ export default function TermsOfService() {
           </p>
           <p className={styles.contact}>
             If you have any questions about these terms, please contact us at{' '}
-            <a href="mailto:support@beemeeart.com" className={styles.contactLink}>
-              support@beemeeart.com
+            <a href="mailto:support@brakebee.com" className={styles.contactLink}>
+              support@brakebee.com
             </a>
           </p>
         </div>

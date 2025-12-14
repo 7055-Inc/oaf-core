@@ -17,7 +17,15 @@ export default function PolicyPage() {
     'privacy': 'Privacy Policy',
     'cookies': 'Cookie Policy',
     'copyright': 'Copyright Policy',
-    'terms': 'Terms of Service'
+    'terms': 'Terms of Service',
+    'transparency': 'Marketplace Transparency',
+    // Additional terms types
+    'terms-verified': 'Verified Artist Terms',
+    'terms-shipping': 'Shipping Services Terms',
+    'terms-websites': 'Website Subscription Terms',
+    'terms-wholesale': 'Wholesale Terms',
+    'terms-marketplace': 'Marketplace Terms',
+    'terms-addons': 'Website & Account Add-on Terms'
   };
 
   useEffect(() => {
@@ -29,29 +37,50 @@ export default function PolicyPage() {
         return;
       }
 
-      // For policies stored in database
-      if (policyType === 'shipping' || policyType === 'returns' || policyType === 'privacy' || policyType === 'cookies' || policyType === 'copyright' || policyType === 'terms') {
+      // Map of terms types to their subscription_type values
+      const termsTypeMap = {
+        'terms-verified': 'verified',
+        'terms-shipping': 'shipping_labels',
+        'terms-websites': 'websites',
+        'terms-wholesale': 'wholesale',
+        'terms-marketplace': 'marketplace',
+        'terms-addons': 'addons'
+      };
+
+      // Check if it's a valid policy type
+      const validPolicies = ['shipping', 'returns', 'privacy', 'cookies', 'copyright', 'terms', 'transparency', ...Object.keys(termsTypeMap)];
+      
+      if (validPolicies.includes(policyType)) {
         try {
           let endpoint;
-          switch (policyType) {
-            case 'shipping':
-              endpoint = 'shipping-policies/default';
-              break;
-            case 'returns':
-              endpoint = 'return-policies/default';
-              break;
-            case 'privacy':
-              endpoint = 'privacy-policies/default';
-              break;
-            case 'cookies':
-              endpoint = 'cookie-policies/default';
-              break;
-            case 'copyright':
-              endpoint = 'copyright-policies/default';
-              break;
-            case 'terms':
-              endpoint = 'api/terms/current';
-              break;
+          
+          // Handle additional terms types
+          if (termsTypeMap[policyType]) {
+            endpoint = `api/terms/type/${termsTypeMap[policyType]}`;
+          } else {
+            switch (policyType) {
+              case 'shipping':
+                endpoint = 'shipping-policies/default';
+                break;
+              case 'returns':
+                endpoint = 'return-policies/default';
+                break;
+              case 'privacy':
+                endpoint = 'privacy-policies/default';
+                break;
+              case 'cookies':
+                endpoint = 'cookie-policies/default';
+                break;
+              case 'copyright':
+                endpoint = 'copyright-policies/default';
+                break;
+              case 'terms':
+                endpoint = 'api/terms/current';
+                break;
+              case 'transparency':
+                endpoint = 'transparency-policies/default';
+                break;
+            }
           }
 
           const response = await apiRequest(endpoint, {
@@ -108,17 +137,10 @@ export default function PolicyPage() {
         )}
 
         {!loading && !error && policy && (
-          <div className={styles.policyText}>
-            {policy.split('\n').map((line, index) => {
-              // Handle empty lines as paragraph breaks
-              if (line.trim() === '') {
-                return <br key={index} />;
-              }
-              
-              // Render each line as a paragraph
-              return <p key={index}>{line}</p>;
-            })}
-          </div>
+          <div 
+            className={styles.policyText}
+            dangerouslySetInnerHTML={{ __html: policy }}
+          />
         )}
 
         <div className={styles.backLink}>

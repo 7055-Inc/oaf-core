@@ -4,7 +4,7 @@ const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
 const { requirePermission } = require('../middleware/permissions');
 
-// GET /terms/current - Get current terms version
+// GET /terms/current - Get current terms version (general)
 router.get('/current', async (req, res) => {
   try {
     const [terms] = await db.query(
@@ -19,6 +19,32 @@ router.get('/current', async (req, res) => {
   } catch (err) {
     console.error('Error fetching current terms:', err);
     res.status(500).json({ error: 'Failed to fetch current terms' });
+  }
+});
+
+// GET /terms/type/:type - Get current terms by subscription type
+router.get('/type/:type', async (req, res) => {
+  try {
+    const { type } = req.params;
+    const validTypes = ['general', 'verified', 'shipping_labels', 'websites', 'wholesale', 'marketplace', 'addons'];
+    
+    if (!validTypes.includes(type)) {
+      return res.status(400).json({ error: 'Invalid terms type' });
+    }
+    
+    const [terms] = await db.query(
+      'SELECT id, version, title, content, subscription_type, created_at FROM terms_versions WHERE is_current = TRUE AND subscription_type = ? ORDER BY created_at DESC LIMIT 1',
+      [type]
+    );
+    
+    if (!terms[0]) {
+      return res.status(404).json({ error: 'No current terms found for this type' });
+    }
+    
+    res.json(terms[0]);
+  } catch (err) {
+    console.error('Error fetching terms by type:', err);
+    res.status(500).json({ error: 'Failed to fetch terms' });
   }
 });
 

@@ -42,11 +42,87 @@
 
 .policyText p {
   margin-bottom: 1rem;
-  white-space: pre-wrap;
 }
 
-.policyText p:empty {
+.policyText h2 {
+  font-family: var(--font-heading);
+  color: var(--primary-color);
+  font-size: 1.5rem;
+  margin: 2rem 0 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--secondary-color, #f0f0f0);
+}
+
+.policyText h3 {
+  font-family: var(--font-heading);
+  color: var(--primary-color);
+  font-size: 1.25rem;
+  margin: 1.5rem 0 0.75rem;
+}
+
+.policyText ul, .policyText ol {
+  margin: 1rem 0 1.5rem 1.5rem;
+  padding-left: 1rem;
+}
+
+.policyText li {
   margin-bottom: 0.5rem;
+}
+
+.policyText strong {
+  font-weight: 600;
+  color: #222;
+}
+
+.policyText em {
+  font-style: italic;
+  color: #555;
+}
+
+.policyText a {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+.policyText a:hover {
+  opacity: 0.8;
+}
+
+.policyText hr {
+  border: none;
+  border-top: 2px solid var(--secondary-color, #e2e8f0);
+  margin: 2.5rem 0 2rem;
+}
+
+/* Additional Terms navigation links */
+.policyText ul.terms-links {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.policyText ul.terms-links li {
+  margin: 0;
+}
+
+.policyText ul.terms-links li a {
+  display: inline-block;
+  background: var(--primary-color, #667eea);
+  color: white;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.policyText ul.terms-links li a:hover {
+  opacity: 1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .backLink {

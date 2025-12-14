@@ -323,7 +323,7 @@ export default function ProductReviews({ productId, currentUserId }) {
 
       {!currentUserId && (
         <div className={styles.loginPrompt}>
-          <a href="/login">Log in</a> to write a review
+          <a href={`/login?redirect=${encodeURIComponent(typeof window !== 'undefined' ? window.location.pathname : '/')}`}>Log in</a> to write a review
         </div>
       )}
 

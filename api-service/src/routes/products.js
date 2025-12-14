@@ -576,6 +576,13 @@ router.get('/:id', async (req, res) => {
         response.categories = categories;
       }
 
+      // Always add feed metadata (for SEO meta description)
+      const [feedMetadata] = await db.query(
+        'SELECT * FROM product_feed_metadata WHERE product_id = ?',
+        [productData.id]
+      );
+      response.feed_metadata = feedMetadata[0] || null;
+
       return response;
     };
 
@@ -863,8 +870,12 @@ router.post('/', verifyToken, requirePermission('vendor'), uploadLimiter, async 
       width, height, depth, weight, dimension_unit, weight_unit, parent_id, product_type,
       package_number, length, shipping_type, shipping_services, ship_method, ship_rate,
       packages, beginning_inventory, reorder_qty, images,
-      wholesale_price, wholesale_description, // New wholesale fields
-      allow_returns // Returns system field
+      wholesale_price, wholesale_description, wholesale_title, // Wholesale fields
+      allow_returns, // Returns system field
+      marketplace_enabled, marketplace_category, // Marketplace settings
+      // Feed metadata fields
+      gtin, mpn, identifier_exists, google_product_category, meta_description, item_group_id,
+      custom_label_0, custom_label_1, custom_label_2, custom_label_3, custom_label_4
     } = req.body;
 
     console.log('Destructured values - name:', name, 'price:', price, 'category_id:', category_id, 'sku:', sku);
@@ -998,13 +1009,15 @@ router.post('/', verifyToken, requirePermission('vendor'), uploadLimiter, async 
     if (images && Array.isArray(images)) {
       for (let i = 0; i < images.length; i++) {
         const image = images[i];
-        // Support both old format (string) and new format (object with url and is_primary)
+        // Support both old format (string) and new format (object with url, is_primary, friendly_name, alt_text)
         const imageUrl = typeof image === 'string' ? image : image.url;
         const isPrimary = typeof image === 'object' && image.is_primary ? 1 : 0;
+        const friendlyName = typeof image === 'object' ? (image.friendly_name || null) : null;
+        const altText = typeof image === 'object' ? (image.alt_text || null) : null;
         
         await db.query(
-          'INSERT INTO product_images (product_id, image_url, `order`, is_primary) VALUES (?, ?, ?, ?)',
-          [productId, imageUrl, i, isPrimary]
+          'INSERT INTO product_images (product_id, image_url, `order`, is_primary, friendly_name, alt_text) VALUES (?, ?, ?, ?, ?, ?)',
+          [productId, imageUrl, i, isPrimary, friendlyName, altText]
         );
       }
     }
@@ -1074,6 +1087,38 @@ router.post('/', verifyToken, requirePermission('vendor'), uploadLimiter, async 
       }
     }
 
+    // Handle feed metadata (Google Shopping fields)
+    if (gtin || mpn || google_product_category || meta_description || item_group_id || custom_label_0 || custom_label_1 || custom_label_2 || custom_label_3 || custom_label_4) {
+      try {
+        // Auto-set identifier_exists based on GTIN presence
+        const identifierExists = gtin && gtin.trim() !== '' ? 'yes' : (identifier_exists || 'no');
+        
+        await db.query(
+          `INSERT INTO product_feed_metadata 
+           (product_id, gtin, mpn, identifier_exists, google_product_category, meta_description, item_group_id, 
+            custom_label_0, custom_label_1, custom_label_2, custom_label_3, custom_label_4) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            productId, 
+            gtin || null, 
+            mpn || null, 
+            identifierExists,
+            google_product_category || null,
+            meta_description || null, 
+            item_group_id || null,
+            custom_label_0 || null, 
+            custom_label_1 || null, 
+            custom_label_2 || null, 
+            custom_label_3 || null, 
+            custom_label_4 || null
+          ]
+        );
+      } catch (feedMetadataError) {
+        console.error('Error creating feed metadata:', feedMetadataError);
+        // Don't fail the product creation if feed metadata creation fails
+      }
+    }
+
     const [newProduct] = await db.query('SELECT * FROM products WHERE id = ?', [productId]);
     
     // DEBUG: Log the created product
@@ -1086,14 +1131,23 @@ router.post('/', verifyToken, requirePermission('vendor'), uploadLimiter, async 
       vendorId: newProduct[0].vendor_id
     });
     
-    res.status(201).json(newProduct[0]);
+    res.status(201).json({ success: true, product: newProduct[0] });
   } catch (err) {
     console.error('=== PRODUCT CREATION ERROR ===');
     console.error('Error message:', err.message);
     console.error('Error stack:', err.stack);
     console.error('Error code:', err.code);
     secureLogger.error('Error creating product', err);
-    res.status(500).json({ error: 'Failed to create product', details: err.message });
+    
+    // Handle specific database errors with user-friendly messages
+    if (err.code === 'ER_DUP_ENTRY') {
+      if (err.message.includes('uk_products_sku')) {
+        return res.status(400).json({ success: false, error: 'A product with this SKU already exists. Please use a different SKU.' });
+      }
+      return res.status(400).json({ success: false, error: 'A product with this information already exists.' });
+    }
+    
+    res.status(500).json({ success: false, error: 'Failed to create product', details: err.message });
   }
 });
 
@@ -1113,12 +1167,27 @@ router.post('/', verifyToken, requirePermission('vendor'), uploadLimiter, async 
 router.put('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('=== PRODUCT UPDATE DEBUG ===');
+    console.log('Product ID:', id);
+    console.log('Request body keys:', Object.keys(req.body));
+    
     const {
       name, description, short_description, price, category_id, sku, status,
       width, height, depth, weight, dimension_unit, weight_unit, parent_id, product_type,
       package_number, length, shipping_type, shipping_services, ship_method, ship_rate,
-      images, packages, vendor_id
+      images, packages, vendor_id,
+      wholesale_price, wholesale_description, wholesale_title, // Wholesale fields
+      allow_returns, // Returns system field
+      marketplace_enabled, marketplace_category, // Marketplace settings
+      // Feed metadata fields
+      gtin, mpn, identifier_exists, google_product_category, meta_description, item_group_id,
+      custom_label_0, custom_label_1, custom_label_2, custom_label_3, custom_label_4
     } = req.body;
+    
+    console.log('Images count:', images?.length || 0);
+    console.log('Images type:', typeof images);
+    console.log('Packages:', packages);
+    console.log('Ship method:', ship_method);
 
     // Check if product exists and user has permission to edit it
     const [product] = await db.query('SELECT * FROM products WHERE id = ?', [id]);
@@ -1162,16 +1231,41 @@ router.put('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, asyn
       finalVendorId = vendor_id;
     }
 
-    // Update product (removed available_qty since it's now handled by inventory system)
+    // Update product (includes marketplace and wholesale fields)
     await db.query(
-      'UPDATE products SET name = ?, description = ?, short_description = ?, price = ?, category_id = ?, sku = ?, status = ?, track_inventory = ?, width = ?, height = ?, depth = ?, weight = ?, dimension_unit = ?, weight_unit = ?, parent_id = ?, product_type = ?, vendor_id = ?, updated_by = ? WHERE id = ?',
-      [name || product[0].name, description || product[0].description, short_description || product[0].short_description,
-       price || product[0].price, category_id || product[0].category_id,
-       sku || product[0].sku, status || product[0].status, 1, // track_inventory default to true
-       width || product[0].width, height || product[0].height,
-       depth || product[0].depth, weight || product[0].weight, dimension_unit || product[0].dimension_unit,
-       weight_unit || product[0].weight_unit, validatedParentId, product_type || product[0].product_type,
-       finalVendorId, req.userId, id]
+      `UPDATE products SET 
+        name = ?, description = ?, short_description = ?, price = ?, category_id = ?, sku = ?, status = ?, 
+        track_inventory = ?, width = ?, height = ?, depth = ?, weight = ?, dimension_unit = ?, weight_unit = ?, 
+        parent_id = ?, product_type = ?, vendor_id = ?, 
+        wholesale_price = ?, wholesale_description = ?, allow_returns = ?,
+        marketplace_enabled = ?, marketplace_category = ?,
+        updated_by = ? WHERE id = ?`,
+      [
+        name || product[0].name, 
+        description || product[0].description, 
+        short_description || product[0].short_description,
+        price || product[0].price, 
+        category_id || product[0].category_id,
+        sku || product[0].sku, 
+        status || product[0].status, 
+        1, // track_inventory default to true
+        width || product[0].width, 
+        height || product[0].height,
+        depth || product[0].depth, 
+        weight || product[0].weight, 
+        dimension_unit || product[0].dimension_unit,
+        weight_unit || product[0].weight_unit, 
+        validatedParentId, 
+        product_type || product[0].product_type,
+        finalVendorId,
+        wholesale_price !== undefined ? wholesale_price : product[0].wholesale_price,
+        wholesale_description !== undefined ? wholesale_description : product[0].wholesale_description,
+        allow_returns !== undefined ? allow_returns : product[0].allow_returns,
+        marketplace_enabled !== undefined ? (marketplace_enabled ? 1 : 0) : product[0].marketplace_enabled,
+        marketplace_category || product[0].marketplace_category,
+        req.userId, 
+        id
+      ]
     );
 
     // Handle images
@@ -1182,13 +1276,15 @@ router.put('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, asyn
       // Then insert new images
       for (let i = 0; i < images.length; i++) {
         const image = images[i];
-        // Support both old format (string) and new format (object with url and is_primary)
+        // Support both old format (string) and new format (object with url, is_primary, friendly_name, alt_text)
         const imageUrl = typeof image === 'string' ? image : image.url;
         const isPrimary = typeof image === 'object' && image.is_primary ? 1 : 0;
+        const friendlyName = typeof image === 'object' ? (image.friendly_name || null) : null;
+        const altText = typeof image === 'object' ? (image.alt_text || null) : null;
         
         await db.query(
-          'INSERT INTO product_images (product_id, image_url, `order`, is_primary) VALUES (?, ?, ?, ?)',
-          [id, imageUrl, i, isPrimary]
+          'INSERT INTO product_images (product_id, image_url, `order`, is_primary, friendly_name, alt_text) VALUES (?, ?, ?, ?, ?, ?)',
+          [id, imageUrl, i, isPrimary, friendlyName, altText]
         );
       }
     }
@@ -1239,24 +1335,90 @@ router.put('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, asyn
       }
     }
 
+    // Handle feed metadata (Google Shopping fields) - upsert pattern
+    if (gtin !== undefined || mpn !== undefined || google_product_category !== undefined || 
+        meta_description !== undefined || item_group_id !== undefined || 
+        custom_label_0 !== undefined || custom_label_1 !== undefined || 
+        custom_label_2 !== undefined || custom_label_3 !== undefined || custom_label_4 !== undefined) {
+      try {
+        // Check if feed metadata exists
+        const [existingMeta] = await db.query('SELECT id FROM product_feed_metadata WHERE product_id = ?', [id]);
+        
+        // Auto-set identifier_exists based on GTIN presence
+        const identifierExists = gtin && gtin.trim() !== '' ? 'yes' : (identifier_exists || 'no');
+        
+        if (existingMeta.length > 0) {
+          // Update existing
+          await db.query(
+            `UPDATE product_feed_metadata SET 
+              gtin = COALESCE(?, gtin), 
+              mpn = COALESCE(?, mpn), 
+              identifier_exists = ?,
+              google_product_category = COALESCE(?, google_product_category),
+              meta_description = COALESCE(?, meta_description), 
+              item_group_id = COALESCE(?, item_group_id),
+              custom_label_0 = COALESCE(?, custom_label_0), 
+              custom_label_1 = COALESCE(?, custom_label_1), 
+              custom_label_2 = COALESCE(?, custom_label_2), 
+              custom_label_3 = COALESCE(?, custom_label_3), 
+              custom_label_4 = COALESCE(?, custom_label_4),
+              updated_at = NOW()
+            WHERE product_id = ?`,
+            [gtin, mpn, identifierExists, google_product_category, meta_description, item_group_id,
+             custom_label_0, custom_label_1, custom_label_2, custom_label_3, custom_label_4, id]
+          );
+        } else {
+          // Create new
+          await db.query(
+            `INSERT INTO product_feed_metadata 
+             (product_id, gtin, mpn, identifier_exists, google_product_category, meta_description, item_group_id, 
+              custom_label_0, custom_label_1, custom_label_2, custom_label_3, custom_label_4) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, gtin || null, mpn || null, identifierExists, google_product_category || null, 
+             meta_description || null, item_group_id || null, custom_label_0 || null, custom_label_1 || null, 
+             custom_label_2 || null, custom_label_3 || null, custom_label_4 || null]
+          );
+        }
+      } catch (feedMetadataError) {
+        console.error('Error updating feed metadata:', feedMetadataError);
+        // Don't fail the product update if feed metadata update fails
+      }
+    }
+
     // Get updated product with images
     const [updatedProduct] = await db.query('SELECT * FROM products WHERE id = ?', [id]);
     const [productImages] = await db.query(
-      'SELECT image_url, is_primary FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, `order` ASC',
+      'SELECT image_url, is_primary, friendly_name, alt_text FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, `order` ASC',
       [id]
     );
     
     // Get shipping details
     const [shipping] = await db.query('SELECT * FROM product_shipping WHERE product_id = ?', [id]);
     
+    // Get feed metadata
+    const [feedMetadata] = await db.query('SELECT * FROM product_feed_metadata WHERE product_id = ?', [id]);
+    
     res.json({ 
+      success: true,
+      product: {
       ...updatedProduct[0], 
-      images: productImages.map(img => ({ url: img.image_url, is_primary: img.is_primary === 1 })),
-      shipping: shipping[0] || {} 
+        images: productImages.map(img => ({ 
+          url: img.image_url, 
+          is_primary: img.is_primary === 1,
+          friendly_name: img.friendly_name,
+          alt_text: img.alt_text
+        })),
+        shipping: shipping[0] || {},
+        feed_metadata: feedMetadata[0] || {}
+      }
     });
   } catch (err) {
+    console.error('=== PRODUCT UPDATE ERROR ===');
+    console.error('Error message:', err.message);
+    console.error('Error stack:', err.stack);
+    console.error('Error code:', err.code);
     secureLogger.error('Error updating product', err);
-    res.status(500).json({ error: 'Failed to update product' });
+    res.status(500).json({ success: false, error: 'Failed to update product', details: err.message });
   }
 });
 
@@ -1539,13 +1701,16 @@ router.patch('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, as
     const [shipping] = await db.query('SELECT * FROM product_shipping WHERE product_id = ?', [id]);
     
     res.json({ 
+      success: true,
+      product: {
       ...updatedProduct[0], 
       images: productImages.map(img => ({ url: img.image_url, is_primary: img.is_primary === 1 })),
       shipping: shipping[0] || {} 
+      }
     });
   } catch (err) {
     secureLogger.error('Error patching product', err);
-    res.status(500).json({ error: 'Failed to update product' });
+    res.status(500).json({ success: false, error: 'Failed to update product' });
   }
 });
 

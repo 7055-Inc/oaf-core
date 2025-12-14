@@ -1,35 +1,22 @@
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.spinner {
-  width: 32px;
-  height: 32px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #667eea;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto;
-}
+/* Signup page - uses global.css variables and minimal custom styles */
 
 .container {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--background-color);
+  font-family: var(--font-body);
 }
 
 .content {
-  background: white;
+  border: 5px solid var(--primary-color);
+  border-radius: var(--border-radius-sm);
   padding: 3rem 2rem;
-  border-radius: 12px;
-  box-shadow: 0 20px 25px rgba(0,0,0,0.1);
   text-align: center;
   max-width: 400px;
   width: 100%;
+  background: var(--background-color);
 }
 
 .logo {
@@ -37,10 +24,11 @@
 }
 
 .title {
-  color: #667eea;
+  color: var(--primary-color);
   font-size: 1.5rem;
   font-weight: 700;
   margin: 0;
+  font-family: var(--font-heading);
 }
 
 .message {
@@ -48,14 +36,14 @@
 }
 
 .heading {
-  color: #2c3e50;
+  color: var(--text-color);
   font-size: 1.8rem;
   font-weight: 600;
   margin-bottom: 1rem;
 }
 
 .headingSuccess {
-  color: #27ae60;
+  color: var(--success-color);
   font-size: 1.8rem;
   font-weight: 600;
   margin-bottom: 1rem;
@@ -69,65 +57,30 @@
 }
 
 .text {
-  color: #7f8c8d;
+  color: var(--text-color);
   font-size: 1.1rem;
   line-height: 1.6;
   margin-bottom: 1.5rem;
-}
-
-.textError {
-  color: #c0392b;
-  font-size: 1.1rem;
-  line-height: 1.6;
-  margin-bottom: 1.5rem;
-  background: #fdf4f4;
-  padding: 1rem;
-  border-radius: 8px;
-  border-left: 4px solid #e74c3c;
 }
 
 .actions {
-  border-top: 1px solid #ecf0f1;
+  border-top: 1px solid #dee2e6;
   padding-top: 2rem;
 }
 
-.button {
-  display: inline-block;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 12px 24px;
-  border-radius: 8px;
-  text-decoration: none;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  cursor: pointer;
-  border: none;
-  font-size: 1rem;
+/* Larger spinner for this page - global spinner is 16px */
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto;
 }
 
-.linkButton {
-  display: inline-block;
-  background: transparent;
-  color: #667eea;
-  padding: 12px 24px;
-  border-radius: 8px;
-  text-decoration: none;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  cursor: pointer;
-  border: 2px solid #667eea;
-  font-size: 1rem;
-}
-
-.button:hover,
-.linkButton:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
-}
-
-.linkButton:hover {
-  background: #667eea;
-  color: white;
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 @media (max-width: 768px) {
@@ -142,8 +95,7 @@
     font-size: 1.5rem;
   }
   
-  .text,
-  .textError {
+  .text {
     font-size: 1rem;
   }
-} 
+}

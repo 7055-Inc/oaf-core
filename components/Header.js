@@ -400,7 +400,10 @@ export default function Header() {
             ) : !isLoading ? (
               <button 
                 className={`${styles.bbBtn} ${styles.signInButton}`}
-                onClick={() => window.location.href = '/login'}
+                onClick={() => {
+                  const currentUrl = encodeURIComponent(window.location.pathname + window.location.search);
+                  window.location.href = `/login?redirect=${currentUrl}`;
+                }}
               >
                 Sign In
               </button>
@@ -462,7 +465,10 @@ export default function Header() {
               {!isLoggedIn && (
                 <button 
                   className={`${styles.bbBtn} ${styles.mobileSignInButton}`}
-                  onClick={() => window.location.href = '/login'}
+                  onClick={() => {
+                    const currentUrl = encodeURIComponent(window.location.pathname + window.location.search);
+                    window.location.href = `/login?redirect=${currentUrl}`;
+                  }}
                 >
                   Sign In
                 </button>

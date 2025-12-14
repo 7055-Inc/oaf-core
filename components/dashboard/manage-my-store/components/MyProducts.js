@@ -115,7 +115,7 @@ export default function MyProducts({ userData }) {
   };
 
   const handleEdit = (productId) => {
-    router.push(`/dashboard/products/${productId}`);
+    window.open(`/dashboard/products/edit/${productId}`, '_blank');
   };
 
   const handleView = (productId) => {
@@ -188,18 +188,33 @@ export default function MyProducts({ userData }) {
             />
           )}
         </td>
-        <td className={styles.thumbnailCell}>
-          <div className={styles.thumbnailContainer}>
+        <td style={{ width: '90px', textAlign: 'center', padding: '0.5rem' }}>
+          <div style={{ 
+            width: '75px', 
+            height: '75px', 
+            margin: '0 auto',
+            border: '1px solid #e5e7eb',
+            borderRadius: '4px',
+            overflow: 'hidden',
+            background: '#f8fafc',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
             {imageUrl ? (
               <img 
                 src={imageUrl} 
                 alt={product.name}
-                className={styles.productThumbnail}
+                style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  objectFit: 'cover',
+                  maxWidth: '75px',
+                  maxHeight: '75px'
+                }}
               />
             ) : (
-              <div className={styles.noThumbnail}>
-                🎨
-              </div>
+              <span style={{ fontSize: '24px' }}>🎨</span>
             )}
           </div>
         </td>
@@ -250,7 +265,7 @@ export default function MyProducts({ userData }) {
             </button>
             <button
               className="secondary"
-              onClick={() => window.open(`/dashboard/products/${product.id}`, '_blank')}
+              onClick={() => handleEdit(product.id)}
             >
               Edit
             </button>

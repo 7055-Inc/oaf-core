@@ -19,7 +19,7 @@ const ArtistProductCarousel = ({ vendorId, currentProductId, artistName }) => {
     const fetchArtistProducts = async () => {
       try {
         setLoading(true);
-        const res = await fetch(getApiUrl(`products?vendor_id=${vendorId}&include=images&status=active`));
+        const res = await fetch(getApiUrl(`products/all?vendor_id=${vendorId}&include=images`));
         
         if (!res.ok) {
           throw new Error('Failed to fetch artist products');
@@ -27,23 +27,44 @@ const ArtistProductCarousel = ({ vendorId, currentProductId, artistName }) => {
         
         const data = await res.json();
         
-        // Filter out the current product and any drafts
-        const otherProducts = data.filter(product => 
+        // Extract products array from response
+        const productsArray = data.products || data || [];
+        
+        // Filter out the current product, drafts, and child variants (show parents only)
+        // Limit to 12 products max
+        const otherProducts = productsArray.filter(product => 
           product.id !== currentProductId && 
           product.status === 'active' &&
           product.name && 
-          product.name.toLowerCase() !== 'new product draft'
-        );
+          product.name.toLowerCase() !== 'new product draft' &&
+          !product.parent_id // Only show parent products, not variants
+        ).slice(0, 12);
         
-        // Ensure image URLs are absolute
-        const processedProducts = otherProducts.map(product => ({
-          ...product,
-          images: product.images?.map(img => {
-            const imageUrl = typeof img === 'string' ? img : img.url;
-            if (imageUrl.startsWith('http')) return imageUrl;
-            return getSmartMediaUrl(imageUrl);
-          }) || []
-        }));
+        // Process image URLs - API returns images: [{url: "...", is_primary: bool}]
+        const processedProducts = otherProducts.map(product => {
+          let imageUrl = null;
+          
+          // Get image from images array
+          if (product.images && product.images.length > 0) {
+            const firstImg = product.images[0];
+            imageUrl = typeof firstImg === 'string' ? firstImg : firstImg.url;
+          }
+          
+          // Convert relative URL to absolute using API base
+          if (imageUrl && !imageUrl.startsWith('http')) {
+            // For temp_images, use API URL directly (e.g., https://api.brakebee.com/temp_images/...)
+            if (imageUrl.startsWith('/temp_images/')) {
+              imageUrl = getApiUrl(imageUrl.substring(1)); // Remove leading slash
+            } else {
+              imageUrl = getSmartMediaUrl(imageUrl);
+            }
+          }
+          
+          return {
+            ...product,
+            processedImageUrl: imageUrl
+          };
+        });
         
         setProducts(processedProducts);
       } catch (err) {
@@ -57,19 +78,13 @@ const ArtistProductCarousel = ({ vendorId, currentProductId, artistName }) => {
     fetchArtistProducts();
   }, [vendorId, currentProductId]);
 
-  // Create extended product array for infinite scroll
+  // Create extended product array for infinite scroll (just 2 copies for smooth loop)
   useEffect(() => {
     if (products.length > 0) {
-      // Create multiple copies for seamless infinite scroll
-      // Calculate how many copies we need for smooth infinite scroll
-      const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
-      const cardWidth = 220; // 200px + 20px gap
-      const visibleCards = Math.ceil(viewportWidth / cardWidth) + 2; // +2 for buffer
-      const multiplier = Math.max(4, Math.ceil(visibleCards * 2 / products.length)); // At least 4 copies
-      
+      // Only create 2 copies - enough for seamless looping without performance issues
       const extended = [];
       
-      for (let i = 0; i < multiplier; i++) {
+      for (let i = 0; i < 2; i++) {
         extended.push(...products.map((product, index) => ({
           ...product,
           uniqueKey: `${product.id}-${i}-${index}`
@@ -79,18 +94,12 @@ const ArtistProductCarousel = ({ vendorId, currentProductId, artistName }) => {
       setExtendedProducts(extended);
       
       // Preload images for smooth scrolling
-      const preloadImages = () => {
-        products.forEach(product => {
-          const imageUrl = getImageUrl(product);
-          if (imageUrl) {
-            const img = new Image();
-            img.src = imageUrl;
-          }
-        });
-      };
-      
-      // Delay preloading to not block initial render
-      setTimeout(preloadImages, 100);
+      products.forEach(product => {
+        if (product.processedImageUrl) {
+          const img = new Image();
+          img.src = product.processedImageUrl;
+        }
+      });
     }
   }, [products]);
 
@@ -119,7 +128,7 @@ const ArtistProductCarousel = ({ vendorId, currentProductId, artistName }) => {
       });
     };
 
-    animationRef.current = setInterval(scroll, 16); // ~60fps
+    animationRef.current = setInterval(scroll, 32); // ~30fps - smoother, less CPU
 
     return () => {
       if (animationRef.current) {
@@ -137,12 +146,8 @@ const ArtistProductCarousel = ({ vendorId, currentProductId, artistName }) => {
   }, [scrollPosition]);
 
   const getImageUrl = (product) => {
-    if (product.images && product.images.length > 0) {
-      const image = product.images[0];
-      // Handle new format: {url, is_primary} or old format: string
-      return typeof image === 'string' ? image : image.url;
-    }
-    return null;
+    // Use pre-processed image URL
+    return product.processedImageUrl || null;
   };
 
   if (loading) {

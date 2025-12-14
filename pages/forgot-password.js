@@ -58,72 +58,29 @@ export default function ForgotPassword() {
         <meta name="description" content="Reset your Brakebee account password. Enter your email to receive a password reset link." />
       </Head>
       
-      <div style={{ 
-        padding: '2rem', 
-        maxWidth: '500px', 
-        margin: '2rem auto',
-        backgroundColor: 'white',
-        borderRadius: '8px',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
-      }}>
-        <h1 style={{ 
-          color: '#055474', 
-          marginBottom: '1rem', 
-          textAlign: 'center',
-          fontSize: '2rem'
-        }}>
-          Reset Your Password
-        </h1>
+      <div className="section-box" style={{ maxWidth: '500px', margin: '2rem auto' }}>
+        <h1 style={{ textAlign: 'center' }}>Reset Your Password</h1>
         
-        <p style={{ 
-          color: '#666', 
-          marginBottom: '2rem', 
-          textAlign: 'center',
-          lineHeight: '1.5'
-        }}>
+        <p style={{ textAlign: 'center', marginBottom: '2rem', lineHeight: '1.5' }}>
           Enter your email address and we'll send you a link to reset your password.
         </p>
 
         {error && (
-          <div style={{
-            backgroundColor: '#fee2e2',
-            border: '1px solid #fecaca',
-            color: '#dc2626',
-            padding: '1rem',
-            borderRadius: '4px',
-            marginBottom: '1rem',
-            textAlign: 'center'
-          }}>
+          <div className="error-alert" style={{ textAlign: 'center' }}>
             {error}
           </div>
         )}
 
         {message && (
-          <div style={{
-            backgroundColor: '#d1fae5',
-            border: '1px solid #a7f3d0',
-            color: '#065f46',
-            padding: '1rem',
-            borderRadius: '4px',
-            marginBottom: '1rem',
-            textAlign: 'center'
-          }}>
+          <div className="success-alert" style={{ textAlign: 'center' }}>
             {message}
           </div>
         )}
 
         {!isSuccess ? (
-          <form onSubmit={handlePasswordReset}>
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ 
-                display: 'block', 
-                marginBottom: '0.5rem', 
-                color: '#333', 
-                fontWeight: '500',
-                fontSize: '1rem'
-              }}>
-                Email Address:
-              </label>
+          <form onSubmit={handlePasswordReset} className="form-grid-1">
+            <div>
+              <label>Email Address:</label>
               <input
                 type="email"
                 value={email}
@@ -131,54 +88,23 @@ export default function ForgotPassword() {
                 required
                 disabled={isLoading}
                 placeholder="Enter your email address"
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '1px solid #e9ecef',
-                  borderRadius: '4px',
-                  fontSize: '1rem',
-                  backgroundColor: isLoading ? '#f8f9fa' : 'white',
-                  boxSizing: 'border-box'
-                }}
               />
             </div>
 
             <button 
               type="submit" 
               disabled={isLoading}
-              style={{
-                width: '100%',
-                backgroundColor: '#055474',
-                color: 'white',
-                border: 'none',
-                padding: '0.75rem 1rem',
-                borderRadius: '4px',
-                fontSize: '1rem',
-                fontWeight: '500',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                transition: 'background-color 0.2s',
-                marginBottom: '1rem'
-              }}
-              onMouseEnter={(e) => !isLoading && (e.target.style.backgroundColor = '#3e1c56')}
-              onMouseLeave={(e) => !isLoading && (e.target.style.backgroundColor = '#055474')}
+              style={{ width: '100%', marginTop: '0.5rem' }}
             >
               {isLoading ? 'Sending...' : 'Send Reset Email'}
             </button>
           </form>
         ) : (
           <div style={{ textAlign: 'center' }}>
-            <div style={{
-              fontSize: '3rem',
-              color: '#10b981',
-              marginBottom: '1rem'
-            }}>
+            <div style={{ fontSize: '3rem', color: 'var(--success-color)', marginBottom: '1rem' }}>
               ✓
             </div>
-            <p style={{ 
-              color: '#666', 
-              marginBottom: '1.5rem',
-              lineHeight: '1.5'
-            }}>
+            <p style={{ marginBottom: '1.5rem', lineHeight: '1.5' }}>
               If an account with that email exists, you should receive a password reset email within a few minutes.
             </p>
           </div>
@@ -188,22 +114,12 @@ export default function ForgotPassword() {
           textAlign: 'center', 
           marginTop: '2rem',
           paddingTop: '1rem',
-          borderTop: '1px solid #e9ecef'
+          borderTop: '1px solid #dee2e6'
         }}>
-          <p style={{ color: '#666', marginBottom: '0.5rem' }}>
+          <p style={{ marginBottom: '0.5rem' }}>
             Remember your password?
           </p>
-          <a 
-            href="/login" 
-            style={{ 
-              color: '#055474', 
-              textDecoration: 'none', 
-              fontWeight: '500',
-              fontSize: '1rem'
-            }}
-          >
-            Back to Login
-          </a>
+          <a href="/login">Back to Login</a>
         </div>
       </div>
     </>

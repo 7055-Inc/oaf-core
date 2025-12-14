@@ -1,36 +1,39 @@
 .container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #055474 0%, #3e1c56 100%);
+  background: #f5f5f5;
   display: flex;
   justify-content: center;
-  align-items: center;
-  padding: 2rem;
+  align-items: flex-start;
+  padding: 1.5rem;
+  padding-top: calc(var(--header-height-desktop) + 2rem);
 }
 
 .modal {
-  background: white;
-  border-radius: 0;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
-  max-width: 700px;
+  max-width: 1000px;
   width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
+  margin: 0;
 }
 
 .header {
-  padding: 2rem 2rem 1rem;
-  border-bottom: 1px solid #e5e7eb;
-  background: #f8fafc;
+  padding: 2.5rem 2rem 1.5rem;
   text-align: center;
+}
+
+.headerIcon {
+  font-size: 3rem;
+  color: var(--primary-color);
+  margin-bottom: 1rem;
+}
+
+.headerIcon.successIcon {
+  color: var(--success-color);
 }
 
 .header h1 {
   margin: 0 0 0.5rem 0;
-  color: #1f2937;
-  font-size: 1.875rem;
-  font-weight: 700;
+  color: var(--primary-color);
+  font-size: 2rem;
+  font-family: var(--font-heading);
 }
 
 .subtitle {
@@ -40,117 +43,15 @@
   line-height: 1.5;
 }
 
-.optionsContainer {
-  padding: 2rem;
+.form {
+  padding: 0 2rem 2rem;
 }
 
-.missingFieldsInfo {
-  margin-bottom: 2rem;
-  padding: 1.5rem;
-  background: #fef3c7;
-  border: 1px solid #f59e0b;
-  border-radius: 0;
-}
-
-.missingFieldsInfo h3 {
-  margin: 0 0 1rem 0;
-  color: #92400e;
-  font-size: 1.125rem;
-  font-weight: 600;
-}
-
-.missingFieldsList {
-  margin: 0;
-  padding-left: 1.5rem;
-  list-style-type: disc;
-}
-
-.missingFieldsList li {
-  margin: 0.5rem 0;
-  color: #92400e;
-  font-weight: 500;
-}
-
-.options {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.profileButton, .inlineButton {
-  padding: 1.5rem 2rem;
-  border: 2px solid transparent;
-  border-radius: 0;
-  font-weight: 600;
-  font-family: inherit;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  text-align: center;
-}
-
-.profileButton {
-  background: #055474;
-  color: white;
-  border-color: #055474;
-}
-
-.profileButton:hover {
-  background: #3e1c56;
-  border-color: #3e1c56;
-  transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(5, 84, 116, 0.3);
-}
-
-.inlineButton {
-  background: #055474;
-  color: white;
-  border-color: #055474;
-}
-
-.inlineButton:hover {
-  background: #3e1c56;
-  border-color: #3e1c56;
-  transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(5, 84, 116, 0.3);
-}
-
-.buttonIcon {
-  font-size: 1.25rem;
-}
-
-.inlineFormContainer {
-  padding: 2rem;
-  max-height: 60vh;
-  overflow-y: auto;
-}
-
-.formHeader {
-  margin-bottom: 2rem;
-  text-align: center;
-}
-
-.formHeader h3 {
-  margin: 0 0 0.5rem 0;
-  color: #1f2937;
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.formHeader p {
-  margin: 0;
-  color: #6b7280;
-  font-size: 1rem;
-}
-
-.inlineForm {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
 }
 
 .formGroup {
@@ -159,106 +60,96 @@
   gap: 0.5rem;
 }
 
+/* Full width for certain fields */
+.formGroup.fullWidth {
+  grid-column: 1 / -1;
+}
+
 .label {
   font-weight: 600;
-  color: #374151;
+  color: var(--text-color);
   font-size: 0.875rem;
 }
 
 .input {
-  padding: 0.75rem 1rem;
+  padding: 0.875rem 1rem;
   border: 2px solid #e5e7eb;
-  border-radius: 0;
   font-size: 1rem;
-  transition: border-color 0.2s;
+  font-family: var(--font-body);
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .input:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(5, 84, 116, 0.1);
 }
 
-.formActions {
+.input::placeholder {
+  color: #9ca3af;
+}
+
+.actions {
   display: flex;
-  gap: 1rem;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  padding: 0 2rem 2rem;
+}
+
+.form .actions {
+  padding: 0;
   margin-top: 1rem;
 }
 
-.backButton {
-  padding: 0.75rem 1.5rem;
-  border: 2px solid #055474;
-  background: white;
-  color: #055474;
-  border-radius: 0;
-  font-weight: 600;
-  font-family: inherit;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  flex: 1;
-}
-
-.backButton:hover {
-  background: #055474;
-  color: white;
-}
-
-.backButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.submitButton {
-  padding: 0.75rem 2rem;
-  border: none;
-  background: #055474;
-  color: white;
-  border-radius: 0;
-  font-weight: 600;
-  font-family: inherit;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  justify-content: center;
-  flex: 2;
-}
-
-.submitButton:hover {
-  background: #3e1c56;
-}
-
-.submitButton:disabled {
-  background: #9ca3af;
-  cursor: not-allowed;
-}
-
-.successActions {
-  padding: 2rem;
-  text-align: center;
-}
-
-.completeButton {
+.primaryButton {
   padding: 1rem 2rem;
   border: none;
-  background: #055474;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 50%, var(--primary-color) 100%);
+  background-size: 200% 100%;
   color: white;
-  border-radius: 0;
+  font-size: 1rem;
   font-weight: 600;
-  font-family: inherit;
-  font-size: 1.125rem;
+  font-family: var(--font-body);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s ease;
+  width: 100%;
 }
 
-.completeButton:hover {
-  background: #3e1c56;
+.primaryButton:hover:not(:disabled) {
+  background-position: 100% 0;
   transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(5, 84, 116, 0.3);
+  box-shadow: 0 8px 20px rgba(5, 84, 116, 0.3);
+}
+
+.primaryButton:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.secondaryButton {
+  padding: 0.875rem 1.5rem;
+  border: 2px solid #d1d5db;
+  background: white;
+  color: #6b7280;
+  font-size: 0.9rem;
+  font-weight: 500;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.secondaryButton:hover:not(:disabled) {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.secondaryButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .loading {
@@ -266,7 +157,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--text-color);
   text-align: center;
   padding: 3rem;
 }
@@ -276,34 +167,11 @@
   font-size: 1.125rem;
 }
 
-.error {
-  color: white;
-  text-align: center;
-  padding: 2rem;
-  background: white;
-  border-radius: 0;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
-  max-width: 500px;
-  width: 100%;
-}
-
-.error h2 {
-  margin: 0 0 1rem 0;
-  color: #dc2626;
-  font-size: 1.5rem;
-}
-
-.error p {
-  margin: 0 0 1.5rem 0;
-  color: #6b7280;
-  line-height: 1.5;
-}
-
 .spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid transparent;
-  border-top: 2px solid currentColor;
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(5, 84, 116, 0.2);
+  border-top: 3px solid var(--primary-color);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -312,7 +180,6 @@
   padding: 1rem;
   background: #fef2f2;
   border: 1px solid #fecaca;
-  border-radius: 0;
   text-align: center;
 }
 
@@ -320,6 +187,7 @@
   margin: 0;
   color: #dc2626;
   font-weight: 500;
+  font-size: 0.9rem;
 }
 
 @keyframes spin {
@@ -328,45 +196,39 @@
 }
 
 /* Responsive design */
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .container {
     padding: 1rem;
-  }
-  
-  .modal {
-    max-height: 95vh;
+    padding-top: calc(var(--header-height-mobile) + 1.5rem);
   }
   
   .header {
-    padding: 1.5rem 1.5rem 1rem;
+    padding: 2rem 1.5rem 1rem;
+  }
+  
+  .headerIcon {
+    font-size: 2.5rem;
   }
   
   .header h1 {
-    font-size: 1.5rem;
+    font-size: 1.75rem;
   }
   
-  .optionsContainer {
-    padding: 1.5rem;
+  .form {
+    padding: 0 1.5rem 1.5rem;
   }
   
-  .profileButton, .inlineButton {
-    padding: 1.25rem 1.5rem;
-    font-size: 0.95rem;
+  .actions {
+    padding: 0 1.5rem 1.5rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .formGrid {
+    grid-template-columns: 1fr;
   }
   
-  .inlineFormContainer {
-    padding: 1.5rem;
+  .formGroup.fullWidth {
+    grid-column: 1;
   }
-  
-  .formActions {
-    flex-direction: column;
-  }
-  
-  .formActions button {
-    width: 100%;
-  }
-  
-  .buttonIcon {
-    font-size: 1.125rem;
-  }
-} 
+}

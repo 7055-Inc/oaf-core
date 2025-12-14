@@ -110,10 +110,8 @@ export default function LoginModal() {
         localStorage.setItem('refreshToken', data.refreshToken);
         
         // Set secure cookies for middleware
-        document.cookie = `token=${data.token}; ${getCookieConfig()}; max-age=3600`;
+        document.cookie = `token=${data.token}; ${getCookieConfig()}; max-age=7200`;
         document.cookie = `refreshToken=${data.refreshToken}; ${getCookieConfig()}; max-age=604800`;
-        
-        console.log('Authentication successful, tokens set');
         
         // Wait a moment for the cookies to be set
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -133,19 +131,12 @@ export default function LoginModal() {
   };
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '400px', margin: '0 auto' }}>
-      <h1 style={{ color: '#055474', marginBottom: '2rem', textAlign: 'center' }}>Login</h1>
+    <div className="section-box" style={{ maxWidth: '400px', margin: '0 auto' }}>
+      <h1 style={{ textAlign: 'center' }}>Login</h1>
+      
       {/* Error Message */}
       {error && (
-        <div style={{
-          backgroundColor: '#fee2e2',
-          border: '1px solid #fecaca',
-          color: '#dc2626',
-          padding: '1rem',
-          borderRadius: '4px',
-          marginBottom: '1rem',
-          textAlign: 'center'
-        }}>
+        <div className="error-alert" style={{ textAlign: 'center' }}>
           <div style={{ marginBottom: unverifiedUser ? '0.75rem' : '0' }}>
             {error}
           </div>
@@ -153,20 +144,11 @@ export default function LoginModal() {
             <button
               onClick={handleResendVerification}
               disabled={isLoading}
-              style={{
+              style={{ 
                 backgroundColor: '#dc2626',
-                color: 'white',
-                border: 'none',
-                padding: '0.5rem 1rem',
-                borderRadius: '4px',
                 fontSize: '0.875rem',
-                fontWeight: '500',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                transition: 'background-color 0.2s',
-                opacity: isLoading ? 0.7 : 1
+                padding: '0.5rem 1rem'
               }}
-              onMouseEnter={(e) => !isLoading && (e.target.style.backgroundColor = '#b91c1c')}
-              onMouseLeave={(e) => !isLoading && (e.target.style.backgroundColor = '#dc2626')}
             >
               {isLoading ? 'Sending...' : 'Resend Verification Email'}
             </button>
@@ -176,15 +158,7 @@ export default function LoginModal() {
 
       {/* Success Message for Resend */}
       {resendMessage && (
-        <div style={{
-          backgroundColor: '#d1fae5',
-          border: '1px solid #a7f3d0',
-          color: '#065f46',
-          padding: '1rem',
-          borderRadius: '4px',
-          marginBottom: '1rem',
-          textAlign: 'center'
-        }}>
+        <div className="success-alert" style={{ textAlign: 'center' }}>
           {resendMessage}
         </div>
       )}
@@ -193,26 +167,15 @@ export default function LoginModal() {
       <button 
         onClick={handleGoogleLogin} 
         disabled={isLoading}
+        className="secondary"
         style={{
           width: '100%',
-          height: '44px',
-          backgroundColor: '#ffffff',
-          color: '#757575',
-          border: '1px solid #dadce0',
-          borderRadius: '4px',
-          fontSize: '14px',
-          fontWeight: '500',
-          cursor: isLoading ? 'not-allowed' : 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           gap: '12px',
-          marginBottom: '2rem',
-          transition: 'background-color 0.2s, box-shadow 0.2s',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+          marginBottom: '2rem'
         }}
-        onMouseEnter={(e) => !isLoading && (e.target.style.backgroundColor = '#f8f9fa')}
-        onMouseLeave={(e) => !isLoading && (e.target.style.backgroundColor = '#ffffff')}
       >
         <svg width="18" height="18" viewBox="0 0 24 24">
           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -226,68 +189,39 @@ export default function LoginModal() {
       <div style={{ 
         display: 'flex', 
         alignItems: 'center', 
-        marginBottom: '2rem',
-        color: '#666'
+        marginBottom: '2rem'
       }}>
-        <div style={{ flex: 1, height: '1px', backgroundColor: '#e9ecef' }}></div>
-        <span style={{ padding: '0 1rem', fontSize: '14px' }}>or</span>
-        <div style={{ flex: 1, height: '1px', backgroundColor: '#e9ecef' }}></div>
+        <div style={{ flex: 1, height: '1px', backgroundColor: '#dee2e6' }}></div>
+        <span style={{ padding: '0 1rem', fontSize: '14px', color: '#6c757d' }}>or</span>
+        <div style={{ flex: 1, height: '1px', backgroundColor: '#dee2e6' }}></div>
       </div>
 
       {/* Email Login Form */}
-      <form onSubmit={handleEmailLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <form onSubmit={handleEmailLogin} className="form-grid-1">
         <div>
-          <label style={{ display: 'block', marginBottom: '0.5rem', color: '#333', fontWeight: '500' }}>
-            Email:
-          </label>
+          <label>Email:</label>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
             disabled={isLoading}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              border: '1px solid #e9ecef',
-              borderRadius: '0px',
-              fontSize: '1rem',
-              backgroundColor: isLoading ? '#f8f9fa' : 'white'
-            }}
           />
         </div>
         <div>
-          <label style={{ display: 'block', marginBottom: '0.5rem', color: '#333', fontWeight: '500' }}>
-            Password:
-          </label>
+          <label>Password:</label>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             disabled={isLoading}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              border: '1px solid #e9ecef',
-              borderRadius: '0px',
-              fontSize: '1rem',
-              backgroundColor: isLoading ? '#f8f9fa' : 'white'
-            }}
           />
         </div>
         
         {/* Forgot Password Link */}
-        <div style={{ textAlign: 'right', marginTop: '0.5rem' }}>
-          <a
-            href="/forgot-password"
-            style={{
-              color: '#055474',
-              fontSize: '14px',
-              textDecoration: 'underline',
-              cursor: 'pointer'
-            }}
-          >
+        <div style={{ textAlign: 'right' }}>
+          <a href="/forgot-password" style={{ fontSize: '14px', textDecoration: 'underline' }}>
             Forgot Password?
           </a>
         </div>
@@ -295,27 +229,14 @@ export default function LoginModal() {
         <button 
           type="submit" 
           disabled={isLoading}
-          style={{
-            backgroundColor: '#055474',
-            color: 'white',
-            border: 'none',
-            padding: '0.75rem 1rem',
-            borderRadius: '0px',
-            fontSize: '1rem',
-            fontWeight: '500',
-            cursor: isLoading ? 'not-allowed' : 'pointer',
-            transition: 'background-color 0.2s',
-            marginTop: '1rem'
-          }}
-          onMouseEnter={(e) => !isLoading && (e.target.style.backgroundColor = '#3e1c56')}
-          onMouseLeave={(e) => !isLoading && (e.target.style.backgroundColor = '#055474')}
+          style={{ width: '100%', marginTop: '1rem' }}
         >
           {isLoading ? 'Signing in...' : 'Sign in with Email'}
         </button>
       </form>
       
-      <p style={{ marginTop: '2rem', textAlign: 'center', color: '#666' }}>
-        Don't have an account? <a href="/signup" style={{ color: '#055474', textDecoration: 'none', fontWeight: '500' }}>Sign up here</a>
+      <p style={{ marginTop: '2rem', textAlign: 'center' }}>
+        Don't have an account? <a href="/signup">Sign up here</a>
       </p>
     </div>
   );

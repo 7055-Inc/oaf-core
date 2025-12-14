@@ -112,5 +112,27 @@ router.get('/copyright-policies/default', async (req, res) => {
   }
 });
 
+// GET /transparency-policies/default - Public endpoint for marketplace transparency policy
+router.get('/transparency-policies/default', async (req, res) => {
+  try {
+    const [policies] = await db.query(
+      'SELECT policy_text FROM transparency_policies WHERE user_id IS NULL AND status = ? ORDER BY created_at DESC LIMIT 1',
+      ['active']
+    );
+
+    if (policies.length === 0) {
+      return res.status(404).json({ 
+        error: 'Default transparency policy not found',
+        policy_text: 'Default marketplace transparency policy is currently unavailable. Please contact support@brakebee.com for assistance.'
+      });
+    }
+
+    res.json({ policy_text: policies[0].policy_text });
+  } catch (error) {
+    console.error('Error fetching default transparency policy:', error);
+    res.status(500).json({ error: 'Failed to fetch transparency policy' });
+  }
+});
+
 module.exports = router;
 
