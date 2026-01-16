@@ -472,14 +472,19 @@ router.get('/applications', verifyToken, requirePermission('manage_system'), asy
 
       if (mediaIds.length > 0) {
         const [mediaUrls] = await db.query(
-          `SELECT id, permanent_url FROM pending_images WHERE id IN (${mediaIds.map(() => '?').join(',')})`,
+          `SELECT id, permanent_url, image_path FROM pending_images WHERE id IN (${mediaIds.map(() => '?').join(',')})`,
           mediaIds
         );
 
         const mediaMapping = {};
         mediaUrls.forEach(media => {
           if (media.permanent_url) {
+            // Use permanent URL if available
             mediaMapping[media.id] = `${process.env.SMART_MEDIA_BASE_URL || 'https://api.beemeeart.com/api/images'}/${media.permanent_url}`;
+          } else if (media.image_path) {
+            // Fall back to image_path for pending images
+            const apiBaseUrl = process.env.API_BASE_URL || 'https://api.brakebee.com';
+            mediaMapping[media.id] = `${apiBaseUrl}${media.image_path}`;
           }
         });
 

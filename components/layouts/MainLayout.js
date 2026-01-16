@@ -1,6 +1,7 @@
 'use client';
 import Header from '../Header';
 import Footer from '../Footer';
+import ExitIntentPopup from '../ExitIntentPopup';
 
 /**
  * MainLayout - Persistent layout for main site pages
@@ -12,9 +13,13 @@ import Footer from '../Footer';
 export default function MainLayout({ children }) {
   return (
     <>
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
       <Header />
-      <main>{children}</main>
+      <main id="main-content">{children}</main>
       <Footer />
+      <ExitIntentPopup />
     </>
   );
 }

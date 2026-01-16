@@ -824,8 +824,18 @@ export default function AdminPromotions({ userData }) {
 
       {/* Create Modal */}
       {showCreateModal && (
-        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+        <div 
+          className="modal-overlay" 
+          onClick={() => setShowCreateModal(false)}
+          onKeyDown={(e) => e.key === 'Escape' && setShowCreateModal(false)}
+          role="presentation"
+        >
+          <div 
+            className="modal-content" 
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
             {createType === 'sale' ? (
               <div>
                 <h3 className="modal-title">Create New Site-Wide Sale</h3>

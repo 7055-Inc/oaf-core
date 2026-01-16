@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
-import { getApiUrl, config } from '../../lib/config';
+import { getApiUrl, config, getSubdomainBase, getFrontendUrl } from '../../lib/config';
 import styles from './ArtistStorefront.module.css';
 
 const ArtistAbout = () => {
@@ -68,7 +68,7 @@ const ArtistAbout = () => {
       <div className={styles.error}>
         <h1>Page Not Found</h1>
         <p>Sorry, this page is not available.</p>
-        <Link href={`https://${subdomain}.beemeeart.com`}>
+        <Link href={`https://${subdomain}.${getSubdomainBase()}`}>
           <a className={styles.homeLink}>← Back to Gallery</a>
         </Link>
       </div>
@@ -98,7 +98,7 @@ const ArtistAbout = () => {
                 />
               )}
               <div className={styles.artistDetails}>
-                <Link href={`https://${subdomain}.beemeeart.com`}>
+                <Link href={`https://${subdomain}.${getSubdomainBase()}`}>
                   <a className={styles.artistName}>
                     {siteData.first_name} {siteData.last_name}
                   </a>
@@ -108,13 +108,13 @@ const ArtistAbout = () => {
             </div>
 
             <nav className={styles.navigation}>
-              <Link href={`https://${subdomain}.beemeeart.com`}>
+              <Link href={`https://${subdomain}.${getSubdomainBase()}`}>
                 <a className={styles.navLink}>Gallery</a>
               </Link>
-              <Link href={`https://${subdomain}.beemeeart.com/about`}>
+              <Link href={`https://${subdomain}.${getSubdomainBase()}/about`}>
                 <a className={`${styles.navLink} ${styles.active}`}>About</a>
               </Link>
-              <Link href="https://main.beemeeart.com">
+              <Link href={getFrontendUrl()}>
                 <a className={styles.navLink}>Main Site</a>
               </Link>
             </nav>
@@ -251,10 +251,10 @@ const ArtistAbout = () => {
                 <h2>Interested in my work?</h2>
                 <p>Browse my gallery or get in touch to discuss custom pieces</p>
                 <div className={styles.ctaButtons}>
-                  <Link href={`https://${subdomain}.beemeeart.com`}>
+                  <Link href={`https://${subdomain}.${getSubdomainBase()}`}>
                     <a className={styles.ctaPrimary}>View Gallery</a>
                   </Link>
-                  <Link href={`https://${subdomain}.beemeeart.com/contact`}>
+                  <Link href={`https://${subdomain}.${getSubdomainBase()}/contact`}>
                     <a className={styles.ctaSecondary}>Contact Me</a>
                   </Link>
                 </div>
@@ -276,8 +276,8 @@ const ArtistAbout = () => {
               <div className={styles.footerSection}>
                 <h4>Platform</h4>
                 <p>
-                  <Link href="https://main.beemeeart.com">
-                    <a>Online Art Festival</a>
+                  <Link href={getFrontendUrl()}>
+                    <a>Brakebee</a>
                   </Link>
                 </p>
                 <p className={styles.poweredBy}>Powered by OAF</p>

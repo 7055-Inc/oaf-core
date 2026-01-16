@@ -537,94 +537,7 @@ router.delete('/shipping-policy', verifyToken, requirePermission('vendor'), asyn
   }
 });
 
-/**
- * Get vendor return policy
- * GET /api/vendor/return-policy
- */
-router.get('/return-policy', verifyToken, requirePermission('vendor'), async (req, res) => {
-  try {
-    const vendorId = req.userId;
-
-    const policy = await getVendorReturnPolicy(vendorId);
-    
-    res.json({
-      success: true,
-      policy: policy
-    });
-    
-  } catch (error) {
-    console.error('Error getting return policy:', error);
-    res.status(500).json({ error: 'Failed to get return policy' });
-  }
-});
-
-/**
- * Update vendor return policy
- * PUT /api/vendor/return-policy
- */
-router.put('/return-policy', verifyToken, requirePermission('vendor'), async (req, res) => {
-  try {
-    const vendorId = req.userId;
-    const { policy_text } = req.body;
-    
-    if (!policy_text) {
-      return res.status(400).json({ error: 'Policy text is required' });
-    }
-
-    const updatedPolicy = await updateVendorReturnPolicy(vendorId, policy_text);
-    
-    res.json({
-      success: true,
-      policy: updatedPolicy
-    });
-    
-  } catch (error) {
-    console.error('Error updating return policy:', error);
-    res.status(500).json({ error: 'Failed to update return policy' });
-  }
-});
-
-/**
- * Get vendor return policy history
- * GET /api/vendor/return-policy/history
- */
-router.get('/return-policy/history', verifyToken, requirePermission('vendor'), async (req, res) => {
-  try {
-    const vendorId = req.userId;
-
-    const history = await getVendorReturnPolicyHistory(vendorId);
-    
-    res.json({
-      success: true,
-      history: history
-    });
-    
-  } catch (error) {
-    console.error('Error getting return policy history:', error);
-    res.status(500).json({ error: 'Failed to get policy history' });
-  }
-});
-
-/**
- * Delete vendor return policy
- * DELETE /api/vendor/return-policy
- */
-router.delete('/return-policy', verifyToken, requirePermission('vendor'), async (req, res) => {
-  try {
-    const vendorId = req.userId;
-
-    await deleteVendorReturnPolicy(vendorId);
-    
-    res.json({
-      success: true,
-      message: 'Return policy deleted successfully'
-    });
-    
-  } catch (error) {
-    console.error('Error deleting return policy:', error);
-    res.status(500).json({ error: 'Failed to delete return policy' });
-  }
-});
+// Note: Vendor return policy routes removed - return policies are now per-product
 
 // New endpoint: GET /orders/my - Fetch vendor's orders with optional status filter
 router.get('/orders/my', verifyToken, async (req, res) => {
@@ -1041,125 +954,7 @@ async function deleteVendorShippingPolicy(vendorId) {
   await db.query(query, [vendorId]);
 }
 
-/**
- * Get vendor's return policy (with fallback to default)
- */
-async function getVendorReturnPolicy(vendorId) {
-  // First try to get vendor's custom policy
-  const vendorQuery = `
-    SELECT 
-      rp.id,
-      rp.policy_text,
-      rp.created_at,
-      rp.updated_at,
-      u.username as created_by_username,
-      'custom' as policy_source
-    FROM return_policies rp
-    JOIN users u ON rp.created_by = u.id
-    WHERE rp.user_id = ? AND rp.status = 'active'
-  `;
-  
-  const [vendorRows] = await db.query(vendorQuery, [vendorId]);
-  
-  if (vendorRows.length > 0) {
-    return vendorRows[0];
-  }
-  
-  // If no custom policy, get default policy (user_id = NULL)
-  const defaultQuery = `
-    SELECT 
-      rp.id,
-      rp.policy_text,
-      rp.created_at,
-      rp.updated_at,
-      u.username as created_by_username,
-      'default' as policy_source
-    FROM return_policies rp
-    JOIN users u ON rp.created_by = u.id
-    WHERE rp.user_id IS NULL AND rp.status = 'active'
-  `;
-  
-  const [defaultRows] = await db.query(defaultQuery);
-  
-  if (defaultRows.length > 0) {
-    return defaultRows[0];
-  }
-  
-  // If no default policy exists, return null
-  return null;
-}
-
-/**
- * Update vendor's return policy
- */
-async function updateVendorReturnPolicy(vendorId, policyText) {
-  // Get a connection from the pool for transaction
-  const connection = await db.getConnection();
-  
-  try {
-    await connection.beginTransaction();
-    
-    // Archive existing active policy
-    await connection.execute(
-      'UPDATE return_policies SET status = "archived" WHERE user_id = ? AND status = "active"',
-      [vendorId]
-    );
-    
-    // Create new active policy
-    const insertQuery = `
-      INSERT INTO return_policies (user_id, policy_text, status, created_by)
-      VALUES (?, ?, 'active', ?)
-    `;
-    
-    const [result] = await connection.execute(insertQuery, [vendorId, policyText, vendorId]);
-    
-    await connection.commit();
-    
-    // Return the new policy
-    return await getVendorReturnPolicy(vendorId);
-    
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
-  }
-}
-
-/**
- * Get vendor's return policy history
- */
-async function getVendorReturnPolicyHistory(vendorId) {
-  const query = `
-    SELECT 
-      rp.id,
-      rp.policy_text,
-      rp.status,
-      rp.created_at,
-      rp.updated_at,
-      u.username as created_by_username
-    FROM return_policies rp
-    JOIN users u ON rp.created_by = u.id
-    WHERE rp.user_id = ?
-    ORDER BY rp.created_at DESC
-  `;
-  
-  const [rows] = await db.query(query, [vendorId]);
-  return rows;
-}
-
-/**
- * Delete vendor's return policy (archive all policies)
- */
-async function deleteVendorReturnPolicy(vendorId) {
-  const query = `
-    UPDATE return_policies 
-    SET status = 'archived' 
-    WHERE user_id = ? AND status = 'active'
-  `;
-  
-  await db.query(query, [vendorId]);
-}
+// Note: Vendor return policy helper functions removed - return policies are now per-product
 
 // Get vendor shipping preferences
 router.get('/shipping-preferences', verifyToken, requirePermission('vendor'), async (req, res) => {
@@ -1220,7 +1015,8 @@ router.post('/shipping-preferences', verifyToken, requirePermission('vendor'), a
       return_phone,
       label_size_preference,
       signature_required_default,
-      insurance_default
+      insurance_default,
+      handling_days
     } = req.body;
 
     // Convert undefined and empty strings to null and properly handle booleans
@@ -1236,7 +1032,8 @@ router.post('/shipping-preferences', verifyToken, requirePermission('vendor'), a
       return_phone: (return_phone === undefined || return_phone === '') ? null : return_phone,
       label_size_preference: (label_size_preference === undefined || label_size_preference === '') ? '4x6' : label_size_preference,
       signature_required_default: signature_required_default === true || signature_required_default === 'true' || signature_required_default === 1 ? 1 : 0,
-      insurance_default: insurance_default === true || insurance_default === 'true' || insurance_default === 1 ? 1 : 0
+      insurance_default: insurance_default === true || insurance_default === 'true' || insurance_default === 1 ? 1 : 0,
+      handling_days: handling_days ? parseInt(handling_days, 10) : 3
     };
     
     // Check if preferences already exist
@@ -1261,6 +1058,7 @@ router.post('/shipping-preferences', verifyToken, requirePermission('vendor'), a
           label_size_preference = ?,
           signature_required_default = ?,
           insurance_default = ?,
+          handling_days = ?,
           updated_at = NOW()
         WHERE vendor_id = ?
       `, [
@@ -1276,6 +1074,7 @@ router.post('/shipping-preferences', verifyToken, requirePermission('vendor'), a
         cleanData.label_size_preference,
         cleanData.signature_required_default,
         cleanData.insurance_default,
+        cleanData.handling_days,
         vendorId
       ]);
     } else {
@@ -1294,8 +1093,9 @@ router.post('/shipping-preferences', verifyToken, requirePermission('vendor'), a
           return_phone,
           label_size_preference,
           signature_required_default,
-          insurance_default
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          insurance_default,
+          handling_days
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         vendorId,
         cleanData.return_company_name,
@@ -1309,7 +1109,8 @@ router.post('/shipping-preferences', verifyToken, requirePermission('vendor'), a
         cleanData.return_phone,
         cleanData.label_size_preference,
         cleanData.signature_required_default,
-        cleanData.insurance_default
+        cleanData.insurance_default,
+        cleanData.handling_days
       ]);
     }
     

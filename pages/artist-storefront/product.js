@@ -250,12 +250,15 @@ const ArtistProductDetail = () => {
 
             <div className={styles.productReturns}>
               <h3>Returns Policy</h3>
-              <p style={{ 
-                color: product.allow_returns !== false ? '#28a745' : '#dc3545',
-                fontWeight: '500'
-              }}>
-                {product.allow_returns !== false ? '✓ Returns Accepted' : '✗ No Returns'}
-              </p>
+              {(() => {
+                const { getReturnPolicy } = require('../../lib/returnPolicies');
+                const policy = getReturnPolicy(product.allow_returns);
+                return (
+                  <p style={{ color: policy.color, fontWeight: '500' }}>
+                    {policy.icon} {policy.label}
+                  </p>
+                );
+              })()}
             </div>
 
             <div className={styles.purchaseSection}>

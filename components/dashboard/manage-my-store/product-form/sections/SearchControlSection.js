@@ -77,7 +77,7 @@ export default function SearchControlSection() {
             border: '1px solid #e9ecef'
           }}>
             <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px' }}>
-              🔍 Search Result Preview
+              <i className="fas fa-search" style={{ marginRight: '6px' }}></i> Search Result Preview
             </div>
             <div style={{ 
               color: '#1a0dab', 
@@ -119,7 +119,7 @@ export default function SearchControlSection() {
           style={{ ...inputStyle, cursor: 'pointer' }}
         >
           <option value="">Select a category...</option>
-          <optgroup label="🎨 Fine Art">
+          <optgroup label="Fine Art">
             <option value="Arts & Entertainment > Hobbies & Creative Arts > Arts & Crafts > Art & Craft Kits">Art & Craft Kits</option>
             <option value="Arts & Entertainment > Hobbies & Creative Arts > Arts & Crafts > Drawing & Painting">Drawing & Painting</option>
             <option value="Home & Garden > Decor > Artwork > Paintings">Paintings</option>
@@ -127,11 +127,11 @@ export default function SearchControlSection() {
             <option value="Home & Garden > Decor > Artwork > Sculptures & Statues">Sculptures & Statues</option>
             <option value="Home & Garden > Decor > Artwork > Mixed Media & Collage Art">Mixed Media & Collage</option>
           </optgroup>
-          <optgroup label="🖼️ Photography">
+          <optgroup label="Photography">
             <option value="Home & Garden > Decor > Artwork > Photographs">Photographs</option>
             <option value="Cameras & Optics > Photography > Photo Prints">Photo Prints</option>
           </optgroup>
-          <optgroup label="✂️ Handmade & Crafts">
+          <optgroup label="Handmade & Crafts">
             <option value="Arts & Entertainment > Hobbies & Creative Arts > Arts & Crafts > Fiber Arts">Fiber Arts & Textiles</option>
             <option value="Arts & Entertainment > Hobbies & Creative Arts > Arts & Crafts > Ceramics & Pottery">Ceramics & Pottery</option>
             <option value="Arts & Entertainment > Hobbies & Creative Arts > Arts & Crafts > Jewelry Making">Jewelry Making</option>

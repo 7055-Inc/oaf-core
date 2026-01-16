@@ -158,11 +158,6 @@ export default function MarketplaceApplications({ userData }) {
 
   return (
     <>
-      <div className="form-card">
-        <h3>Marketplace Applications</h3>
-        <p>Review and manage marketplace jury applications</p>
-      </div>
-
       {/* Applications Tab Navigation */}
       <div className="tab-container">
         <button
@@ -244,10 +239,22 @@ export default function MarketplaceApplications({ userData }) {
 
       {/* Application Review Modal */}
       {showApplicationModal && selectedApplication && (
-        <div className="modal-overlay" onClick={closeApplicationModal}>
-          <div className="modal-content" style={{ maxWidth: '800px', width: '90%', maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
+        <div 
+          className="modal-overlay" 
+          onClick={closeApplicationModal}
+          onKeyDown={(e) => e.key === 'Escape' && closeApplicationModal()}
+          role="presentation"
+        >
+          <div 
+            className="modal-content" 
+            style={{ maxWidth: '800px', width: '90%', maxHeight: '90vh' }} 
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="application-review-title"
+          >
             <div className="modal-title">
-              <h2>Application Review</h2>
+              <h2 id="application-review-title">Application Review</h2>
               <button onClick={closeApplicationModal} style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
             </div>
 
@@ -279,6 +286,7 @@ export default function MarketplaceApplications({ userData }) {
               {/* Jury Media */}
               <div className="form-card">
                 <h3>Jury Materials</h3>
+                <p style={{ fontSize: '13px', color: '#6c757d', marginBottom: '16px' }}>Click thumbnails to open full size in new tab</p>
                 <div className="form-grid-3">
                   {selectedApplication.media_urls && Object.entries(selectedApplication.media_urls).map(([key, url]) => {
                     if (!url) return null;
@@ -289,14 +297,54 @@ export default function MarketplaceApplications({ userData }) {
                     return (
                       <div key={key} style={{ textAlign: 'center' }}>
                         <div style={{ fontSize: '12px', marginBottom: '8px', fontWeight: 'bold' }}>{label}</div>
-                        {isVideo ? (
-                          <video controls style={{ width: '100%', maxWidth: '200px', height: 'auto', borderRadius: '4px' }}>
-                            <source src={url} type="video/mp4" />
-                            Video not supported
-                          </video>
-                        ) : (
-                          <img src={url} alt={label} style={{ width: '100%', maxWidth: '200px', height: 'auto', borderRadius: '4px' }} />
-                        )}
+                        <a 
+                          href={url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          style={{ display: 'block', cursor: 'pointer' }}
+                        >
+                          {isVideo ? (
+                            <div style={{ 
+                              position: 'relative', 
+                              width: '100%', 
+                              maxWidth: '200px', 
+                              margin: '0 auto',
+                              backgroundColor: '#000',
+                              borderRadius: '4px',
+                              aspectRatio: '16/9',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                              <span style={{ fontSize: '40px' }}>▶️</span>
+                              <span style={{ 
+                                position: 'absolute', 
+                                bottom: '8px', 
+                                left: '8px', 
+                                color: '#fff', 
+                                fontSize: '11px',
+                                backgroundColor: 'rgba(0,0,0,0.7)',
+                                padding: '2px 6px',
+                                borderRadius: '3px'
+                              }}>Video</span>
+                            </div>
+                          ) : (
+                            <img 
+                              src={url} 
+                              alt={label} 
+                              style={{ 
+                                width: '100%', 
+                                maxWidth: '200px', 
+                                height: 'auto', 
+                                borderRadius: '4px',
+                                border: '2px solid transparent',
+                                transition: 'border-color 0.2s'
+                              }} 
+                              onMouseOver={(e) => e.target.style.borderColor = 'var(--primary-color)'}
+                              onMouseOut={(e) => e.target.style.borderColor = 'transparent'}
+                            />
+                          )}
+                        </a>
                       </div>
                     );
                   })}
@@ -312,8 +360,9 @@ export default function MarketplaceApplications({ userData }) {
                     <button
                       onClick={() => handleApplicationAction('approve')}
                       disabled={processingAction}
+                      className="secondary"
                     >
-                      ✅ Approve Application
+                      Approve Application
                     </button>
                     
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
@@ -328,7 +377,7 @@ export default function MarketplaceApplications({ userData }) {
                         disabled={processingAction || !denialReason.trim()}
                         className="secondary"
                       >
-                        ❌ Deny Application
+                        Deny Application
                       </button>
                     </div>
                   </div>

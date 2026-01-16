@@ -6,11 +6,8 @@ import styles from './AboutTheArtist.module.css';
 
 const AboutTheArtist = ({ vendorId, vendorData }) => {
   const [vendor, setVendor] = useState(null);
-  const [policies, setPolicies] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showPolicyModal, setShowPolicyModal] = useState(false);
-  const [policyModalContent, setPolicyModalContent] = useState({ type: '', content: '', loading: false });
 
   useEffect(() => {
     if (!vendorId) {
@@ -74,64 +71,6 @@ const AboutTheArtist = ({ vendorId, vendorData }) => {
     fetchVendorData();
   }, [vendorId, vendorData]);
 
-  const handlePolicyClick = async (policyType) => {
-    if (!vendorId) {
-      alert('Unable to load policy - vendor information not available');
-      return;
-    }
-
-    setPolicyModalContent({ type: policyType, content: '', loading: true });
-    setShowPolicyModal(true);
-
-    try {
-      // Check if we already have policies cached
-      let policiesData = policies;
-      
-      if (!policiesData) {
-        // Fetch all policies at once
-        const res = await fetch(getApiUrl(`users/${vendorId}/policies`));
-        
-        if (!res.ok) {
-          throw new Error('Failed to fetch policies');
-        }
-        
-        const data = await res.json();
-        
-        if (data.success && data.policies) {
-          policiesData = data.policies;
-          setPolicies(policiesData); // Cache for future use
-        } else {
-          throw new Error('No policies returned');
-        }
-      }
-      
-      // Get the specific policy requested
-      const policy = policiesData[policyType];
-      
-      if (policy && policy.policy_text) {
-        setPolicyModalContent({ 
-          type: policyType, 
-          content: policy.policy_text, 
-          loading: false,
-          source: policy.policy_source 
-        });
-      } else {
-        setPolicyModalContent({ 
-          type: policyType, 
-          content: 'No policy available for this artist.', 
-          loading: false 
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching policies:', error);
-      setPolicyModalContent({ 
-        type: policyType, 
-        content: 'Error loading policy. Please try again later.', 
-        loading: false 
-      });
-    }
-  };
-
   const truncateBio = (bio, maxLength = 150) => {
     if (!bio) return '';
     if (bio.length <= maxLength) return bio;
@@ -171,9 +110,26 @@ const AboutTheArtist = ({ vendorId, vendorData }) => {
   const displayState = vendor.studio_state || vendor.state;
   const displayCity = vendor.studio_city || vendor.city;
   const location = [displayCity, displayState].filter(Boolean).join(', ');
-  const website = vendor.website || vendor.portfolio_url;
-  const instagram = vendor.instagram || vendor.social_instagram;
   const memberSince = vendor.created_at ? new Date(vendor.created_at).getFullYear() : null;
+
+  // Business socials (prioritize business_ prefixed fields)
+  const website = vendor.business_website || vendor.website || vendor.portfolio_url;
+  const facebook = vendor.business_social_facebook || vendor.social_facebook;
+  const instagram = vendor.business_social_instagram || vendor.social_instagram || vendor.instagram;
+  const tiktok = vendor.business_social_tiktok || vendor.social_tiktok;
+  const twitter = vendor.business_social_twitter || vendor.social_twitter;
+  const pinterest = vendor.business_social_pinterest || vendor.social_pinterest;
+
+  // Header/banner image
+  const getHeaderImage = () => {
+    if (vendor?.header_image_path) {
+      if (vendor.header_image_path.startsWith('http')) {
+        return vendor.header_image_path;
+      }
+      return getSmartMediaUrl(vendor.header_image_path);
+    }
+    return null;
+  };
 
   return (
     <div className={styles.aboutArtist}>
@@ -182,42 +138,48 @@ const AboutTheArtist = ({ vendorId, vendorData }) => {
       </div>
 
       <div className={styles.artistInfo}>
-        <div className={styles.artistImage}>
-          {getProfileImage() ? (
-            <img 
-              src={getProfileImage()} 
-              alt={businessName}
-              className={styles.profileImage}
-              onError={(e) => {
-                // Hide broken image and show default avatar
-                e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'flex';
-              }}
-            />
-          ) : null}
-          <div 
-            className={styles.defaultAvatar}
-            style={{ display: getProfileImage() ? 'none' : 'flex' }}
-            title={businessName}
-          ></div>
+        {/* Header/Banner Image Section */}
+        <div 
+          className={styles.headerImageSection}
+          style={getHeaderImage() ? { backgroundImage: `url(${getHeaderImage()})` } : {}}
+        >
+          {/* Floating info card overlay */}
+          <div className={styles.floatingCard}>
+            <div className={styles.profileImageWrapper}>
+              {getProfileImage() ? (
+                <img 
+                  src={getProfileImage()} 
+                  alt={businessName}
+                  className={styles.profileImage}
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div 
+                className={styles.defaultAvatar}
+                style={{ display: getProfileImage() ? 'none' : 'flex' }}
+                title={businessName}
+              ></div>
+            </div>
+            <div className={styles.floatingCardInfo}>
+              <h4 className={styles.businessName}>{businessName}</h4>
+              {location && (
+                <div className={styles.location}>
+                  <i className="fas fa-map-marker-alt"></i> {location}
+                </div>
+              )}
+              {memberSince && (
+                <div className={styles.memberSince}>
+                  Since {memberSince}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className={styles.artistDetails}>
-          <div className={styles.nameAndState}>
-            <h4 className={styles.businessName}>{businessName}</h4>
-            {location && (
-              <div className={styles.location}>
-                <span className={styles.locationIcon}>📍</span>
-                {location}
-              </div>
-            )}
-          </div>
-          
-          {memberSince && (
-            <div className={styles.memberSince}>
-              Selling on Brakebee since {memberSince}
-            </div>
-          )}
 
           <div className={styles.bioSection}>
             <p className={styles.bioText}>
@@ -225,87 +187,92 @@ const AboutTheArtist = ({ vendorId, vendorData }) => {
             </p>
           </div>
           
-          <div className={styles.artistLinks}>
-            <Link href={`/profile/${vendor.id || vendorId}`} className={styles.viewProfileBtn}>
-              View Full Profile
-            </Link>
+          {/* Social Icons Row */}
+          <div className={styles.socialIcons}>
             {website && (
               <a href={website.startsWith('http') ? website : `https://${website}`} 
                  target="_blank" 
                  rel="noopener noreferrer"
-                 className={styles.websiteLink}>
-                🌐 Website
+                 className={styles.socialIcon}
+                 title="Website">
+                <i className="fas fa-globe"></i>
               </a>
             )}
             {instagram && (
               <a href={`https://instagram.com/${instagram.replace('@', '')}`} 
                  target="_blank" 
                  rel="noopener noreferrer"
-                 className={styles.socialLink}>
-                📷 Instagram
+                 className={styles.socialIcon}
+                 title="Instagram">
+                <i className="fab fa-instagram"></i>
               </a>
             )}
+            {facebook && (
+              <a href={facebook.startsWith('http') ? facebook : `https://facebook.com/${facebook}`} 
+                 target="_blank" 
+                 rel="noopener noreferrer"
+                 className={styles.socialIcon}
+                 title="Facebook">
+                <i className="fab fa-facebook-f"></i>
+              </a>
+            )}
+            {tiktok && (
+              <a href={tiktok.startsWith('http') ? tiktok : `https://tiktok.com/@${tiktok.replace('@', '')}`} 
+                 target="_blank" 
+                 rel="noopener noreferrer"
+                 className={styles.socialIcon}
+                 title="TikTok">
+                <i className="fab fa-tiktok"></i>
+              </a>
+            )}
+            {twitter && (
+              <a href={twitter.startsWith('http') ? twitter : `https://x.com/${twitter.replace('@', '')}`} 
+                 target="_blank" 
+                 rel="noopener noreferrer"
+                 className={styles.socialIcon}
+                 title="X (Twitter)">
+                <i className="fab fa-x-twitter"></i>
+              </a>
+            )}
+            {pinterest && (
+              <a href={pinterest.startsWith('http') ? pinterest : `https://pinterest.com/${pinterest.replace('@', '')}`} 
+                 target="_blank" 
+                 rel="noopener noreferrer"
+                 className={styles.socialIcon}
+                 title="Pinterest">
+                <i className="fab fa-pinterest-p"></i>
+              </a>
+            )}
+          </div>
+
+          <div className={styles.artistLinks}>
+            <Link href={`/profile/${vendor.id || vendorId}`} className={styles.viewProfileBtn}>
+              View Full Profile
+            </Link>
           </div>
         </div>
       </div>
 
       <div className={styles.policyRibbon}>
         <div className={styles.policyLinks}>
-          <button 
+          <a 
+            href="/policies/shipping"
+            target="_blank"
+            rel="noopener noreferrer"
             className={styles.policyLink}
-            onClick={() => handlePolicyClick('shipping')}
           >
-            📦 Shipping Policy
-          </button>
-          <button 
+            <i className="fas fa-box"></i> Shipping Policy
+          </a>
+          <a 
+            href="/policies/returns"
+            target="_blank"
+            rel="noopener noreferrer"
             className={styles.policyLink}
-            onClick={() => handlePolicyClick('return')}
           >
-            ↩️ Returns Policy
-          </button>
+            <i className="fas fa-undo"></i> Returns Policy
+          </a>
         </div>
       </div>
-      
-      {/* Policy Modal */}
-      {showPolicyModal && (
-        <div className={styles.modalOverlay} onClick={() => setShowPolicyModal(false)}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2>
-                {policyModalContent.type === 'shipping' ? '📦 Shipping Policy' : '↩️ Returns Policy'}
-              </h2>
-              <button 
-                onClick={() => setShowPolicyModal(false)}
-                className={styles.modalCloseButton}
-              >
-                ×
-              </button>
-            </div>
-            <div className={styles.modalBody}>
-              {policyModalContent.loading ? (
-                <div className={styles.loading}>Loading policy...</div>
-              ) : (
-                <div className={styles.policyContent}>
-                  {policyModalContent.content ? (
-                    <div 
-                      dangerouslySetInnerHTML={{ __html: policyModalContent.content.replace(/\n/g, '<br/>') }}
-                    />
-                  ) : (
-                    <p>No policy available for this artist.</p>
-                  )}
-                  {policyModalContent.source && (
-                    <div className={styles.policySource}>
-                      <small>
-                        Policy source: {policyModalContent.source === 'custom' ? 'Artist-specific' : 'Default'}
-                      </small>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

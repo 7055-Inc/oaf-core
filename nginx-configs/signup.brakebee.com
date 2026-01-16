@@ -1,10 +1,10 @@
 server {
     listen 443 ssl;
-    server_name signup.beemeeart.com;
+    server_name signup.brakebee.com;
     
     # SSL configuration
-    ssl_certificate /etc/letsencrypt/live/signup.beemeeart.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/signup.beemeeart.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/signup.brakebee.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/signup.brakebee.com/privkey.pem;
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
     
@@ -24,8 +24,8 @@ server {
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     
     # Logging configuration
-    access_log /var/log/nginx/signup_beemeeart_access.log;
-    error_log  /var/log/nginx/signup_beemeeart_error.log error;
+    access_log /var/log/nginx/signup_brakebee_access.log;
+    error_log  /var/log/nginx/signup_brakebee_error.log error;
     
     # Serve static media files directly
     location /static_media/ {
@@ -69,6 +69,6 @@ server {
 
 server {
     listen 80;
-    server_name signup.beemeeart.com;
+    server_name signup.brakebee.com;
     return 301 https://$host$request_uri;
 }

@@ -248,6 +248,7 @@
 .input:focus {
   outline: none;
   border-color: #055474;
+  box-shadow: 0 0 0 3px rgba(5, 84, 116, 0.2);
 }
 
 /* Card Element */

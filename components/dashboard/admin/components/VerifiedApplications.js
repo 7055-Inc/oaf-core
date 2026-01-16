@@ -203,15 +203,16 @@ export default function VerifiedApplications({ userData }) {
         ) : (
           <div className="form-card">
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <caption className="sr-only">Verified artist applications</caption>
               <thead>
                 <tr style={{ borderBottom: '2px solid #dee2e6' }}>
-                  <th style={{ padding: '12px', textAlign: 'left' }}>Artist</th>
-                  <th style={{ padding: '12px', textAlign: 'left' }}>Submitted</th>
-                  <th style={{ padding: '12px', textAlign: 'left' }}>Status</th>
+                  <th scope="col" style={{ padding: '12px', textAlign: 'left' }}>Artist</th>
+                  <th scope="col" style={{ padding: '12px', textAlign: 'left' }}>Submitted</th>
+                  <th scope="col" style={{ padding: '12px', textAlign: 'left' }}>Status</th>
                   {applicationsTab !== 'in-process' && (
-                    <th style={{ padding: '12px', textAlign: 'left' }}>Reviewed</th>
+                    <th scope="col" style={{ padding: '12px', textAlign: 'left' }}>Reviewed</th>
                   )}
-                  <th style={{ padding: '12px', textAlign: 'center' }}>Actions</th>
+                  <th scope="col" style={{ padding: '12px', textAlign: 'center' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>

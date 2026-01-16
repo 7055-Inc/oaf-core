@@ -341,6 +341,9 @@ try {
   // Reviews system
   app.use('/api/reviews', csrfProtection(), require('./routes/reviews'));
 
+  // Support tickets
+  app.use('/api/tickets', csrfProtection(), require('./routes/tickets'));
+
   secureLogger.info('All routes loaded successfully with CSRF protection');
 } catch (err) {
   secureLogger.error('Error loading routes', err);

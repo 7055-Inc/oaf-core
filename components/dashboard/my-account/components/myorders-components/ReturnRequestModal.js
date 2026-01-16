@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../../lib/csrf';
 import { getApiUrl } from '../../../../../lib/config';
+import { getReturnPolicy } from '../../../../../lib/returnPolicies';
 
 export default function ReturnRequestModal({ isOpen, onClose, item, order }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [step, setStep] = useState(1); // 1: Details, 2: Reason, 3: Flow-specific
-  const [returnPolicy, setReturnPolicy] = useState(null);
   const [returnReason, setReturnReason] = useState('');
   const [customMessage, setCustomMessage] = useState('');
   const [packageDimensions, setPackageDimensions] = useState({
@@ -50,22 +50,6 @@ export default function ReturnRequestModal({ isOpen, onClose, item, order }) {
     try {
       setLoading(true);
       setError(null);
-
-      // Load vendor's return policy
-      const policyResponse = await fetch(getApiUrl(`users/${item.vendor_id}/policies`));
-      if (policyResponse.ok) {
-        const policyData = await policyResponse.json();
-        if (policyData.success && policyData.policies && policyData.policies.return) {
-          setReturnPolicy(policyData.policies.return.policy_text);
-        } else {
-          // Fallback to default policy
-          const defaultResponse = await authenticatedApiRequest('admin/default-return-policies');
-          if (defaultResponse.ok) {
-            const defaultData = await defaultResponse.json();
-            setReturnPolicy(defaultData.policy || 'Standard 30-day return policy applies.');
-          }
-        }
-      }
 
       // Pre-fill package dimensions from product
       if (item.width || item.height || item.depth || item.weight) {
@@ -187,14 +171,31 @@ export default function ReturnRequestModal({ isOpen, onClose, item, order }) {
               </div>
 
               {/* Return Policy */}
-              {returnPolicy && (
-                <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#e7f3ff', borderRadius: '8px', border: '1px solid #b8daff' }}>
-                  <h4 style={{ margin: '0 0 12px 0', color: '#004085' }}>Return Policy</h4>
-                  <div style={{ fontSize: '14px', lineHeight: '1.5', color: '#004085' }}>
-                    {returnPolicy}
+              {(() => {
+                const policy = getReturnPolicy(item.allow_returns);
+                return (
+                  <div style={{ 
+                    marginBottom: '24px', 
+                    padding: '16px', 
+                    backgroundColor: policy.allowsReturn ? '#e7f3ff' : '#fff3cd', 
+                    borderRadius: '8px', 
+                    border: `1px solid ${policy.allowsReturn ? '#b8daff' : '#ffc107'}` 
+                  }}>
+                    <h4 style={{ margin: '0 0 12px 0', color: policy.color, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>{policy.icon}</span> Return Policy: {policy.shortLabel}
+                    </h4>
+                    <div style={{ fontSize: '14px', lineHeight: '1.5', color: '#333' }}>
+                      {policy.description}
+                    </div>
+                    {!policy.allowsReturn && (
+                      <div style={{ marginTop: '12px', fontSize: '13px', color: '#856404', fontStyle: 'italic' }}>
+                        Note: Standard returns are not available for this item. If you received a damaged or defective item, 
+                        please select the appropriate reason below and we'll work with you to resolve the issue.
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {step === 1 && (
                 <>

@@ -55,11 +55,12 @@
 }
 
 .bbSep {
-  color: rgba(255,255,255,0.35);
+  color: rgba(255,255,255,0.5);
   font-size: 16px;
   font-weight: 300;
   margin: 0 4px;
   user-select: none;
+  aria-hidden: true; /* Decorative separator */
 }
 
 /* Chip Styling */
@@ -206,6 +207,62 @@
   margin: 0 auto;
 }
 
+/* Payment Methods */
+.bbPaymentMethods {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 0;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.bbPaymentLabel {
+  font-size: 12px;
+  color: var(--bb-white-60, rgba(255,255,255,0.6));
+  font-weight: 500;
+  margin-right: 4px;
+}
+
+.bbPaymentIcons {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.bbPaymentIcons i {
+  font-size: 24px;
+  color: var(--bb-white-70, rgba(255,255,255,0.7));
+  transition: color 0.2s ease;
+}
+
+.bbPaymentIcons i:hover {
+  color: var(--bb-white-92, rgba(255,255,255,0.92));
+}
+
+.bbPaymentSvg {
+  width: 24px;
+  height: 24px;
+  color: var(--bb-white-70, rgba(255,255,255,0.7));
+  transition: color 0.2s ease;
+}
+
+.bbPaymentSvg:hover {
+  color: var(--bb-white-92, rgba(255,255,255,0.92));
+}
+
+/* Copyright - Bottom */
+.bbCopyright {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--bb-white-70, rgba(255,255,255,0.7));
+  padding: 12px 0 16px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
 /* Responsive Design */
 
 /* Tablet (640-1023px) */
@@ -266,6 +323,24 @@
   
   .bbFooterPolicy a {
     min-height: 32px;
+  }
+  
+  .bbPaymentMethods {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .bbPaymentIcons {
+    gap: 10px;
+  }
+  
+  .bbPaymentIcons i {
+    font-size: 20px;
+  }
+  
+  .bbPaymentSvg {
+    width: 20px;
+    height: 20px;
   }
 }
 

@@ -13,33 +13,15 @@ export default function MyProducts({ userData }) {
   const [selectedProducts, setSelectedProducts] = useState(new Set());
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [showAllProducts, setShowAllProducts] = useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    fetchCurrentUser();
-    fetchProducts();
-  }, []);
+  // Use userData prop directly instead of fetching again
+  const isAdmin = userData?.user_type === 'admin';
 
   useEffect(() => {
     fetchProducts();
-  }, [showAllProducts]);
-
-  const fetchCurrentUser = async () => {
-    try {
-      const response = await authApiRequest('users/me', {
-        method: 'GET'
-      });
-
-      if (response.ok) {
-        const userData = await response.json();
-        setIsAdmin(userData.user_type === 'admin');
-      }
-    } catch (err) {
-      // Silently handle errors - user just won't see admin features
-    }
-  };
+  }, [showAllProducts, isAdmin]);
 
   const fetchProducts = async () => {
     try {
@@ -277,22 +259,16 @@ export default function MyProducts({ userData }) {
 
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-        <div style={{ fontSize: '16px', color: '#6c757d' }}>Loading products...</div>
+      <div className="loading-state">
+        <div className="spinner"></div>
+        <p>Loading products...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ 
-        backgroundColor: '#f8d7da', 
-        color: '#721c24', 
-        padding: '12px 16px', 
-        borderRadius: '6px', 
-        marginBottom: '24px',
-        border: '1px solid #f5c6cb'
-      }}>
+      <div className="error-alert">
         Error: {error}
       </div>
     );
@@ -346,14 +322,14 @@ export default function MyProducts({ userData }) {
             <div className={styles.headerButtons}>
               {selectedProducts.size > 0 && (
                 <button 
-                  className={styles.secondaryButton}
+                  className="secondary"
                   onClick={() => setSelectedProducts(new Set())}
                 >
                   Clear Selection
                 </button>
               )}
               <button 
-                className={styles.primaryButton}
+                className="secondary"
                 onClick={() => router.push('/products/new')}
               >
                 Add New Product
@@ -371,9 +347,10 @@ export default function MyProducts({ userData }) {
               </span>
               <div className={styles.bulkActionsButtons}>
                 <button
-                  className={styles.bulkDeleteButton}
+                  className="secondary"
                   onClick={() => setShowDeleteModal(true)}
                   disabled={deleting}
+                  style={{ backgroundColor: '#dc3545', borderColor: '#dc3545', color: 'white' }}
                 >
                   {deleting ? 'Deleting...' : 'Delete Selected'}
                 </button>
@@ -422,32 +399,35 @@ export default function MyProducts({ userData }) {
           </table>
 
           {parentProducts.length === 0 && (
-            <div className={styles.emptyState}>
-              <p>No products found. Create your first product to get started!</p>
-              <button 
-                className={styles.primaryButton}
-                onClick={() => router.push('/products/new')}
-              >
-                Create Product
-              </button>
+            <div className="empty-state">
+              <div>
+                <h3>No products found</h3>
+                <p>Create your first product to get started!</p>
+                <button 
+                  className="secondary"
+                  onClick={() => router.push('/products/new')}
+                >
+                  Create Product
+                </button>
+              </div>
             </div>
           )}
         </div>
 
         {/* Delete Confirmation Modal */}
         {showDeleteModal && (
-          <div className={styles.modalOverlay}>
-            <div className={styles.modalContent}>
-              <div className={styles.modalHeader}>
-                <h3>Confirm Delete</h3>
+          <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-title">
+                <h2>Confirm Delete</h2>
                 <button 
-                  className={styles.closeButton}
                   onClick={() => setShowDeleteModal(false)}
+                  style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}
                 >
                   ×
                 </button>
               </div>
-              <div className={styles.modalBody}>
+              <div className="form-card">
                 <p>
                   <strong>You are about to delete {selectedProducts.size} product{selectedProducts.size === 1 ? '' : 's'}.</strong>
                 </p>
@@ -459,18 +439,18 @@ export default function MyProducts({ userData }) {
                   <strong>Variable products:</strong> If you delete a parent product, all its variations will also be deleted.
                 </p>
               </div>
-              <div className={styles.modalActions}>
+              <div className="modal-actions">
                 <button
-                  className={styles.cancelButton}
+                  className="secondary"
                   onClick={() => setShowDeleteModal(false)}
                   disabled={deleting}
                 >
                   Cancel
                 </button>
                 <button
-                  className={styles.deleteButton}
                   onClick={handleBulkDelete}
                   disabled={deleting}
+                  style={{ backgroundColor: '#dc3545', borderColor: '#dc3545' }}
                 >
                   {deleting ? 'Deleting...' : 'Delete Products'}
                 </button>

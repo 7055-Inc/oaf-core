@@ -184,7 +184,7 @@ const ArtistProductCarousel = ({ vendorId, currentProductId, artistName }) => {
                   />
                 ) : (
                   <div className={styles.noImage}>
-                    🎨
+                    <i className="fas fa-image"></i>
                   </div>
                 )}
                 

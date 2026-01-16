@@ -5,7 +5,7 @@ import { getAuthToken } from '../../../../lib/csrf';
 import { getApiUrl } from '../../../../lib/config';
 import styles from '../../SlideIn.module.css';
 
-export default function EventsIOwn({ userData }) {
+export default function EventsIOwn({ userData, onEdit }) {
   const [currentEvents, setCurrentEvents] = useState([]);
   const [archivedEvents, setArchivedEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -94,7 +94,11 @@ export default function EventsIOwn({ userData }) {
   };
 
   const handleEdit = (eventId) => {
-    router.push(`/events/new?edit_event_id=${eventId}`);
+    if (onEdit) {
+      onEdit(eventId);
+    } else {
+      router.push(`/events/new?edit_event_id=${eventId}`);
+    }
   };
 
   const handleView = (eventId) => {

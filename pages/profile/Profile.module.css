@@ -647,3 +647,348 @@
 .contactButton i {
   font-size: 18px;
 }
+
+/* Products Section with Carousel */
+.productsSection {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.seeAllLink {
+  text-align: right;
+  margin-top: 1rem;
+  padding-right: 1rem;
+}
+
+.seeAllLink a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--primary-color, #055474);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: gap 0.2s;
+}
+
+.seeAllLink a:hover {
+  gap: 0.75rem;
+  text-decoration: underline;
+}
+
+/* ============================
+   Artist Details Section Redesign
+   ============================ */
+
+.artistDetailsSection {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+/* Artist Header - Logo + Business Name */
+.artistHeader {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.artistHeader .logoImage {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e0e0e0;
+}
+
+.artistHeaderInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.businessNameLarge {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--primary-color, #055474);
+  margin: 0;
+  font-family: 'Permanent Marker', cursive;
+  letter-spacing: 1px;
+}
+
+.foundedBadge {
+  display: inline-block;
+  background: linear-gradient(135deg, var(--primary-color, #055474) 0%, var(--secondary-color, #3E1C56) 100%);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  width: fit-content;
+}
+
+/* Biography Card */
+.biographyCard {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  border-left: 4px solid var(--primary-color, #055474);
+}
+
+.biographyCard p {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: #4a5568;
+  margin: 0;
+  font-style: italic;
+}
+
+/* Tags Section - Categories & Mediums */
+.tagsSection {
+  margin-bottom: 1.5rem;
+}
+
+.tagGroup {
+  margin-bottom: 1rem;
+}
+
+.tagLabel {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #718096;
+  margin-bottom: 0.5rem;
+}
+
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tag {
+  background: var(--primary-color, #055474);
+  color: white;
+  padding: 0.4rem 0.9rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: transform 0.2s;
+}
+
+.tag:hover {
+  transform: scale(1.05);
+}
+
+.tagMedium {
+  background: var(--secondary-color, #3E1C56);
+  color: white;
+  padding: 0.4rem 0.9rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: transform 0.2s;
+}
+
+.tagMedium:hover {
+  transform: scale(1.05);
+}
+
+/* Artist Badges Row */
+.badgesRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.badge i {
+  font-size: 1rem;
+}
+
+/* Custom Orders Badge */
+.badge[data-badge="custom"] {
+  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+}
+
+/* Verified Badge (future) */
+.badge[data-badge="verified"] {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  color: #1565c0;
+  border: 1px solid #90caf9;
+}
+
+/* Top Seller Badge (future) */
+.badge[data-badge="top-seller"] {
+  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+  color: #e65100;
+  border: 1px solid #ffcc80;
+}
+
+/* Fast Shipper Badge (future) */
+.badge[data-badge="fast-shipper"] {
+  background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+  color: #7b1fa2;
+  border: 1px solid #ce93d8;
+}
+
+/* Custom Details Card */
+.customDetailsCard {
+  background: #f8fafc;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  border-left: 3px solid #2e7d32;
+}
+
+.customDetailsCard p {
+  margin: 0;
+  color: #4a5568;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* Contact Grid */
+.contactGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.contactCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  background: white;
+  padding: 1rem;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.contactCard:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.contactCard > i {
+  font-size: 1.25rem;
+  color: var(--primary-color, #055474);
+  width: 24px;
+  text-align: center;
+  margin-top: 2px;
+}
+
+.contactCard > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.contactLabel {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #718096;
+}
+
+.contactValue {
+  font-size: 0.95rem;
+  color: #2d3748;
+  text-decoration: none;
+  word-break: break-word;
+}
+
+a.contactValue:hover {
+  color: var(--primary-color, #055474);
+  text-decoration: underline;
+}
+
+/* Business Social Icons Row */
+.businessSocialRow {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  padding: 1.25rem 0;
+  border-top: 1px solid #e2e8f0;
+}
+
+.socialIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid var(--primary-color, #055474);
+  color: var(--primary-color, #055474);
+  font-size: 1.1rem;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+
+.socialIconBtn:hover {
+  background: var(--primary-color, #055474);
+  color: white;
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(5, 84, 116, 0.25);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .artistHeader {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+
+  .artistHeaderInfo {
+    align-items: center;
+  }
+
+  .businessNameLarge {
+    font-size: 1.5rem;
+  }
+
+  .contactGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .biographyCard {
+    padding: 1rem;
+  }
+
+  .businessSocialRow {
+    flex-wrap: wrap;
+  }
+}

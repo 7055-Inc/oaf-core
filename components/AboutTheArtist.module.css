@@ -31,27 +31,57 @@
   gap: 1rem;
 }
 
-.artistImage {
-  align-self: flex-end;
+/* Header/Banner Image Section */
+.headerImageSection {
+  width: calc(100% + 3rem);
+  height: 180px;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--gradient-primary);
+  background-image: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  position: relative;
+  margin: -1.5rem -1.5rem 0 -1.5rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 1rem;
+}
+
+/* Floating Card Overlay */
+.floatingCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 12px 16px;
+  border-radius: var(--border-radius-sm);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  max-width: 90%;
+}
+
+.profileImageWrapper {
+  flex-shrink: 0;
 }
 
 .profileImage {
-  width: 80px;
-  height: 80px;
+  width: 60px;
+  height: 60px;
   object-fit: cover;
   border: 3px solid var(--primary-color);
   border-radius: 50%;
 }
 
 .defaultAvatar {
-  width: 80px;
-  height: 80px;
+  width: 60px;
+  height: 60px;
   border: 3px solid var(--primary-color);
   background-color: #f1f5f9;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2.5rem;
+  font-size: 1.75rem;
   color: #94a3b8;
   border-radius: 50%;
 }
@@ -62,12 +92,39 @@
   font-weight: 900;
 }
 
+.floatingCardInfo {
+  text-align: left;
+  min-width: 0;
+}
+
+.floatingCardInfo .businessName {
+  font-size: 1rem;
+  margin: 0 0 4px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.floatingCardInfo .location {
+  font-size: 0.75rem;
+  margin-bottom: 2px;
+  justify-content: flex-start;
+}
+
+.floatingCardInfo .memberSince {
+  font-size: 0.7rem;
+  margin: 0;
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
 .artistDetails {
   width: 100%;
   text-align: right;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  padding-top: 1rem;
 }
 
 .nameAndState {
@@ -103,13 +160,14 @@
 .location {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   font-size: 0.875rem;
   color: #666;
 }
 
-.locationIcon {
-  font-size: 0.875rem;
+.location i {
+  color: var(--primary-color);
+  font-size: 0.8rem;
 }
 
 .memberSince {
@@ -158,25 +216,32 @@
   transform: translateY(-1px);
 }
 
-.websiteLink,
-.socialLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.8rem;
-  color: #666;
-  text-decoration: none;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  transition: all 0.15s ease-in-out;
+/* Social Icons Row */
+.socialIcons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin: 0.75rem 0;
 }
 
-.websiteLink:hover,
-.socialLink:hover {
-  background-color: #f5f5f5;
-  border-color: #999;
-  color: #333;
+.socialIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  font-size: 1rem;
+  color: var(--primary-color);
+  text-decoration: none;
+  border: 2px solid var(--primary-color);
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.socialIcon:hover {
+  background-color: var(--primary-color);
+  color: white;
+  transform: translateY(-2px);
 }
 
 .readMoreLink {
@@ -255,18 +320,44 @@
     padding: 1rem;
   }
   
-  .policyRibbon {
-    margin: -1rem -1rem -1rem -1rem;
-    padding: 0.75rem 1rem;
+  .headerImageSection {
+    height: 140px;
+    margin: -1rem -1rem 0 -1rem;
+    width: calc(100% + 2rem);
+    padding: 0.75rem;
+  }
+  
+  .floatingCard {
+    padding: 10px 12px;
+    gap: 10px;
   }
   
   .profileImage {
-    width: 60px;
-    height: 60px;
+    width: 50px;
+    height: 50px;
   }
   
-  .businessName {
-    font-size: 1rem;
+  .defaultAvatar {
+    width: 50px;
+    height: 50px;
+    font-size: 1.5rem;
+  }
+  
+  .floatingCardInfo .businessName {
+    font-size: 0.9rem;
+  }
+  
+  .floatingCardInfo .location {
+    font-size: 0.7rem;
+  }
+  
+  .floatingCardInfo .memberSince {
+    font-size: 0.65rem;
+  }
+  
+  .policyRibbon {
+    margin: -1rem -1rem -1rem -1rem;
+    padding: 0.75rem 1rem;
   }
   
   .bioText {
@@ -275,10 +366,6 @@
   
   .artistInfo {
     gap: 0.75rem;
-  }
-  
-  .artistImage {
-    align-self: flex-end;
   }
   
   .artistDetails {

@@ -5,25 +5,19 @@ import slideInStyles from '../../SlideIn.module.css';
 
 export default function MyPolicies({ userData }) {
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('shipping');
   
-  // Policy states
+  // Policy states (shipping only - return policies are now per-product)
   const [shippingPolicy, setShippingPolicy] = useState(null);
-  const [returnPolicy, setReturnPolicy] = useState(null);
   const [shippingHistory, setShippingHistory] = useState([]);
-  const [returnHistory, setReturnHistory] = useState([]);
   
   // UI states
-  const [isEditingShipping, setIsEditingShipping] = useState(false);
-  const [isEditingReturn, setIsEditingReturn] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   
-  // PolicyEditor states (moved to top level)
+  // Editor states
   const [editText, setEditText] = useState('');
-  const [localMessage, setLocalMessage] = useState('');
-  const [localError, setLocalError] = useState('');
 
   useEffect(() => {
     loadPolicyData();
@@ -47,19 +41,6 @@ export default function MyPolicies({ userData }) {
         setShippingPolicy(shippingData.policy);
       }
 
-      // Load return policy
-      const returnResponse = await authApiRequest('vendor/return-policy', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (returnResponse.ok) {
-        const returnData = await returnResponse.json();
-        setReturnPolicy(returnData.policy);
-      }
-
       // Load shipping policy history
       const shippingHistoryResponse = await authApiRequest('vendor/shipping-policy/history', {
         method: 'GET',
@@ -72,19 +53,6 @@ export default function MyPolicies({ userData }) {
         const shippingHistoryData = await shippingHistoryResponse.json();
         setShippingHistory(shippingHistoryData.history);
       }
-
-      // Load return policy history
-      const returnHistoryResponse = await authApiRequest('vendor/return-policy/history', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (returnHistoryResponse.ok) {
-        const returnHistoryData = await returnHistoryResponse.json();
-        setReturnHistory(returnHistoryData.history);
-      }
       
     } catch (err) {
       console.error('Error loading policy data:', err.message);
@@ -95,7 +63,7 @@ export default function MyPolicies({ userData }) {
     }
   };
 
-  const handleSavePolicy = async (policyText, policyType) => {
+  const handleSavePolicy = async (policyText) => {
     if (!policyText.trim()) {
       setError('Policy text cannot be empty');
       return;
@@ -106,8 +74,7 @@ export default function MyPolicies({ userData }) {
     setMessage('');
 
     try {
-      const endpoint = policyType === 'return' ? 'return-policy' : 'shipping-policy';
-      const response = await authApiRequest(`vendor/${endpoint}`, {
+      const response = await authApiRequest('vendor/shipping-policy', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -123,16 +90,9 @@ export default function MyPolicies({ userData }) {
       }
 
       const result = await response.json();
-      
-      if (policyType === 'shipping') {
-        setShippingPolicy(result.policy);
-        setIsEditingShipping(false);
-      } else {
-        setReturnPolicy(result.policy);
-        setIsEditingReturn(false);
-      }
-      
-      setMessage(`${policyType === 'shipping' ? 'Shipping' : 'Return'} policy saved successfully!`);
+      setShippingPolicy(result.policy);
+      setIsEditing(false);
+      setMessage('Shipping policy saved successfully!');
       
       // Reload policy data to get updated history
       await loadPolicyData();
@@ -146,10 +106,8 @@ export default function MyPolicies({ userData }) {
     }
   };
 
-  const handleDeletePolicy = async (policyType) => {
-    const policyName = policyType === 'shipping' ? 'shipping' : 'return';
-    
-    if (!confirm(`Are you sure you want to delete your custom ${policyName} policy? This will revert to the site default policy.`)) {
+  const handleDeletePolicy = async () => {
+    if (!confirm('Are you sure you want to delete your custom shipping policy? This will revert to the site default policy.')) {
       return;
     }
 
@@ -158,8 +116,7 @@ export default function MyPolicies({ userData }) {
     setMessage('');
 
     try {
-      const endpoint = policyType === 'return' ? 'return-policy' : 'shipping-policy';
-      const response = await authApiRequest(`vendor/${endpoint}`, {
+      const response = await authApiRequest('vendor/shipping-policy', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json'
@@ -171,7 +128,7 @@ export default function MyPolicies({ userData }) {
         throw new Error(errorData.error || 'Failed to delete policy');
       }
       
-      setMessage(`Custom ${policyName} policy deleted successfully. Using default policy.`);
+      setMessage('Custom shipping policy deleted successfully. Using default policy.');
       
       // Reload policy data
       await loadPolicyData();
@@ -189,252 +146,210 @@ export default function MyPolicies({ userData }) {
     return <div className="loading-state">Loading policies...</div>;
   }
 
-  const currentPolicy = activeTab === 'shipping' ? shippingPolicy : returnPolicy;
-  const currentHistory = activeTab === 'shipping' ? shippingHistory : returnHistory;
-  const isEditing = activeTab === 'shipping' ? isEditingShipping : isEditingReturn;
+  const policyText = typeof shippingPolicy === 'string' ? shippingPolicy : shippingPolicy?.policy_text || '';
+  const policySource = typeof shippingPolicy === 'string' ? 'custom' : shippingPolicy?.policy_source || 'default';
+
+  const handleEdit = () => {
+    setEditText(policyText);
+    setMessage('');
+    setError(null);
+    setIsEditing(true);
+  };
+
+  const handleCancel = () => {
+    setEditText('');
+    setMessage('');
+    setError(null);
+    setIsEditing(false);
+  };
 
   return (
     <div>
-        {/* Policy Type Tabs */}
-        <div className="tab-container">
-          <button 
-            className={`tab ${activeTab === 'shipping' ? 'active' : ''}`}
-            onClick={() => setActiveTab('shipping')}
-          >
-            Shipping Policy
-          </button>
-          <button 
-            className={`tab ${activeTab === 'return' ? 'active' : ''}`}
-            onClick={() => setActiveTab('return')}
-          >
-            Return Policy
-          </button>
+      {/* Info box about return policies */}
+      <div style={{
+        background: '#dbeafe',
+        border: '1px solid #93c5fd',
+        borderRadius: '0.5rem',
+        padding: '1rem',
+        marginBottom: '1.5rem'
+      }}>
+        <p style={{ margin: 0, color: '#1e40af', fontSize: '0.9rem' }}>
+          <strong>Note:</strong> Return policies are now set per-product when creating or editing products. 
+          This page manages your shipping policy only.
+        </p>
+      </div>
+
+      {/* Shipping Policy Editor */}
+      <div className="section-box">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h2>Shipping Policy</h2>
+          <div>
+            {policySource === 'custom' ? (
+              <span style={{ 
+                background: '#059669', 
+                color: 'white', 
+                padding: '0.25rem 0.5rem', 
+                borderRadius: '0.25rem', 
+                fontSize: '0.75rem', 
+                fontWeight: '500' 
+              }}>
+                Custom Policy
+              </span>
+            ) : (
+              <span style={{ 
+                background: '#6b7280', 
+                color: 'white', 
+                padding: '0.25rem 0.5rem', 
+                borderRadius: '0.25rem', 
+                fontSize: '0.75rem', 
+                fontWeight: '500' 
+              }}>
+                Default Policy
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Policy Editor - Inline Component */}
-        {(() => {
-          // PolicyEditor inline logic
-          const handleEdit = () => {
-            const policyText = typeof currentPolicy === 'string' ? currentPolicy : currentPolicy?.policy_text || '';
-            setEditText(policyText);
-            setLocalMessage('');
-            setLocalError('');
-            if (activeTab === 'shipping') {
-              setIsEditingShipping(true);
-            } else {
-              setIsEditingReturn(true);
-            }
-            setMessage('');
-            setError(null);
-          };
+        {message && (
+          <div className="success-alert">
+            {message}
+          </div>
+        )}
 
-          const handleSave = async () => {
-            try {
-              setLocalMessage('');
-              setLocalError('');
-              await handleSavePolicy(editText.trim(), activeTab);
-              setLocalMessage('Policy updated successfully!');
-            } catch (err) {
-              setLocalError(err.message || 'Failed to update policy');
-            }
-          };
+        {error && (
+          <div className="error-alert">
+            {error}
+          </div>
+        )}
 
-          const handleCancel = () => {
-            setEditText('');
-            setLocalMessage('');
-            setLocalError('');
-            if (activeTab === 'shipping') {
-              setIsEditingShipping(false);
-            } else {
-              setIsEditingReturn(false);
-            }
-            setMessage('');
-            setError(null);
-          };
-
-          const policyTypeLabel = activeTab === 'return' ? 'Return' : 'Shipping';
-          const policyTypeLower = activeTab.toLowerCase();
-          const policyText = typeof currentPolicy === 'string' ? currentPolicy : currentPolicy?.policy_text || '';
-          const policySource = typeof currentPolicy === 'string' ? 'custom' : currentPolicy?.policy_source || 'default';
-
-          return (
-            <div className="section-box">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h2>Current {policyTypeLabel} Policy</h2>
-                <div>
-                  {policySource === 'custom' ? (
-                    <span style={{ 
-                      background: '#059669', 
-                      color: 'white', 
-                      padding: '0.25rem 0.5rem', 
-                      borderRadius: '0.25rem', 
-                      fontSize: '0.75rem', 
-                      fontWeight: '500' 
-                    }}>
-                      Custom Policy
-                    </span>
-                  ) : (
-                    <span style={{ 
-                      background: '#6b7280', 
-                      color: 'white', 
-                      padding: '0.25rem 0.5rem', 
-                      borderRadius: '0.25rem', 
-                      fontSize: '0.75rem', 
-                      fontWeight: '500' 
-                    }}>
-                      Default Policy
-                    </span>
-                  )}
-                </div>
+        <div style={{ 
+          background: '#f9fafb', 
+          border: '1px solid #e5e7eb', 
+          borderRadius: '0.5rem', 
+          padding: '1.5rem' 
+        }}>
+          {isEditing ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <textarea
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                placeholder="Enter your shipping policy..."
+                rows={8}
+              />
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                <button 
+                  onClick={() => handleSavePolicy(editText)} 
+                  disabled={saving || !editText.trim()}
+                  style={{
+                    opacity: (saving || !editText.trim()) ? '0.6' : '1',
+                    cursor: (saving || !editText.trim()) ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {saving ? 'Saving...' : 'Save Policy'}
+                </button>
+                <button 
+                  onClick={handleCancel}
+                  className="secondary"
+                  disabled={saving}
+                  style={{
+                    opacity: saving ? '0.6' : '1',
+                    cursor: saving ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
               </div>
-
-              {(localMessage || message) && (
-                <div className="success-alert">
-                  {localMessage || message}
-                </div>
-              )}
-
-              {(localError || error) && (
-                <div className="error-alert">
-                  {localError || error}
-                </div>
-              )}
-
-              <div style={{ 
-                background: '#f9fafb', 
-                border: '1px solid #e5e7eb', 
-                borderRadius: '0.5rem', 
-                padding: '1.5rem' 
-              }}>
-                {isEditing ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <textarea
-                      value={editText}
-                      onChange={(e) => setEditText(e.target.value)}
-                      placeholder={`Enter your ${policyTypeLower} policy...`}
-                      rows={8}
-                    />
-                    <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-                      <button 
-                        onClick={handleSave} 
-                        disabled={saving || !editText.trim()}
-                        style={{
-                          opacity: (saving || !editText.trim()) ? '0.6' : '1',
-                          cursor: (saving || !editText.trim()) ? 'not-allowed' : 'pointer'
-                        }}
-                      >
-                        {saving ? 'Saving...' : 'Save Policy'}
-                      </button>
-                      <button 
-                        onClick={handleCancel}
-                        className="secondary"
-                        disabled={saving}
-                        style={{
-                          opacity: saving ? '0.6' : '1',
-                          cursor: saving ? 'not-allowed' : 'pointer'
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <div style={{
-                      color: '#374151',
-                      lineHeight: '1.6',
-                      fontSize: '0.95rem',
-                      whiteSpace: 'pre-wrap',
-                      marginBottom: '1rem'
-                    }}>
-                      {policyText || `No ${policyTypeLower} policy found`}
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
-                      <button onClick={handleEdit}>
-                        {policySource === 'custom' ? 'Edit Policy' : `Create Custom ${policyTypeLabel} Policy`}
-                      </button>
-                      {policySource === 'custom' && (
-                        <button 
-                          onClick={() => handleDeletePolicy(activeTab)}
-                          disabled={saving}
-                          style={{
-                            background: '#dc2626',
-                            opacity: saving ? '0.6' : '1',
-                            cursor: saving ? 'not-allowed' : 'pointer'
-                          }}
-                        >
-                          {saving ? 'Deleting...' : `Delete Custom ${policyTypeLabel} Policy`}
-                        </button>
-                      )}
-                    </div>
-                  </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div 
+                style={{
+                  color: '#374151',
+                  lineHeight: '1.6',
+                  fontSize: '0.95rem',
+                  marginBottom: '1rem'
+                }}
+                className="policy-content"
+                dangerouslySetInnerHTML={{ 
+                  __html: policyText || 'No shipping policy found' 
+                }}
+              />
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+                <button onClick={handleEdit}>
+                  {policySource === 'custom' ? 'Edit Policy' : 'Create Custom Shipping Policy'}
+                </button>
+                {policySource === 'custom' && (
+                  <button 
+                    onClick={handleDeletePolicy}
+                    disabled={saving}
+                    style={{
+                      background: '#dc2626',
+                      opacity: saving ? '0.6' : '1',
+                      cursor: saving ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {saving ? 'Deleting...' : 'Delete Custom Policy'}
+                  </button>
                 )}
               </div>
             </div>
-          );
-        })()}
+          )}
+        </div>
+      </div>
 
-        {/* Policy History - Inline Component */}
-        {(() => {
-          if (!currentHistory || currentHistory.length === 0) {
-            return null;
-          }
-
-          const policyTypeLabel = activeTab === 'return' ? 'Return' : 'Shipping';
-          const displayTitle = `${policyTypeLabel} Policy Update History`;
-
-          return (
-            <div className="section-box">
-              <h2>{displayTitle}</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {currentHistory.map((policy) => (
-                  <div 
-                    key={policy.id} 
-                    style={{
-                      background: '#f9fafb',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '0.375rem',
-                      padding: '1rem'
-                    }}
-                  >
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center', 
-                      marginBottom: '0.5rem' 
-                    }}>
-                      <span style={{
-                        background: '#6b7280',
-                        color: 'white',
-                        padding: '0.125rem 0.375rem',
-                        borderRadius: '0.25rem',
-                        fontSize: '0.75rem',
-                        fontWeight: '500'
-                      }}>
-                        {policy.status === 'active' ? 'Active' : 'Archived'}
-                      </span>
-                      <span style={{
-                        color: '#6b7280',
-                        fontSize: '0.75rem'
-                      }}>
-                        {new Date(policy.created_at).toLocaleDateString()} 
-                        {policy.created_by_username && ` by ${policy.created_by_username}`}
-                      </span>
-                    </div>
-                    <div style={{
-                      color: '#374151',
-                      fontSize: '0.875rem',
-                      lineHeight: '1.5'
-                    }}>
-                      {policy.policy_text.substring(0, 200)}
-                      {policy.policy_text.length > 200 && '...'}
-                    </div>
-                  </div>
-                ))}
+      {/* Shipping Policy History */}
+      {shippingHistory && shippingHistory.length > 0 && (
+        <div className="section-box">
+          <h2>Shipping Policy Update History</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {shippingHistory.map((policy) => (
+              <div 
+                key={policy.id} 
+                style={{
+                  background: '#f9fafb',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '0.375rem',
+                  padding: '1rem'
+                }}
+              >
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  marginBottom: '0.5rem' 
+                }}>
+                  <span style={{
+                    background: '#6b7280',
+                    color: 'white',
+                    padding: '0.125rem 0.375rem',
+                    borderRadius: '0.25rem',
+                    fontSize: '0.75rem',
+                    fontWeight: '500'
+                  }}>
+                    {policy.status === 'active' ? 'Active' : 'Archived'}
+                  </span>
+                  <span style={{
+                    color: '#6b7280',
+                    fontSize: '0.75rem'
+                  }}>
+                    {new Date(policy.created_at).toLocaleDateString()} 
+                    {policy.created_by_username && ` by ${policy.created_by_username}`}
+                  </span>
+                </div>
+                <div style={{
+                  color: '#374151',
+                  fontSize: '0.875rem',
+                  lineHeight: '1.5'
+                }}>
+                  {/* Strip HTML tags for preview */}
+                  {policy.policy_text.replace(/<[^>]*>/g, '').substring(0, 200)}
+                  {policy.policy_text.replace(/<[^>]*>/g, '').length > 200 && '...'}
+                </div>
               </div>
-            </div>
-          );
-        })()}
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

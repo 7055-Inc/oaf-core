@@ -363,9 +363,10 @@ export default function EventReviews({ eventId, currentUserId, userType }) {
               </div>
               
               <div className={styles.formGroup}>
-                <label>Title *</label>
+                <label htmlFor="event-review-title">Title *</label>
                 <input
                   type="text"
+                  id="event-review-title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Sum up your experience"
@@ -374,8 +375,9 @@ export default function EventReviews({ eventId, currentUserId, userType }) {
               </div>
               
               <div className={styles.formGroup}>
-                <label>Review *</label>
+                <label htmlFor="event-review-text">Review *</label>
                 <textarea
+                  id="event-review-text"
                   value={reviewText}
                   onChange={(e) => setReviewText(e.target.value)}
                   placeholder="Share your thoughts about this event"

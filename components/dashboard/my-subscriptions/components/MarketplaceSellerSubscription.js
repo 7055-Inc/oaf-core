@@ -10,10 +10,13 @@ export default function MarketplaceSellerSubscription({ userData }) {
   
   // Marketplace Seller Configuration
   const marketplaceConfig = {
-    displayName: "Marketplace Seller Subscription",
-    subtitle: "Sell your handmade work on our marketplace - verified badge included!",
+    displayName: "",
+    subtitle: "",
+    applicationTitle: "",
+    applicationSubtitle: "",
     autoApprove: false,  // Requires manual admin approval
     dashboardComponent: MarketplaceDashboard,
+    paymentReason: "Your card will be charged if your account goes negative, you add a paid subscription or purchase shipping labels, and used for automatic renewals. This card will be used for billing platform-wide.",
     
     // Single tier - free (revenue from commissions)
     tiers: [
@@ -24,13 +27,12 @@ export default function MarketplaceSellerSubscription({ userData }) {
         priceDisplay: "FREE",
         period: "",
         features: [
-          "Sell on OAF Marketplace",
+          "Sell on the Brakebee Marketplace",
           "FREE Verified Artist badge (included!)",
           "No monthly fees - just commission",
           "Reach thousands of buyers",
-          "Manual review of your work",
-          "Integrated store management",
-          "Automatic verified status"
+          "All Marketplace Members are juried Artists and Makers",
+          "Integrated store management"
         ],
         popular: true,
         buttonText: "Apply to Sell"

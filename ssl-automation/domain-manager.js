@@ -160,7 +160,7 @@ class DomainManager {
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     add_header Cross-Origin-Opener-Policy "same-origin-allow-popups" always;
-    add_header Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://accounts.google.com https://www.gstatic.com; connect-src 'self' https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://www.googleapis.com https://accounts.google.com https://firestore.googleapis.com https://firebasestorage.googleapis.com https://firebase.googleapis.com https://apis.google.com https://www.google.com https://api2.onlineartfestival.com; frame-src 'self' https://accounts.google.com https://apis.google.com https://www.gstatic.com https://*.firebaseapp.com https://*.firebaseapp.com/; worker-src 'self' blob:;" always;
+    add_header Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://accounts.google.com https://www.gstatic.com https://js.stripe.com https://www.googletagmanager.com https://diffuser-cdn.app-us1.com https://prism.app-us1.com https://trackcmp.net https://connect.facebook.net https://googleads.g.doubleclick.net; connect-src 'self' https://securetoken.googleapis.com https://identitytoolkit.googleapis.com https://www.googleapis.com https://accounts.google.com https://firestore.googleapis.com https://firebasestorage.googleapis.com https://firebase.googleapis.com https://apis.google.com https://www.google.com https://api.brakebee.com https://api.stripe.com https://www.googletagmanager.com https://diffuser-cdn.app-us1.com https://prism.app-us1.com https://trackcmp.net https://www.google-analytics.com https://googleads.g.doubleclick.net https://connect.facebook.net; frame-src 'self' https://accounts.google.com https://apis.google.com https://www.gstatic.com https://*.firebaseapp.com https://*.firebaseapp.com/ https://js.stripe.com https://www.googletagmanager.com; worker-src 'self' blob:;" always;
     
     # Logging
     access_log /var/log/nginx/custom_domain_${siteId}_access.log;
@@ -194,7 +194,7 @@ class DomainManager {
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
-        proxy_set_header Host ${subdomain}.onlineartfestival.com;
+        proxy_set_header Host ${subdomain}.brakebee.com;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;

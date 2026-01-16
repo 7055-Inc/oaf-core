@@ -420,6 +420,7 @@
 .formGroup input:focus {
   outline: none;
   border-color: #3e1c56;
+  box-shadow: 0 0 0 3px rgba(62, 28, 86, 0.2);
 }
 
 .checking {

@@ -30,7 +30,7 @@ export default function JuryPacketManager() {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      const response = await fetch('api/jury-packets', {
+      const response = await fetch(getApiUrl('api/jury-packets'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -54,7 +54,7 @@ export default function JuryPacketManager() {
     try {
       const token = localStorage.getItem('token');
       
-      const response = await fetch('api/personas', {
+      const response = await fetch(getApiUrl('api/personas'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -100,8 +100,8 @@ export default function JuryPacketManager() {
 
       const token = localStorage.getItem('token');
       const url = editingPacket 
-        ? `api/jury-packets/${editingPacket.id}`
-        : 'api/jury-packets';
+        ? getApiUrl(`api/jury-packets/${editingPacket.id}`)
+        : getApiUrl('api/jury-packets');
       
       const method = editingPacket ? 'PUT' : 'POST';
 
@@ -130,7 +130,7 @@ export default function JuryPacketManager() {
   const handleEdit = async (packet) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`api/jury-packets/${packet.id}`, {
+      const response = await fetch(getApiUrl(`api/jury-packets/${packet.id}`), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -169,7 +169,7 @@ export default function JuryPacketManager() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`api/jury-packets/${packetId}`, {
+      const response = await fetch(getApiUrl(`api/jury-packets/${packetId}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

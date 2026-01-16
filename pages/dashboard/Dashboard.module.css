@@ -117,6 +117,24 @@
   width: 100%;
 }
 
+/* Notification Badge */
+.notificationBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 8px;
+  background-color: #dc3545;
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 9px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 /* Service Management Header */
 .serviceHeader {
   display: flex;
@@ -250,6 +268,39 @@
 
 .contentSection {
   max-width: 1200px;
+}
+
+/* Top Banner Row: Magazine Link + Onboarding */
+.topBannerRow {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  align-items: stretch;
+}
+
+.magazineLinkWrapper {
+  flex: 0 0 280px;
+  min-width: 200px;
+}
+
+.onboardingWrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .topBannerRow {
+    flex-direction: column;
+  }
+  
+  .magazineLinkWrapper {
+    flex: none;
+    width: 100%;
+  }
+  
+  .onboardingWrapper {
+    width: 100%;
+  }
 }
 
 /* Slide-In Overlay System */

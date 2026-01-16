@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../../config/db');
 const verifyToken = require('../middleware/jwt');
+const upload = require('../config/multer');
 
 /**
  * @fileoverview Jury packet management routes
@@ -38,7 +39,7 @@ router.get('/', verifyToken, async (req, res) => {
     const artistId = req.userId;
     
     const [packets] = await db.execute(`
-      SELECT jp.id, jp.packet_name, jp.persona_id, jp.created_at, jp.updated_at,
+      SELECT jp.id, jp.packet_name, jp.packet_data, jp.persona_id, jp.created_at, jp.updated_at,
              p.persona_name, p.display_name as persona_display_name
       FROM artist_jury_packets jp
       LEFT JOIN artist_personas p ON jp.persona_id = p.id AND p.is_active = 1
@@ -50,6 +51,25 @@ router.get('/', verifyToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching jury packets:', error);
     res.status(500).json({ error: 'Failed to fetch jury packets' });
+  }
+});
+
+/**
+ * Upload image for jury packet
+ * @route POST /api/jury-packets/upload
+ * @access Private (requires authentication)
+ */
+router.post('/upload', verifyToken, upload.array('images'), async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded' });
+    }
+
+    const urls = req.files.map(file => `/temp_images/jury/${file.filename}`);
+    res.json({ urls });
+  } catch (error) {
+    console.error('Error uploading jury packet images:', error);
+    res.status(500).json({ error: 'Failed to upload images' });
   }
 });
 

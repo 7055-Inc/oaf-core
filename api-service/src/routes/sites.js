@@ -702,21 +702,39 @@ router.post('/addons', verifyToken, requirePermission('manage_system'), async (r
  * GET /sites/me
  * Get all sites belonging to the current user
  * Returns user's sites ordered by creation date
+ * Allows access for users with 'sites' permission OR artists/admins
  * 
  * @route GET /sites/me
  * @middleware verifyToken - Requires valid JWT token
- * @middleware requirePermission('manage_sites') - Requires site management permissions
  * @returns {Array} User's sites with complete details
  */
-router.get('/me', verifyToken, requirePermission('manage_sites'), async (req, res) => {
+router.get('/me', verifyToken, async (req, res) => {
   try {
+    // Check if user has sites permission OR is an artist/admin
+    const [user] = await db.query(
+      'SELECT user_type FROM users WHERE id = ?',
+      [req.userId]
+    );
+    
+    const [permissions] = await db.query(
+      'SELECT sites FROM user_permissions WHERE user_id = ?',
+      [req.userId]
+    );
+    
+    const hasSitesPermission = permissions[0]?.sites === 1;
+    const isArtistOrAdmin = user[0]?.user_type === 'artist' || user[0]?.user_type === 'admin';
+    
+    if (!hasSitesPermission && !isArtistOrAdmin) {
+      return res.status(403).json({ error: 'Access denied. Sites permission required.' });
+    }
+    
     const [sites] = await db.query(
       'SELECT * FROM sites WHERE user_id = ? ORDER BY created_at DESC',
       [req.userId]
     );
     res.json(sites);
   } catch (err) {
-    // Error('Error fetching user sites:', err);
+    console.error('Error fetching user sites:', err);
     res.status(500).json({ error: 'Failed to fetch sites' });
   }
 });
@@ -1060,9 +1078,48 @@ router.put('/:id', verifyToken, async (req, res) => {
       }
     }
 
+    // Build dynamic update query with only provided fields
+    const updateFields = [];
+    const updateValues = [];
+    
+    if (site_name !== undefined) {
+      updateFields.push('site_name = ?');
+      updateValues.push(site_name);
+    }
+    if (site_title !== undefined) {
+      updateFields.push('site_title = ?');
+      updateValues.push(site_title);
+    }
+    if (site_description !== undefined) {
+      updateFields.push('site_description = ?');
+      updateValues.push(site_description);
+    }
+    if (theme_name !== undefined) {
+      updateFields.push('theme_name = ?');
+      updateValues.push(theme_name);
+    }
+    if (status !== undefined) {
+      updateFields.push('status = ?');
+      updateValues.push(status);
+    }
+    if (custom_domain !== undefined) {
+      updateFields.push('custom_domain = ?');
+      updateValues.push(custom_domain);
+    }
+    
+    // Always update the timestamp
+    updateFields.push('updated_at = NOW()');
+    
+    if (updateFields.length === 1) {
+      // Only timestamp update, nothing else to change
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+    
+    updateValues.push(id);
+    
     await db.query(
-      'UPDATE sites SET site_name = ?, site_title = ?, site_description = ?, theme_name = ?, status = ?, custom_domain = ?, updated_at = NOW() WHERE id = ?',
-      [site_name, site_title, site_description, theme_name, status, custom_domain, id]
+      `UPDATE sites SET ${updateFields.join(', ')} WHERE id = ?`,
+      updateValues
     );
 
     // Get updated site
@@ -1073,7 +1130,7 @@ router.put('/:id', verifyToken, async (req, res) => {
 
     res.json(updatedSite[0]);
   } catch (err) {
-    // Error('Error updating site:', err);
+    console.error('Error updating site:', err);
     res.status(500).json({ error: 'Failed to update site' });
   }
 });

@@ -8,13 +8,13 @@ export default function ProductTypeSection() {
       id: 'simple',
       title: 'Simple Product',
       description: 'A single product with one price and SKU',
-      icon: '📦'
+      icon: 'fa-cube'
     },
     {
       id: 'variable',
       title: 'Variable Product',
       description: 'A product with variations (size, color, etc.)',
-      icon: '🎨'
+      icon: 'fa-palette'
     }
   ];
 
@@ -42,7 +42,9 @@ export default function ProductTypeSection() {
               transition: 'all 0.2s ease'
             }}
           >
-            <div style={{ fontSize: '32px', marginBottom: '12px' }}>{type.icon}</div>
+            <div style={{ fontSize: '32px', marginBottom: '12px' }}>
+              <i className={`fas ${type.icon}`}></i>
+            </div>
             <div style={{ fontWeight: '600', fontSize: '16px', marginBottom: '8px' }}>
               {type.title}
             </div>
@@ -57,7 +59,7 @@ export default function ProductTypeSection() {
                 fontWeight: '600',
                 fontSize: '13px'
               }}>
-                ✓ Selected
+                <i className="fas fa-check" style={{ marginRight: '4px' }}></i> Selected
               </div>
             )}
           </div>
@@ -73,7 +75,8 @@ export default function ProductTypeSection() {
           fontSize: '13px',
           color: '#856404'
         }}>
-          ⚠️ Changing product type may affect existing variations and data.
+          <i className="fas fa-exclamation-triangle" style={{ marginRight: '6px' }}></i>
+          Changing product type may affect existing variations and data.
         </div>
       )}
     </div>

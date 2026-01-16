@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
 import { authApiRequest } from '../../../../lib/apiUtils';
 import { getApiUrl } from '../../../../lib/config';
+import { getReturnPolicy, getReturnWindowDays } from '../../../../lib/returnPolicies';
 import slideInStyles from '../../SlideIn.module.css';
 import ReturnRequestModal from './myorders-components/ReturnRequestModal';
 
@@ -195,17 +196,20 @@ export default function MyOrders({ userData }) {
     // Only allow returns for shipped orders
     if (order.status !== 'shipped') return false;
     
-    // Check if product allows returns (default to true if not specified)
-    if (item.allow_returns === false) return false;
+    // Get the return window based on the product's policy
+    const windowDays = getReturnWindowDays(item.allow_returns);
     
-    // Check if within return window (30 days from ship date)
-    if (item.shipped_at) {
+    // If policy has a time window (30_day or 14_day), enforce it
+    if (windowDays !== null && item.shipped_at) {
       const shipDate = new Date(item.shipped_at);
       const now = new Date();
       const daysDiff = (now - shipDate) / (1000 * 60 * 60 * 24);
-      if (daysDiff > 30) return false;
+      if (daysDiff > windowDays) return false;
     }
     
+    // For all policies (including exchange_only and no_returns),
+    // allow return requests - the modal handles policy-specific flows
+    // (e.g., damage claims are always allowed)
     return true;
   };
 

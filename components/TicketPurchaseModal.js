@@ -190,10 +190,21 @@ export default function TicketPurchaseModal({ event, isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+    <div 
+      className={styles.modalOverlay} 
+      onClick={onClose}
+      onKeyDown={(e) => e.key === 'Escape' && onClose()}
+      role="presentation"
+    >
+      <div 
+        className={styles.modalContent} 
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ticket-purchase-title"
+      >
         <div className={styles.modalHeader}>
-          <h2><i className="fas fa-ticket-alt"></i> Buy Tickets</h2>
+          <h2 id="ticket-purchase-title"><i className="fas fa-ticket-alt"></i> Buy Tickets</h2>
           <button className={styles.closeButton} onClick={onClose}>
             <i className="fas fa-times"></i>
           </button>

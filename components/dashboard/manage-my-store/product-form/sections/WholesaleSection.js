@@ -1,151 +1,136 @@
 import { useProductForm } from '../ProductFormContext';
 
 export default function WholesaleSection() {
-  const { formData, updateField } = useProductForm();
+  const { formData, updateField, updateFields } = useProductForm();
 
-  const inputStyle = {
-    width: '100%',
-    padding: '12px',
-    border: '1px solid #ddd',
-    borderRadius: '6px',
-    fontSize: '14px'
-  };
-
-  const labelStyle = {
-    display: 'block',
-    marginBottom: '6px',
-    fontWeight: '600',
-    fontSize: '13px',
-    color: '#333'
+  // Auto-update identifier_exists when GTIN changes
+  const handleGTINChange = (value) => {
+    updateFields({
+      gtin: value,
+      identifier_exists: value && value.trim() !== '' ? 'yes' : 'no'
+    });
   };
 
   return (
     <div>
       <p style={{ color: '#666', marginBottom: '20px', fontSize: '14px' }}>
-        Configure wholesale pricing and information for B2B buyers and marketplace listings.
+        Configure wholesale pricing and product identifiers for B2B buyers and marketplace listings.
       </p>
 
       {/* Wholesale Title */}
-      <div style={{ marginBottom: '20px' }}>
-        <label style={labelStyle}>
-          Wholesale Title
-        </label>
+      <div style={{ marginBottom: '16px' }}>
+        <label>Wholesale Title</label>
         <input
           type="text"
           value={formData.wholesale_title || ''}
           onChange={e => updateField('wholesale_title', e.target.value)}
-          style={inputStyle}
           placeholder="Optional: Different title for wholesale listings"
         />
-        <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
-          Leave blank to use the standard product name
-        </div>
+        <small style={{ color: '#666' }}>Leave blank to use the standard product name</small>
       </div>
 
       {/* Price Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+      <div className="form-grid-2">
         <div>
-          <label style={labelStyle}>
-            Wholesale Price
-          </label>
+          <label>Wholesale Price</label>
           <div style={{ position: 'relative' }}>
-            <span style={{ 
-              position: 'absolute', 
-              left: '12px', 
-              top: '50%', 
-              transform: 'translateY(-50%)',
-              color: '#666'
-            }}>$</span>
+            <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#666' }}>$</span>
             <input
               type="number"
               step="0.01"
               min="0"
               value={formData.wholesale_price || ''}
               onChange={e => updateField('wholesale_price', e.target.value)}
-              style={{ ...inputStyle, paddingLeft: '28px' }}
+              style={{ paddingLeft: '24px' }}
               placeholder="0.00"
             />
           </div>
-          <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
-            Price for B2B buyers and marketplace cost basis
-          </div>
+          <small style={{ color: '#666' }}>Price for B2B buyers and marketplace cost basis</small>
         </div>
         
         <div>
-          <label style={labelStyle}>Retail Price (Reference)</label>
-          <div style={{ 
-            padding: '12px', 
-            background: '#f8f9fa', 
-            borderRadius: '6px',
-            border: '1px solid #e9ecef',
-            color: '#666',
-            fontSize: '14px'
-          }}>
+          <label>Retail Price (Reference)</label>
+          <div className="form-card" style={{ padding: '12px', marginBottom: 0 }}>
             ${formData.price || '0.00'}
           </div>
-          <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
+          <small style={{ color: '#666' }}>
             {formData.wholesale_price && formData.price ? (
               `Margin: ${((1 - (parseFloat(formData.wholesale_price) / parseFloat(formData.price))) * 100).toFixed(1)}%`
             ) : (
               'Set both prices to see margin'
             )}
-          </div>
+          </small>
         </div>
       </div>
 
       {/* Wholesale Description */}
-      <div style={{ marginBottom: '20px' }}>
-        <label style={labelStyle}>
-          Wholesale Description
-        </label>
+      <div style={{ marginTop: '16px', marginBottom: '16px' }}>
+        <label>Wholesale Description</label>
         <textarea
           value={formData.wholesale_description || ''}
           onChange={e => updateField('wholesale_description', e.target.value)}
-          style={{
-            ...inputStyle,
-            minHeight: '120px',
-            resize: 'vertical'
-          }}
+          style={{ minHeight: '100px' }}
           placeholder="Optional: Specific information for wholesale buyers (minimum order quantities, bulk discounts, packaging info, etc.)"
         />
-        <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
-          This description is shown to wholesale buyers and on B2B marketplaces
+        <small style={{ color: '#666' }}>This description is shown to wholesale buyers and on B2B marketplaces</small>
+      </div>
+
+      {/* Product Identifiers */}
+      <div className="form-card">
+        <strong style={{ display: 'block', marginBottom: '12px' }}>Product Identifiers</strong>
+        <div className="form-grid-2">
+          <div>
+            <label>GTIN / UPC / Barcode</label>
+            <input
+              type="text"
+              value={formData.gtin || ''}
+              onChange={e => handleGTINChange(e.target.value)}
+              placeholder="e.g., 012345678901"
+            />
+            <small style={{ color: '#666' }}>Universal Product Code (12-14 digits)</small>
+          </div>
+          <div>
+            <label>MPN (Manufacturer Part Number)</label>
+            <input
+              type="text"
+              value={formData.mpn || ''}
+              onChange={e => updateField('mpn', e.target.value)}
+              placeholder="e.g., ABC-12345"
+            />
+            <small style={{ color: '#666' }}>Your manufacturer's part number</small>
+          </div>
+        </div>
+        <div className={formData.gtin ? 'success-alert' : 'warning-alert'} style={{ marginTop: '12px', marginBottom: 0, padding: '8px 12px', fontSize: '12px' }}>
+          <i className={formData.gtin ? 'fas fa-check' : 'fas fa-info-circle'}></i>{' '}
+          {formData.gtin 
+            ? 'Product identifier exists - better visibility in search results'
+            : 'No GTIN provided - consider adding for improved marketplace visibility'}
         </div>
       </div>
 
       {/* Marketplace Pricing Info */}
       {formData.wholesale_price && (
-        <div style={{
-          padding: '16px',
-          background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
-          borderRadius: '8px',
-          marginBottom: '10px'
-        }}>
-          <div style={{ 
-            fontWeight: '600', 
-            marginBottom: '8px',
-            color: '#1565c0',
-            fontSize: '13px'
-          }}>
-            💡 Marketplace Pricing Preview
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px' }}>
+        <div className="form-card" style={{ background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)', border: 'none' }}>
+          <strong style={{ color: '#1565c0', fontSize: '13px' }}>
+            <i className="fas fa-lightbulb"></i> Marketplace Pricing Preview
+          </strong>
+          <div className="form-grid-2" style={{ marginTop: '8px', fontSize: '13px' }}>
             <div>
               <span style={{ color: '#666' }}>Walmart/Amazon (2x wholesale):</span>
-              <span style={{ fontWeight: '600', marginLeft: '8px', color: '#1565c0' }}>
+              <strong style={{ marginLeft: '8px', color: '#1565c0' }}>
                 ${(parseFloat(formData.wholesale_price) * 2).toFixed(2)}
-              </span>
+              </strong>
             </div>
             <div>
               <span style={{ color: '#666' }}>Faire/eBay (2x wholesale):</span>
-              <span style={{ fontWeight: '600', marginLeft: '8px', color: '#1565c0' }}>
+              <strong style={{ marginLeft: '8px', color: '#1565c0' }}>
                 ${(parseFloat(formData.wholesale_price) * 2).toFixed(2)}
-              </span>
+              </strong>
             </div>
           </div>
-          <div style={{ fontSize: '11px', color: '#666', marginTop: '8px' }}>
+          <small style={{ color: '#666', marginTop: '8px', display: 'block' }}>
             Marketplace listings use 2x wholesale price when available, or retail +20% if no wholesale price is set.
-          </div>
+          </small>
         </div>
       )}
     </div>

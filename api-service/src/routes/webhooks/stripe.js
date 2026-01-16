@@ -563,10 +563,106 @@ async function handleAccountUpdate(account, event) {
       const isVerified = account.charges_enabled && account.payouts_enabled;
       await updateVendorVerificationStatus(vendorId, isVerified);
       
-      // TODO: Send vendor notification about successful verification if verified
+      // Process pending payouts when vendor becomes verified
+      if (isVerified) {
+        await processPendingVendorPayouts(vendorId, account.id);
+      }
     }
   } catch (error) {
     console.error('Error handling account update:', error);
+  }
+}
+
+/**
+ * Process pending payouts for a newly verified vendor
+ * Catches up any unpaid amounts from application fees, orders, etc.
+ * @param {number} vendorId - Vendor user ID
+ * @param {string} stripeAccountId - Vendor's Stripe Connect account ID
+ */
+async function processPendingVendorPayouts(vendorId, stripeAccountId) {
+  try {
+    // Process pending application fee payouts (for promoters)
+    const [pendingAppFees] = await db.execute(`
+      SELECT id, stripe_payment_intent_id, promoter_amount
+      FROM application_fee_payments
+      WHERE promoter_id = ?
+        AND status = 'succeeded'
+        AND stripe_transfer_id IS NULL
+        AND promoter_amount > 0
+    `, [vendorId]);
+
+    for (const payment of pendingAppFees) {
+      try {
+        // Get the charge from the payment intent
+        const charges = await stripe.charges.list({ 
+          payment_intent: payment.stripe_payment_intent_id, 
+          limit: 1 
+        });
+        
+        if (charges.data.length > 0) {
+          const transfer = await stripe.transfers.create({
+            amount: Math.round(payment.promoter_amount * 100),
+            currency: 'usd',
+            destination: stripeAccountId,
+            source_transaction: charges.data[0].id,
+            description: `Application fee payout (catch-up) - Payment #${payment.id}`
+          });
+
+          // Update the payment record with transfer ID
+          await db.execute(`
+            UPDATE application_fee_payments 
+            SET stripe_transfer_id = ?, updated_at = NOW()
+            WHERE id = ?
+          `, [transfer.id, payment.id]);
+
+          console.log(`Processed pending application fee payout: ${transfer.id} for vendor ${vendorId}`);
+        }
+      } catch (transferError) {
+        console.error(`Failed to transfer application fee payment ${payment.id}:`, transferError.message);
+      }
+    }
+
+    // Process pending order payouts (for marketplace sellers)
+    const [pendingOrders] = await db.execute(`
+      SELECT id, stripe_payment_intent_id, vendor_amount
+      FROM orders
+      WHERE vendor_id = ?
+        AND payment_status = 'paid'
+        AND stripe_transfer_id IS NULL
+        AND vendor_amount > 0
+    `, [vendorId]);
+
+    for (const order of pendingOrders) {
+      try {
+        const charges = await stripe.charges.list({ 
+          payment_intent: order.stripe_payment_intent_id, 
+          limit: 1 
+        });
+        
+        if (charges.data.length > 0) {
+          const transfer = await stripe.transfers.create({
+            amount: Math.round(order.vendor_amount * 100),
+            currency: 'usd',
+            destination: stripeAccountId,
+            source_transaction: charges.data[0].id,
+            description: `Order payout (catch-up) - Order #${order.id}`
+          });
+
+          await db.execute(`
+            UPDATE orders 
+            SET stripe_transfer_id = ?, updated_at = NOW()
+            WHERE id = ?
+          `, [transfer.id, order.id]);
+
+          console.log(`Processed pending order payout: ${transfer.id} for vendor ${vendorId}`);
+        }
+      } catch (transferError) {
+        console.error(`Failed to transfer order ${order.id}:`, transferError.message);
+      }
+    }
+
+  } catch (error) {
+    console.error('Error processing pending vendor payouts:', error);
   }
 }
 

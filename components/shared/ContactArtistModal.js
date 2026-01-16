@@ -73,10 +73,21 @@ export default function ContactArtistModal({ isOpen, onClose, artistId, artistNa
   if (!isOpen) return null;
 
   return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+    <div 
+      className={styles.modalOverlay} 
+      onClick={onClose}
+      onKeyDown={(e) => e.key === 'Escape' && onClose()}
+      role="presentation"
+    >
+      <div 
+        className={styles.modalContent} 
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="contact-artist-title"
+      >
         <div className={styles.modalHeader}>
-          <h2>Contact {artistName}</h2>
+          <h2 id="contact-artist-title">Contact {artistName}</h2>
           <button 
             className={styles.closeButton} 
             onClick={onClose}
@@ -88,7 +99,7 @@ export default function ContactArtistModal({ isOpen, onClose, artistId, artistNa
 
         {submitStatus === 'success' ? (
           <div className={styles.successMessage}>
-            <svg className={styles.successIcon} viewBox="0 0 24 24" fill="none">
+            <svg className={styles.successIcon} viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
             <h3>Message Sent!</h3>

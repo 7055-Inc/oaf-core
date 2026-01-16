@@ -96,7 +96,7 @@ export default function InventorySection() {
           alignItems: 'center',
           gap: '12px'
         }}>
-          <span style={{ fontSize: '24px' }}>⚠️</span>
+          <i className="fas fa-exclamation-triangle" style={{ fontSize: '24px' }}></i>
           <div>
             <div style={{ fontWeight: '600', marginBottom: '4px' }}>Low Stock Alert</div>
             <div style={{ fontSize: '13px', color: '#856404' }}>
@@ -115,7 +115,7 @@ export default function InventorySection() {
           borderRadius: '8px',
           fontSize: '13px'
         }}>
-          <strong>ℹ️ Variable Product:</strong> Inventory for variable products is managed 
+          <strong><i className="fas fa-info-circle"></i> Variable Product:</strong> Inventory for variable products is managed 
           per-variation. This sets the default for new variations.
         </div>
       )}

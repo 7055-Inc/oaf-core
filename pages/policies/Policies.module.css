@@ -125,6 +125,25 @@
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
+/* Cookie Preference Toggle Section */
+.cookiePreference {
+  margin-top: 3rem;
+  padding: 1.5rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.preferenceLabel {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  color: #333;
+}
+
+.preferenceLabel strong {
+  color: var(--primary-color);
+}
+
 .backLink {
   margin-top: 48px;
   padding-top: 24px;

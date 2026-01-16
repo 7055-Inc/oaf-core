@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Script from 'next/script';
@@ -221,13 +221,27 @@ const calculateRemainingCapacity = (event) => {
   return Math.max(0, event.venue_capacity - (event.estimated_attendance || 0));
 };
 
-// Helper function: Generate event rating (placeholder)
-const generateEventRating = (event) => {
-  // Future: calculate based on reviews/feedback
+// Helper function: Generate event rating from real review data
+const generateEventRating = (reviewSummary) => {
+  // Only include rating if there are actual reviews
+  if (!reviewSummary) return null;
+  
+  // Combine artist and community reviews if both exist
+  const artistCount = reviewSummary.artist?.count || 0;
+  const communityCount = reviewSummary.community?.count || 0;
+  const totalCount = artistCount + communityCount;
+  
+  if (totalCount === 0) return null;
+  
+  // Calculate weighted average
+  const artistTotal = (reviewSummary.artist?.average_rating || 0) * artistCount;
+  const communityTotal = (reviewSummary.community?.average_rating || 0) * communityCount;
+  const averageRating = totalCount > 0 ? ((artistTotal + communityTotal) / totalCount).toFixed(1) : 0;
+  
   return {
     "@type": "AggregateRating",
-    "ratingValue": 4.5,
-    "reviewCount": 1,
+    "ratingValue": parseFloat(averageRating),
+    "reviewCount": totalCount,
     "bestRating": 5,
     "worstRating": 1
   };
@@ -242,6 +256,30 @@ const generateSocialLinks = (event, id) => {
   ];
   
   return links;
+};
+
+// Helper function: Generate individual reviews for schema
+const generateReviewSchema = (reviews) => {
+  if (!reviews || reviews.length === 0) return null;
+  
+  return reviews.map(review => ({
+    "@type": "Review",
+    "author": {
+      "@type": "Person",
+      "name": review.reviewer_first_name && review.reviewer_last_name
+        ? `${review.reviewer_first_name} ${review.reviewer_last_name}`
+        : (review.reviewer_username || 'Anonymous')
+    },
+    "datePublished": review.created_at ? new Date(review.created_at).toISOString().split('T')[0] : undefined,
+    "reviewRating": {
+      "@type": "Rating",
+      "ratingValue": parseFloat(review.rating),
+      "bestRating": 5,
+      "worstRating": 1
+    },
+    "name": review.title,
+    "reviewBody": review.review_text
+  }));
 };
 
 // Helper function: Generate sub-events for multi-day festivals
@@ -298,20 +336,15 @@ const cleanSchema = (obj) => {
 };
 
 // Main function: Generate comprehensive JSON-LD structured data for maximum SEO authority
-const generateAdvancedEventSchema = async (event, id, exhibitingArtists, eventCategories, eventImages, getImageUrl) => {
-  // Fetch ticket data for rich offers
+const generateAdvancedEventSchema = (event, id, exhibitingArtists, eventCategories, eventImages, getImageUrl, reviews = [], reviewSummary = null) => {
+  // Note: Ticket data fetching removed - can be added back via SSR if needed
   let ticketData = [];
-  if (event.has_tickets) {
-    try {
-      const ticketResponse = await fetch(getApiUrl(`api/events/${id}/tickets`));
-      if (ticketResponse.ok) {
-        const tickets = await ticketResponse.json();
-        ticketData = tickets.tickets || [];
-      }
-    } catch (error) {
-      console.warn('Could not fetch ticket data for schema');
-    }
-  }
+
+  // Generate aggregate rating from real review data
+  const aggregateRating = generateEventRating(reviewSummary);
+  
+  // Generate individual reviews for schema
+  const schemaReviews = generateReviewSchema(reviews);
 
   // Base event schema with comprehensive data
   const schema = {
@@ -367,8 +400,11 @@ const generateAdvancedEventSchema = async (event, id, exhibitingArtists, eventCa
     "maximumAttendeeCapacity": event.venue_capacity || null,
     "remainingAttendeeCapacity": calculateRemainingCapacity(event),
     
-    // Review and rating (placeholder for future)
-    "aggregateRating": generateEventRating(event),
+    // Review and rating - only include if real reviews exist
+    ...(aggregateRating && { "aggregateRating": aggregateRating }),
+    
+    // Individual reviews - only include if reviews exist
+    ...(schemaReviews && { "review": schemaReviews }),
     
     // Related events and series
     "isPartOf": {
@@ -414,13 +450,22 @@ const generateAdvancedEventSchema = async (event, id, exhibitingArtists, eventCa
   return cleanSchema(schema);
 };
 
-export default function EventPage() {
+export default function EventPage({ 
+  eventId: ssrEventId = null,
+  initialEvent = null, 
+  initialImages = [], 
+  initialCategories = [], 
+  initialArtists = [],
+  initialReviews = [],
+  initialReviewSummary = null 
+}) {
   const router = useRouter();
-  const { id } = router.query;
-  const [event, setEvent] = useState(null);
-  const [eventImages, setEventImages] = useState([]);
-  const [eventCategories, setEventCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Use SSR id for initial render, fall back to router.query for client navigation
+  const id = ssrEventId || router.query.id;
+  const [event, setEvent] = useState(initialEvent);
+  const [eventImages, setEventImages] = useState(initialImages);
+  const [eventCategories, setEventCategories] = useState(initialCategories);
+  const [loading, setLoading] = useState(!initialEvent);
   const [error, setError] = useState(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -430,67 +475,107 @@ export default function EventPage() {
   const [userApplication, setUserApplication] = useState(null);
   const [showApplicationForm, setShowApplicationForm] = useState(false);
   const [applicationStats, setApplicationStats] = useState(null);
+  const [showViewApplicationModal, setShowViewApplicationModal] = useState(false);
+  const [selectedApplication, setSelectedApplication] = useState(null);
+  const [editData, setEditData] = useState({ artist_statement: '', additional_info: '', additional_notes: '' });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   
   // Artists state
-  const [exhibitingArtists, setExhibitingArtists] = useState([]);
-  const [artistsLoading, setArtistsLoading] = useState(true);
+  const [exhibitingArtists, setExhibitingArtists] = useState(initialArtists);
+  const [artistsLoading, setArtistsLoading] = useState(!initialArtists.length);
 
   // Ticket modal state
   const [showTicketModal, setShowTicketModal] = useState(false);
 
-  // Advanced schema state
-  const [advancedSchema, setAdvancedSchema] = useState(null);
+  // Helper function for image URLs (needed for schema)
+  const getSchemaImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    if (imagePath.startsWith('/static_media/')) {
+      return imagePath;
+    }
+    return getSmartMediaUrl(imagePath);
+  };
+
+  // Generate schema synchronously from SSR data (available during server render)
+  const advancedSchema = useMemo(() => {
+    // Use ssrEventId for SSR to ensure schema is generated during server render
+    const schemaId = ssrEventId || id;
+    if (!initialEvent || !schemaId) return null;
+    
+    try {
+      return generateAdvancedEventSchema(
+        initialEvent,
+        schemaId,
+        initialArtists,
+        initialCategories,
+        initialImages,
+        getSchemaImageUrl,
+        initialReviews,
+        initialReviewSummary
+      );
+    } catch (error) {
+      console.warn('Error generating schema:', error);
+      return null;
+    }
+  }, [initialEvent, ssrEventId, id, initialArtists, initialCategories, initialImages, initialReviews, initialReviewSummary]);
 
   useEffect(() => {
+    // Skip fetch if we have SSR data
+    if (initialEvent) {
+      setLoading(false);
+      setArtistsLoading(false);
+      return;
+    }
+    
     if (!id) return;
     setLoading(true);
     
-    Promise.all([
-      fetch(getApiUrl(`api/events/${id}`)).then(res => res.json()),
-      fetch(getApiUrl(`api/events/${id}/images`)).then(res => res.json()),
-      fetch(getApiUrl(`api/events/${id}/categories`)).then(res => res.json()),
-      fetch(getApiUrl(`api/events/${id}/artists`)).then(res => res.json().catch(() => ({ artists: [] }))) // Handle artists fetch with fallback
-    ])
-      .then(async ([eventData, imagesData, categoriesData, artistsData]) => {
+    // Use ?include= parameter to get all data in one call (new API)
+    // Falls back to separate calls if API doesn't support ?include= (old API)
+    fetch(getApiUrl(`api/events/${id}?include=images,categories,artists`))
+      .then(res => res.json())
+      .then(async (eventData) => {
+        // Extract related data if API supports ?include= (new API)
+        let images = eventData.images || [];
+        let categories = eventData.categories || [];
+        let artists = eventData.artists || [];
+        
+        // Remove from event object to keep it clean
+        delete eventData.images;
+        delete eventData.categories;
+        delete eventData.artists;
+        
+        // Fallback: If no related data, try separate endpoints (old API)
+        if (images.length === 0 && categories.length === 0 && artists.length === 0) {
+          try {
+            const [imagesRes, categoriesRes, artistsRes] = await Promise.all([
+              fetch(getApiUrl(`api/events/${id}/images`)).then(r => r.json()).catch(() => ({ images: [] })),
+              fetch(getApiUrl(`api/events/${id}/categories`)).then(r => r.json()).catch(() => ({ categories: [] })),
+              fetch(getApiUrl(`api/events/${id}/artists`)).then(r => r.json()).catch(() => ({ artists: [] }))
+            ]);
+            images = imagesRes.images || [];
+            categories = categoriesRes.categories || [];
+            artists = artistsRes.artists || [];
+          } catch (e) { /* ignore fallback errors */ }
+        }
+        
         setEvent(eventData || null);
-        setEventImages(imagesData.images || []);
-        setEventCategories(categoriesData.categories || []);
-        setExhibitingArtists(artistsData.artists || []);
+        setEventImages(images);
+        setEventCategories(categories);
+        setExhibitingArtists(artists);
         setLoading(false);
         setArtistsLoading(false);
-        
-        // Generate advanced schema after all data is loaded
-        if (eventData) {
-          try {
-            const schema = await generateAdvancedEventSchema(
-              eventData, 
-              id, 
-              artistsData.artists || [], 
-              categoriesData.categories || [], 
-              imagesData.images || [], 
-              (imagePath) => {
-                if (!imagePath) return null;
-                if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-                  return imagePath;
-                }
-                if (imagePath.startsWith('/static_media/')) {
-                  return imagePath;
-                }
-                return getSmartMediaUrl(imagePath);
-              }
-            );
-            setAdvancedSchema(schema);
-          } catch (error) {
-            console.warn('Error generating advanced schema:', error);
-          }
-        }
       })
       .catch(err => {
         console.error('Error loading event data:', err);
         setError('Failed to load event details');
         setLoading(false);
       });
-  }, [id]);
+  }, [id, initialEvent]);
 
   // Check user authentication and load application data
   useEffect(() => {
@@ -639,6 +724,10 @@ export default function EventPage() {
     if (imagePath.startsWith('/static_media/')) {
       return imagePath;
     }
+    // Temp images use API base URL directly
+    if (imagePath.startsWith('/temp_images/')) {
+      return `${getApiUrl()}${imagePath}`;
+    }
     // Use getSmartMediaUrl to handle relative paths correctly
     return getSmartMediaUrl(imagePath);
   };
@@ -724,25 +813,43 @@ export default function EventPage() {
 
   if (loading) {
     return (
-      <div className={styles.container}>
-        <div className={styles.loading}>Loading event details...</div>
-      </div>
+      <>
+        <Head>
+          <title>Loading Event | Brakebee</title>
+          {id && <link rel="canonical" href={getFrontendUrl(`/events/${id}`)} />}
+        </Head>
+        <div className={styles.container}>
+          <div className={styles.loading}>Loading event details...</div>
+        </div>
+      </>
     );
   }
 
   if (error) {
     return (
-      <div className={styles.container}>
-        <div className={styles.error}>{error}</div>
-      </div>
+      <>
+        <Head>
+          <title>Event Error | Brakebee</title>
+          {id && <link rel="canonical" href={getFrontendUrl(`/events/${id}`)} />}
+        </Head>
+        <div className={styles.container}>
+          <div className={styles.error}>{error}</div>
+        </div>
+      </>
     );
   }
 
   if (!event) {
     return (
-      <div className={styles.container}>
-        <div className={styles.error}>Event not found</div>
-      </div>
+      <>
+        <Head>
+          <title>Event Not Found | Brakebee</title>
+          {id && <link rel="canonical" href={getFrontendUrl(`/events/${id}`)} />}
+        </Head>
+        <div className={styles.container}>
+          <div className={styles.error}>Event not found</div>
+        </div>
+      </>
     );
   }
 
@@ -760,7 +867,9 @@ export default function EventPage() {
         <meta name="keywords" content={event?.event_keywords || 'art, festival, event'} />
         <meta property="og:title" content={event?.seo_title || event?.title} />
         <meta property="og:description" content={event?.meta_description || event?.description} />
+        <meta property="og:url" content={getFrontendUrl(`/events/${id}`)} />
         {eventImageUrl && <meta property="og:image" content={eventImageUrl} />}
+        {id && <link rel="canonical" href={getFrontendUrl(`/events/${id}`)} />}
         
         {/* Advanced JSON-LD Schema for Maximum SEO Authority */}
         {advancedSchema && (
@@ -770,6 +879,20 @@ export default function EventPage() {
           />
         )}
       </Head>
+
+      {/* Floating Edit Buttons for Promoters */}
+      {user && event && user.id === event.promoter_id && (
+        <div className={styles.floatingEditButtons}>
+          <a href={`/dashboard?tab=my-events&action=edit&eventId=${event.id}`} className={styles.floatingEditLink}>
+            <i className="fa-solid fa-edit"></i>
+            Edit Event
+          </a>
+          <a href="/dashboard?tab=my-events" className={styles.floatingManageLink}>
+            <i className="fa-solid fa-calendar"></i>
+            Manage Events
+          </a>
+        </div>
+      )}
 
       <div className={styles.container}>
         {/* SEO Breadcrumb */}
@@ -1248,17 +1371,43 @@ export default function EventPage() {
                           <div className={styles.applyPrompt}>
                             <p>
                               {userApplication && userApplication.length > 0 
-                                ? 'Apply with a different persona or update your application:' 
+                                ? 'Want to apply with a different persona?' 
                                 : 'Ready to showcase your art at this event?'
                               }
                             </p>
-                            <button 
-                              onClick={() => setShowApplicationForm(true)}
-                              className={styles.applyButton}
-                            >
-                              <i className="fas fa-palette"></i>
-                              {userApplication && userApplication.length > 0 ? 'Apply Again' : 'Apply Now'}
-                            </button>
+                            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                              {userApplication && userApplication.length > 0 && (
+                                <button 
+                                  onClick={() => {
+                                    const app = userApplication[0];
+                                    setSelectedApplication(app);
+                                    setEditData({
+                                      artist_statement: app.artist_statement || '',
+                                      additional_info: app.additional_info || '',
+                                      additional_notes: app.additional_notes || ''
+                                    });
+                                    setSaveError('');
+                                    setShowViewApplicationModal(true);
+                                  }}
+                                  className="btn btn-secondary"
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                  }}
+                                >
+                                  <i className="fas fa-eye"></i>
+                                  View My Application
+                                </button>
+                              )}
+                              <button 
+                                onClick={() => setShowApplicationForm(true)}
+                                className={styles.applyButton}
+                              >
+                                <i className="fas fa-palette"></i>
+                                {userApplication && userApplication.length > 0 ? 'Apply with Different Persona' : 'Apply Now'}
+                              </button>
+                            </div>
                           </div>
                         ) : (
                           <div className={styles.applicationForm}>
@@ -1293,7 +1442,7 @@ export default function EventPage() {
         </div>
         
         {/* Load Stripe for ticket purchases */}
-        {event?.has_tickets && (
+        {!!event?.has_tickets && (
           <Script 
             src="https://js.stripe.com/v3/" 
             strategy="afterInteractive"
@@ -1306,7 +1455,233 @@ export default function EventPage() {
           isOpen={showTicketModal}
           onClose={() => setShowTicketModal(false)}
         />
+
+        {/* View/Edit Application Modal */}
+        {showViewApplicationModal && selectedApplication && (
+          <div 
+            onClick={() => setShowViewApplicationModal(false)}
+            style={{
+              position: 'fixed',
+              top: 0, left: 0, right: 0, bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.6)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000
+            }}
+          >
+            <div 
+              onClick={e => e.stopPropagation()}
+              style={{
+                backgroundColor: '#fff',
+                borderRadius: '8px',
+                maxWidth: '600px',
+                width: '90%',
+                maxHeight: '80vh',
+                overflow: 'auto',
+                padding: '24px'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h2 style={{ margin: 0 }}>
+                  {(event.application_deadline ? new Date(event.application_deadline) > new Date() : true) ? 'Edit' : 'View'} Application
+                </h2>
+                <button 
+                  onClick={() => setShowViewApplicationModal(false)}
+                  style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+
+              <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
+                <strong>Status:</strong>{' '}
+                <span style={{ 
+                  color: selectedApplication.status === 'submitted' ? '#007bff' : 
+                         selectedApplication.status === 'accepted' ? '#28a745' : 
+                         selectedApplication.status === 'draft' ? '#6c757d' : '#dc3545'
+                }}>
+                  {selectedApplication.status?.charAt(0).toUpperCase() + selectedApplication.status?.slice(1)}
+                </span>
+                {event.application_deadline && new Date(event.application_deadline) < new Date() && (
+                  <span style={{ marginLeft: '10px', color: '#6c757d' }}>(Deadline passed - read only)</span>
+                )}
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '4px' }}>Artist Statement</label>
+                <textarea
+                  value={editData.artist_statement}
+                  onChange={e => setEditData(prev => ({ ...prev, artist_statement: e.target.value }))}
+                  disabled={event.application_deadline && new Date(event.application_deadline) < new Date()}
+                  rows={4}
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #d1d5db' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '4px' }}>Additional Info</label>
+                <textarea
+                  value={editData.additional_info}
+                  onChange={e => setEditData(prev => ({ ...prev, additional_info: e.target.value }))}
+                  disabled={event.application_deadline && new Date(event.application_deadline) < new Date()}
+                  rows={3}
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #d1d5db' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '4px' }}>Notes</label>
+                <textarea
+                  value={editData.additional_notes}
+                  onChange={e => setEditData(prev => ({ ...prev, additional_notes: e.target.value }))}
+                  disabled={event.application_deadline && new Date(event.application_deadline) < new Date()}
+                  rows={2}
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #d1d5db' }}
+                />
+              </div>
+
+              {saveError && <p style={{ color: '#dc3545', marginBottom: '16px' }}>{saveError}</p>}
+
+              <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button onClick={() => setShowViewApplicationModal(false)} className="btn btn-secondary">
+                  Cancel
+                </button>
+                {(!event.application_deadline || new Date(event.application_deadline) > new Date()) && (
+                  <button 
+                    onClick={async () => {
+                      setSaving(true);
+                      setSaveError('');
+                      try {
+                        const token = localStorage.getItem('token');
+                        const res = await fetch(getApiUrl(`api/applications/${selectedApplication.id}`), {
+                          method: 'PATCH',
+                          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                          body: JSON.stringify(editData)
+                        });
+                        if (!res.ok) throw new Error('Failed to save');
+                        setUserApplication(prev => prev.map(app => 
+                          app.id === selectedApplication.id ? { ...app, ...editData } : app
+                        ));
+                        setShowViewApplicationModal(false);
+                      } catch (err) {
+                        setSaveError(err.message);
+                      } finally {
+                        setSaving(false);
+                      }
+                    }} 
+                    disabled={saving} 
+                    className="btn btn-primary"
+                  >
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
-} 
+}
+
+// Server-side data fetching for SEO - schema must be in initial HTML
+export async function getServerSideProps(context) {
+  const { id } = context.params;
+  
+  if (!id) {
+    return { props: { eventId: null, initialEvent: null, initialImages: [], initialCategories: [], initialArtists: [], initialReviews: [], initialReviewSummary: null } };
+  }
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.brakebee.com';
+
+  try {
+    // Fetch event with ?include= parameter (new API) plus reviews
+    // Backward compatible: if API doesn't support ?include=, fetch related data separately
+    const fetchOptions = {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    };
+    
+    const [eventRes, reviewsRes, reviewSummaryRes] = await Promise.all([
+      fetch(`${apiUrl}/api/events/${id}?include=images,categories,artists`, fetchOptions).catch(() => null),
+      fetch(`${apiUrl}/api/reviews?type=event&id=${id}&sort=recent&limit=10`, fetchOptions).catch(() => null),
+      fetch(`${apiUrl}/api/reviews/summary?type=event&id=${id}`, fetchOptions).catch(() => null)
+    ]);
+
+    // Parse responses (don't let failures break the page)
+    let initialEvent = null;
+    let initialImages = [];
+    let initialCategories = [];
+    let initialArtists = [];
+    let initialReviews = [];
+    let initialReviewSummary = null;
+
+    if (eventRes?.ok) {
+      try { 
+        const eventData = await eventRes.json();
+        // Extract related data if API supports ?include= (new API)
+        if (eventData.images) {
+          initialImages = eventData.images;
+          delete eventData.images;
+        }
+        if (eventData.categories) {
+          initialCategories = eventData.categories;
+          delete eventData.categories;
+        }
+        if (eventData.artists) {
+          initialArtists = eventData.artists;
+          delete eventData.artists;
+        }
+        initialEvent = eventData;
+        
+        // Fallback: If API doesn't support ?include= (old API), fetch related data separately
+        if (initialImages.length === 0 && initialCategories.length === 0 && initialArtists.length === 0) {
+          const [imagesRes, categoriesRes, artistsRes] = await Promise.all([
+            fetch(`${apiUrl}/api/events/${id}/images`, fetchOptions).catch(() => null),
+            fetch(`${apiUrl}/api/events/${id}/categories`, fetchOptions).catch(() => null),
+            fetch(`${apiUrl}/api/events/${id}/artists`, fetchOptions).catch(() => null)
+          ]);
+          
+          if (imagesRes?.ok) {
+            try { const data = await imagesRes.json(); initialImages = data.images || []; } catch (e) { /* ignore */ }
+          }
+          if (categoriesRes?.ok) {
+            try { const data = await categoriesRes.json(); initialCategories = data.categories || []; } catch (e) { /* ignore */ }
+          }
+          if (artistsRes?.ok) {
+            try { const data = await artistsRes.json(); initialArtists = data.artists || []; } catch (e) { /* ignore */ }
+          }
+        }
+      } catch (e) { /* ignore */ }
+    }
+    
+    if (reviewsRes?.ok) {
+      try { 
+        const data = await reviewsRes.json(); 
+        initialReviews = Array.isArray(data) ? data : [];
+      } catch (e) { /* ignore */ }
+    }
+    
+    if (reviewSummaryRes?.ok) {
+      try { 
+        initialReviewSummary = await reviewSummaryRes.json();
+      } catch (e) { /* ignore */ }
+    }
+
+    return { 
+      props: { 
+        eventId: id,
+        initialEvent, 
+        initialImages, 
+        initialCategories, 
+        initialArtists, 
+        initialReviews, 
+        initialReviewSummary 
+      } 
+    };
+  } catch (error) {
+    console.error('SSR fetch error:', error);
+    return { props: { eventId: null, initialEvent: null, initialImages: [], initialCategories: [], initialArtists: [], initialReviews: [], initialReviewSummary: null } };
+  }
+}

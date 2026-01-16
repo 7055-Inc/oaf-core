@@ -481,10 +481,12 @@ router.get('/art/products/:id', async (req, res) => {
     if (includes.includes('vendor')) {
       const [vendor] = await db.query(`
         SELECT u.id, u.username, up.first_name, up.last_name, up.display_name,
-               ap.business_name, ap.business_website
+               ap.business_name, ap.business_website,
+               COALESCE(vss.handling_days, 3) as handling_days
         FROM users u
         LEFT JOIN user_profiles up ON u.id = up.user_id
         LEFT JOIN artist_profiles ap ON u.id = ap.user_id
+        LEFT JOIN vendor_ship_settings vss ON u.id = vss.vendor_id
         WHERE u.id = ?
       `, [parentProduct.vendor_id]);
       processedParent.vendor = vendor[0] || {};
@@ -723,10 +725,12 @@ router.get('/crafts/products/:id', async (req, res) => {
     if (includes.includes('vendor')) {
       const [vendor] = await db.query(`
         SELECT u.id, u.username, up.first_name, up.last_name, up.display_name,
-               ap.business_name, ap.business_website
+               ap.business_name, ap.business_website,
+               COALESCE(vss.handling_days, 3) as handling_days
         FROM users u
         LEFT JOIN user_profiles up ON u.id = up.user_id
         LEFT JOIN artist_profiles ap ON u.id = ap.user_id
+        LEFT JOIN vendor_ship_settings vss ON u.id = vss.vendor_id
         WHERE u.id = ?
       `, [parentProduct.vendor_id]);
       processedParent.vendor = vendor[0] || {};

@@ -274,15 +274,18 @@ export default function CategoryManagement() {
     }));
   };
 
-  // Load featured vendors when contentData changes
+  // Track if we've loaded vendors for the current category to avoid re-fetching
+  const loadedVendorsForCategoryRef = useRef(null);
+
+  // Load featured vendors ONLY when we start editing a category (not when contentData changes)
   useEffect(() => {
-    const loadFeaturedVendors = async () => {
-      if (!contentData?.featured_artists) {
+    const loadFeaturedVendors = async (featuredArtistsData) => {
+      if (!featuredArtistsData) {
         setFeaturedVendors([]);
         return;
       }
       
-      const ids = contentData.featured_artists.split(',').map(id => id.trim()).filter(id => id);
+      const ids = featuredArtistsData.split(',').map(id => id.trim()).filter(id => id);
       if (ids.length === 0) {
         setFeaturedVendors([]);
         return;
@@ -290,14 +293,14 @@ export default function CategoryManagement() {
       
       try {
         const token = document.cookie.split('token=')[1]?.split(';')[0];
-        // Fetch vendor details for each ID
+        // Fetch vendor details for each ID using the profile endpoint
         const vendorPromises = ids.map(async (id) => {
-          const res = await fetch(getApiUrl(`users/${id}`), {
+          const res = await fetch(getApiUrl(`users/profile/by-id/${id}`), {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           if (res.ok) {
             const data = await res.json();
-            return data.user || data;
+            return data;
           }
           return null;
         });
@@ -308,8 +311,17 @@ export default function CategoryManagement() {
       }
     };
     
-    loadFeaturedVendors();
-  }, [contentData?.featured_artists, editingCategory]);
+    // Only load if we have content data AND we haven't loaded for this category yet
+    if (contentData && editingCategory && loadedVendorsForCategoryRef.current !== editingCategory.id) {
+      loadedVendorsForCategoryRef.current = editingCategory.id;
+      loadFeaturedVendors(contentData.featured_artists);
+    }
+    
+    // Reset the ref when we stop editing
+    if (!editingCategory) {
+      loadedVendorsForCategoryRef.current = null;
+    }
+  }, [contentData, editingCategory]);
 
   const loadCategories = async () => {
     try {

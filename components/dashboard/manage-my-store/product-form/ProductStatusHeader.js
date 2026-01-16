@@ -1,10 +1,16 @@
 import { useState } from 'react';
 import { useProductForm } from './ProductFormContext';
 import { authApiRequest } from '../../../../lib/apiUtils';
+import { hasPermission } from '../../../../lib/userUtils';
 
 export default function ProductStatusHeader() {
-  const { formData, updateField, mode, savedProductId } = useProductForm();
-  const [saving, setSaving] = useState(false);
+  const { formData, updateField, mode, savedProductId, userData } = useProductForm();
+  const [savingMarketplace, setSavingMarketplace] = useState(false);
+  const [savingWebsite, setSavingWebsite] = useState(false);
+  
+  // Permission checks - using same permissions as ManageMyStoreMenu
+  const hasMarketplacePermission = hasPermission(userData, 'vendor');
+  const hasWebsitePermission = hasPermission(userData, 'sites');
 
   // Don't show until we have product data
   if (mode === 'create' && !savedProductId) return null;
@@ -34,144 +40,99 @@ export default function ProductStatusHeader() {
     
     // Auto-save immediately when toggled
     if (savedProductId) {
-      setSaving(true);
+      setSavingMarketplace(true);
       try {
         await authApiRequest(`products/${savedProductId}`, {
-          method: 'PUT',
+          method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ marketplace_enabled: newValue })
         });
       } catch (err) {
         console.error('Failed to save marketplace status:', err);
       } finally {
-        setSaving(false);
+        setSavingMarketplace(false);
+      }
+    }
+  };
+
+  const handleWebsiteToggle = async () => {
+    const newValue = !formData.website_catalog_enabled;
+    updateField('website_catalog_enabled', newValue);
+    
+    // Auto-save immediately when toggled
+    if (savedProductId) {
+      setSavingWebsite(true);
+      try {
+        await authApiRequest(`products/${savedProductId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ website_catalog_enabled: newValue })
+        });
+      } catch (err) {
+        console.error('Failed to save website catalog status:', err);
+      } finally {
+        setSavingWebsite(false);
       }
     }
   };
 
   return (
-    <div style={{
-      background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
-      border: '1px solid #dee2e6',
-      borderRadius: '8px',
-      padding: '16px 20px',
-      marginBottom: '24px',
-      display: 'flex',
-      flexWrap: 'wrap',
-      gap: '24px',
-      alignItems: 'center'
-    }}>
-      <div style={{
-        fontSize: '12px',
-        fontWeight: '600',
-        color: '#6c757d',
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px',
-        marginRight: '12px',
-        display: 'flex',
-        alignItems: 'center'
-      }}>
-        📊 Product Status
-      </div>
+    <div className="form-card" style={{ display: 'flex', flexWrap: 'wrap', gap: '24px', alignItems: 'center' }}>
+      <strong style={{ textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '12px', color: '#6c757d' }}>
+        Product Status
+      </strong>
       
-      {/* Marketplace Toggle */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{ fontSize: '12px', color: '#6c757d', fontWeight: '500' }}>
-          Marketplace:
-        </span>
-        <label style={{ 
-          position: 'relative', 
-          display: 'inline-block', 
-          width: '44px', 
-          height: '24px',
-          cursor: 'pointer'
-        }}>
+      {/* Website Catalog Toggle */}
+      {hasWebsitePermission && (
+        <label className="toggle-slider-container">
+          <span><i className="fas fa-globe"></i> Website:</span>
           <input
             type="checkbox"
+            className="toggle-slider-input"
+            checked={formData.website_catalog_enabled}
+            onChange={handleWebsiteToggle}
+          />
+          <span className="toggle-slider"></span>
+          <span className="toggle-text">{savingWebsite ? '...' : (formData.website_catalog_enabled ? 'ON' : 'OFF')}</span>
+        </label>
+      )}
+
+      {/* Marketplace Toggle */}
+      {hasMarketplacePermission && (
+        <label className="toggle-slider-container">
+          <span><i className="fas fa-store"></i> Marketplace:</span>
+          <input
+            type="checkbox"
+            className="toggle-slider-input"
             checked={formData.marketplace_enabled}
             onChange={handleMarketplaceToggle}
-            style={{ opacity: 0, width: 0, height: 0 }}
           />
-          <span style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: formData.marketplace_enabled ? '#28a745' : '#ccc',
-            borderRadius: '24px',
-            transition: 'all 0.3s ease'
-          }}>
-            <span style={{
-              position: 'absolute',
-              height: '18px',
-              width: '18px',
-              left: formData.marketplace_enabled ? '23px' : '3px',
-              bottom: '3px',
-              backgroundColor: 'white',
-              borderRadius: '50%',
-              transition: 'all 0.3s ease',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-            }} />
-          </span>
+          <span className="toggle-slider"></span>
+          <span className="toggle-text">{savingMarketplace ? '...' : (formData.marketplace_enabled ? 'ON' : 'OFF')}</span>
         </label>
-        <span style={{
-          fontSize: '11px',
-          fontWeight: '600',
-          color: saving ? '#ffc107' : (formData.marketplace_enabled ? '#28a745' : '#6c757d')
-        }}>
-          {saving ? '...' : (formData.marketplace_enabled ? 'ON' : 'OFF')}
-        </span>
-      </div>
+      )}
 
       {/* Category */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{ fontSize: '12px', color: '#6c757d', fontWeight: '500' }}>
-          Category:
-        </span>
-        <span style={{
-          fontSize: '13px',
-          fontWeight: '600',
-          color: '#055474',
-          background: '#05547415',
-          padding: '4px 10px',
-          borderRadius: '4px'
-        }}>
+      <div className="field-with-info">
+        <span style={{ fontSize: '12px', color: '#6c757d' }}>Category:</span>
+        <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--primary-color)', background: 'rgba(5,84,116,0.08)', padding: '4px 10px', borderRadius: '4px' }}>
           {getMarketplaceCategoryDisplay()}
         </span>
       </div>
 
       {/* Type */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{ fontSize: '12px', color: '#6c757d', fontWeight: '500' }}>
-          Type:
-        </span>
-        <span style={{
-          fontSize: '13px',
-          fontWeight: '600',
-          color: '#055474',
-          background: '#05547415',
-          padding: '4px 10px',
-          borderRadius: '4px'
-        }}>
+      <div className="field-with-info">
+        <span style={{ fontSize: '12px', color: '#6c757d' }}>Type:</span>
+        <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--primary-color)', background: 'rgba(5,84,116,0.08)', padding: '4px 10px', borderRadius: '4px' }}>
           {getProductTypeDisplay()}
         </span>
       </div>
 
-      {/* Group ID - only for parent or variant */}
+      {/* Group ID */}
       {(formData.product_type === 'variable' || formData.product_type === 'variant') && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '12px', color: '#6c757d', fontWeight: '500' }}>
-            Group ID:
-          </span>
-          <span style={{
-            fontSize: '13px',
-            fontWeight: '600',
-            color: '#6c757d',
-            background: '#6c757d15',
-            padding: '4px 10px',
-            borderRadius: '4px'
-          }}>
+        <div className="field-with-info">
+          <span style={{ fontSize: '12px', color: '#6c757d' }}>Group ID:</span>
+          <span style={{ fontSize: '13px', fontWeight: '600', color: '#6c757d', background: 'rgba(108,117,125,0.08)', padding: '4px 10px', borderRadius: '4px' }}>
             {formData.item_group_id || formData.parent_id || savedProductId || '—'}
           </span>
         </div>

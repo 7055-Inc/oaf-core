@@ -16,7 +16,7 @@ export default function EditProduct() {
     category_id: 1,
     sku: '',
     status: 'draft',
-    allow_returns: true,
+    allow_returns: '30_day',
     width: '',
     height: '',
     depth: '',
@@ -189,7 +189,7 @@ export default function EditProduct() {
           category_id: data.category_id || 1,
           sku: data.sku || '',
           status: data.status || 'draft',
-          allow_returns: data.allow_returns !== undefined ? data.allow_returns : true,
+          allow_returns: data.allow_returns || '30_day',
           width: data.width || '',
           height: data.height || '',
           depth: data.depth || '',
@@ -730,23 +730,24 @@ export default function EditProduct() {
               </div>
 
               <div className={styles.formGroup}>
-                <label>Returns Policy</label>
-                <div className={styles.toggleContainer}>
-                  <label className="toggle">
-                    <input
-                      type="checkbox"
+                <label>Return Policy</label>
+                {(() => {
+                  const { getReturnPolicyOptions } = require('../../../lib/returnPolicies');
+                  return (
+                    <select
                       name="allow_returns"
-                      checked={formData.allow_returns}
+                      value={formData.allow_returns}
                       onChange={handleChange}
-                    />
-                    <span className="slider"></span>
-                    <span className="toggle-label">
-                      {formData.allow_returns ? 'Returns Allowed' : 'No Returns'}
-                    </span>
-                  </label>
-                </div>
+                      className={styles.select}
+                    >
+                      {getReturnPolicyOptions().map(policy => (
+                        <option key={policy.key} value={policy.key}>{policy.label}</option>
+                      ))}
+                    </select>
+                  );
+                })()}
                 <small className={styles.helpText}>
-                  Allow customers to request returns for this product
+                  This policy will be shown to customers and submitted to Google Merchant Center
                 </small>
               </div>
             </div>

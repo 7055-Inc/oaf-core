@@ -15,6 +15,11 @@ const hasPermission = (req, permission) => {
     return true;
   }
   
+  // Promoter users automatically get events permission
+  if (permission === 'events' && req.roles && req.roles.includes('promoter')) {
+    return true;
+  }
+  
   // Check if user has the specific permission
   if (req.permissions && req.permissions.includes(permission)) {
     return true;
@@ -25,6 +30,10 @@ const hasPermission = (req, permission) => {
     return true;
   }
   if (permission === 'stripe_connect' && req.permissions && req.permissions.includes('events')) {
+    return true;
+  }
+  // Promoters also get stripe_connect for payment processing
+  if (permission === 'stripe_connect' && req.roles && req.roles.includes('promoter')) {
     return true;
   }
   
@@ -101,7 +110,7 @@ const requireUserType = (userType) => {
 };
 
 /**
- * Get user's effective permissions including admin auto-permissions
+ * Get user's effective permissions including admin/promoter auto-permissions
  */
 const getEffectivePermissions = (req) => {
   const permissions = [...(req.permissions || [])];
@@ -110,6 +119,16 @@ const getEffectivePermissions = (req) => {
   if (req.roles && req.roles.includes('admin')) {
     const allPermissions = ['vendor', 'events', 'stripe_connect', 'manage_sites', 'manage_content', 'manage_system', 'shipping'];
     for (const permission of allPermissions) {
+      if (!permissions.includes(permission)) {
+        permissions.push(permission);
+      }
+    }
+  }
+  
+  // Promoter users automatically get events and stripe_connect permissions
+  if (req.roles && req.roles.includes('promoter')) {
+    const promoterPermissions = ['events', 'stripe_connect'];
+    for (const permission of promoterPermissions) {
       if (!permissions.includes(permission)) {
         permissions.push(permission);
       }

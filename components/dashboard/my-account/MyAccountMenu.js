@@ -1,6 +1,7 @@
 // My Account Menu Component
 // This file will contain ONLY the menu building logic for My Account section
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { authApiRequest, API_ENDPOINTS } from '../../../lib/apiUtils';
 import { hasPermission } from '../../../lib/userUtils';
 import styles from '../../../pages/dashboard/Dashboard.module.css';
@@ -9,7 +10,8 @@ export default function MyAccountMenu({
   userData, 
   collapsedSections = {}, 
   toggleSection = () => {}, 
-  openSlideIn = () => {} 
+  openSlideIn = () => {},
+  notifications = {}
 }) {
   const [shortcuts, setShortcuts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -73,6 +75,9 @@ export default function MyAccountMenu({
 
   if (!userData) return null;
   
+  // Calculate total notifications for My Account section
+  const totalNotifications = (notifications.awaiting_response || 0);
+  
   return (
     <div className={styles.sidebarSection}>
       <h3 
@@ -81,6 +86,9 @@ export default function MyAccountMenu({
       >
         <span className={styles.accountHeader}>
           My Account
+          {totalNotifications > 0 && (
+            <span className={styles.notificationBadge}>{totalNotifications}</span>
+          )}
         </span>
       </h3>
       {!collapsedSections['my-account'] && (
@@ -167,6 +175,14 @@ export default function MyAccountMenu({
                 </button>
               )}
             </div>
+          </li>
+          <li>
+            <Link href="/help/tickets" className={styles.sidebarLink}>
+              My Tickets
+              {notifications.awaiting_response > 0 && (
+                <span className={styles.notificationBadge}>{notifications.awaiting_response}</span>
+              )}
+            </Link>
           </li>
           {/* Payment Settings - Only show if user has stripe_connect permission */}
           {hasPermission(userData, 'stripe_connect') && (

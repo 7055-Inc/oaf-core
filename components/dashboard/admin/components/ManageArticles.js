@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import WYSIWYGEditor from '../../../../components/WYSIWYGEditor';
 import { authApiRequest } from '../../../../lib/apiUtils';
 import { getApiUrl } from '../../../../lib/config';
@@ -24,18 +24,48 @@ const ArticleManagement = () => {
   const [newTagName, setNewTagName] = useState('');
   const [newSeriesName, setNewSeriesName] = useState('');
   
+  // Featured image upload states
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+  const featuredImageInputRef = useRef(null);
+  
+  // Section options based on page type (multi-select checkboxes)
+  const SECTION_OPTIONS = {
+    help_article: [
+      { value: 'getting-started', label: 'Getting Started' },
+      { value: 'account-profile', label: 'Account & Profile' },
+      { value: 'orders-shipping', label: 'Orders & Shipping' },
+      { value: 'returns-refunds', label: 'Returns & Refunds' },
+      { value: 'events', label: 'Events' },
+      { value: 'marketplace', label: 'Marketplace' },
+      { value: 'payments-billing', label: 'Payments & Billing' },
+      { value: 'technical', label: 'Technical' }
+    ],
+    article: [
+      { value: 'featured', label: 'Featured' },
+      { value: 'news', label: 'News' },
+      { value: 'interviews', label: 'Interviews' },
+      { value: 'reviews', label: 'Reviews' },
+      { value: 'guides', label: 'Guides' },
+      { value: 'artist-news', label: 'Artist News (Magazine)' },
+      { value: 'promoter-news', label: 'Promoter News (Magazine)' },
+      { value: 'community-news', label: 'Community News (Magazine)' }
+    ]
+  };
+
   // Form state for article creation/editing
   const [formData, setFormData] = useState({
     title: '',
     content: '',
     excerpt: '',
     status: 'draft',
-    page_type: 'article', // New field
-    featured_image: '',
+    page_type: 'article',
+    section: [], // Array of section values (stored as JSON in DB)
+    images: [], // Array of {url, is_primary, alt_text, friendly_name, order}
     topic_ids: [],
-    tag_ids: [], // New field
-    series_id: '', // New field
-    position_in_series: '', // New field
+    tag_ids: [],
+    series_id: '',
+    position_in_series: '',
     // SEO fields
     meta_title: '',
     meta_description: '',
@@ -453,6 +483,137 @@ const ArticleManagement = () => {
     }
   };
 
+  // Handle image upload (supports multiple files)
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    // Validate files
+    const maxFileSize = 5 * 1024 * 1024; // 5MB limit
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+
+    for (const file of files) {
+      if (file.size > maxFileSize) {
+        setUploadError(`File "${file.name}" is too large. Maximum size is 5MB.`);
+        return;
+      }
+      if (!allowedTypes.includes(file.type)) {
+        setUploadError(`File "${file.name}" is not a supported format. Please use JPEG, PNG, GIF, or WebP.`);
+        return;
+      }
+    }
+
+    setUploadingImage(true);
+    setUploadError(null);
+
+    try {
+      const uploadFormData = new FormData();
+      files.forEach(file => {
+        uploadFormData.append('images', file);
+      });
+
+      const articleIdParam = selectedArticle?.id || 'new';
+      const response = await authApiRequest(`api/articles/upload?article_id=${articleIdParam}`, {
+        method: 'POST',
+        body: uploadFormData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to upload images');
+      }
+
+      const data = await response.json();
+
+      if (data.urls && Array.isArray(data.urls)) {
+        const currentImages = Array.isArray(formData.images) ? formData.images : [];
+        const newImages = data.urls.map((url, index) => ({
+          url,
+          is_primary: currentImages.length === 0 && index === 0, // First image is primary by default
+          alt_text: '',
+          friendly_name: '',
+          order: currentImages.length + index
+        }));
+        
+        setFormData(prev => ({
+          ...prev,
+          images: [...currentImages, ...newImages]
+        }));
+      } else {
+        throw new Error('No URLs returned from upload');
+      }
+    } catch (err) {
+      setUploadError(`Image upload failed: ${err.message}`);
+    } finally {
+      setUploadingImage(false);
+      if (featuredImageInputRef.current) {
+        featuredImageInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Remove an image
+  const handleRemoveImage = (index) => {
+    const newImages = [...formData.images];
+    const wasPromary = newImages[index].is_primary;
+    newImages.splice(index, 1);
+    
+    // If removed image was primary and there are remaining images, make first one primary
+    if (wasPromary && newImages.length > 0) {
+      newImages[0].is_primary = true;
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      images: newImages
+    }));
+  };
+
+  // Set an image as primary
+  const handleSetPrimary = (index) => {
+    const newImages = formData.images.map((img, i) => ({
+      ...img,
+      is_primary: i === index
+    }));
+    setFormData(prev => ({
+      ...prev,
+      images: newImages
+    }));
+  };
+
+  // Reorder images (move up/down)
+  const handleReorderImage = (fromIndex, direction) => {
+    const toIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1;
+    if (toIndex < 0 || toIndex >= formData.images.length) return;
+    
+    const newImages = [...formData.images];
+    const [moved] = newImages.splice(fromIndex, 1);
+    newImages.splice(toIndex, 0, moved);
+    
+    // Update order values
+    newImages.forEach((img, i) => {
+      img.order = i;
+    });
+    
+    setFormData(prev => ({
+      ...prev,
+      images: newImages
+    }));
+  };
+
+  // Update image metadata (alt_text, friendly_name)
+  const handleImageFieldChange = (index, field, value) => {
+    const newImages = [...formData.images];
+    newImages[index] = {
+      ...newImages[index],
+      [field]: value
+    };
+    setFormData(prev => ({
+      ...prev,
+      images: newImages
+    }));
+  };
+
   // Reset form
   const resetForm = () => {
     setFormData({
@@ -461,7 +622,8 @@ const ArticleManagement = () => {
       excerpt: '',
       status: 'draft',
       page_type: 'article',
-      featured_image: '',
+      section: '',
+      images: [],
       topic_ids: [],
       tag_ids: [],
       series_id: '',
@@ -480,6 +642,7 @@ const ArticleManagement = () => {
       access_logic: 'any_of'
     });
     setSelectedArticle(null);
+    setUploadError(null);
   };
 
   // Start editing an article
@@ -491,7 +654,8 @@ const ArticleManagement = () => {
       excerpt: article.excerpt || '',
       status: article.status || 'draft',
       page_type: article.page_type || 'article',
-      featured_image: article.featured_image || '',
+      section: Array.isArray(article.section) ? article.section : (article.section ? [article.section] : []),
+      images: article.images || [],
       topic_ids: article.topic_ids || [],
       tag_ids: article.tag_ids || [],
       series_id: article.series_id || '',
@@ -505,11 +669,11 @@ const ArticleManagement = () => {
       twitter_title: article.twitter_title || '',
       twitter_description: article.twitter_description || '',
       twitter_image: article.twitter_image || '',
-      // TODO: Load these from API when editing
       restricted_user_types: article.restricted_user_types || [],
       required_permissions: article.required_permissions || [],
       access_logic: article.access_logic || 'any_of'
     });
+    setUploadError(null);
     setActiveView('edit');
   };
 
@@ -549,30 +713,27 @@ const ArticleManagement = () => {
 
   return (
     <div className="section-box">
-      {/* Header */}
-      <div className="section-header">
-        <h2>Manage Articles & Pages</h2>
-        <div className={styles.headerActions}>
-          {permissions.can_create && (
-            <button 
-              className="primary"
-              onClick={() => {
-                resetForm();
-                setActiveView('create');
-              }}
-            >
-              Create New Article
-            </button>
-          )}
-          {activeView !== 'list' && (
-            <button 
-              className="secondary"
-              onClick={() => setActiveView('list')}
-            >
-              Back to List
-            </button>
-          )}
-        </div>
+      {/* Header Actions */}
+      <div className={styles.headerActions}>
+        {permissions.can_create && (
+          <button 
+            className="primary"
+            onClick={() => {
+              resetForm();
+              setActiveView('create');
+            }}
+          >
+            Create New Article
+          </button>
+        )}
+        {activeView !== 'list' && (
+          <button 
+            className="secondary"
+            onClick={() => setActiveView('list')}
+          >
+            Back to List
+          </button>
+        )}
       </div>
 
       {/* Article List View */}
@@ -581,8 +742,9 @@ const ArticleManagement = () => {
           {/* Filters */}
           <div className={styles.filters}>
             <div className={styles.filterGroup}>
-              <label>Status:</label>
+              <label htmlFor="article-status-filter">Status:</label>
               <select 
+                id="article-status-filter"
                 value={statusFilter} 
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className={styles.filterSelect}
@@ -594,9 +756,10 @@ const ArticleManagement = () => {
               </select>
             </div>
             <div className={styles.filterGroup}>
-              <label>Search:</label>
+              <label htmlFor="article-search">Search:</label>
               <input
                 type="text"
+                id="article-search"
                 placeholder="Search articles..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -608,14 +771,15 @@ const ArticleManagement = () => {
           {/* Articles Table */}
           <div className={styles.articlesTable}>
             <table>
+              <caption className="sr-only">Articles list</caption>
               <thead>
                 <tr>
-                  <th>Title</th>
-                  <th>Status</th>
-                  <th>Author</th>
-                  <th>Created</th>
-                  <th>Views</th>
-                  <th>Actions</th>
+                  <th scope="col">Title</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Author</th>
+                  <th scope="col">Created</th>
+                  <th scope="col">Views</th>
+                  <th scope="col">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -698,9 +862,10 @@ const ArticleManagement = () => {
               <h3>Article Information</h3>
               
               <div className={styles.formGroup}>
-                <label>Title *</label>
+                <label htmlFor="article-title">Title *</label>
                 <input
                   type="text"
+                  id="article-title"
                   name="title"
                   value={formData.title}
                   onChange={handleInputChange}
@@ -710,8 +875,9 @@ const ArticleManagement = () => {
               </div>
 
               <div className={styles.formGroup}>
-                <label>Excerpt</label>
+                <label htmlFor="article-excerpt">Excerpt</label>
                 <textarea
+                  id="article-excerpt"
                   name="excerpt"
                   value={formData.excerpt}
                   onChange={handleInputChange}
@@ -723,8 +889,9 @@ const ArticleManagement = () => {
 
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label>Status</label>
+                  <label htmlFor="article-status">Status</label>
                   <select
+                    id="article-status"
                     name="status"
                     value={formData.status}
                     onChange={handleInputChange}
@@ -741,11 +908,19 @@ const ArticleManagement = () => {
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label>Page Type</label>
+                  <label htmlFor="article-page-type">Page Type</label>
                   <select
+                    id="article-page-type"
                     name="page_type"
                     value={formData.page_type}
-                    onChange={handleInputChange}
+                    onChange={(e) => {
+                      const newPageType = e.target.value;
+                      setFormData(prev => ({
+                        ...prev,
+                        page_type: newPageType,
+                        section: '' // Clear section when page type changes
+                      }));
+                    }}
                     className={styles.formSelect}
                   >
                     <option value="article">Article</option>
@@ -758,23 +933,248 @@ const ArticleManagement = () => {
                     )}
                   </select>
                 </div>
+
+                {/* Section checkboxes - multi-select for article categorization */}
+                {SECTION_OPTIONS[formData.page_type] && (
+                  <div className={styles.formGroup}>
+                    <label>Sections (select all that apply)</label>
+                    <div className={styles.sectionCheckboxes} style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
+                      gap: '8px',
+                      marginTop: '8px'
+                    }}>
+                      {SECTION_OPTIONS[formData.page_type].map(option => (
+                        <label 
+                          key={option.value} 
+                          style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '8px',
+                            cursor: 'pointer',
+                            padding: '6px 10px',
+                            background: formData.section?.includes(option.value) ? 'rgba(5, 84, 116, 0.1)' : '#f8f9fa',
+                            border: formData.section?.includes(option.value) ? '1px solid var(--primary-color)' : '1px solid #dee2e6',
+                            borderRadius: '4px',
+                            fontSize: '14px',
+                            fontWeight: 'normal'
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={formData.section?.includes(option.value) || false}
+                            onChange={(e) => {
+                              const newSections = e.target.checked
+                                ? [...(formData.section || []), option.value]
+                                : (formData.section || []).filter(s => s !== option.value);
+                              setFormData(prev => ({ ...prev, section: newSections }));
+                            }}
+                            style={{ width: 'auto', margin: 0 }}
+                          />
+                          {option.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Images Section */}
+              <div className={styles.formGroup} style={{ marginBottom: '20px' }}>
+                <label>Images</label>
+                <p style={{ color: '#6c757d', fontSize: '12px', marginBottom: '10px' }}>
+                  Upload multiple images. The primary image will be used as the featured image.
+                </p>
+                
+                {/* Image Grid */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', marginBottom: '15px' }}>
+                  {formData.images && formData.images.map((image, index) => (
+                    <div 
+                      key={index} 
+                      style={{ 
+                        position: 'relative',
+                        border: image.is_primary ? '3px solid #28a745' : '1px solid #ddd',
+                        borderRadius: '8px',
+                        padding: '8px',
+                        backgroundColor: image.is_primary ? '#f0fff4' : '#fff'
+                      }}
+                    >
+                      {/* Primary Badge */}
+                      {image.is_primary && (
+                        <span style={{
+                          position: 'absolute',
+                          top: '-10px',
+                          left: '10px',
+                          background: '#28a745',
+                          color: 'white',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          fontWeight: 'bold'
+                        }}>
+                          PRIMARY
+                        </span>
+                      )}
+                      
+                      {/* Image Preview */}
+                      <img 
+                        src={image.url.startsWith('/') ? getApiUrl(image.url.slice(1)) : image.url}
+                        alt={image.alt_text || `Image ${index + 1}`}
+                        style={{ 
+                          width: '150px', 
+                          height: '100px', 
+                          objectFit: 'cover',
+                          borderRadius: '4px',
+                          display: 'block'
+                        }}
+                      />
+                      
+                      {/* Action Buttons */}
+                      <div style={{ display: 'flex', gap: '4px', marginTop: '8px', justifyContent: 'center' }}>
+                        {/* Move Up */}
+                        <button
+                          type="button"
+                          onClick={() => handleReorderImage(index, 'up')}
+                          disabled={index === 0}
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: '12px',
+                            background: index === 0 ? '#e9ecef' : '#6c757d',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: index === 0 ? 'not-allowed' : 'pointer'
+                          }}
+                          title="Move up"
+                        >
+                          ↑
+                        </button>
+                        
+                        {/* Move Down */}
+                        <button
+                          type="button"
+                          onClick={() => handleReorderImage(index, 'down')}
+                          disabled={index === formData.images.length - 1}
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: '12px',
+                            background: index === formData.images.length - 1 ? '#e9ecef' : '#6c757d',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: index === formData.images.length - 1 ? 'not-allowed' : 'pointer'
+                          }}
+                          title="Move down"
+                        >
+                          ↓
+                        </button>
+                        
+                        {/* Set Primary */}
+                        {!image.is_primary && (
+                          <button
+                            type="button"
+                            onClick={() => handleSetPrimary(index)}
+                            style={{
+                              padding: '4px 8px',
+                              fontSize: '12px',
+                              background: '#28a745',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer'
+                            }}
+                            title="Set as primary"
+                          >
+                            ★
+                          </button>
+                        )}
+                        
+                        {/* Remove */}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(index)}
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: '12px',
+                            background: '#dc3545',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                          }}
+                          title="Remove image"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      
+                      {/* Alt Text Input */}
+                      <input
+                        type="text"
+                        placeholder="Alt text..."
+                        value={image.alt_text || ''}
+                        onChange={(e) => handleImageFieldChange(index, 'alt_text', e.target.value)}
+                        style={{
+                          width: '100%',
+                          marginTop: '8px',
+                          padding: '4px 8px',
+                          fontSize: '11px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px'
+                        }}
+                      />
+                    </div>
+                  ))}
+                  
+                  {/* Upload Box */}
+                  <div 
+                    onClick={() => featuredImageInputRef.current?.click()}
+                    style={{
+                      width: '150px',
+                      height: '140px',
+                      border: '2px dashed #ccc',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: uploadingImage ? 'wait' : 'pointer',
+                      backgroundColor: '#f8f9fa',
+                      flexDirection: 'column',
+                      gap: '8px'
+                    }}
+                  >
+                    {uploadingImage ? (
+                      <>
+                        <i className="fas fa-spinner fa-spin" style={{ fontSize: '24px', color: '#6c757d' }}></i>
+                        <span style={{ color: '#6c757d', fontSize: '12px' }}>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-plus" style={{ fontSize: '24px', color: '#6c757d' }}></i>
+                        <span style={{ color: '#6c757d', fontSize: '12px' }}>Add Images</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                
+                <input
+                  type="file"
+                  ref={featuredImageInputRef}
+                  onChange={handleImageUpload}
+                  accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                  multiple
+                  style={{ display: 'none' }}
+                />
+                
+                {uploadError && (
+                  <span style={{ color: '#dc3545', fontSize: '12px' }}>{uploadError}</span>
+                )}
               </div>
 
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label>Featured Image URL</label>
-                  <input
-                    type="url"
-                    name="featured_image"
-                    value={formData.featured_image}
-                    onChange={handleInputChange}
-                    className={styles.formInput}
-                  />
-                </div>
-
-                <div className={styles.formGroup}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label>Series</label>
+                    <label htmlFor="article-series">Series</label>
                     {permissions.can_manage_seo && (
                       <button
                         type="button"
@@ -787,35 +1187,41 @@ const ArticleManagement = () => {
                   </div>
                   
                   {showNewSeriesForm && (
-                    <div className={styles.inlineForm}>
-                      <form onSubmit={handleCreateSeries} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                        <input
-                          type="text"
-                          value={newSeriesName}
-                          onChange={(e) => setNewSeriesName(e.target.value)}
-                          placeholder="Series name"
-                          className={styles.formInput}
-                          style={{ flex: 1 }}
-                        />
-                        <button type="submit" className="primary" style={{ padding: '8px 16px' }}>
-                          Create
-                        </button>
-                        <button 
-                          type="button" 
-                          onClick={() => {
-                            setShowNewSeriesForm(false);
-                            setNewSeriesName('');
-                          }}
-                          className="secondary"
-                          style={{ padding: '8px 16px' }}
-                        >
-                          Cancel
-                        </button>
-                      </form>
+                    <div className={styles.inlineForm} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        value={newSeriesName}
+                        onChange={(e) => setNewSeriesName(e.target.value)}
+                        placeholder="Series name"
+                        aria-label="New series name"
+                        className={styles.formInput}
+                        style={{ flex: 1 }}
+                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleCreateSeries(e))}
+                      />
+                      <button 
+                        type="button" 
+                        onClick={handleCreateSeries}
+                        className="primary" 
+                        style={{ padding: '8px 16px' }}
+                      >
+                        Create
+                      </button>
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          setShowNewSeriesForm(false);
+                          setNewSeriesName('');
+                        }}
+                        className="secondary"
+                        style={{ padding: '8px 16px' }}
+                      >
+                        Cancel
+                      </button>
                     </div>
                   )}
 
                   <select
+                    id="article-series"
                     name="series_id"
                     value={formData.series_id}
                     onChange={handleInputChange}
@@ -833,9 +1239,10 @@ const ArticleManagement = () => {
 
               {formData.series_id && (
                 <div className={styles.formGroup}>
-                  <label>Position in Series</label>
+                  <label htmlFor="article-position">Position in Series</label>
                   <input
                     type="number"
+                    id="article-position"
                     name="position_in_series"
                     value={formData.position_in_series}
                     onChange={handleInputChange}
@@ -865,35 +1272,38 @@ const ArticleManagement = () => {
                 </div>
                 
                 {showNewTopicForm && (
-                  <div className={styles.inlineForm}>
-                    <form onSubmit={handleCreateTopic} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                      <input
-                        type="text"
-                        value={newTopicName}
-                        onChange={(e) => setNewTopicName(e.target.value)}
-                        placeholder="Topic name"
-                        className={styles.formInput}
-                        style={{ flex: 1 }}
-                      />
-                      <button type="submit" className="primary" style={{ padding: '8px 16px' }}>
-                        Create
-                      </button>
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          setShowNewTopicForm(false);
-                          setNewTopicName('');
-                        }}
-                        className="secondary"
-                        style={{ padding: '8px 16px' }}
-                      >
-                        Cancel
-                      </button>
-                    </form>
+                  <div className={styles.inlineForm} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      value={newTopicName}
+                      onChange={(e) => setNewTopicName(e.target.value)}
+                      placeholder="Topic name"
+                      className={styles.formInput}
+                      style={{ flex: 1 }}
+                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleCreateTopic(e))}
+                    />
+                    <button 
+                      type="button" 
+                      onClick={handleCreateTopic}
+                      className="primary" 
+                      style={{ padding: '8px 16px' }}
+                    >
+                      Create
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        setShowNewTopicForm(false);
+                        setNewTopicName('');
+                      }}
+                      className="secondary"
+                      style={{ padding: '8px 16px' }}
+                    >
+                      Cancel
+                    </button>
                   </div>
                 )}
 
-                {console.log('Rendering topics section, topics:', topics)} {/* Debug log */}
                 {topics.length > 0 ? (
                   <div className={styles.topicCheckboxes}>
                     {topics.map(topic => (
@@ -936,31 +1346,36 @@ const ArticleManagement = () => {
                 </div>
                 
                 {showNewTagForm && (
-                  <div className={styles.inlineForm}>
-                    <form onSubmit={handleCreateTag} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                      <input
-                        type="text"
-                        value={newTagName}
-                        onChange={(e) => setNewTagName(e.target.value)}
-                        placeholder="Tag name"
-                        className={styles.formInput}
-                        style={{ flex: 1 }}
-                      />
-                      <button type="submit" className="primary" style={{ padding: '8px 16px' }}>
-                        Create
-                      </button>
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          setShowNewTagForm(false);
-                          setNewTagName('');
-                        }}
-                        className="secondary"
-                        style={{ padding: '8px 16px' }}
-                      >
-                        Cancel
-                      </button>
-                    </form>
+                  <div className={styles.inlineForm} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      value={newTagName}
+                      onChange={(e) => setNewTagName(e.target.value)}
+                      placeholder="Tag name"
+                      aria-label="New tag name"
+                      className={styles.formInput}
+                      style={{ flex: 1 }}
+                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleCreateTag(e))}
+                    />
+                    <button 
+                      type="button" 
+                      onClick={handleCreateTag}
+                      className="primary" 
+                      style={{ padding: '8px 16px' }}
+                    >
+                      Create
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        setShowNewTagForm(false);
+                        setNewTagName('');
+                      }}
+                      className="secondary"
+                      style={{ padding: '8px 16px' }}
+                    >
+                      Cancel
+                    </button>
                   </div>
                 )}
 
@@ -1048,8 +1463,9 @@ const ArticleManagement = () => {
 
               {(formData.restricted_user_types.length > 0 || formData.required_permissions.length > 0) && (
                 <div className={styles.formGroup}>
-                  <label>Access Logic</label>
+                  <label htmlFor="article-access-logic">Access Logic</label>
                   <select
+                    id="article-access-logic"
                     name="access_logic"
                     value={formData.access_logic}
                     onChange={handleInputChange}

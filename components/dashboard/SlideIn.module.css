@@ -565,7 +565,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 99999;
 }
 
 .modalContent {
@@ -613,4 +613,64 @@
   border: none;
   border-radius: 8px;
   background: white;
+}
+
+/* Topic/Tag Checkbox Styles */
+.topicCheckboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #212529;
+  transition: all 0.2s ease;
+}
+
+.checkboxLabel:hover {
+  border-color: #055474;
+  background: #f0f7fa;
+}
+
+.checkboxLabel input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #055474;
+}
+
+.checkboxLabel input[type="checkbox"]:checked + span,
+.checkboxLabel:has(input:checked) {
+  font-weight: 500;
+  color: #055474;
+}
+
+.emptyState {
+  padding: 20px;
+  text-align: center;
+  color: #6c757d;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px dashed #dee2e6;
+}
+
+.emptyState p {
+  margin: 0 0 8px 0;
+}
+
+.emptyState small {
+  color: #868e96;
 }

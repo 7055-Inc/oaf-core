@@ -1,13 +1,13 @@
 .container {
   background-color: #FFFFFF;
   min-height: 100vh;
-  padding: 0;
+  padding: 100px 20px 0 20px;
 }
 
 .content {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 80px 0 0 0;
+  padding: 0;
 }
 
 .loading, .error {
@@ -38,9 +38,11 @@
   background: #FFFFFF;
   padding: 3rem;
   margin-bottom: 2rem;
-  border-radius: 0px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  border-radius: 2px;
+  border: 5px solid transparent;
+  background: linear-gradient(#fff, #fff) padding-box,
+              linear-gradient(90deg, #055474 0%, #3e1c56 100%) border-box;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .imageSection {
@@ -53,10 +55,11 @@
   position: relative;
   width: 100%;
   padding-bottom: 75%;
-  border-radius: 0px;
+  border-radius: 2px;
   overflow: hidden;
   background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
+  border: 3px solid #055474;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .heroImage {
@@ -79,21 +82,24 @@
   width: 100%;
   padding-bottom: 100%;
   border: 2px solid #e2e8f0;
-  border-radius: 0px;
+  border-radius: 2px;
   overflow: hidden;
   cursor: pointer;
   background-color: #f8fafc;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
 }
 
 .thumbnail:hover {
   border-color: #055474;
-  transform: scale(1.02);
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(5, 84, 116, 0.2);
 }
 
 .thumbnail.selected {
-  border-color: #055474;
-  box-shadow: 0 0 0 2px rgba(5, 84, 116, 0.2);
+  border: 3px solid transparent;
+  background: linear-gradient(#f8fafc, #f8fafc) padding-box,
+              linear-gradient(90deg, #055474, #3e1c56) border-box;
+  box-shadow: 0 4px 12px rgba(5, 84, 116, 0.25);
 }
 
 .thumbnail img {
@@ -137,15 +143,16 @@
 }
 
 .eventType {
-  background: #055474;
+  background: linear-gradient(135deg, #055474, #3e1c56);
   color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 0px;
+  padding: 0.5rem 1.25rem;
+  border-radius: 2px;
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border: 1px solid #055474;
+  letter-spacing: 0.08em;
+  border: none;
+  box-shadow: 0 2px 8px rgba(5, 84, 116, 0.25);
 }
 
 /* Remove all status tags */
@@ -170,23 +177,41 @@
 .admission {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 1rem;
-  background: #f8fafc;
-  border-radius: 0px;
-  border: 1px solid #055474;
-  border-left: 4px solid #055474;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  background: linear-gradient(135deg, rgba(5, 84, 116, 0.08) 0%, rgba(62, 28, 86, 0.08) 100%);
+  border-radius: 2px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  position: relative;
+}
+
+.admission::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 2px;
+  padding: 2px;
+  background: linear-gradient(90deg, #055474, #3e1c56);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 .admissionLabel {
   font-weight: 600;
   color: #475569;
+  font-size: 1rem;
 }
 
 .admissionPrice {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  color: #055474;
+  background: linear-gradient(135deg, #055474, #3e1c56);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .actionButtons {
@@ -212,38 +237,43 @@
 }
 
 .directionsBtn {
-  background: #055474;
+  background: linear-gradient(135deg, #055474 0%, #3E1C56 100%);
   color: white;
+  border: none;
 }
 
 .directionsBtn:hover {
-  background: #3E1C56;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  background: linear-gradient(135deg, #3E1C56 0%, #055474 100%);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(5, 84, 116, 0.3);
 }
 
 .sendToPhoneBtn {
   background: white;
   color: #055474;
   border: 2px solid #055474;
+  position: relative;
+  overflow: hidden;
 }
 
 .sendToPhoneBtn:hover {
-  background: #055474;
+  background: linear-gradient(135deg, #055474 0%, #3E1C56 100%);
   color: white;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  border-color: transparent;
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(5, 84, 116, 0.3);
 }
 
 .buyTicketsBtn {
-  background: #3E1C56;
+  background: linear-gradient(135deg, #3E1C56 0%, #055474 100%);
   color: white;
+  border: none;
 }
 
 .buyTicketsBtn:hover {
-  background: #055474;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  background: linear-gradient(135deg, #055474 0%, #3E1C56 100%);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(62, 28, 86, 0.3);
 }
 
 .reviewBtn {
@@ -253,22 +283,21 @@
   justify-content: center;
   gap: 0.5rem;
   padding: 10px 20px;
-  border-radius: 0px;
+  border-radius: 2px;
   font-weight: 600;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   cursor: pointer;
-  border: 2px solid #FFA500;
+  border: none;
   font-size: 1rem;
-  font-family: 'Comic Neue', sans-serif;
-  background: #FFA500;
+  font-family: var(--font-body);
+  background: linear-gradient(135deg, #FFA500 0%, #FF6B00 100%);
   color: white;
 }
 
 .reviewBtn:hover {
-  background: #FF8C00;
-  border-color: #FF8C00;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(255, 165, 0, 0.3);
+  background: linear-gradient(135deg, #FF6B00 0%, #FFA500 100%);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(255, 165, 0, 0.35);
 }
 
 .dateLocation {
@@ -305,9 +334,11 @@
 
 /* Use global h2 styles, but override specific styling */
 .description h2 {
-  border-bottom: 3px solid #055474;
-  padding-bottom: 0.5rem;
+  border-bottom: 3px solid;
+  border-image: linear-gradient(90deg, #055474, #3e1c56) 1;
+  padding-bottom: 0.75rem;
   display: inline-block;
+  margin-bottom: 1.5rem;
 }
 
 .descriptionContent {
@@ -330,15 +361,17 @@
 .infoCard {
   background: white;
   border: 1px solid #e2e8f0;
-  border-radius: 0px;
+  border-radius: 2px;
   padding: 1.5rem;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
+  border-left: 4px solid #055474;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
 }
 
 .infoCard:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
-  border-color: #055474;
+  box-shadow: 0 8px 16px rgba(5, 84, 116, 0.12);
+  transform: translateY(-4px);
+  border-left-color: #3e1c56;
 }
 
 /* Use global h3 styles for info cards */
@@ -347,13 +380,21 @@
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid transparent;
+  background: linear-gradient(#fff, #fff) padding-box,
+              linear-gradient(90deg, #055474 0%, #3e1c56 100%) border-box;
+  border-bottom: 2px solid;
+  border-image: linear-gradient(90deg, #055474, #3e1c56) 1;
 }
 
 .infoCard h3 i {
-  font-size: 1.125rem;
+  font-size: 1.25rem;
   color: #055474;
+  background: linear-gradient(135deg, #055474, #3e1c56);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .infoContent p {
@@ -390,30 +431,35 @@
 }
 
 .categoryTag {
-  background: #f8fafc;
-  color: #475569;
+  background: white;
+  color: #055474;
   padding: 0.5rem 1rem;
-  border-radius: 0px;
+  border-radius: 2px;
   font-size: 0.875rem;
-  font-weight: 500;
-  border: 1px solid #e2e8f0;
-  transition: all 0.2s ease;
+  font-weight: 600;
+  border: 2px solid #055474;
+  transition: all 0.3s ease;
+  cursor: pointer;
 }
 
 .categoryTag:hover {
-  background: #055474;
+  background: linear-gradient(135deg, #055474, #3e1c56);
   color: white;
   transform: translateY(-2px);
-  border-color: #055474;
+  box-shadow: 0 4px 8px rgba(5, 84, 116, 0.25);
+  border-color: transparent;
 }
 
 /* Application Section */
 .applicationSection {
   background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 0px;
+  border: 5px solid transparent;
+  border-radius: 2px;
   padding: 2rem;
   margin-bottom: 2rem;
+  background: linear-gradient(#fff, #fff) padding-box,
+              linear-gradient(90deg, #055474 0%, #3e1c56 100%) border-box;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 /* Use global h2 styles */
@@ -423,11 +469,16 @@
   gap: 0.75rem;
   margin-bottom: 1.5rem;
   padding-bottom: 0.75rem;
-  border-bottom: 2px solid #e2e8f0;
+  border-bottom: 3px solid;
+  border-image: linear-gradient(90deg, #055474, #3e1c56) 1;
 }
 
 .applicationSection h2 i {
-  color: #055474;
+  background: linear-gradient(135deg, #055474, #3e1c56);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-size: 1.5rem;
 }
 
 .applicationPrompt p {
@@ -460,25 +511,32 @@
 }
 
 .applyButton {
-  background: #055474;
+  background: linear-gradient(135deg, #055474 0%, #3e1c56 50%, #055474 100%);
+  background-size: 200% auto;
   color: white;
-  padding: 12px 24px;
+  padding: 14px 32px;
   border: none;
-  border-radius: 0px;
+  border-radius: 2px;
   font-size: 1.1rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  font-family: 'Comic Neue', sans-serif;
-  transition: all 0.2s ease;
+  font-family: var(--font-body);
+  transition: all 0.3s ease;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .applyButton:hover {
-  background: #3E1C56;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  background-position: right center;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 16px rgba(5, 84, 116, 0.3);
+}
+
+.applyButton:active {
+  transform: translateY(-1px);
 }
 
 .applicationClosed {
@@ -493,10 +551,13 @@
 /* Location Section */
 .locationSection {
   background: white;
-  border-radius: 0px;
-  border: 1px solid #e2e8f0;
+  border-radius: 2px;
+  border: 5px solid transparent;
   padding: 2rem;
   margin-top: 2rem;
+  background: linear-gradient(#fff, #fff) padding-box,
+              linear-gradient(90deg, #055474 0%, #3e1c56 100%) border-box;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 /* Use global h2 styles */
@@ -506,11 +567,15 @@
   gap: 0.75rem;
   margin-bottom: 1.5rem;
   padding-bottom: 0.75rem;
-  border-bottom: 2px solid #e2e8f0;
+  border-bottom: 3px solid;
+  border-image: linear-gradient(90deg, #055474, #3e1c56) 1;
 }
 
 .locationSection h2 i {
-  color: #055474;
+  background: linear-gradient(135deg, #055474, #3e1c56);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .locationDetails {
@@ -724,8 +789,11 @@
   margin: 3rem 0;
   padding: 2rem;
   background: white;
-  border: 2px solid #055474;
-  border-radius: 0px;
+  border: 5px solid transparent;
+  border-radius: 2px;
+  background: linear-gradient(#fff, #fff) padding-box,
+              linear-gradient(90deg, #055474 0%, #3e1c56 100%) border-box;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .exhibitingArtistsSection h2 {
@@ -736,6 +804,16 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 3px solid;
+  border-image: linear-gradient(90deg, #055474, #3e1c56) 1;
+}
+
+.exhibitingArtistsSection h2 i {
+  background: linear-gradient(135deg, #055474, #3e1c56);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .artistsGrid {
@@ -997,4 +1075,50 @@
 
 .buyTicketsButton i {
   font-size: 1.1rem;
-} 
+}
+
+/* Floating Edit Buttons for Promoters */
+.floatingEditButtons {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.floatingEditLink,
+.floatingManageLink {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 25px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.floatingEditLink {
+  background-color: #055474;
+  color: white;
+}
+
+.floatingManageLink {
+  background-color: #f8f9fa;
+  color: #055474;
+}
+
+.floatingEditLink:hover,
+.floatingManageLink:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+.floatingEditLink i,
+.floatingManageLink i {
+  font-size: 16px;
+}

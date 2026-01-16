@@ -329,25 +329,27 @@ const CommissionManagement = () => {
       {/* Commission Rates Table */}
       <div className="section-box">
         <table className={styles.table}>
+          <caption className="sr-only">Vendor commission rates</caption>
           <thead className={styles.tableHeader}>
             <tr>
               {bulkEditMode && (
-                <th className={styles.tableHeaderCell}>
+                <th scope="col" className={styles.tableHeaderCell}>
                   <input
                     type="checkbox"
                     checked={selectedIds.size === commissionRates.length && commissionRates.length > 0}
                     onChange={selectAllRows}
+                    aria-label="Select all rows"
                   />
                 </th>
               )}
-              <th className={styles.tableHeaderCell}>User</th>
-              <th className={styles.tableHeaderCell}>Business Name</th>
-              <th className={styles.tableHeaderCell}>Type</th>
-              <th className={styles.tableHeaderCell}>Fee Structure</th>
-              <th className={styles.tableHeaderCell}>Commission Rate</th>
-              <th className={styles.tableHeaderCell}>Notes</th>
-              <th className={styles.tableHeaderCell}>Stripe Status</th>
-              <th className={styles.tableHeaderCell}>Actions</th>
+              <th scope="col" className={styles.tableHeaderCell}>User</th>
+              <th scope="col" className={styles.tableHeaderCell}>Business Name</th>
+              <th scope="col" className={styles.tableHeaderCell}>Type</th>
+              <th scope="col" className={styles.tableHeaderCell}>Fee Structure</th>
+              <th scope="col" className={styles.tableHeaderCell}>Commission Rate</th>
+              <th scope="col" className={styles.tableHeaderCell}>Notes</th>
+              <th scope="col" className={styles.tableHeaderCell}>Stripe Status</th>
+              <th scope="col" className={styles.tableHeaderCell}>Actions</th>
             </tr>
           </thead>
           <tbody>

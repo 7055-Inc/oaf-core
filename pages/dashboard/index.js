@@ -32,6 +32,7 @@ import AddPromoter from '../../components/dashboard/manage-system/components/Add
 import UnclaimedEvents from '../../components/dashboard/manage-system/components/UnclaimedEvents';
 import DashboardGrid from '../../components/dashboard/DashboardGrid';
 import OnboardingBanner from '../../components/dashboard/widgets/OnboardingWidget';
+import MagazineLink from '../../components/dashboard/MagazineLink';
 import { getAuthToken, authenticatedApiRequest } from '../../lib/csrf';
 import styles from './Dashboard.module.css';
 import '../../components/dashboard/SlideIn.module.css';
@@ -47,6 +48,7 @@ import ShippingSettings from '../../components/dashboard/my-account/components/S
 import ManageMyStoreMenu from '../../components/dashboard/manage-my-store/ManageMyStoreMenu';
 import MyEventsMenu from '../../components/dashboard/my-events/MyEventsMenu';
 import MyApplications from '../../components/dashboard/my-events/components/MyApplications';
+import ManageJuryPackets from '../../components/dashboard/my-events/components/ManageJuryPackets';
 import FindNew from '../../components/dashboard/my-events/components/FindNew';
 import MyCalendar from '../../components/dashboard/my-events/components/MyCalendar';
 import EventsIOwn from '../../components/dashboard/my-events/components/EventsIOwn';
@@ -57,6 +59,7 @@ import AddProduct from '../../components/dashboard/manage-my-store/components/Ad
 import MyPolicies from '../../components/dashboard/manage-my-store/components/MyPolicies';
 import ManageInventory from '../../components/dashboard/manage-my-store/components/ManageInventory';
 import InventoryLog from '../../components/dashboard/manage-my-store/components/InventoryLog';
+import CatalogManager from '../../components/dashboard/manage-my-store/components/CatalogManager';
 import ManageOrders from '../../components/dashboard/manage-my-store/components/ManageOrders';
 import TikTokConnector from '../../components/dashboard/manage-my-store/components/TikTokConnector';
 import WalmartConnector from '../../components/dashboard/manage-my-store/components/WalmartConnector';
@@ -83,6 +86,8 @@ import MarketplaceApplications from '../../components/dashboard/admin/components
 import VerifiedApplications from '../../components/dashboard/admin/components/VerifiedApplications';
 import WholesaleApplications from '../../components/dashboard/admin/components/WholesaleApplications';
 import AdminReturns from '../../components/dashboard/admin/components/AdminReturns';
+import ApplicationRefunds from '../../components/dashboard/admin/components/ApplicationRefunds';
+import SupportTickets from '../../components/dashboard/admin/components/SupportTickets';
 import AdminPromotions from '../../components/dashboard/admin/components/AdminPromotions';
 import AdminEventReviews from '../../components/dashboard/admin/AdminEventReviews';
 import MaintenanceControl from '../../components/dashboard/admin/components/MaintenanceControl';
@@ -109,6 +114,8 @@ export default function Dashboard() {
     finance: true 
   }); // Default sections to closed
   const [slideInContent, setSlideInContent] = useState(null); // Track slide-in overlay content
+  const [adminNotifications, setAdminNotifications] = useState({});
+  const [userNotifications, setUserNotifications] = useState({});
   const router = useRouter();
 
   // MOVED: All hooks must be at the top before any early returns
@@ -190,6 +197,84 @@ export default function Dashboard() {
     };
   }, [openSlideIn]);
 
+  // Fetch admin notifications when userData is available
+  useEffect(() => {
+    if (!userData) return;
+    
+    const isAdmin = userData.user_type === 'admin';
+    const hasManageSystem = userData.permissions?.includes('manage_system');
+    
+    if (!isAdmin && !hasManageSystem) return;
+    
+    const fetchAdminNotifications = async () => {
+      try {
+        const response = await authApiRequest('admin/notifications', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.notifications) {
+            setAdminNotifications(data.notifications);
+          }
+        }
+      } catch (err) {
+        // Silently fail - notifications are non-critical
+      }
+    };
+    
+    fetchAdminNotifications();
+    
+    // Refresh notifications every 2 minutes
+    const interval = setInterval(fetchAdminNotifications, 120000);
+    return () => clearInterval(interval);
+  }, [userData]);
+
+  // Fetch user ticket notifications when userData is available
+  useEffect(() => {
+    if (!userData) return;
+    
+    const fetchUserNotifications = async () => {
+      try {
+        const response = await authApiRequest('api/tickets/my/notifications', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.notifications) {
+            setUserNotifications(data.notifications);
+          }
+        }
+      } catch (err) {
+        // Silently fail - notifications are non-critical
+      }
+    };
+    
+    fetchUserNotifications();
+    
+    // Refresh notifications every 2 minutes
+    const interval = setInterval(fetchUserNotifications, 120000);
+    return () => clearInterval(interval);
+  }, [userData]);
+
+  // Handle URL query parameters for deep linking (e.g., edit event from public page)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !userData) return;
+    
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get('action');
+    const eventId = params.get('eventId');
+    
+    if (action === 'edit' && eventId) {
+      openSlideIn('add-new', { title: 'Edit Event', eventId: parseInt(eventId) });
+      // Clean up URL
+      window.history.replaceState({}, '', '/dashboard');
+    }
+  }, [userData, openSlideIn]);
+
   if (!isLoggedIn) {
     return null;
   }
@@ -231,6 +316,16 @@ export default function Dashboard() {
       case 'dashboard-widgets':
         return (
           <div className={styles.contentSection}>
+            {/* Top Row: Magazine Link + Onboarding Banner */}
+            {/* TODO: Uncomment MagazineLink when news content is ready */}
+            {/* <div className={styles.topBannerRow}>
+              <div className={styles.magazineLinkWrapper}>
+                <MagazineLink userData={userData} />
+              </div>
+              <div className={styles.onboardingWrapper}>
+                <OnboardingBanner userData={userData} openSlideIn={openSlideIn} />
+              </div>
+            </div> */}
             <OnboardingBanner userData={userData} openSlideIn={openSlideIn} />
             <DashboardGrid />
           </div>
@@ -353,6 +448,14 @@ export default function Dashboard() {
     if (slideInContent.type === 'my-products') {
       return (
         <MyProducts
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'catalog-manager') {
+      return (
+        <CatalogManager
           userData={userData}
         />
       );
@@ -504,6 +607,22 @@ export default function Dashboard() {
       );
     }
     
+    if (slideInContent.type === 'support-tickets') {
+      return (
+        <SupportTickets
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'admin-refunds') {
+      return (
+        <ApplicationRefunds
+          userData={userData}
+        />
+      );
+    }
+    
     if (slideInContent.type === 'admin-returns') {
       return (
         <AdminReturns
@@ -548,6 +667,7 @@ export default function Dashboard() {
       return (
         <AddNew
           userData={userData}
+          eventId={slideInContent.props?.eventId || null}
         />
       );
     }
@@ -555,6 +675,14 @@ export default function Dashboard() {
     if (slideInContent.type === 'my-applications') {
       return (
         <MyApplications
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'manage-jury-packets') {
+      return (
+        <ManageJuryPackets
           userData={userData}
         />
       );
@@ -580,6 +708,7 @@ export default function Dashboard() {
       return (
         <EventsIOwn
           userData={userData}
+          onEdit={(eventId) => openSlideIn('add-new', { title: 'Edit Event', eventId })}
         />
       );
     }
@@ -754,6 +883,7 @@ export default function Dashboard() {
               collapsedSections={collapsedSections}
               toggleSection={toggleSection}
               openSlideIn={openSlideIn}
+              notifications={userNotifications}
             />
           )}
 
@@ -816,6 +946,7 @@ export default function Dashboard() {
               collapsedSections={collapsedSections}
               toggleSection={toggleSection}
               openSlideIn={openSlideIn}
+              notifications={adminNotifications}
             />
           )}
 

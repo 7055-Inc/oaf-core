@@ -4,66 +4,37 @@ import styles from './ProductTypeModal.module.css';
 const ProductTypeModal = ({ isOpen, onSelectType }) => {
   if (!isOpen) return null;
 
-  const handleTypeSelection = (type) => {
-    onSelectType(type);
-  };
-
   return (
-    <div className={styles.modalOverlay}>
-      <div className={styles.modalContent}>
-        <div className={styles.modalHeader}>
-          <h1 className={styles.modalTitle}>Choose Product Type</h1>
-          <p className={styles.modalSubtitle}>
-            What type of product would you like to create?
-          </p>
+    <div className="modal-overlay">
+      <div className="modal-content" style={{ maxWidth: '700px' }}>
+        <div className="modal-title">
+          <h2>What type of product?</h2>
         </div>
 
         <div className={styles.productTypeOptions}>
           <div 
-            className={styles.productTypeCard}
-            onClick={() => handleTypeSelection('simple')}
+            className="form-card"
+            onClick={() => onSelectType('simple')}
+            style={{ cursor: 'pointer', textAlign: 'center', padding: '3rem 2rem' }}
           >
-            <div className={styles.cardIcon}>📦</div>
-            <h2 className={styles.cardTitle}>Simple Product</h2>
-            <p className={styles.cardDescription}>
-              A standalone product with fixed properties. Perfect for unique artwork, 
-              one-of-a-kind pieces, or products without variations.
+            <i className="fas fa-cube" style={{ fontSize: '4rem', color: 'var(--primary-color)', marginBottom: '1.5rem', display: 'block' }}></i>
+            <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary-color)' }}>Simple Product</h3>
+            <p style={{ margin: 0, color: '#6c757d', fontSize: '14px' }}>
+              One product, one price
             </p>
-            <div className={styles.cardFeatures}>
-              <span className={styles.feature}>✓ Single product</span>
-              <span className={styles.feature}>✓ Fixed price</span>
-              <span className={styles.feature}>✓ Quick setup</span>
-            </div>
-            <button className={styles.selectButton}>
-              Create Simple Product
-            </button>
           </div>
 
           <div 
-            className={styles.productTypeCard}
-            onClick={() => handleTypeSelection('variable')}
+            className="form-card"
+            onClick={() => onSelectType('variable')}
+            style={{ cursor: 'pointer', textAlign: 'center', padding: '3rem 2rem' }}
           >
-            <div className={styles.cardIcon}>🎨</div>
-            <h2 className={styles.cardTitle}>Variable Product</h2>
-            <p className={styles.cardDescription}>
-              A product with multiple variations like colors, sizes, or styles. 
-              Great for artwork series, prints, or customizable pieces.
+            <i className="fas fa-layer-group" style={{ fontSize: '4rem', color: 'var(--primary-color)', marginBottom: '1.5rem', display: 'block' }}></i>
+            <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary-color)' }}>Variable Product</h3>
+            <p style={{ margin: 0, color: '#6c757d', fontSize: '14px' }}>
+              Multiple sizes, colors, or options
             </p>
-            <div className={styles.cardFeatures}>
-              <span className={styles.feature}>✓ Multiple variations</span>
-              <span className={styles.feature}>✓ Different prices</span>
-              <span className={styles.feature}>✓ Color & size options</span>
-            </div>
-            <button className={styles.selectButton}>
-              Create Variable Product
-            </button>
           </div>
-        </div>
-
-        <div className={styles.modalFooter}>
-          <p className={styles.footerNote}>
-            Don't worry - you can always change these settings later!
-          </p>
         </div>
       </div>
     </div>

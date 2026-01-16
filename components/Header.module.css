@@ -8,8 +8,9 @@
   right: 0;
   width: 100%;
   height: var(--header-height-desktop);
-  background-color: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(10px);
+  background-color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   transition: all 0.3s ease;
   z-index: 1001;
   padding: 0;
@@ -17,7 +18,8 @@
 
 .header.scrolled {
   background-color: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   box-shadow: var(--shadow-soft);
 }
 
@@ -120,6 +122,65 @@
 }
 
 /* Collections Dropdown */
+/* Browse Art Dropdown - First level */
+.browseArtDropdown {
+  position: absolute;
+  top: calc(100% + 1rem);
+  left: 0;
+  background: white;
+  border: 1px solid rgba(5, 84, 116, 0.15);
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  padding: 0.5rem 0;
+  z-index: 1000;
+  min-width: 200px;
+  animation: slideDown 0.2s ease-out;
+}
+
+.browseArtItem {
+  position: relative;
+}
+
+.browseArtLink {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1.25rem;
+  color: var(--text-color);
+  text-decoration: none;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.browseArtLink:hover {
+  background-color: rgba(5, 84, 116, 0.05);
+  color: var(--primary-color);
+}
+
+/* Categories Submenu - Second level (appears on hover) */
+.categoriesSubmenu {
+  position: absolute;
+  top: 0;
+  left: 100%;
+  background: white;
+  border: 1px solid rgba(5, 84, 116, 0.15);
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  min-width: 600px;
+  max-width: 800px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.browseArtItem:hover .categoriesSubmenu {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Legacy - keep for compatibility */
 .collectionsDropdown {
   position: absolute;
   top: calc(100% + 1rem);
@@ -524,6 +585,37 @@
 }
 
 .mobileNavLink:hover {
+  background-color: rgba(5, 84, 116, 0.05);
+  color: var(--primary-color);
+}
+
+.mobileMenuSection {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.5rem;
+}
+
+.mobileMenuSectionTitle {
+  padding: 0.75rem 1rem;
+  color: var(--primary-color);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mobileNavLinkIndent {
+  padding: 0.5rem 1rem 0.5rem 1.75rem;
+  color: var(--text-color);
+  text-decoration: none;
+  font-family: var(--font-body);
+  font-weight: 500;
+  border-radius: var(--border-radius-sm);
+  transition: background-color 0.2s ease;
+}
+
+.mobileNavLinkIndent:hover {
   background-color: rgba(5, 84, 116, 0.05);
   color: var(--primary-color);
 }

@@ -508,6 +508,24 @@ router.patch('/:id', verifyToken, requirePermission('events'), async (req, res) 
       values
     );
 
+    // Handle images if provided - replace existing images
+    const eventImages = req.body.images;
+    if (eventImages && Array.isArray(eventImages)) {
+      // Delete existing images for this event
+      await db.execute('DELETE FROM event_images WHERE event_id = ?', [req.params.id]);
+      
+      // Insert new images
+      for (let i = 0; i < eventImages.length; i++) {
+        const imageUrl = eventImages[i];
+        if (imageUrl) { // Only insert non-empty URLs
+          await db.execute(`
+            INSERT INTO event_images (event_id, image_url, friendly_name, is_primary, alt_text, order_index)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `, [req.params.id, imageUrl, `Event Image ${i + 1}`, i === 0 ? 1 : 0, '', i]);
+        }
+      }
+    }
+
     const [updatedEvent] = await db.execute(`
       SELECT 
         e.*,

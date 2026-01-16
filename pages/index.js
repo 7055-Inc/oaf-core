@@ -4,6 +4,11 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 
 // Lazy load below-the-fold components
+const FeaturedArtist = dynamic(() => import('../components/FeaturedArtist'), {
+  ssr: false,
+  loading: () => <div style={{ height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading featured artist...</div>
+});
+
 const EventsCarousel = dynamic(() => import('../components/EventsCarousel'), {
   ssr: false,
   loading: () => <div style={{ height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading events...</div>
@@ -112,12 +117,12 @@ export default function Home() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.3)',
+            backgroundColor: 'rgba(255, 255, 255, 0.25)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             textAlign: 'center',
-            color: 'white'
+            color: '#1a1a2e'
           }}>
             <div style={{ maxWidth: '800px', padding: '2rem' }}>
               {heroData.h1Text && (
@@ -125,7 +130,7 @@ export default function Home() {
                   fontSize: 'clamp(2.5rem, 5vw, 4rem)', 
                   marginBottom: '1rem', 
                   fontWeight: 'bold',
-                  textShadow: '2px 2px 4px rgba(0,0,0,0.7)',
+                  textShadow: '1px 1px 3px rgba(255,255,255,0.8)',
                   lineHeight: 1.2
                 }}>
                   {heroData.h1Text}
@@ -135,7 +140,7 @@ export default function Home() {
                 <h2 style={{ 
                   fontSize: 'clamp(1.2rem, 2.5vw, 1.8rem)', 
                   marginBottom: '2rem',
-                  textShadow: '1px 1px 2px rgba(255,255,255,0.8)',
+                  textShadow: '1px 1px 2px rgba(255,255,255,0.9)',
                   lineHeight: 1.4,
                   fontWeight: 'normal'
                 }}>
@@ -182,6 +187,9 @@ export default function Home() {
           )}
         </section>
       )}
+
+      {/* Featured Artist */}
+      <FeaturedArtist />
 
       {/* Events Carousel */}
       <EventsCarousel />

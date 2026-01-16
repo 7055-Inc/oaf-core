@@ -3,6 +3,29 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { MainLayout } from '../components/layouts';
+import CookieBanner, { hasFullCookieConsent } from '../components/CookieBanner';
+import WelcomeBanner from '../components/WelcomeBanner';
+
+// Google Tag Manager ID
+const GTM_ID = 'GTM-P2CLNXVS';
+
+// Load GTM only when user has accepted all cookies
+function loadGTM() {
+  if (typeof window === 'undefined') return;
+  if (window.gtmLoaded) return; // Prevent duplicate loading
+  
+  window.gtmLoaded = true;
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({
+    'gtm.start': new Date().getTime(),
+    event: 'gtm.js'
+  });
+  
+  const script = document.createElement('script');
+  script.async = true;
+  script.src = `https://www.googletagmanager.com/gtm.js?id=${GTM_ID}`;
+  document.head.appendChild(script);
+}
 
 // Default SEO - pages can override with their own Head
 const DEFAULT_SEO = {
@@ -21,9 +44,12 @@ const ORGANIZATION_SCHEMA = {
   "logo": "https://brakebee.com/static_media/brakebee-logo.png",
   "description": "Brakebee connects art lovers with independent artists. Discover unique artwork, attend live events, and support creators directly.",
   "sameAs": [
-    "https://www.facebook.com/brakebee",
-    "https://www.instagram.com/brakebee",
-    "https://twitter.com/brakebee"
+    "https://www.facebook.com/BrakebeeArt",
+    "https://www.instagram.com/brakebeeart/",
+    "https://www.pinterest.com/brakebee/",
+    "https://www.tiktok.com/@brakebeeart",
+    "https://www.youtube.com/channel/UCTQqOy9dgVgVOBai7Wc88ng",
+    "https://x.com/BrakebeeArt"
   ],
   "contactPoint": {
     "@type": "ContactPoint",
@@ -55,28 +81,62 @@ export default function MyApp({ Component, pageProps }) {
     import('../lib/imageProtection').then(({ initImageProtection }) => {
       initImageProtection();
     });
+    
+    // Load GTM if user has already accepted all cookies
+    if (hasFullCookieConsent()) {
+      loadGTM();
+    }
+    
+    // Listen for cookie consent changes
+    const handleConsent = (e) => {
+      if (e.detail?.level === 'all') {
+        loadGTM();
+      }
+    };
+    
+    window.addEventListener('cookieConsent', handleConsent);
+    return () => window.removeEventListener('cookieConsent', handleConsent);
   }, []);
 
-  // Dashboard pages: leave alone (they handle their own layout)
-  if (router.pathname.startsWith('/dashboard')) {
-    return <Component {...pageProps} />;
+  // Pages with their own layouts: leave alone (they handle their own header/footer)
+  if (router.pathname.startsWith('/dashboard') || 
+      router.pathname.startsWith('/makers') || 
+      router.pathname.startsWith('/promoter') ||
+      router.pathname.startsWith('/artist-storefront') ||
+      router.pathname.startsWith('/custom-sites')) {
+    return (
+      <>
+        <Component {...pageProps} />
+        <CookieBanner />
+        <WelcomeBanner />
+      </>
+    );
   }
+
+  // Build canonical URL - only set for static pages
+  // Dynamic pages (containing [param]) should set their own canonical with resolved IDs
+  const isDynamicRoute = router.pathname.includes('[');
+  const canonicalPath = router.asPath.split('?')[0]; // Remove query params
+  const canonicalUrl = !isDynamicRoute ? DEFAULT_SEO.url + canonicalPath : null;
+  
+  // Don't set default meta description for dynamic routes - they set their own
+  const useDefaultMeta = !isDynamicRoute;
 
   // All other pages: wrap with MainLayout (persistent Header + Footer)
   return (
     <>
       {/* Default SEO - individual pages can override */}
       <Head>
-        <title>{DEFAULT_SEO.title}</title>
-        <meta name="description" content={DEFAULT_SEO.description} />
+        {useDefaultMeta && <title key="title">{DEFAULT_SEO.title}</title>}
+        {useDefaultMeta && <meta key="description" name="description" content={DEFAULT_SEO.description} />}
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta property="og:title" content={DEFAULT_SEO.title} />
-        <meta property="og:description" content={DEFAULT_SEO.description} />
+        {useDefaultMeta && <meta key="og:title" property="og:title" content={DEFAULT_SEO.title} />}
+        {useDefaultMeta && <meta key="og:description" property="og:description" content={DEFAULT_SEO.description} />}
         <meta property="og:type" content="website" />
         <meta property="og:url" content={DEFAULT_SEO.url} />
         <meta property="og:image" content="https://brakebee.com/static_media/brakebee-logo.png" />
         <meta name="twitter:card" content="summary_large_image" />
-        <link rel="canonical" href={DEFAULT_SEO.url + router.asPath} />
+        {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
         
         {/* Site-wide Organization Schema */}
         <script
@@ -93,6 +153,8 @@ export default function MyApp({ Component, pageProps }) {
       <MainLayout>
         <Component {...pageProps} />
       </MainLayout>
+      <CookieBanner />
+      <WelcomeBanner />
     </>
   );
 }

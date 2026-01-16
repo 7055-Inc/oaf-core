@@ -124,6 +124,21 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
   };
 
   const handleApplicationSubmit = async () => {
+    // Validate required fields before submission
+    const missingFields = [];
+    if (!workDescription.trim()) missingFields.push('Work Description');
+    if (!rawMaterials) missingFields.push('Raw Materials photo');
+    if (!workInProcess1) missingFields.push('Work in Progress (Step 1) photo');
+    if (!workInProcess2) missingFields.push('Work in Progress (Step 2) photo');
+    if (!workInProcess3) missingFields.push('Work in Progress (Step 3) photo');
+    if (!artistAtWork) missingFields.push('Photo of You Creating Your Work');
+    if (!boothDisplay) missingFields.push('Booth/Studio Display photo');
+
+    if (missingFields.length > 0) {
+      alert(`Please complete all required fields:\n\n• ${missingFields.join('\n• ')}`);
+      return;
+    }
+
     try {
       setProcessing(true);
 
@@ -819,15 +834,18 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
 
             {/* Jury Materials - Images */}
             <div style={{ marginBottom: '30px' }}>
-              <h4 style={{ color: '#2c3e50', marginBottom: '20px', fontSize: '16px' }}>
-                Jury Materials - Images
+              <h4 style={{ color: '#2c3e50', marginBottom: '10px', fontSize: '16px' }}>
+                Jury Materials - Images <span style={{ color: '#dc3545', fontWeight: 'normal', fontSize: '14px' }}>*Required</span>
               </h4>
+              <p style={{ color: '#6c757d', fontSize: '13px', marginBottom: '20px' }}>
+                All 6 images below are required for your application to be reviewed.
+              </p>
               
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
                 {/* Raw Materials */}
                 <div>
                   <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#495057' }}>
-                    Raw Materials
+                    Raw Materials <span style={{ color: '#dc3545' }}>*</span>
                   </label>
                   <input
                     type="file"
@@ -836,7 +854,7 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
                     style={{
                       width: '100%',
                       padding: '8px',
-                      border: '1px solid #dee2e6',
+                      border: rawMaterials ? '1px solid #28a745' : '1px solid #dee2e6',
                       borderRadius: '4px',
                       fontSize: '14px'
                     }}
@@ -847,7 +865,7 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
                 {/* Work in Process 1 */}
                 <div>
                   <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#495057' }}>
-                    Work in Process 1
+                    Work in Process 1 <span style={{ color: '#dc3545' }}>*</span>
                   </label>
                   <input
                     type="file"
@@ -856,7 +874,7 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
                     style={{
                       width: '100%',
                       padding: '8px',
-                      border: '1px solid #dee2e6',
+                      border: workInProcess1 ? '1px solid #28a745' : '1px solid #dee2e6',
                       borderRadius: '4px',
                       fontSize: '14px'
                     }}
@@ -867,7 +885,7 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
                 {/* Work in Process 2 */}
                 <div>
                   <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#495057' }}>
-                    Work in Process 2
+                    Work in Process 2 <span style={{ color: '#dc3545' }}>*</span>
                   </label>
                   <input
                     type="file"
@@ -876,7 +894,7 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
                     style={{
                       width: '100%',
                       padding: '8px',
-                      border: '1px solid #dee2e6',
+                      border: workInProcess2 ? '1px solid #28a745' : '1px solid #dee2e6',
                       borderRadius: '4px',
                       fontSize: '14px'
                     }}
@@ -887,7 +905,7 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
                 {/* Work in Process 3 */}
                 <div>
                   <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#495057' }}>
-                    Work in Process 3
+                    Work in Process 3 <span style={{ color: '#dc3545' }}>*</span>
                   </label>
                   <input
                     type="file"
@@ -896,7 +914,7 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
                     style={{
                       width: '100%',
                       padding: '8px',
-                      border: '1px solid #dee2e6',
+                      border: workInProcess3 ? '1px solid #28a745' : '1px solid #dee2e6',
                       borderRadius: '4px',
                       fontSize: '14px'
                     }}
@@ -907,7 +925,7 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
                 {/* Artist at Work */}
                 <div>
                   <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#495057' }}>
-                    Artist at Work
+                    Artist at Work <span style={{ color: '#dc3545' }}>*</span>
                   </label>
                   <input
                     type="file"
@@ -916,7 +934,7 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
                     style={{
                       width: '100%',
                       padding: '8px',
-                      border: '1px solid #dee2e6',
+                      border: artistAtWork ? '1px solid #28a745' : '1px solid #dee2e6',
                       borderRadius: '4px',
                       fontSize: '14px'
                     }}
@@ -927,7 +945,7 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
                 {/* Booth/Display */}
                 <div>
                   <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#495057' }}>
-                    Booth or Public Display
+                    Booth or Public Display <span style={{ color: '#dc3545' }}>*</span>
                   </label>
                   <input
                     type="file"
@@ -936,7 +954,7 @@ export default function MarketplacePricingTiers({ userData, onSubscriptionSucces
                     style={{
                       width: '100%',
                       padding: '8px',
-                      border: '1px solid #dee2e6',
+                      border: boothDisplay ? '1px solid #28a745' : '1px solid #dee2e6',
                       borderRadius: '4px',
                       fontSize: '14px'
                     }}

@@ -188,13 +188,23 @@ export default function ApplicationStatus({ eventId, user, persona_id = null }) 
         </div>
       )}
 
+      {application.status === 'draft' && application.payment_status === 'pending' && (
+        <div className={styles.nextSteps}>
+          <h4>Payment Required</h4>
+          <p>
+            <i className="fas fa-credit-card"></i>
+            Your application is saved but payment is needed to submit. Click "Apply Now" below to complete payment.
+          </p>
+        </div>
+      )}
+
       <div className={styles.applicationDetails}>
         <div className={styles.detailRow}>
           <span className={styles.detailLabel}>Application ID:</span>
           <span className={styles.detailValue}>#{application.id}</span>
         </div>
         
-        {application.portfolio_url && (
+        {application.portfolio_url && !application.portfolio_url.startsWith('/') && (
           <div className={styles.detailRow}>
             <span className={styles.detailLabel}>Portfolio:</span>
             <a 

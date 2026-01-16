@@ -196,14 +196,15 @@ export default function WalmartFeedManagement({ userData }) {
             border: '1px solid #dee2e6' 
           }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <caption className="sr-only">Walmart feed products</caption>
               <thead>
                 <tr style={{ background: '#f8f9fa' }}>
-                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Product</th>
-                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Vendor</th>
-                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Prices</th>
-                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Allocation</th>
-                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Status</th>
-                  <th style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6' }}>Actions</th>
+                  <th scope="col" style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Product</th>
+                  <th scope="col" style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Vendor</th>
+                  <th scope="col" style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Prices</th>
+                  <th scope="col" style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Allocation</th>
+                  <th scope="col" style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Status</th>
+                  <th scope="col" style={{ padding: '12px', textAlign: 'center', borderBottom: '1px solid #dee2e6' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
-import { getApiUrl, config } from '../../lib/config';
+import { getApiUrl, config, getSubdomainBase, getFrontendUrl } from '../../lib/config';
 import styles from './ArtistStorefront.module.css';
 
 const ArtistProducts = () => {
@@ -18,21 +18,53 @@ const ArtistProducts = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
   const [sortBy, setSortBy] = useState('newest');
+  const [extractedSubdomain, setExtractedSubdomain] = useState(null);
   
   const productsPerPage = 12;
 
+  // Extract subdomain from URL or resolve custom domain
   useEffect(() => {
-    if (subdomain) {
+    if (typeof window !== 'undefined' && !subdomain) {
+      const hostname = window.location.hostname;
+      const subdomainBase = getSubdomainBase();
+      
+      if (hostname.includes(`.${subdomainBase}`) && !hostname.startsWith('main.') && !hostname.startsWith('www.')) {
+        setExtractedSubdomain(hostname.split('.')[0]);
+      } else if (!hostname.includes(subdomainBase) && hostname !== 'localhost' && !hostname.startsWith('127.0.0.1')) {
+        // Custom domain - resolve it
+        resolveCustomDomain(hostname);
+      }
+    }
+  }, [subdomain]);
+
+  const resolveCustomDomain = async (domain) => {
+    try {
+      const response = await fetch(`${config.API_BASE_URL}/api/sites/resolve-custom-domain/${domain}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.subdomain) {
+          setExtractedSubdomain(data.subdomain);
+        }
+      }
+    } catch (error) {
+      console.error('Error resolving custom domain:', error);
+    }
+  };
+
+  const activeSubdomain = subdomain || extractedSubdomain;
+
+  useEffect(() => {
+    if (activeSubdomain) {
       fetchProductsData();
     }
-  }, [subdomain, selectedCategory, currentPage, sortBy]);
+  }, [activeSubdomain, selectedCategory, currentPage, sortBy]);
 
   const fetchProductsData = async () => {
     try {
       setLoading(true);
       
       const offset = (currentPage - 1) * productsPerPage;
-      let productsUrl = getApiUrl(`api/sites/resolve/${subdomain}/products?limit=${productsPerPage}&offset=${offset}`);
+      let productsUrl = getApiUrl(`api/sites/resolve/${activeSubdomain}/products?limit=${productsPerPage}&offset=${offset}`);
       
       if (selectedCategory) {
         productsUrl += `&category=${selectedCategory}`;
@@ -50,12 +82,12 @@ const ArtistProducts = () => {
       // Fetch data in parallel
       const fetchPromises = [
         fetch(productsUrl),
-        fetch(`api/sites/resolve/${subdomain}/categories`)
+        fetch(getApiUrl(`api/sites/resolve/${activeSubdomain}/categories`))
       ];
       
       // Only fetch site data on first load
       if (!siteData) {
-        fetchPromises.push(fetch(`api/sites/resolve/${subdomain}`));
+        fetchPromises.push(fetch(getApiUrl(`api/sites/resolve/${activeSubdomain}`)));
       }
       
       const responses = await Promise.all(fetchPromises);
@@ -196,7 +228,7 @@ const ArtistProducts = () => {
       <div className={styles.error}>
         <h1>Gallery Not Found</h1>
         <p>Sorry, this gallery is not available.</p>
-        <Link href={`https://${subdomain}.beemeeart.com`}>
+        <Link href={`https://${subdomain}.${getSubdomainBase()}`}>
           <a className={styles.homeLink}>← Back to Home</a>
         </Link>
       </div>

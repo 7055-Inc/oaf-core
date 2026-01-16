@@ -2,6 +2,7 @@ import React from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
+import { getSubdomainBase, getFrontendUrl } from '../../lib/config';
 
 const SubdomainNotFound = () => {
   const router = useRouter();
@@ -52,7 +53,7 @@ const SubdomainNotFound = () => {
             marginBottom: '0.5rem',
             fontSize: '1.1rem'
           }}>
-            The gallery <strong>{subdomain}.beemeeart.com</strong> is not available.
+            The gallery <strong>{subdomain}.{getSubdomainBase()}</strong> is not available.
           </p>
           
           <p style={{
@@ -68,7 +69,7 @@ const SubdomainNotFound = () => {
             justifyContent: 'center',
             flexWrap: 'wrap'
           }}>
-            <Link href="https://main.beemeeart.com">
+            <Link href={getFrontendUrl()}>
               <a style={{
                 background: '#667eea',
                 color: 'white',
@@ -82,7 +83,7 @@ const SubdomainNotFound = () => {
               </a>
             </Link>
             
-            <Link href="https://main.beemeeart.com/artists">
+            <Link href={getFrontendUrl('artists')}>
               <a style={{
                 background: '#764ba2',
                 color: 'white',
@@ -109,7 +110,7 @@ const SubdomainNotFound = () => {
               <strong>Are you an artist?</strong>
             </p>
             <p style={{ margin: 0 }}>
-              <Link href="https://main.beemeeart.com/signup">
+              <Link href={getFrontendUrl('signup')}>
                 <a style={{ color: '#667eea', textDecoration: 'none' }}>
                   Create your own gallery →
                 </a>

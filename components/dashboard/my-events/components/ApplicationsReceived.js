@@ -85,7 +85,7 @@ export default function ApplicationsReceived({ userData }) {
   const updateApplicationStatus = async (applicationId, status, juryComments = '') => {
     try {
       const token = getAuthToken();
-      const response = await fetch(`api/applications/${applicationId}/status`, {
+      const response = await fetch(getApiUrl(`api/applications/${applicationId}/status`), {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

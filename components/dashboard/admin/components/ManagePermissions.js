@@ -167,17 +167,18 @@ export default function ManagePermissions() {
 
       <div className="section-box">
         <table className={styles.table}>
+          <caption className="sr-only">User permissions list</caption>
           <thead className={styles.tableHeader}>
             <tr className={styles.tableRow}>
-              <th className={styles.tableHeaderCell}>User ID</th>
-              <th className={styles.tableHeaderCell}>Username</th>
-              <th className={styles.tableHeaderCell}>User Type</th>
-              <th className={styles.tableHeaderCell}>Vendor</th>
-              <th className={styles.tableHeaderCell}>Events</th>
-              <th className={styles.tableHeaderCell}>Stripe Connect</th>
-              <th className={styles.tableHeaderCell}>Manage Sites</th>
-              <th className={styles.tableHeaderCell}>Manage Content</th>
-              <th className={styles.tableHeaderCell}>Manage System</th>
+              <th scope="col" className={styles.tableHeaderCell}>User ID</th>
+              <th scope="col" className={styles.tableHeaderCell}>Username</th>
+              <th scope="col" className={styles.tableHeaderCell}>User Type</th>
+              <th scope="col" className={styles.tableHeaderCell}>Vendor</th>
+              <th scope="col" className={styles.tableHeaderCell}>Events</th>
+              <th scope="col" className={styles.tableHeaderCell}>Stripe Connect</th>
+              <th scope="col" className={styles.tableHeaderCell}>Manage Sites</th>
+              <th scope="col" className={styles.tableHeaderCell}>Manage Content</th>
+              <th scope="col" className={styles.tableHeaderCell}>Manage System</th>
             </tr>
           </thead>
           <tbody>

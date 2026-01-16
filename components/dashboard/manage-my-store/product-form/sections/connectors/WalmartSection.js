@@ -304,7 +304,7 @@ export default function WalmartSection() {
             )}
             {walmartData.walmart_product_type && (
               <div style={{ fontSize: '11px', color: '#055474', marginTop: '2px' }}>
-                🏷️ Product Type: {walmartData.walmart_product_type}
+                <i className="fas fa-tag" style={{ marginRight: '4px' }}></i> Product Type: {walmartData.walmart_product_type}
               </div>
             )}
           </div>
@@ -414,19 +414,19 @@ export default function WalmartSection() {
                 fontWeight: '600'
               }}
             >
-              {saving ? '⏳ Saving...' : '💾 Save Walmart Data'}
+              {saving ? 'Saving...' : 'Save Walmart Data'}
             </button>
             
             {saved && (
               <span style={{ color: '#28a745', fontSize: '13px' }}>
-                ✓ Saved
+                <i className="fas fa-check" style={{ marginRight: '4px' }}></i> Saved
               </span>
             )}
           </div>
           
           {!walmartData.terms_accepted && (
             <div style={{ marginTop: '8px', textAlign: 'center', fontSize: '12px', color: '#dc3545' }}>
-              ⚠️ Accept terms to enable saving
+              <i className="fas fa-exclamation-triangle" style={{ marginRight: '4px' }}></i> Accept terms to enable saving
             </div>
           )}
         </>
@@ -434,7 +434,7 @@ export default function WalmartSection() {
       
       {loading && (
         <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
-          ⏳ Loading Walmart data...
+          <i className="fas fa-spinner fa-spin" style={{ marginRight: '6px' }}></i> Loading Walmart data...
         </div>
       )}
     </div>

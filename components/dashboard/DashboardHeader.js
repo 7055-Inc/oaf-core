@@ -1,8 +1,14 @@
 'use client';
 import Link from 'next/link';
 import styles from './DashboardHeader.module.css';
+import { clearAuthTokens } from '../../lib/csrf';
 
 export default function DashboardHeader() {
+  const handleLogout = () => {
+    clearAuthTokens();
+    window.location.href = '/logout';
+  };
+
   return (
     <header className={styles.dashboardHeader}>
       <div className={styles.headerContainer}>
@@ -21,7 +27,7 @@ export default function DashboardHeader() {
           </Link>
         </div>
 
-        {/* Home Button */}
+        {/* Action Buttons */}
         <div className={styles.actionSection}>
           <Link href="/" className={styles.homeButton}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -30,6 +36,14 @@ export default function DashboardHeader() {
             </svg>
             Home
           </Link>
+          <button onClick={handleLogout} className={styles.logoutButton}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16,17 21,12 16,7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            Logout
+          </button>
         </div>
       </div>
     </header>

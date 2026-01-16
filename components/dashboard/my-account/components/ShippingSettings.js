@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../lib/csrf';
 import { authApiRequest } from '../../../../lib/apiUtils';
+import { HANDLING_OPTIONS } from '../../../../lib/shippingUtils';
 
 export default function ShippingSettings({ userData }) {
   const [preferences, setPreferences] = useState({
@@ -15,7 +16,8 @@ export default function ShippingSettings({ userData }) {
     return_phone: '',
     label_size_preference: '4x6',
     signature_required_default: false,
-    insurance_default: false
+    insurance_default: false,
+    handling_days: 3
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -42,7 +44,8 @@ export default function ShippingSettings({ userData }) {
               return_phone: data.preferences.return_phone || '',
               label_size_preference: data.preferences.label_size_preference || '4x6',
               signature_required_default: Boolean(data.preferences.signature_required_default),
-              insurance_default: Boolean(data.preferences.insurance_default)
+              insurance_default: Boolean(data.preferences.insurance_default),
+              handling_days: data.preferences.handling_days || 3
             };
             setPreferences(cleanPreferences);
           }
@@ -126,6 +129,26 @@ export default function ShippingSettings({ userData }) {
             {message}
           </div>
         )}
+
+        <div className="form-card">
+          <h3>Business Days Lead Time</h3>
+          <p style={{ color: '#6c757d', fontSize: '14px', marginBottom: '16px' }}>
+            Set your standard handling time. This tells customers when they can expect their order to ship. 
+            You can adjust this anytime if you get behind or are traveling.
+          </p>
+          
+          <label>Handling Time</label>
+          <select 
+            value={preferences.handling_days} 
+            onChange={(e) => handleInputChange('handling_days', parseInt(e.target.value, 10))}
+          >
+            {HANDLING_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
         <div className="form-card">
           <h3>Return Address</h3>

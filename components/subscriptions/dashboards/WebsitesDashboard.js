@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { authApiRequest } from '../../../lib/apiUtils';
+import { getSubdomainUrl, getSubdomainBase } from '../../../lib/config';
 import SiteCustomizer from '../../dashboard/my-subscriptions/components/website-components/SiteCustomizer';
 import CustomDomainSection from '../../dashboard/my-subscriptions/components/website-components/CustomDomainSection';
 
@@ -295,7 +296,7 @@ export default function WebsitesDashboard({ subscriptionData, userData, onUpdate
                   <div>
                     <h4 style={{ margin: '0 0 5px 0', color: '#2c3e50' }}>{site.site_name}</h4>
                     <p style={{ margin: '0', color: '#6c757d', fontSize: '14px' }}>
-                      {site.domain || `${site.subdomain}.beemeeart.com`} • 
+                      {site.domain || `${site.subdomain}.${getSubdomainBase()}`} • 
                       <span style={{ 
                         color: site.status === 'active' ? '#28a745' : site.status === 'draft' ? '#ffc107' : '#dc3545',
                         fontWeight: 'bold',
@@ -346,7 +347,7 @@ export default function WebsitesDashboard({ subscriptionData, userData, onUpdate
                       </button>
                     )}
                     <a 
-                      href={`https://${site.domain || `${site.subdomain}.beemeeart.com`}`}
+                      href={site.domain ? `https://${site.domain}` : getSubdomainUrl(site.subdomain)}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{

@@ -119,6 +119,53 @@ router.get('/:id', verifyToken, async (req, res) => {
 });
 
 /**
+ * PATCH /applications/:id
+ * Update application details before deadline
+ * Artists can update their own applications before the event's application deadline
+ */
+router.patch('/:id', verifyToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const artistId = req.userId;
+        const { artist_statement, additional_info, additional_notes } = req.body;
+
+        const [application] = await db.execute(`
+            SELECT ea.*, e.application_deadline 
+            FROM event_applications ea
+            JOIN events e ON ea.event_id = e.id
+            WHERE ea.id = ?
+        `, [id]);
+
+        if (application.length === 0) {
+            return res.status(404).json({ error: 'Application not found' });
+        }
+
+        if (application[0].artist_id !== artistId) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        // Check deadline
+        if (application[0].application_deadline && new Date(application[0].application_deadline) < new Date()) {
+            return res.status(400).json({ error: 'Application deadline has passed' });
+        }
+
+        await db.execute(`
+            UPDATE event_applications 
+            SET artist_statement = COALESCE(?, artist_statement),
+                additional_info = COALESCE(?, additional_info),
+                additional_notes = COALESCE(?, additional_notes),
+                updated_at = NOW()
+            WHERE id = ?
+        `, [artist_statement, additional_info, additional_notes, id]);
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error updating application:', error);
+        res.status(500).json({ error: 'Failed to update application' });
+    }
+});
+
+/**
  * PUT /applications/:id
  * Update application details (only allowed for draft status)
  * Artists can only update their own applications before submission
@@ -263,10 +310,15 @@ router.get('/events/:eventId/applications', verifyToken, async (req, res) => {
                 ea.*,
                 up.first_name as artist_first_name,
                 up.last_name as artist_last_name,
+                CONCAT(up.first_name, ' ', up.last_name) as artist_name,
                 u.username as artist_email,
+                u.username as email,
+                up.phone,
                 ap.business_name as artist_business_name,
+                ap.business_name as company_name,
                 ap.art_categories,
-                ap.art_mediums
+                ap.art_mediums,
+                ea.submitted_at as applied_date
             FROM event_applications ea
             JOIN users u ON ea.artist_id = u.id
             JOIN user_profiles up ON u.id = up.user_id
@@ -351,6 +403,11 @@ router.put('/:id/status', verifyToken, async (req, res) => {
             SELECT 
                 ea.*,
                 e.title as event_title,
+                e.start_date,
+                e.end_date,
+                e.venue_name,
+                e.venue_city,
+                e.venue_state,
                 up.first_name as artist_first_name,
                 up.last_name as artist_last_name,
                 u.username as artist_email
@@ -360,6 +417,41 @@ router.put('/:id/status', verifyToken, async (req, res) => {
             JOIN user_profiles up ON u.id = up.user_id
             WHERE ea.id = ?
         `, [id]);
+
+        // Send acceptance email if status changed to accepted
+        if (status === 'accepted' && updatedApp[0]) {
+            try {
+                const EmailService = require('../services/emailService');
+                const emailService = new EmailService();
+                
+                const app = updatedApp[0];
+                const startDate = new Date(app.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+                const endDate = new Date(app.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+                
+                // Check if payment intent exists for direct payment link
+                const [boothFee] = await db.execute(
+                    'SELECT payment_intent_id FROM event_booth_fees WHERE application_id = ?',
+                    [id]
+                );
+                const paymentIntentId = boothFee[0]?.payment_intent_id;
+                const paymentUrl = paymentIntentId 
+                    ? `${process.env.FRONTEND_URL || 'https://brakebee.com'}/event-payment/${paymentIntentId}`
+                    : `${process.env.FRONTEND_URL || 'https://brakebee.com'}/dashboard`;
+                
+                await emailService.sendEmail(app.artist_id, 'booth_fee_invoice', {
+                    artist_name: `${app.artist_first_name} ${app.artist_last_name}`,
+                    event_title: app.event_title,
+                    event_dates: startDate === endDate ? startDate : `${startDate} - ${endDate}`,
+                    event_location: app.venue_name ? `${app.venue_name}, ${app.venue_city}, ${app.venue_state}` : `${app.venue_city}, ${app.venue_state}`,
+                    booth_fee_amount: app.booth_fee_amount ? `$${parseFloat(app.booth_fee_amount).toFixed(2)}` : 'To be determined',
+                    due_date: app.booth_fee_due_date ? new Date(app.booth_fee_due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'To be determined',
+                    payment_url: paymentUrl,
+                    contact_email: 'support@brakebee.com'
+                });
+            } catch (emailError) {
+                console.error('Failed to send acceptance email:', emailError);
+            }
+        }
 
         res.json({
             message: 'Application status updated successfully',
@@ -1283,7 +1375,7 @@ router.post('/events/:eventId/apply', verifyToken, async (req, res) => {
 
         // Verify event exists and allows applications
         const [event] = await db.execute(`
-            SELECT id, title, allow_applications, application_status 
+            SELECT id, title, allow_applications, application_status, application_fee, jury_fee 
             FROM events 
             WHERE id = ?
         `, [eventId]);
@@ -1298,12 +1390,23 @@ router.post('/events/:eventId/apply', verifyToken, async (req, res) => {
 
         // Check if artist already applied with this specific persona
         const [existingApp] = await db.execute(`
-            SELECT id FROM event_applications 
+            SELECT id, status, payment_status FROM event_applications 
             WHERE event_id = ? AND artist_id = ? AND (persona_id = ? OR (persona_id IS NULL AND ? IS NULL))
         `, [eventId, artistId, persona_id, persona_id]);
 
         if (existingApp.length > 0) {
-            return res.status(400).json({ error: 'You have already applied to this event with this persona' });
+            const existing = existingApp[0];
+            if (existing.status === 'draft' && existing.payment_status === 'pending') {
+                return res.status(400).json({ 
+                    error: 'You have a saved application for this event. Complete payment to submit it.',
+                    existing_application_id: existing.id,
+                    needs_payment: true
+                });
+            }
+            return res.status(400).json({ 
+                error: 'You have already applied to this event. To apply again, select a different persona above.',
+                existing_application_id: existing.id
+            });
         }
 
         // Verify persona belongs to artist if provided
@@ -1318,19 +1421,30 @@ router.post('/events/:eventId/apply', verifyToken, async (req, res) => {
             }
         }
 
+        // Check if event has fees
+        const applicationFee = parseFloat(event[0].application_fee) || 0;
+        const juryFee = parseFloat(event[0].jury_fee) || 0;
+        const totalFees = applicationFee + juryFee;
+        const hasFees = totalFees > 0;
+
+        // Set status based on whether fees are required
+        const initialStatus = hasFees ? 'draft' : 'submitted';
+        const paymentStatus = hasFees ? 'pending' : 'not_required';
+
         // Create application
         const [result] = await db.execute(`
             INSERT INTO event_applications (
-                event_id, artist_id, status,
+                event_id, artist_id, status, payment_status,
                 artist_statement, portfolio_url, 
                 additional_info, additional_notes,
                 persona_id, submitted_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
-            eventId, artistId, 'submitted',
+            eventId, artistId, initialStatus, paymentStatus,
             artist_statement, portfolio_url,
             additional_info, additional_notes,
-            persona_id
+            persona_id,
+            hasFees ? null : new Date()
         ]);
 
         res.json({
@@ -1338,10 +1452,17 @@ router.post('/events/:eventId/apply', verifyToken, async (req, res) => {
             application: {
                 id: result.insertId,
                 event_id: eventId,
-                status: 'submitted',
-                submitted_at: new Date().toISOString()
+                status: initialStatus,
+                payment_status: paymentStatus,
+                submitted_at: hasFees ? null : new Date().toISOString()
             },
-            message: 'Application submitted successfully'
+            message: hasFees ? 'Application created. Payment required to submit.' : 'Application submitted successfully',
+            requires_payment: hasFees,
+            fees: hasFees ? {
+                application_fee: applicationFee,
+                jury_fee: juryFee,
+                total: totalFees
+            } : null
         });
 
     } catch (error) {
@@ -1384,7 +1505,7 @@ router.post('/apply-with-packet', verifyToken, async (req, res) => {
 
         // Verify event exists and allows applications
         const [event] = await db.execute(`
-            SELECT id, title, allow_applications, application_status 
+            SELECT id, title, allow_applications, application_status, application_fee, jury_fee 
             FROM events 
             WHERE id = ?
         `, [event_id]);
@@ -1403,28 +1524,48 @@ router.post('/apply-with-packet', verifyToken, async (req, res) => {
 
         // Check if artist already applied with this specific persona
         const [existingApp] = await db.execute(`
-            SELECT id FROM event_applications 
+            SELECT id, status, payment_status FROM event_applications 
             WHERE event_id = ? AND artist_id = ? AND (persona_id = ? OR (persona_id IS NULL AND ? IS NULL))
         `, [event_id, artistId, packetPersonaId, packetPersonaId]);
 
         if (existingApp.length > 0) {
-            return res.status(400).json({ error: 'You have already applied to this event with this persona' });
+            const existing = existingApp[0];
+            if (existing.status === 'draft' && existing.payment_status === 'pending') {
+                return res.status(400).json({ 
+                    error: 'You have a saved application for this event. Complete payment to submit it.',
+                    existing_application_id: existing.id,
+                    needs_payment: true
+                });
+            }
+            return res.status(400).json({ 
+                error: 'You have already applied with this packet\'s persona. Use a packet with a different persona.',
+                existing_application_id: existing.id
+            });
         }
+
+        // Check if event has fees
+        const applicationFee = parseFloat(event[0].application_fee) || 0;
+        const juryFee = parseFloat(event[0].jury_fee) || 0;
+        const totalFees = applicationFee + juryFee;
+        const hasFees = totalFees > 0;
+        const initialStatus = hasFees ? 'draft' : 'submitted';
+        const paymentStatus = hasFees ? 'pending' : 'not_required';
         
         // Create application with packet data
         const [result] = await db.execute(`
             INSERT INTO event_applications (
-                event_id, artist_id, status,
+                event_id, artist_id, status, payment_status,
                 artist_statement, portfolio_url, 
                 additional_info, additional_notes,
                 persona_id, submitted_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
-            event_id, artistId, 'submitted',
+            event_id, artistId, initialStatus, paymentStatus,
             packetData.artist_statement || '',
             packetData.portfolio_url || '',
             additional_info, additional_notes,
-            packet[0].persona_id
+            packet[0].persona_id,
+            hasFees ? null : new Date()
         ]);
 
         const applicationId = result.insertId;
@@ -1452,14 +1593,191 @@ router.post('/apply-with-packet', verifyToken, async (req, res) => {
 
         res.json({
             success: true,
-            application_id: applicationId,
-            message: 'Application submitted successfully using jury packet',
-            packet_used: packet[0].packet_name
+            application: {
+                id: applicationId,
+                event_id: event_id,
+                status: initialStatus,
+                payment_status: paymentStatus
+            },
+            message: hasFees ? 'Application created. Payment required to submit.' : 'Application submitted successfully using jury packet',
+            packet_used: packet[0].packet_name,
+            requires_payment: hasFees,
+            fees: hasFees ? {
+                application_fee: applicationFee,
+                jury_fee: juryFee,
+                total: totalFees
+            } : null
         });
 
     } catch (error) {
         console.error('Error applying with packet:', error);
         res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * POST /applications/:id/create-payment-intent
+ * Create Stripe payment intent for application fees
+ */
+router.post('/:id/create-payment-intent', verifyToken, async (req, res) => {
+    try {
+        const applicationId = req.params.id;
+        const artistId = req.userId;
+        const stripeService = require('../services/stripeService');
+
+        // Get application with event fees
+        const [apps] = await db.execute(`
+            SELECT ea.*, e.application_fee, e.jury_fee, e.promoter_id, e.title as event_title
+            FROM event_applications ea
+            JOIN events e ON ea.event_id = e.id
+            WHERE ea.id = ? AND ea.artist_id = ?
+        `, [applicationId, artistId]);
+
+        if (apps.length === 0) {
+            return res.status(404).json({ error: 'Application not found' });
+        }
+
+        const app = apps[0];
+
+        if (app.payment_status === 'paid') {
+            return res.status(400).json({ error: 'Already paid' });
+        }
+
+        const applicationFee = parseFloat(app.application_fee) || 0;
+        const juryFee = parseFloat(app.jury_fee) || 0;
+        const totalAmount = applicationFee + juryFee;
+
+        if (totalAmount <= 0) {
+            return res.status(400).json({ error: 'No fees required' });
+        }
+
+        // 95% to promoter, 5% to platform
+        const platformFee = Math.round(totalAmount * 0.05 * 100) / 100;
+        const promoterAmount = totalAmount - platformFee;
+
+        // Create payment intent
+        const paymentIntent = await stripeService.stripe.paymentIntents.create({
+            amount: Math.round(totalAmount * 100),
+            currency: 'usd',
+            metadata: {
+                payment_type: 'application_fee',
+                application_id: applicationId.toString(),
+                event_id: app.event_id.toString(),
+                artist_id: artistId.toString(),
+                promoter_id: app.promoter_id.toString()
+            },
+            automatic_payment_methods: { enabled: true }
+        });
+
+        // Record pending payment
+        await db.execute(`
+            INSERT INTO application_fee_payments (
+                application_id, event_id, artist_id, promoter_id,
+                amount_total, application_fee, jury_fee, platform_fee, promoter_amount,
+                stripe_payment_intent_id, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+        `, [applicationId, app.event_id, artistId, app.promoter_id,
+            totalAmount, applicationFee, juryFee, platformFee, promoterAmount,
+            paymentIntent.id]);
+
+        // Update application status
+        await db.execute(`UPDATE event_applications SET payment_status = 'processing' WHERE id = ?`, [applicationId]);
+
+        res.json({
+            client_secret: paymentIntent.client_secret,
+            amount: totalAmount,
+            event_title: app.event_title
+        });
+
+    } catch (error) {
+        console.error('Error creating payment intent:', error);
+        res.status(500).json({ error: 'Failed to create payment' });
+    }
+});
+
+/**
+ * POST /applications/:id/confirm-payment
+ * Confirm payment and submit application
+ */
+router.post('/:id/confirm-payment', verifyToken, async (req, res) => {
+    try {
+        const applicationId = req.params.id;
+        const artistId = req.userId;
+        const { payment_intent_id } = req.body;
+        const stripeService = require('../services/stripeService');
+
+        if (!payment_intent_id) {
+            return res.status(400).json({ error: 'Payment intent ID required' });
+        }
+
+        // Verify application belongs to user
+        const [apps] = await db.execute(`
+            SELECT ea.*, e.promoter_id, vs.stripe_account_id as promoter_stripe
+            FROM event_applications ea
+            JOIN events e ON ea.event_id = e.id
+            LEFT JOIN vendor_settings vs ON e.promoter_id = vs.vendor_id
+            WHERE ea.id = ? AND ea.artist_id = ?
+        `, [applicationId, artistId]);
+
+        if (apps.length === 0) {
+            return res.status(404).json({ error: 'Application not found' });
+        }
+
+        // Verify payment succeeded
+        const paymentIntent = await stripeService.stripe.paymentIntents.retrieve(payment_intent_id);
+        if (paymentIntent.status !== 'succeeded') {
+            return res.status(400).json({ error: 'Payment not completed' });
+        }
+
+        // Get payment record
+        const [payments] = await db.execute(`
+            SELECT * FROM application_fee_payments WHERE application_id = ? AND stripe_payment_intent_id = ?
+        `, [applicationId, payment_intent_id]);
+
+        if (payments.length === 0) {
+            return res.status(400).json({ error: 'Payment record not found' });
+        }
+
+        const payment = payments[0];
+
+        // Transfer to promoter if they have Stripe Connect
+        let transferId = null;
+        if (apps[0].promoter_stripe) {
+            try {
+                const charges = await stripeService.stripe.charges.list({ payment_intent: payment_intent_id, limit: 1 });
+                if (charges.data.length > 0) {
+                    const transfer = await stripeService.stripe.transfers.create({
+                        amount: Math.round(payment.promoter_amount * 100),
+                        currency: 'usd',
+                        destination: apps[0].promoter_stripe,
+                        source_transaction: charges.data[0].id
+                    });
+                    transferId = transfer.id;
+                }
+            } catch (transferErr) {
+                console.error('Transfer failed:', transferErr.message);
+            }
+        }
+
+        // Update payment record
+        await db.execute(`
+            UPDATE application_fee_payments 
+            SET status = 'succeeded', payment_date = NOW(), stripe_transfer_id = ?
+            WHERE id = ?
+        `, [transferId, payment.id]);
+
+        // Update application - mark as submitted
+        await db.execute(`
+            UPDATE event_applications 
+            SET payment_status = 'paid', status = 'submitted', submitted_at = NOW()
+            WHERE id = ?
+        `, [applicationId]);
+
+        res.json({ success: true, status: 'submitted' });
+
+    } catch (error) {
+        console.error('Error confirming payment:', error);
+        res.status(500).json({ error: 'Failed to confirm payment' });
     }
 });
 

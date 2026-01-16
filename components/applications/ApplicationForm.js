@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import styles from './ApplicationForm.module.css';
 import { getApiUrl } from '../../lib/config';
+import ApplicationPaymentModal from './ApplicationPaymentModal';
 
 export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
@@ -26,6 +27,8 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
   const [personas, setPersonas] = useState([]);
   const [selectedPersona, setSelectedPersona] = useState(null);
   const [isVerified, setIsVerified] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [draftApplication, setDraftApplication] = useState(null);
 
   // Fetch application stats and available add-ons when component loads
   useEffect(() => {
@@ -36,15 +39,20 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
         .then(data => setApplicationStats(data.stats))
         .catch(err => console.error('Error fetching application stats:', err));
 
-      // Fetch available add-ons
-      fetch(getApiUrl(`api/events/${event.id}/available-addons`))
-        .then(res => res.json())
-        .then(data => setAvailableAddons(data))
-        .catch(err => console.error('Error fetching available add-ons:', err));
-
-      // Fetch custom application fields
+      // Fetch custom application fields and add-ons (requires auth)
       const token = localStorage.getItem('token');
       if (token) {
+        // Fetch available add-ons
+        fetch(getApiUrl(`api/events/${event.id}/available-addons`), {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+          .then(res => res.json())
+          .then(data => setAvailableAddons(data))
+          .catch(err => console.error('Error fetching available add-ons:', err));
+
         fetch(getApiUrl(`api/events/${event.id}/application-fields`), {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -56,7 +64,7 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
         .catch(err => console.error('Error fetching application fields:', err));
 
       // Fetch jury packets
-      fetch('api/jury-packets', {
+      fetch(getApiUrl('api/jury-packets'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -72,7 +80,7 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
       .catch(err => console.error('Error fetching jury packets:', err));
 
       // Fetch personas
-      fetch('api/personas', {
+      fetch(getApiUrl('api/personas'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -89,8 +97,8 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
       })
       .catch(err => console.error('Error fetching personas:', err));
 
-      // Check user's verification status
-      fetch('api/verification/status', {
+      // Check user's verification status from current user endpoint
+      fetch(getApiUrl('users/me'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -98,9 +106,10 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
       })
       .then(res => res.json())
       .then(data => {
-        setIsVerified(data.verification_status?.is_verified || false);
+        // User is verified if they have the 'verified' permission
+        setIsVerified(data.permissions?.includes('verified') || false);
       })
-      .catch(err => console.error('Error fetching verification status:', err));
+      .catch(err => console.error('Error fetching user status:', err));
       }
     }
   }, [event?.id]);
@@ -143,14 +152,48 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
     }));
   };
 
-  const handleFieldResponse = (fieldId, value, file = null) => {
-    setFieldResponses(prev => ({
-      ...prev,
-      [fieldId]: {
-        response_value: file ? null : value,
-        file_url: file ? file : null
+  const handleFieldResponse = async (fieldId, value, file = null) => {
+    if (file) {
+      // Upload file immediately to get URL
+      try {
+        const token = localStorage.getItem('token');
+        const formData = new FormData();
+        formData.append('images', file);
+        
+        const response = await fetch(getApiUrl('api/jury-packets/upload'), {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const uploadedUrl = data.urls[0];
+          setFieldResponses(prev => ({
+            ...prev,
+            [fieldId]: {
+              response_value: file.name,
+              file_url: uploadedUrl
+            }
+          }));
+        } else {
+          setError('Failed to upload image');
+        }
+      } catch (err) {
+        console.error('Upload error:', err);
+        setError('Failed to upload image');
       }
-    }));
+    } else {
+      setFieldResponses(prev => ({
+        ...prev,
+        [fieldId]: {
+          response_value: value,
+          file_url: null
+        }
+      }));
+    }
   };
 
   const handlePacketSelect = async (packet) => {
@@ -159,7 +202,7 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
       const token = localStorage.getItem('token');
       
       // Get full packet details
-      const response = await fetch(`api/jury-packets/${packet.id}`, {
+      const response = await fetch(getApiUrl(`api/jury-packets/${packet.id}`), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -171,7 +214,9 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
       }
 
       const fullPacket = await response.json();
-      const packetData = JSON.parse(fullPacket.packet_data || '{}');
+      const packetData = typeof fullPacket.packet_data === 'string' 
+        ? JSON.parse(fullPacket.packet_data || '{}') 
+        : (fullPacket.packet_data || {});
 
       // Pre-fill form with packet data
       setFormData(prev => ({
@@ -182,9 +227,68 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
         additional_notes: formData.additional_notes
       }));
 
-      // Pre-fill field responses
+      // Pre-fill field responses - need to map by field name since IDs differ between events
       if (packetData.field_responses) {
-        setFieldResponses(packetData.field_responses);
+        const newFieldResponses = {};
+        
+        applicationFields.forEach(field => {
+          const fieldNameLower = field.field_name.toLowerCase();
+          let matched = false;
+          
+          // Check each saved response
+          Object.entries(packetData.field_responses).forEach(([oldId, response]) => {
+            if (matched) return; // Already found a match for this field
+            
+            // Method 1: Match by stored field_name (new packets)
+            if (response.field_name && response.field_name.toLowerCase() === fieldNameLower) {
+              newFieldResponses[field.id] = response;
+              matched = true;
+              return;
+            }
+            
+            // Method 2: Match by common field patterns (old packets without field_name)
+            if (!response.field_name && response.response_value) {
+              const value = response.response_value;
+              
+              // Email field: value contains @
+              if (fieldNameLower.includes('email') && value.includes('@')) {
+                newFieldResponses[field.id] = response;
+                matched = true;
+                return;
+              }
+              
+              // Phone field: value is mostly digits
+              if (fieldNameLower.includes('phone') && /^[\d\s\-\(\)\.+]+$/.test(value)) {
+                newFieldResponses[field.id] = response;
+                matched = true;
+                return;
+              }
+              
+              // Address field: value contains newline or common address patterns
+              if ((fieldNameLower.includes('address') || fieldNameLower.includes('mailing')) && 
+                  (value.includes('\n') || /\d{5}/.test(value) || /\b(st|ave|rd|blvd|ln|dr|ct)\b/i.test(value))) {
+                newFieldResponses[field.id] = response;
+                matched = true;
+                return;
+              }
+              
+              // Company/Business field
+              if ((fieldNameLower.includes('company') || fieldNameLower.includes('business')) && 
+                  !value.includes('@') && !/^[\d\s\-\(\)\.+]+$/.test(value) && !value.includes('\n')) {
+                newFieldResponses[field.id] = response;
+                matched = true;
+                return;
+              }
+            }
+          });
+        });
+        
+        // Use matched responses if we found any, otherwise try original IDs (same-event reapply)
+        if (Object.keys(newFieldResponses).length > 0) {
+          setFieldResponses(newFieldResponses);
+        } else {
+          setFieldResponses(packetData.field_responses);
+        }
       }
 
       // Set persona if packet has one
@@ -215,7 +319,7 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
         throw new Error('Please log in to submit an application');
       }
 
-      const response = await fetch('api/applications/apply-with-packet', {
+      const response = await fetch(getApiUrl('api/applications/apply-with-packet'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -229,15 +333,22 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
         })
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to submit application');
+        throw new Error(data.error || 'Failed to submit application');
       }
 
-      const result = await response.json();
+      // Check if payment is required
+      if (data.requires_payment) {
+        setDraftApplication(data.application);
+        setShowPaymentModal(true);
+        setLoading(false);
+        return;
+      }
       
       if (onSubmit) {
-        onSubmit(result);
+        onSubmit(data.application || data);
       }
     } catch (err) {
       setError(err.message);
@@ -256,13 +367,23 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
       setLoading(true);
       const token = localStorage.getItem('token');
 
+      // Include field names with each response for cross-event matching
+      const fieldResponsesWithNames = {};
+      Object.entries(fieldResponses).forEach(([fieldId, response]) => {
+        const field = applicationFields.find(f => f.id == fieldId);
+        fieldResponsesWithNames[fieldId] = {
+          ...response,
+          field_name: field?.field_name || null
+        };
+      });
+
       const packetData = {
         artist_statement: formData.artist_statement,
         portfolio_url: formData.portfolio_url,
-        field_responses: fieldResponses
+        field_responses: fieldResponsesWithNames
       };
 
-      const response = await fetch('api/jury-packets', {
+      const response = await fetch(getApiUrl('api/jury-packets'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -282,7 +403,7 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
       }
 
       // Refresh packets list
-      const packetsResponse = await fetch('api/jury-packets', {
+      const packetsResponse = await fetch(getApiUrl('api/jury-packets'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -349,7 +470,7 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
         throw new Error('Please log in to submit an application');
       }
 
-      const response = await fetch(`api/applications/events/${event.id}/apply`, {
+      const response = await fetch(getApiUrl(`api/applications/events/${event.id}/apply`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -372,7 +493,7 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
         try {
           const addonsToSave = selectedAddons.filter(addon => addon.requested);
           for (const addon of addonsToSave) {
-            await fetch(`api/applications/${data.application.id}/addon-requests`, {
+            await fetch(getApiUrl(`api/applications/${data.application.id}/addon-requests`), {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -387,8 +508,15 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
           }
         } catch (addonError) {
           console.error('Failed to save add-on requests:', addonError);
-          // Continue with success even if add-on requests fail
         }
+      }
+
+      // Check if payment is required
+      if (data.requires_payment) {
+        setDraftApplication(data.application);
+        setShowPaymentModal(true);
+        setLoading(false);
+        return;
       }
 
       // Success - call parent callback
@@ -789,19 +917,45 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
                   )}
                   
                   {field.field_type === 'text' && (
-                    <textarea
+                    <input
+                      type="text"
                       id={`field_${field.id}`}
                       value={response.response_value || ''}
                       onChange={(e) => handleFieldResponse(field.id, e.target.value)}
                       placeholder={`Enter your ${field.field_name.toLowerCase()}...`}
-                      rows={3}
                       required={isRequired}
-                      className={styles.textarea}
+                      className={styles.input}
                     />
                   )}
                   
                   {(field.field_type === 'image' || field.field_type === 'video') && (
                     <div className={styles.fileUpload}>
+                      {/* Show preview first if image exists */}
+                      {response.file_url && typeof response.file_url === 'string' && (
+                        <div className={styles.filePreview} style={{ marginBottom: '12px' }}>
+                          {field.field_type === 'image' ? (
+                            <img 
+                              src={response.file_url.startsWith('/temp_images/') 
+                                ? `${getApiUrl()}${response.file_url}` 
+                                : response.file_url
+                              }
+                              alt={response.response_value || field.field_name}
+                              style={{ maxWidth: '200px', maxHeight: '200px', borderRadius: '8px', border: '2px solid #28a745' }}
+                            />
+                          ) : (
+                            <div className={styles.fileSelected} style={{ padding: '12px', background: '#e8f5e9', borderRadius: '8px' }}>
+                              <i className="fas fa-video" style={{ marginRight: '8px', color: '#28a745' }}></i>
+                              Video: {response.response_value || 'File uploaded'}
+                            </div>
+                          )}
+                          <div style={{ fontSize: '13px', color: '#28a745', marginTop: '8px', fontWeight: '500' }}>
+                            <i className="fas fa-check-circle" style={{ marginRight: '6px' }}></i>
+                            {response.response_value || 'Pre-filled from packet'}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* File input - not required if we already have a file_url */}
                       <input
                         type="file"
                         id={`field_${field.id}`}
@@ -812,17 +966,15 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
                             handleFieldResponse(field.id, file.name, file);
                           }
                         }}
-                        required={isRequired}
+                        required={isRequired && !(response.file_url && typeof response.file_url === 'string')}
                         className={styles.fileInput}
                       />
                       <div className={styles.fileHelp}>
-                        Upload {field.field_type === 'image' ? 'an image' : 'a video'} for {field.field_name}
+                        {response.file_url && typeof response.file_url === 'string'
+                          ? '(Optional) Upload a new file to replace the existing one'
+                          : `Upload ${field.field_type === 'image' ? 'an image' : 'a video'} for ${field.field_name}`
+                        }
                       </div>
-                      {response.file_url && (
-                        <div className={styles.fileSelected}>
-                          Selected: {response.file_url.name || 'File uploaded'}
-                        </div>
-                      )}
                     </div>
                   )}
 
@@ -929,6 +1081,21 @@ export default function ApplicationForm({ event, user, onSubmit, onCancel }) {
           </div>
         </div>
       </form>
+
+      {showPaymentModal && draftApplication && (
+        <ApplicationPaymentModal
+          application={draftApplication}
+          event={event}
+          onSuccess={() => {
+            setShowPaymentModal(false);
+            if (onSubmit) onSubmit({ ...draftApplication, status: 'submitted' });
+          }}
+          onCancel={() => {
+            setShowPaymentModal(false);
+            if (onSubmit) onSubmit({ ...draftApplication, status: 'draft', message: 'Saved as draft. Complete payment to submit.' });
+          }}
+        />
+      )}
     </div>
   );
 } 

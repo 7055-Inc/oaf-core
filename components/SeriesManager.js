@@ -163,9 +163,10 @@ export default function SeriesManager() {
 
             <form onSubmit={handleCreateSeries} className={styles.form}>
               <div className={styles.formGroup}>
-                <label>Series Name *</label>
+                <label htmlFor="series_name">Series Name *</label>
                 <input
                   type="text"
+                  id="series_name"
                   value={formData.series_name}
                   onChange={(e) => setFormData(prev => ({ ...prev, series_name: e.target.value }))}
                   required
@@ -175,8 +176,9 @@ export default function SeriesManager() {
               </div>
 
               <div className={styles.formGroup}>
-                <label>Description</label>
+                <label htmlFor="series_description">Description</label>
                 <textarea
+                  id="series_description"
                   value={formData.series_description}
                   onChange={(e) => setFormData(prev => ({ ...prev, series_description: e.target.value }))}
                   className={styles.textarea}
@@ -187,8 +189,9 @@ export default function SeriesManager() {
 
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label>Recurrence Pattern *</label>
+                  <label htmlFor="recurrence_pattern">Recurrence Pattern *</label>
                   <select
+                    id="recurrence_pattern"
                     value={formData.recurrence_pattern}
                     onChange={(e) => setFormData(prev => ({ ...prev, recurrence_pattern: e.target.value }))}
                     className={styles.select}
@@ -200,8 +203,9 @@ export default function SeriesManager() {
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label>Interval</label>
+                  <label htmlFor="recurrence_interval">Interval</label>
                   <select
+                    id="recurrence_interval"
                     value={formData.recurrence_interval}
                     onChange={(e) => setFormData(prev => ({ ...prev, recurrence_interval: parseInt(e.target.value) }))}
                     className={styles.select}
@@ -215,9 +219,10 @@ export default function SeriesManager() {
 
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
-                  <label>Series Start Date *</label>
+                  <label htmlFor="series_start_date">Series Start Date *</label>
                   <input
                     type="date"
+                    id="series_start_date"
                     value={formData.series_start_date}
                     onChange={(e) => setFormData(prev => ({ ...prev, series_start_date: e.target.value }))}
                     required
@@ -226,9 +231,10 @@ export default function SeriesManager() {
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label>Series End Date (Optional)</label>
+                  <label htmlFor="series_end_date">Series End Date (Optional)</label>
                   <input
                     type="date"
+                    id="series_end_date"
                     value={formData.series_end_date}
                     onChange={(e) => setFormData(prev => ({ ...prev, series_end_date: e.target.value }))}
                     className={styles.input}
@@ -250,9 +256,10 @@ export default function SeriesManager() {
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label>Generate Months Ahead</label>
+                  <label htmlFor="generate_months_ahead">Generate Months Ahead</label>
                   <input
                     type="number"
+                    id="generate_months_ahead"
                     value={formData.generate_months_ahead}
                     onChange={(e) => setFormData(prev => ({ ...prev, generate_months_ahead: parseInt(e.target.value) }))}
                     min="1"

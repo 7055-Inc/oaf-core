@@ -4,20 +4,48 @@ import { getAuthToken } from '../../../../lib/csrf';
 import { getApiUrl } from '../../../../lib/config';
 import styles from '../../SlideIn.module.css';
 
+// Helper to convert ISO date string to YYYY-MM-DD for date inputs
+function toDateInputValue(dateString) {
+  if (!dateString) return '';
+  // If it's already YYYY-MM-DD format, return as-is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    return dateString;
+  }
+  // Parse ISO date and extract local date components to avoid timezone shift
+  const date = new Date(dateString);
+  // Use UTC methods to get the actual stored date, not shifted by timezone
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 // Custom Event Modal Component
 function CustomEventModal({ onSave, onCancel, initialData = null }) {
-  const [formData, setFormData] = useState(initialData || {
-    event_name: '',
-    event_start_date: '',
-    event_end_date: '',
-    venue_name: '',
-    city: '',
-    state: '',
-    website: '',
-    promoter_name: '',
-    promoter_email: '',
-    notify_promoter: false
-  });
+  // Transform initialData dates to YYYY-MM-DD format for date inputs
+  const getInitialFormData = () => {
+    if (!initialData) {
+      return {
+        event_name: '',
+        event_start_date: '',
+        event_end_date: '',
+        venue_name: '',
+        city: '',
+        state: '',
+        website: '',
+        promoter_name: '',
+        promoter_email: '',
+        notify_promoter: false
+      };
+    }
+    return {
+      ...initialData,
+      event_start_date: toDateInputValue(initialData.event_start_date),
+      event_end_date: toDateInputValue(initialData.event_end_date)
+    };
+  };
+
+  const [formData, setFormData] = useState(getInitialFormData());
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -33,9 +61,9 @@ function CustomEventModal({ onSave, onCancel, initialData = null }) {
   };
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-      <div className="form-card" style={{ width: '90%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto' }}>
-        <h3 style={{ margin: '0 0 20px 0' }}>{initialData ? 'Edit Custom Event' : 'Add Custom Event'}</h3>
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <h3 className="modal-title">{initialData ? 'Edit Custom Event' : 'Add Custom Event'}</h3>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <div className="form-group">
             <label>Event Name *</label>
@@ -161,12 +189,12 @@ function CustomEventModal({ onSave, onCancel, initialData = null }) {
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #eee' }}>
+          <div className="modal-actions" style={{ borderTop: '1px solid #eee', paddingTop: '20px' }}>
             <button type="button" onClick={onCancel} className="secondary">
               Cancel
             </button>
             <button type="submit" className="primary">
-              Add Event
+              {initialData ? 'Save Changes' : 'Add Event'}
             </button>
           </div>
         </form>
@@ -315,11 +343,23 @@ export default function MyCalendar({ userData }) {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    if (!dateString) return '';
+    
+    // Handle date-only strings (YYYY-MM-DD) as local dates
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      const [year, month, day] = dateString.split('-').map(Number);
+      const date = new Date(year, month - 1, day);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    }
+    
+    // For ISO datetime strings, use UTC methods to avoid timezone shift
+    const date = new Date(dateString);
+    const options = { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' };
+    return date.toLocaleDateString('en-US', options);
   };
 
   const getEventTypeLabel = (event) => {
@@ -366,16 +406,6 @@ export default function MyCalendar({ userData }) {
 
   return (
     <div className="section-box">
-      <div className="section-header">
-        <h2>My Calendar</h2>
-        <button 
-          onClick={() => setShowAddCustomEvent(true)}
-          className="primary"
-        >
-          Add Custom Event
-        </button>
-      </div>
-
       {/* Calendar Summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px', marginBottom: '30px' }}>
         <div className="form-card" style={{ textAlign: 'center', padding: '20px' }}>

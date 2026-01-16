@@ -2,6 +2,7 @@ import React from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
+import { getSubdomainBase, getFrontendUrl } from '../../lib/config';
 
 const SubdomainError = () => {
   const router = useRouter();
@@ -52,7 +53,7 @@ const SubdomainError = () => {
             marginBottom: '0.5rem',
             fontSize: '1.1rem'
           }}>
-            There was an error loading <strong>{subdomain}.beemeeart.com</strong>
+            There was an error loading <strong>{subdomain}.{getSubdomainBase()}</strong>
           </p>
           
           <p style={{
@@ -99,7 +100,7 @@ const SubdomainError = () => {
               🔄 Try Again
             </button>
             
-            <Link href="https://main.beemeeart.com">
+            <Link href={getFrontendUrl()}>
               <a style={{
                 background: '#ee5a24',
                 color: 'white',

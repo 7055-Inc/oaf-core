@@ -3,6 +3,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import styles from '../../styles/SiteUnavailable.module.css';
+import { getSubdomainBase } from '../../lib/config';
 
 const SiteUnavailable = () => {
   const router = useRouter();
@@ -108,7 +109,7 @@ const SiteUnavailable = () => {
               <h2 className={styles.siteName}>{siteName}</h2>
               {subdomain && (
                 <p className={styles.subdomain}>
-                  {subdomain}.beemeeart.com
+                  {subdomain}.{getSubdomainBase()}
                 </p>
               )}
             </div>
@@ -150,8 +151,8 @@ const SiteUnavailable = () => {
               <div className={styles.contactSection}>
                 <p className={styles.contactText}>
                   Need help? Contact us at{' '}
-                  <a href="mailto:support@beemeeart.com" className={styles.contactLink}>
-                    support@beemeeart.com
+                  <a href="mailto:support@brakebee.com" className={styles.contactLink}>
+                    support@brakebee.com
                   </a>
                 </p>
               </div>

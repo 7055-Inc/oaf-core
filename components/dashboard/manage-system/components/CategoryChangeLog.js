@@ -103,14 +103,15 @@ export default function CategoryChangeLog() {
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table className={styles.table}>
+            <caption className="sr-only">Category change history</caption>
             <thead className={styles.tableHeader}>
               <tr>
-                <th className={styles.tableHeaderCell}>Date</th>
-                <th className={styles.tableHeaderCell}>Category ID</th>
-                <th className={styles.tableHeaderCell}>Action</th>
-                <th className={styles.tableHeaderCell}>Changed By</th>
-                <th className={styles.tableHeaderCell}>Before</th>
-                <th className={styles.tableHeaderCell}>After</th>
+                <th scope="col" className={styles.tableHeaderCell}>Date</th>
+                <th scope="col" className={styles.tableHeaderCell}>Category ID</th>
+                <th scope="col" className={styles.tableHeaderCell}>Action</th>
+                <th scope="col" className={styles.tableHeaderCell}>Changed By</th>
+                <th scope="col" className={styles.tableHeaderCell}>Before</th>
+                <th scope="col" className={styles.tableHeaderCell}>After</th>
               </tr>
             </thead>
             <tbody>

@@ -1,0 +1,82 @@
+/* Makers Landing Page Styles - Using Brakebee Brand */
+
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Button Styles - Brakebee Brand */
+button.primaryButton {
+  background: linear-gradient(135deg, var(--primary-color, #055474) 0%, var(--secondary-color, #3E1C56) 50%, var(--primary-color, #055474) 100%);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 2px;
+  text-decoration: none;
+  font-weight: 600;
+  font-family: var(--font-body, 'Nunito Sans', sans-serif);
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+button.primaryButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+button.secondaryButton {
+  background: white;
+  color: var(--primary-color, #055474);
+  padding: 0.75rem 1.5rem;
+  border-radius: 2px;
+  text-decoration: none;
+  font-weight: 600;
+  font-family: var(--font-body, 'Nunito Sans', sans-serif);
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  border: 2px solid var(--primary-color, #055474);
+  cursor: pointer;
+}
+
+button.secondaryButton:hover {
+  background: var(--primary-color, #055474);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+button.ctaButton {
+  background: linear-gradient(135deg, var(--primary-color, #055474) 0%, var(--secondary-color, #3E1C56) 50%, var(--primary-color, #055474) 100%);
+  color: white;
+  padding: 1rem 2.5rem;
+  font-size: 1.1rem;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  font-weight: 600;
+  font-family: var(--font-body, 'Nunito Sans', sans-serif);
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+button.ctaButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  button.primaryButton,
+  button.secondaryButton {
+    padding: 0.6rem 1.2rem;
+    font-size: 0.85rem;
+  }
+  
+  button.ctaButton {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+  }
+}

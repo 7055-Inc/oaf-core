@@ -1,6 +1,7 @@
 // Manage My Store Menu Component
 // This file contains ONLY the menu building logic for Manage My Store section
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { authApiRequest, API_ENDPOINTS } from '../../../lib/apiUtils';
 import { hasPermission, hasAddon } from '../../../lib/userUtils';
 import styles from '../../../pages/dashboard/Dashboard.module.css';
@@ -11,6 +12,7 @@ export default function ManageMyStoreMenu({
   toggleSection = () => {}, 
   openSlideIn = () => {} 
 }) {
+  const router = useRouter();
   const [shortcuts, setShortcuts] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -154,31 +156,28 @@ export default function ManageMyStoreMenu({
             </li>
           )}
           
+          {/* Upload/Download Catalog - nested under My Products */}
+          {(hasPermission(userData, 'vendor') || hasPermission(userData, 'sites')) && (
+            <li>
+              <button 
+                className={`${styles.sidebarLink} ${styles.nestedMenuItem}`}
+                onClick={() => openSlideIn('catalog-manager', { title: 'Upload/Download Catalog' })}
+              >
+                └── Upload/Download Catalog
+              </button>
+            </li>
+          )}
+          
           {/* Add New Product - vendor or sites permission */}
           {(hasPermission(userData, 'vendor') || hasPermission(userData, 'sites')) && (
             <li>
               <div className={styles.menuItemContent}>
                 <button 
                   className={styles.sidebarLink}
-                  onClick={() => openSlideIn('add-product', { title: 'Add New Product' })}
+                  onClick={() => router.push('/products/new')}
                 >
                   Add New Product
                 </button>
-                {!hasShortcut('add-product') && (
-                  <button
-                    className={styles.addShortcutButton}
-                    onClick={() => addShortcut({
-                      id: 'add-product',
-                      label: 'Add New Product',
-                      icon: 'fas fa-plus-circle',
-                      slideInType: 'add-product'
-                    })}
-                    disabled={loading}
-                    title="Add to shortcuts"
-                  >
-                    <i className="fas fa-plus"></i>
-                  </button>
-                )}
               </div>
             </li>
           )}

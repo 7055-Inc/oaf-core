@@ -26,9 +26,10 @@ export function ProductFormProvider({ children, userData, productId = null, init
     wholesale_title: initialData?.wholesale_title || '',
     wholesale_description: initialData?.wholesale_description || '',
     category_id: initialData?.category_id || 1, // Default to "Uncategorized"
+    user_category_id: initialData?.user_category_id || '',
     sku: initialData?.sku || '',
     status: initialData?.status || 'draft',
-    allow_returns: initialData?.allow_returns ?? true,
+    allow_returns: initialData?.allow_returns || '30_day',
     width: initialData?.width || '',
     height: initialData?.height || '',
     depth: initialData?.depth || '',
@@ -40,10 +41,17 @@ export function ProductFormProvider({ children, userData, productId = null, init
     ship_method: initialData?.ship_method || 'free',
     ship_rate: initialData?.ship_rate || '',
     shipping_services: initialData?.shipping_services || '',
-    // Marketplace settings - default ON for new products
-    // Convert 0/1 from MySQL to boolean, default true for new products
-    marketplace_enabled: initialData?.marketplace_enabled !== undefined ? Boolean(initialData.marketplace_enabled) : true,
+    // Marketplace settings - default ON for new products and drafts
+    // For drafts, ALWAYS default to true so users don't accidentally build hidden catalogs
+    // For active products, respect the saved value
+    marketplace_enabled: (initialData?.status === 'draft' || !initialData?.status)
+      ? true 
+      : Boolean(initialData?.marketplace_enabled),
     marketplace_category: initialData?.marketplace_category || 'unsorted',
+    // Website catalog - default ON for new products and drafts
+    website_catalog_enabled: (initialData?.status === 'draft' || !initialData?.status)
+      ? true 
+      : (initialData?.website_catalog_enabled !== undefined ? Boolean(initialData.website_catalog_enabled) : true),
     // Product identifiers
     gtin: initialData?.gtin || '',
     mpn: initialData?.mpn || '',
@@ -62,11 +70,13 @@ export function ProductFormProvider({ children, userData, productId = null, init
   });
 
   // Inventory data (separate for clarity)
+  // For existing products, use qty_on_hand from inventory table
+  // For new products, use beginning_inventory
   const [inventoryData, setInventoryData] = useState({
-    qty_on_hand: initialData?.inventory?.qty_on_hand || 0,
-    qty_available: initialData?.inventory?.qty_available || 0,
-    reorder_qty: initialData?.inventory?.reorder_qty || 0,
-    beginning_inventory: initialData?.beginning_inventory || 0
+    qty_on_hand: initialData?.inventory?.qty_on_hand ?? 0,
+    qty_available: initialData?.inventory?.qty_available ?? 0,
+    reorder_qty: initialData?.inventory?.reorder_qty ?? initialData?.reorder_qty ?? 0,
+    beginning_inventory: initialData?.inventory?.qty_on_hand ?? initialData?.beginning_inventory ?? 0
   });
 
   // Multi-package shipping
@@ -83,23 +93,76 @@ export function ProductFormProvider({ children, userData, productId = null, init
   // Variations (for variable products)
   const [variations, setVariations] = useState(initialData?.variations || []);
 
+  // Helper to determine initial section status based on data completeness
+  const getInitialSectionStatus = () => {
+    if (mode === 'create') {
+      return {
+        productType: 'pending',
+        basicInfo: 'pending',
+        description: 'pending',
+        images: 'pending',
+        inventory: 'pending',
+        shipping: 'pending',
+        searchControl: 'pending',
+        wholesale: 'pending',
+        variations: 'pending',
+        walmart: 'pending',
+        tiktok: 'pending'
+      };
+    }
+    
+    // In edit mode, check actual data to determine completion status
+    // This helps with drafts that only have partial data
+    const hasProductType = !!initialData?.product_type;
+    // Check for real basic info - not placeholder values from draft creation
+    const isPlaceholderName = !initialData?.name || initialData?.name === 'Untitled Product';
+    const isPlaceholderPrice = !initialData?.price || initialData?.price <= 0.01;
+    const hasBasicInfo = !isPlaceholderName && !isPlaceholderPrice && !!initialData?.sku;
+    const hasDescription = !!(initialData?.description || initialData?.short_description);
+    const hasImages = !!(initialData?.images && initialData?.images.length > 0);
+    const hasInventory = true; // Inventory always has defaults
+    const hasShipping = !!initialData?.ship_method;
+    const hasVariations = initialData?.product_type === 'variable' 
+      ? !!(initialData?.variations && initialData?.variations.length > 0)
+      : true; // Not required for simple products
+    
+    return {
+      productType: hasProductType ? 'complete' : 'pending',
+      basicInfo: hasBasicInfo ? 'complete' : 'pending',
+      description: hasDescription ? 'complete' : 'pending',
+      images: hasImages ? 'complete' : 'pending',
+      inventory: hasInventory ? 'complete' : 'pending',
+      shipping: hasShipping ? 'complete' : 'pending',
+      searchControl: 'complete', // Optional section
+      wholesale: 'complete', // Optional section
+      variations: hasVariations ? 'complete' : 'pending',
+      walmart: 'pending',
+      tiktok: 'pending'
+    };
+  };
+
   // Section completion status
-  const [sectionStatus, setSectionStatus] = useState({
-    productType: mode === 'edit' ? 'complete' : 'pending',
-    basicInfo: mode === 'edit' ? 'complete' : 'pending',
-    description: mode === 'edit' ? 'complete' : 'pending',
-    images: mode === 'edit' ? 'complete' : 'pending',
-    inventory: mode === 'edit' ? 'complete' : 'pending',
-    shipping: mode === 'edit' ? 'complete' : 'pending',
-    searchControl: mode === 'edit' ? 'complete' : 'pending',
-    wholesale: mode === 'edit' ? 'complete' : 'pending',
-    variations: mode === 'edit' ? 'complete' : 'pending',
-    walmart: 'pending',
-    tiktok: 'pending'
-  });
+  const [sectionStatus, setSectionStatus] = useState(getInitialSectionStatus);
+
+  // Determine which section to open initially for drafts
+  const getInitialActiveSection = () => {
+    if (mode === 'create') return 'productType';
+    
+    // For edit mode, find the first incomplete section or stay closed
+    const status = getInitialSectionStatus();
+    if (!status.productType || status.productType === 'pending') return 'productType';
+    if (!status.basicInfo || status.basicInfo === 'pending') return 'basicInfo';
+    if (!status.description || status.description === 'pending') return 'description';
+    if (!status.images || status.images === 'pending') return 'images';
+    if (!status.inventory || status.inventory === 'pending') return 'inventory';
+    if (!status.shipping || status.shipping === 'pending') return 'shipping';
+    
+    // All sections complete, stay closed
+    return null;
+  };
 
   // Active section (which one is open)
-  const [activeSection, setActiveSection] = useState(mode === 'edit' ? null : 'productType');
+  const [activeSection, setActiveSection] = useState(getInitialActiveSection);
 
   // Product ID (set after draft save)
   const [savedProductId, setSavedProductId] = useState(productId);
@@ -110,6 +173,9 @@ export function ProductFormProvider({ children, userData, productId = null, init
 
   // Categories (loaded once)
   const [categories, setCategories] = useState([]);
+
+  // User/Vendor categories (vendor's own custom categories)
+  const [userCategories, setUserCategories] = useState([]);
 
   // User addons (determines which connector sections show)
   const [userAddons, setUserAddons] = useState([]);
@@ -234,6 +300,11 @@ export function ProductFormProvider({ children, userData, productId = null, init
         throw new Error('Product must be saved before publishing');
       }
 
+      // Check if SKU contains 'Draft' - user must change placeholder SKU before publishing
+      if (formData.sku && formData.sku.toUpperCase().includes('DRAFT')) {
+        throw new Error('Please update the SKU before publishing. Click "Generate" to create a new SKU, or enter your own.');
+      }
+
       const res = await authApiRequest(`products/${savedProductId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -253,7 +324,7 @@ export function ProductFormProvider({ children, userData, productId = null, init
     } finally {
       setSaving(false);
     }
-  }, [savedProductId]);
+  }, [savedProductId, formData.sku]);
 
   // Load categories
   const loadCategories = useCallback(async () => {
@@ -305,6 +376,41 @@ export function ProductFormProvider({ children, userData, productId = null, init
     }
   }, []);
 
+  // Load user/vendor categories
+  const loadUserCategories = useCallback(async () => {
+    try {
+      const res = await authApiRequest('api/sites/categories');
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setUserCategories(data);
+      }
+    } catch (err) {
+      console.error('Failed to load user categories:', err);
+    }
+  }, []);
+
+  // Add new user/vendor category
+  const addUserCategory = useCallback(async (categoryData) => {
+    try {
+      const res = await authApiRequest('api/sites/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(categoryData)
+      });
+      
+      if (res.ok) {
+        const newCategory = await res.json();
+        setUserCategories(prev => [...prev, newCategory]);
+        return newCategory;
+      } else {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to create category');
+      }
+    } catch (err) {
+      throw err;
+    }
+  }, []);
+
   // Load user addons
   const loadUserAddons = useCallback(async () => {
     try {
@@ -353,6 +459,7 @@ export function ProductFormProvider({ children, userData, productId = null, init
     packages,
     variations,
     categories,
+    userCategories,
     userAddons,
     
     // State
@@ -375,6 +482,8 @@ export function ProductFormProvider({ children, userData, productId = null, init
     saveSection,
     publishProduct,
     loadCategories,
+    loadUserCategories,
+    addUserCategory,
     loadUserAddons,
     hasAddon,
     generateSKU,

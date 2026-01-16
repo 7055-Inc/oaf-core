@@ -873,6 +873,7 @@ router.post('/', verifyToken, requirePermission('vendor'), uploadLimiter, async 
       wholesale_price, wholesale_description, wholesale_title, // Wholesale fields
       allow_returns, // Returns system field
       marketplace_enabled, marketplace_category, // Marketplace settings
+      website_catalog_enabled, // Website catalog setting
       // Feed metadata fields
       gtin, mpn, identifier_exists, google_product_category, meta_description, item_group_id,
       custom_label_0, custom_label_1, custom_label_2, custom_label_3, custom_label_4
@@ -977,13 +978,15 @@ router.post('/', verifyToken, requirePermission('vendor'), uploadLimiter, async 
       // Continue with defaults (marketplace disabled)
     }
 
-    // Insert product with marketplace and wholesale fields
+    // Insert product with marketplace, website catalog, and wholesale fields
+    const websiteCatalogEnabled = website_catalog_enabled !== undefined ? (website_catalog_enabled ? 1 : 0) : 1; // Default to enabled
     const insertParams = [req.userId, name, description, short_description, price, category_id, sku, status || 'draft',
        1, // track_inventory - default to true
        width || null, height || null, depth || null, weight || null, dimension_unit, weight_unit, validatedParentId, product_type, 
-       marketplaceEnabled, marketplaceCategory, // New marketplace fields
-       wholesale_price || null, wholesale_description || null, // New wholesale fields
-       allow_returns !== undefined ? allow_returns : true, // Returns field - default to true
+       marketplaceEnabled, marketplaceCategory, // Marketplace fields
+       websiteCatalogEnabled, // Website catalog field
+       wholesale_price || null, wholesale_description || null, // Wholesale fields
+       allow_returns || '30_day', // Returns field - default to 30_day
        req.userId, req.userId];
     
     secureLogger.info('INSERT parameters debug', {
@@ -999,7 +1002,7 @@ router.post('/', verifyToken, requirePermission('vendor'), uploadLimiter, async 
     });
     
     const [result] = await db.query(
-      'INSERT INTO products (vendor_id, name, description, short_description, price, category_id, sku, status, track_inventory, width, height, depth, weight, dimension_unit, weight_unit, parent_id, product_type, marketplace_enabled, marketplace_category, wholesale_price, wholesale_description, allow_returns, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO products (vendor_id, name, description, short_description, price, category_id, sku, status, track_inventory, width, height, depth, weight, dimension_unit, weight_unit, parent_id, product_type, marketplace_enabled, marketplace_category, website_catalog_enabled, wholesale_price, wholesale_description, allow_returns, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       insertParams
     );
 
@@ -1179,6 +1182,7 @@ router.put('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, asyn
       wholesale_price, wholesale_description, wholesale_title, // Wholesale fields
       allow_returns, // Returns system field
       marketplace_enabled, marketplace_category, // Marketplace settings
+      website_catalog_enabled, // Website catalog setting
       // Feed metadata fields
       gtin, mpn, identifier_exists, google_product_category, meta_description, item_group_id,
       custom_label_0, custom_label_1, custom_label_2, custom_label_3, custom_label_4
@@ -1231,14 +1235,14 @@ router.put('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, asyn
       finalVendorId = vendor_id;
     }
 
-    // Update product (includes marketplace and wholesale fields)
+    // Update product (includes marketplace, website catalog, and wholesale fields)
     await db.query(
       `UPDATE products SET 
         name = ?, description = ?, short_description = ?, price = ?, category_id = ?, sku = ?, status = ?, 
         track_inventory = ?, width = ?, height = ?, depth = ?, weight = ?, dimension_unit = ?, weight_unit = ?, 
         parent_id = ?, product_type = ?, vendor_id = ?, 
         wholesale_price = ?, wholesale_description = ?, allow_returns = ?,
-        marketplace_enabled = ?, marketplace_category = ?,
+        marketplace_enabled = ?, marketplace_category = ?, website_catalog_enabled = ?,
         updated_by = ? WHERE id = ?`,
       [
         name || product[0].name, 
@@ -1258,11 +1262,12 @@ router.put('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, asyn
         validatedParentId, 
         product_type || product[0].product_type,
         finalVendorId,
-        wholesale_price !== undefined ? wholesale_price : product[0].wholesale_price,
-        wholesale_description !== undefined ? wholesale_description : product[0].wholesale_description,
+        wholesale_price !== undefined ? (wholesale_price === '' ? null : wholesale_price) : product[0].wholesale_price,
+        wholesale_description !== undefined ? (wholesale_description === '' ? null : wholesale_description) : product[0].wholesale_description,
         allow_returns !== undefined ? allow_returns : product[0].allow_returns,
         marketplace_enabled !== undefined ? (marketplace_enabled ? 1 : 0) : product[0].marketplace_enabled,
         marketplace_category || product[0].marketplace_category,
+        website_catalog_enabled !== undefined ? (website_catalog_enabled ? 1 : 0) : product[0].website_catalog_enabled,
         req.userId, 
         id
       ]
@@ -1442,7 +1447,8 @@ router.patch('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, as
       name, description, short_description, price, category_id, sku, status,
       width, height, depth, weight, dimension_unit, weight_unit, parent_id, product_type,
       package_number, length, shipping_type, shipping_services, ship_method, ship_rate,
-      images, packages, vendor_id, beginning_inventory, reorder_qty, allow_returns
+      images, packages, vendor_id, beginning_inventory, reorder_qty, allow_returns,
+      marketplace_enabled, marketplace_category, website_catalog_enabled
     } = req.body;
 
     // Check if product exists and user has permission to edit it
@@ -1516,6 +1522,18 @@ router.patch('/:id', verifyToken, requirePermission('vendor'), uploadLimiter, as
     if (allow_returns !== undefined) {
       updateFields.push('allow_returns = ?');
       updateValues.push(allow_returns);
+    }
+    if (marketplace_enabled !== undefined) {
+      updateFields.push('marketplace_enabled = ?');
+      updateValues.push(marketplace_enabled ? 1 : 0);
+    }
+    if (marketplace_category !== undefined) {
+      updateFields.push('marketplace_category = ?');
+      updateValues.push(marketplace_category);
+    }
+    if (website_catalog_enabled !== undefined) {
+      updateFields.push('website_catalog_enabled = ?');
+      updateValues.push(website_catalog_enabled ? 1 : 0);
     }
     // Note: beginning_inventory and reorder_qty are handled in the inventory section below, not in products table
 

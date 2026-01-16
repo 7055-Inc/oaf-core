@@ -444,14 +444,15 @@ const ManageAnnouncements = () => {
           {/* Announcements Table */}
           <div className="section-box">
             <table className={styles.table}>
+              <caption className="sr-only">System announcements</caption>
               <thead className={styles.tableHeader}>
                 <tr className={styles.tableRow}>
-                  <th className={styles.tableHeaderCell}>Title</th>
-                  <th className={styles.tableHeaderCell}>Target Users</th>
-                  <th className={styles.tableHeaderCell}>Show From</th>
-                  <th className={styles.tableHeaderCell}>Expires At</th>
-                  <th className={styles.tableHeaderCell}>Status</th>
-                  <th className={styles.tableHeaderCell}>Actions</th>
+                  <th scope="col" className={styles.tableHeaderCell}>Title</th>
+                  <th scope="col" className={styles.tableHeaderCell}>Target Users</th>
+                  <th scope="col" className={styles.tableHeaderCell}>Show From</th>
+                  <th scope="col" className={styles.tableHeaderCell}>Expires At</th>
+                  <th scope="col" className={styles.tableHeaderCell}>Status</th>
+                  <th scope="col" className={styles.tableHeaderCell}>Actions</th>
                 </tr>
               </thead>
               <tbody>

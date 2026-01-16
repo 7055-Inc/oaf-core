@@ -1,6 +1,5 @@
-'use client';
 import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
 import Breadcrumb from '../../components/Breadcrumb';
@@ -14,12 +13,12 @@ import { apiRequest, authApiRequest } from '../../lib/apiUtils';
 import { isWholesaleCustomer } from '../../lib/userUtils';
 import styles from './styles/ProductView.module.css';
 
-export default function ProductView() {
+export default function ProductView({ initialProduct, initialError, initialReviews = [], initialReviewSummary = null }) {
   const [product, setProduct] = useState(null);
   const [variationData, setVariationData] = useState(null);
   const [selectedVariationProduct, setSelectedVariationProduct] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(!initialProduct);
+  const [error, setError] = useState(initialError || null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState('description');
@@ -29,7 +28,10 @@ export default function ProductView() {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [userData, setUserData] = useState(null);
   const router = useRouter();
-  const params = useParams();
+  const { id } = router.query;
+
+  // Use SSR data directly for SEO (available during server render)
+  const seoProduct = initialProduct || product;
 
   // Helper function to process image URLs
   const processProductImages = (productData) => {
@@ -83,16 +85,44 @@ export default function ProductView() {
     }
   }, []);
 
+  // Process initial SSR product data
   useEffect(() => {
+    if (initialProduct) {
+      const processedData = processProductImages(initialProduct);
+      setProduct(processedData);
+      setLoading(false);
+      
+      // Set up variation data if this is a variable product
+      if (processedData.product_type === 'variable' && processedData.children && processedData.children.length > 0) {
+        if (processedData.variation_types && processedData.variation_options) {
+          setVariationData({
+            variation_types: processedData.variation_types,
+            variation_options: processedData.variation_options,
+            child_products: processedData.children.map(child => ({
+              ...child,
+              inventory: child.inventory || { qty_available: 0 }
+            }))
+          });
+        }
+      }
+    }
+  }, [initialProduct]);
+
+  useEffect(() => {
+    // Skip fetch if we already have SSR data
+    if (initialProduct) {
+      return;
+    }
+    
     const fetchProduct = async () => {
       try {
-        if (!params?.id) {
+        if (!id) {
           setError('Product ID not found');
           return;
         }
         
         // Use the new curated art marketplace API - includes all data in single call
-        const res = await apiRequest(`api/curated/art/products/${params.id}?include=images,shipping,vendor,inventory,categories`, {
+        const res = await apiRequest(`api/curated/art/products/${id}?include=images,shipping,vendor,inventory,categories`, {
           method: 'GET'
         });
         
@@ -100,7 +130,7 @@ export default function ProductView() {
           // If curated endpoint fails, try the regular products endpoint as fallback
           console.log(`Curated endpoint failed with ${res.status}, trying regular products endpoint...`);
           
-          const fallbackRes = await apiRequest(`products/${params.id}?include=images,shipping,vendor,inventory,categories`, {
+          const fallbackRes = await apiRequest(`products/${id}?include=images,shipping,vendor,inventory,categories`, {
             method: 'GET'
           });
           
@@ -177,10 +207,10 @@ export default function ProductView() {
 
 
 
-    if (params?.id) {
+    if (id && !initialProduct) {
       fetchProduct();
     }
-  }, [params?.id]);
+  }, [id, initialProduct]);
 
   useEffect(() => {
     const fetchCurrentUser = async () => {
@@ -355,27 +385,56 @@ export default function ProductView() {
     }
   };
 
+  // Compute SEO meta description once
+  const seoDescription = seoProduct ? (
+    seoProduct.feed_metadata?.meta_description || 
+    seoProduct.meta_description || 
+    truncateForMeta(seoProduct.short_description || seoProduct.description) || 
+    `Shop ${seoProduct.name} by ${seoProduct.vendor_name || 'Brakebee Artist'}`
+  ) : '';
+
   if (loading) {
     return (
-      <div className={styles.container}>
-        <div className={styles.loading}>Loading...</div>
-      </div>
+      <>
+        <Head>
+          <title>{seoProduct ? `${seoProduct.name} | Brakebee` : 'Loading... | Brakebee'}</title>
+          {seoProduct && <meta name="description" content={seoDescription} />}
+          <link rel="canonical" href={`https://brakebee.com/products/${seoProduct?.id || id}`} />
+        </Head>
+        <div className={styles.container}>
+          <div className={styles.loading}>Loading...</div>
+        </div>
+      </>
     );
   }
 
   if (error) {
     return (
-      <div className={styles.container}>
-        <div className={styles.error}>{error}</div>
-      </div>
+      <>
+        <Head>
+          <title>{seoProduct ? `${seoProduct.name} | Brakebee` : 'Error | Brakebee'}</title>
+          {seoProduct && <meta name="description" content={seoDescription} />}
+          <link rel="canonical" href={`https://brakebee.com/products/${seoProduct?.id || id}`} />
+        </Head>
+        <div className={styles.container}>
+          <div className={styles.error}>{error}</div>
+        </div>
+      </>
     );
   }
 
   if (!product) {
     return (
-      <div className={styles.container}>
-        <div className={styles.error}>Product not found</div>
-      </div>
+      <>
+        <Head>
+          <title>{seoProduct ? `${seoProduct.name} | Brakebee` : 'Product Not Found | Brakebee'}</title>
+          {seoProduct && <meta name="description" content={seoDescription} />}
+          <link rel="canonical" href={`https://brakebee.com/products/${seoProduct?.id || id}`} />
+        </Head>
+        <div className={styles.container}>
+          <div className={styles.error}>Product not found</div>
+        </div>
+      </>
     );
   }
 
@@ -385,6 +444,31 @@ export default function ProductView() {
   );
 
   // Generate Product Schema for Google Rich Results
+  const vendorDisplayName = product.vendor?.business_name || 
+    (product.vendor?.first_name && product.vendor?.last_name 
+      ? `${product.vendor.first_name} ${product.vendor.last_name}` 
+      : 'Artist');
+  
+  // Build reviews array for schema
+  const schemaReviews = initialReviews.length > 0 ? initialReviews.map(review => ({
+    "@type": "Review",
+    "author": {
+      "@type": "Person",
+      "name": review.reviewer_first_name && review.reviewer_last_name
+        ? `${review.reviewer_first_name} ${review.reviewer_last_name}`
+        : (review.reviewer_username || 'Anonymous')
+    },
+    "datePublished": review.created_at ? new Date(review.created_at).toISOString().split('T')[0] : undefined,
+    "reviewRating": {
+      "@type": "Rating",
+      "ratingValue": parseFloat(review.rating),
+      "bestRating": 5,
+      "worstRating": 1
+    },
+    "name": review.title,
+    "reviewBody": review.review_text
+  })) : undefined;
+
   const productSchema = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -394,7 +478,7 @@ export default function ProductView() {
     "sku": product.sku || `PROD-${product.id}`,
     "brand": {
       "@type": "Brand",
-      "name": product.vendor_name || product.artist_name || "Brakebee Artist"
+      "name": vendorDisplayName
     },
     "offers": {
       "@type": "Offer",
@@ -403,36 +487,31 @@ export default function ProductView() {
       "price": product.price || product.base_price || 0,
       "availability": product.stock_quantity > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       "seller": {
-        "@type": "Organization",
-        "name": product.vendor_name || "Brakebee"
+        "@type": "Person",
+        "name": vendorDisplayName
       }
     },
-    ...(product.average_rating && {
+    // Use SSR review summary for aggregate rating, fallback to product data
+    ...((initialReviewSummary?.count > 0 || product.average_rating) && {
       "aggregateRating": {
         "@type": "AggregateRating",
-        "ratingValue": product.average_rating,
-        "reviewCount": product.review_count || 1
+        "ratingValue": initialReviewSummary?.average_rating || product.average_rating,
+        "reviewCount": initialReviewSummary?.count || product.review_count || 1,
+        "bestRating": 5,
+        "worstRating": 1
       }
-    })
+    }),
+    // Include individual reviews if available
+    ...(schemaReviews && { "review": schemaReviews })
   };
 
   return (
     <>
       <Head>
         <title>{product.name} | Brakebee</title>
-        <meta name="description" content={
-          product.feed_metadata?.meta_description || 
-          product.meta_description || 
-          product.description?.replace(/<[^>]*>/g, '').substring(0, 160) || 
-          `Shop ${product.name} on Brakebee`
-        } />
+        <meta name="description" content={seoDescription} />
         <meta property="og:title" content={product.name} />
-        <meta property="og:description" content={
-          product.feed_metadata?.meta_description || 
-          product.meta_description || 
-          product.description?.replace(/<[^>]*>/g, '').substring(0, 160) || 
-          ''
-        } />
+        <meta property="og:description" content={seoDescription} />
         <meta property="og:type" content="product" />
         <meta property="og:url" content={`https://brakebee.com/products/${product.id}`} />
         {product.images?.[0] && (
@@ -441,7 +520,6 @@ export default function ProductView() {
         <meta property="product:price:amount" content={product.price || product.base_price || 0} />
         <meta property="product:price:currency" content="USD" />
         <link rel="canonical" href={`https://brakebee.com/products/${product.id}`} />
-        
         {/* Product Schema for Google Rich Results */}
         <script
           type="application/ld+json"
@@ -562,12 +640,16 @@ export default function ProductView() {
                 {/* Enhanced Title */}
                 <div className={styles.titleSection}>
                   <h1 className={styles.enhancedTitle}>
-                    {product.name} by {' '}
-                    {product.vendor?.business_name || 
-                     (product.vendor?.first_name && product.vendor?.last_name 
-                       ? `${product.vendor.first_name} ${product.vendor.last_name}` 
-                       : 'Artist')}
-                    {product.category_name && `, ${product.category_name}`}
+                    {(() => {
+                      const vendorName = product.vendor?.business_name || 
+                        (product.vendor?.first_name && product.vendor?.last_name 
+                          ? `${product.vendor.first_name} ${product.vendor.last_name}` 
+                          : 'Artist');
+                      const nameAlreadyHasVendor = product.name?.toLowerCase().includes(` by ${vendorName.toLowerCase()}`);
+                      return nameAlreadyHasVendor 
+                        ? product.name 
+                        : `${product.name} by ${vendorName}`;
+                    })()}
                   </h1>
                   
                   {/* Sold By - Artist/Seller Info */}
@@ -621,6 +703,34 @@ export default function ProductView() {
                     />
                   </div>
                 )}
+
+                {/* Estimated Ship Date */}
+                {product.vendor && (
+                  <div className={styles.shipDate}>
+                    {(() => {
+                      const { calculateShipDate } = require('../../lib/shippingUtils');
+                      const shipInfo = calculateShipDate(product.vendor.handling_days || 3);
+                      return (
+                        <span style={{ fontSize: '0.9em', color: '#495057' }}>
+                          This artist can ship your item as soon as: <strong>{shipInfo.formatted}</strong>
+                        </span>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {/* Return Policy - shows for all product types */}
+                <div className={styles.returnPolicy}>
+                  {(() => {
+                    const { getReturnPolicy } = require('../../lib/returnPolicies');
+                    const policy = getReturnPolicy(product.allow_returns);
+                    return (
+                      <span style={{ color: policy.color, fontSize: '0.9em' }}>
+                        {policy.icon} {policy.productMessage}
+                      </span>
+                    );
+                  })()}
+                </div>
 
                 {/* Variation Selector or Add to Cart for Simple Products */}
                 <div className={styles.selectorSection}>
@@ -789,11 +899,11 @@ export default function ProductView() {
                     <div className={styles.dimension}>
                       <span>Returns:</span>
                       <span>
-                        {(selectedVariationProduct || product).allow_returns !== false ? (
-                          <span style={{ color: '#28a745' }}>✓ Returns Accepted</span>
-                        ) : (
-                          <span style={{ color: '#dc3545' }}>✗ No Returns</span>
-                        )}
+                        {(() => {
+                          const { getReturnPolicy } = require('../../lib/returnPolicies');
+                          const policy = getReturnPolicy((selectedVariationProduct || product).allow_returns);
+                          return <span style={{ color: policy.color }}>{policy.icon} {policy.shortLabel}</span>;
+                        })()}
                       </span>
                     </div>
                   </div>
@@ -809,12 +919,15 @@ export default function ProductView() {
                     >
                       Shipping Policy
                     </button>
-                    <button 
+                    <a 
+                      href="/policies/returns"
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="secondary"
-                      onClick={() => handlePolicyClick('return')}
+                      style={{ display: 'inline-block', textDecoration: 'none' }}
                     >
                       Returns Policy
-                    </button>
+                    </a>
                   </div>
                 </div>
               )}
@@ -893,4 +1006,97 @@ export default function ProductView() {
       )}
     </>
   );
+}
+
+// Helper to truncate text for meta description (optimal: 155-160 chars)
+const truncateForMeta = (text, maxLength = 155) => {
+  if (!text) return '';
+  // Strip HTML tags
+  const stripped = text.replace(/<[^>]*>/g, '').trim();
+  if (stripped.length <= maxLength) return stripped;
+  // Truncate at word boundary
+  const truncated = stripped.substring(0, maxLength);
+  const lastSpace = truncated.lastIndexOf(' ');
+  return (lastSpace > 0 ? truncated.substring(0, lastSpace) : truncated) + '...';
+};
+
+// Server-side data fetching for SEO
+export async function getServerSideProps(context) {
+  const { id } = context.params;
+  
+  if (!id) {
+    return { props: { initialProduct: null, initialError: 'Product ID not found', initialReviews: [], initialReviewSummary: null } };
+  }
+
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.brakebee.com';
+    
+    // Fetch product and reviews in parallel
+    const [productResponse, reviewsResponse, reviewSummaryResponse] = await Promise.all([
+      fetch(
+        `${apiUrl}/api/curated/art/products/${id}?include=images,shipping,vendor,inventory,categories`,
+        {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        }
+      ),
+      fetch(
+        `${apiUrl}/api/reviews?type=product&id=${id}&sort=recent&limit=10`,
+        {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        }
+      ).catch(() => null),
+      fetch(
+        `${apiUrl}/api/reviews/summary?type=product&id=${id}`,
+        {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        }
+      ).catch(() => null)
+    ]);
+
+    // Parse reviews (don't let review fetch failures break product page)
+    let initialReviews = [];
+    let initialReviewSummary = null;
+    
+    if (reviewsResponse?.ok) {
+      try {
+        const reviewsData = await reviewsResponse.json();
+        initialReviews = Array.isArray(reviewsData) ? reviewsData : [];
+      } catch (e) { /* ignore */ }
+    }
+    
+    if (reviewSummaryResponse?.ok) {
+      try {
+        initialReviewSummary = await reviewSummaryResponse.json();
+      } catch (e) { /* ignore */ }
+    }
+
+    if (!productResponse.ok) {
+      // Try crafts endpoint as fallback
+      const craftsResponse = await fetch(
+        `${apiUrl}/api/curated/crafts/products/${id}?include=images,shipping,vendor,inventory,categories`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      if (!craftsResponse.ok) {
+        return { props: { initialProduct: null, initialError: 'Product not found', initialReviews: [], initialReviewSummary: null } };
+      }
+      
+      const craftsData = await craftsResponse.json();
+      return { props: { initialProduct: craftsData, initialError: null, initialReviews, initialReviewSummary } };
+    }
+
+    const data = await productResponse.json();
+    return { props: { initialProduct: data, initialError: null, initialReviews, initialReviewSummary } };
+  } catch (error) {
+    console.error('SSR fetch error:', error);
+    return { props: { initialProduct: null, initialError: null, initialReviews: [], initialReviewSummary: null } };
+  }
 }

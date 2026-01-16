@@ -1,6 +1,7 @@
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
+import Link from 'next/link';
 import Breadcrumb from '../../components/Breadcrumb';
 import WholesalePricing from '../../components/WholesalePricing';
 import { isWholesaleCustomer } from '../../lib/userUtils';
@@ -15,6 +16,7 @@ export default function CategoryLandingPage() {
   const [categorySEO, setCategorySEO] = useState(null);
   const [childCategories, setChildCategories] = useState([]);
   const [products, setProducts] = useState([]);
+  const [featuredArtists, setFeaturedArtists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userData, setUserData] = useState(null);
@@ -54,6 +56,11 @@ export default function CategoryLandingPage() {
         
         setProducts(prodData.products || []);
         setLoading(false);
+        
+        // Fetch featured artists if set
+        if (contentData.content?.featured_artists) {
+          fetchFeaturedArtists(contentData.content.featured_artists);
+        }
       })
       .catch(err => {
         console.error('Error loading category data:', err);
@@ -62,9 +69,74 @@ export default function CategoryLandingPage() {
       });
   }, [id]);
 
-  if (loading) return <div style={{ padding: '2rem' }}>Loading...</div>;
-  if (error) return <div style={{ padding: '2rem', color: 'red' }}>{error}</div>;
-  if (!category) return <div style={{ padding: '2rem' }}>Category not found.</div>;
+  // Fetch featured artist profiles
+  const fetchFeaturedArtists = async (featuredArtistsData) => {
+    try {
+      // Parse the featured_artists data - could be JSON array or comma-separated string
+      let artistIds = [];
+      
+      if (typeof featuredArtistsData === 'string') {
+        // Try parsing as JSON first
+        try {
+          const parsed = JSON.parse(featuredArtistsData);
+          artistIds = Array.isArray(parsed) ? parsed : [parsed];
+        } catch {
+          // If not JSON, try comma-separated
+          artistIds = featuredArtistsData.split(',').map(id => id.trim()).filter(id => id);
+        }
+      } else if (Array.isArray(featuredArtistsData)) {
+        artistIds = featuredArtistsData;
+      }
+      
+      if (artistIds.length === 0) return;
+      
+      // Fetch each artist's profile
+      const artistPromises = artistIds.map(async (artistId) => {
+        try {
+          const response = await fetch(getApiUrl(`users/profile/by-id/${artistId}`));
+          if (response.ok) {
+            return await response.json();
+          }
+          return null;
+        } catch {
+          return null;
+        }
+      });
+      
+      const artists = await Promise.all(artistPromises);
+      setFeaturedArtists(artists.filter(a => a !== null));
+    } catch (err) {
+      console.error('Error fetching featured artists:', err);
+    }
+  };
+
+  if (loading) return (
+    <>
+      <Head>
+        <title>Loading Category | Brakebee</title>
+        {id && <link rel="canonical" href={getFrontendUrl(`/category/${id}`)} />}
+      </Head>
+      <div style={{ padding: '2rem' }}>Loading...</div>
+    </>
+  );
+  if (error) return (
+    <>
+      <Head>
+        <title>Category Error | Brakebee</title>
+        {id && <link rel="canonical" href={getFrontendUrl(`/category/${id}`)} />}
+      </Head>
+      <div style={{ padding: '2rem', color: 'red' }}>{error}</div>
+    </>
+  );
+  if (!category) return (
+    <>
+      <Head>
+        <title>Category Not Found | Brakebee</title>
+        {id && <link rel="canonical" href={getFrontendUrl(`/category/${id}`)} />}
+      </Head>
+      <div style={{ padding: '2rem' }}>Category not found.</div>
+    </>
+  );
 
   // Helper function to get full image URL (handles both static media and external URLs)
   const getImageUrl = (imagePath) => {
@@ -86,9 +158,9 @@ export default function CategoryLandingPage() {
   };
 
   // SEO meta tags
-  const metaTitle = categorySEO?.meta_title || `${category.name} - Online Art Festival`;
-  const metaDescription = categorySEO?.meta_description || categoryContent?.description || category.description || `Explore ${category.name} artwork and products on Online Art Festival`;
-  const metaKeywords = categorySEO?.meta_keywords || `${category.name}, art, artwork, online art festival`;
+  const metaTitle = categorySEO?.meta_title || `${category.name} | Shop Art on Brakebee`;
+  const metaDescription = categorySEO?.meta_description || categoryContent?.description || category.description || `Discover unique ${category.name} artwork from independent artists on Brakebee. Shop original art, connect with creators.`;
+  const metaKeywords = categorySEO?.meta_keywords || `${category.name}, art, artwork, brakebee, independent artists, original art`;
   const canonicalUrl = categorySEO?.canonical_url || getFrontendUrl(`/category/${id}`);
 
   return (
@@ -258,22 +330,8 @@ export default function CategoryLandingPage() {
             backgroundPosition: 'center',
             height: '300px',
             borderRadius: '12px',
-            marginBottom: '2rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            position: 'relative'
-          }}>
-            <div style={{
-              background: 'rgba(0,0,0,0.4)',
-              color: 'white',
-              padding: '2rem',
-              borderRadius: '8px',
-              textAlign: 'center'
-            }}>
-              <p style={{ fontSize: '1.2rem', margin: 0, maxWidth: '600px' }}>Featured Category Image</p>
-            </div>
-          </div>
+            marginBottom: '2rem'
+          }} />
         )}
 
 
@@ -285,114 +343,156 @@ export default function CategoryLandingPage() {
             backgroundPosition: 'center',
             height: '150px',
             borderRadius: '8px',
-            marginBottom: '2rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <div style={{
-              background: 'rgba(0,0,0,0.6)',
-              color: 'white',
-              padding: '1rem 2rem',
-              borderRadius: '6px',
-              fontSize: '1.1rem',
-              fontWeight: '500'
-            }}>
-              Discover Amazing {category.name} Artwork
-            </div>
-          </div>
-        )}
-
-        {/* Featured Products Section */}
-        {categoryContent?.featured_products && (
-          <div style={{ marginBottom: '2rem' }}>
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem', color: '#333' }}>Featured Products</h2>
-            <div style={{ marginBottom: '1rem', padding: '1rem', background: '#fff3cd', borderRadius: '8px', border: '1px solid #ffeaa7' }}>
-              <p style={{ color: '#856404', marginBottom: '0.5rem' }}>
-                <strong>Featured Products Data:</strong> {categoryContent.featured_products}
-              </p>
-              <p style={{ color: '#6c757d', fontSize: '0.9rem' }}>
-                (This will be parsed and displayed as actual product cards)
-              </p>
-            </div>
-          </div>
+            marginBottom: '2rem'
+          }} />
         )}
 
         {/* Featured Artists Section */}
-        {categoryContent?.featured_artists && (
-          <div style={{ marginBottom: '2rem' }}>
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem', color: '#333' }}>Featured Artists</h2>
-            <div style={{ marginBottom: '1rem', padding: '1rem', background: '#f8f9fa', borderRadius: '8px' }}>
-              <p style={{ color: '#666', marginBottom: '0.5rem' }}>
-                <strong>Featured Artists Data:</strong> {categoryContent.featured_artists}
-              </p>
-              <p style={{ color: '#888', fontSize: '0.9rem' }}>
-                (This will be parsed and displayed as actual artist profiles)
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* SEO Information Section */}
-        {categorySEO && (
-          <div style={{ marginBottom: '2rem', padding: '1.5rem', background: '#f0f8ff', borderRadius: '8px', border: '1px solid #e0e8f0' }}>
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem', color: '#0066cc' }}>SEO Information</h2>
-            
-            {categorySEO.meta_title && (
-              <div style={{ marginBottom: '1rem' }}>
-                <strong>Meta Title:</strong> {categorySEO.meta_title}
-              </div>
-            )}
-            
-            {categorySEO.meta_description && (
-              <div style={{ marginBottom: '1rem' }}>
-                <strong>Meta Description:</strong> {categorySEO.meta_description}
-              </div>
-            )}
-            
-            {categorySEO.meta_keywords && (
-              <div style={{ marginBottom: '1rem' }}>
-                <strong>Meta Keywords:</strong> {categorySEO.meta_keywords}
-              </div>
-            )}
-            
-            {categorySEO.canonical_url && (
-              <div style={{ marginBottom: '1rem' }}>
-                <strong>Canonical URL:</strong> 
-                <a href={categorySEO.canonical_url} style={{ color: '#0066cc', marginLeft: '0.5rem' }}>
-                  {categorySEO.canonical_url}
-                </a>
-              </div>
-            )}
-            
-            {categorySEO.json_ld && (
-              <div style={{ marginBottom: '1rem' }}>
-                <strong>Structured Data:</strong> JSON-LD present
-                <details style={{ marginTop: '0.5rem' }}>
-                  <summary style={{ cursor: 'pointer', color: '#0066cc' }}>View JSON-LD</summary>
-                  <pre style={{ background: 'white', padding: '1rem', borderRadius: '4px', fontSize: '0.8rem', overflow: 'auto', marginTop: '0.5rem' }}>
-                    {categorySEO.json_ld}
-                  </pre>
-                </details>
-              </div>
-            )}
-            
-            <div style={{ fontSize: '0.9rem', color: '#666', marginTop: '1rem' }}>
-              {categorySEO.created_at && (
-                <span style={{ marginRight: '1rem' }}>
-                  <strong>SEO Created:</strong> {new Date(categorySEO.created_at).toLocaleDateString()}
-                </span>
-              )}
-              {categorySEO.updated_at && (
-                <span style={{ marginRight: '1rem' }}>
-                  <strong>SEO Updated:</strong> {new Date(categorySEO.updated_at).toLocaleDateString()}
-                </span>
-              )}
-              {categorySEO.updated_by && (
-                <span>
-                  <strong>Updated By User ID:</strong> {categorySEO.updated_by}
-                </span>
-              )}
+        {featuredArtists.length > 0 && (
+          <div style={{ marginBottom: '2.5rem' }}>
+            <h2 style={{ 
+              fontSize: '1.3rem', 
+              margin: '0 0 1.25rem 0',
+              color: '#333',
+              fontWeight: '600'
+            }}>
+              Featured Artists in {category.name}
+            </h2>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
+              gap: '1.25rem' 
+            }}>
+              {featuredArtists.map(artist => {
+                const displayName = artist.business_name || artist.display_name || 
+                  (artist.first_name && artist.last_name ? `${artist.first_name} ${artist.last_name}` : artist.username) || 'Artist';
+                const location = artist.studio_city && artist.studio_state 
+                  ? `${artist.studio_city}, ${artist.studio_state}` 
+                  : artist.studio_city || artist.studio_state || null;
+                const profileImage = artist.profile_picture_url || artist.profile_image_path;
+                const imageUrl = profileImage 
+                  ? (profileImage.startsWith('http') ? profileImage : getSmartMediaUrl(profileImage))
+                  : null;
+                
+                return (
+                  <Link 
+                    href={`/profile/${artist.id || artist.user_id}`} 
+                    key={artist.id || artist.user_id}
+                    style={{
+                      display: 'flex',
+                      background: 'white',
+                      border: '2px solid var(--primary-color)',
+                      borderRadius: '0',
+                      overflow: 'hidden',
+                      textDecoration: 'none',
+                      color: 'inherit',
+                      transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                      height: '140px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-3px)';
+                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.12)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    {/* Artist Image */}
+                    <div style={{
+                      width: '120px',
+                      minWidth: '120px',
+                      height: '100%',
+                      backgroundColor: '#f5f5f5',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden'
+                    }}>
+                      {imageUrl ? (
+                        <img 
+                          src={imageUrl} 
+                          alt={displayName}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover'
+                          }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: '100%',
+                          height: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: '#f0f0f0',
+                          color: '#999'
+                        }}>
+                          <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z"/>
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Artist Info */}
+                    <div style={{
+                      flex: 1,
+                      padding: '1rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      overflow: 'hidden'
+                    }}>
+                      <div>
+                        <h3 style={{
+                          fontSize: '1rem',
+                          fontWeight: '600',
+                          color: 'var(--primary-color)',
+                          margin: '0 0 0.25rem 0',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}>
+                          {displayName}
+                        </h3>
+                        {location && (
+                          <p style={{
+                            fontSize: '0.8rem',
+                            color: '#055474',
+                            margin: '0 0 0.5rem 0',
+                            fontWeight: '500'
+                          }}>
+                            {location}
+                          </p>
+                        )}
+                        {artist.artist_biography && (
+                          <p style={{
+                            fontSize: '0.75rem',
+                            color: '#666',
+                            margin: 0,
+                            lineHeight: '1.4',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden'
+                          }}>
+                            {artist.artist_biography}
+                          </p>
+                        )}
+                      </div>
+                      <span style={{
+                        fontSize: '0.8rem',
+                        color: 'var(--primary-color)',
+                        fontWeight: '500'
+                      }}>
+                        View Profile →
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         )}
@@ -472,89 +572,6 @@ export default function CategoryLandingPage() {
           )}
         </div>
 
-        {/* Category Data Summary */}
-        <div style={{ marginTop: '3rem', padding: '2rem', background: '#f8f9fa', borderRadius: '8px', border: '1px solid #dee2e6' }}>
-          <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', color: '#495057' }}>Category Data Summary</h2>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-            {/* Basic Category Info */}
-            <div style={{ background: 'white', padding: '1rem', borderRadius: '6px' }}>
-              <h3 style={{ color: '#007bff', marginBottom: '1rem' }}>Basic Information</h3>
-              <div style={{ fontSize: '0.9rem', lineHeight: '1.6' }}>
-                <div><strong>ID:</strong> {category?.id}</div>
-                <div><strong>Name:</strong> {category?.name}</div>
-                <div><strong>Parent ID:</strong> {category?.parent_id || 'None (Root Category)'}</div>
-                <div><strong>Description:</strong> {category?.description || 'No description'}</div>
-              </div>
-            </div>
-
-            {/* Content Info */}
-            <div style={{ background: 'white', padding: '1rem', borderRadius: '6px' }}>
-              <h3 style={{ color: '#28a745', marginBottom: '1rem' }}>Content Data</h3>
-              <div style={{ fontSize: '0.9rem', lineHeight: '1.6' }}>
-                <div><strong>Content ID:</strong> {categoryContent?.id || 'No content record'}</div>
-                <div><strong>Hero Image:</strong> {categoryContent?.hero_image || 'None'}</div>
-                <div><strong>Banner:</strong> {categoryContent?.banner || 'None'}</div>
-                <div><strong>Featured Products:</strong> {categoryContent?.featured_products || 'None'}</div>
-                <div><strong>Featured Artists:</strong> {categoryContent?.featured_artists || 'None'}</div>
-                <div><strong>Content Description:</strong> {categoryContent?.description || 'None'}</div>
-              </div>
-            </div>
-
-            {/* SEO Info */}
-            <div style={{ background: 'white', padding: '1rem', borderRadius: '6px' }}>
-              <h3 style={{ color: '#ffc107', marginBottom: '1rem' }}>SEO Data</h3>
-              <div style={{ fontSize: '0.9rem', lineHeight: '1.6' }}>
-                <div><strong>SEO ID:</strong> {categorySEO?.id || 'No SEO record'}</div>
-                <div><strong>Meta Title:</strong> {categorySEO?.meta_title || 'None'}</div>
-                <div><strong>Meta Description:</strong> {categorySEO?.meta_description ? 'Present' : 'None'}</div>
-                <div><strong>Meta Keywords:</strong> {categorySEO?.meta_keywords || 'None'}</div>
-                <div><strong>Canonical URL:</strong> {categorySEO?.canonical_url || 'None'}</div>
-                <div><strong>JSON-LD:</strong> {categorySEO?.json_ld ? 'Present' : 'None'}</div>
-              </div>
-            </div>
-
-            {/* Products Info */}
-            <div style={{ background: 'white', padding: '1rem', borderRadius: '6px' }}>
-              <h3 style={{ color: '#dc3545', marginBottom: '1rem' }}>Products Data</h3>
-              <div style={{ fontSize: '0.9rem', lineHeight: '1.6' }}>
-                <div><strong>Total Products:</strong> {products?.length || 0}</div>
-                <div><strong>Products Loaded:</strong> {products?.length > 0 ? 'Yes' : 'No'}</div>
-                {products?.length > 0 && (
-                  <>
-                    <div><strong>First Product:</strong> {products[0]?.name || 'Unnamed'}</div>
-                    <div><strong>Price Range:</strong> {products[0]?.price ? `$${products[0].price}` : 'No price'}</div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Timestamps */}
-          <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'white', borderRadius: '6px' }}>
-            <h3 style={{ color: '#6c757d', marginBottom: '1rem' }}>Timestamps & Updates</h3>
-            <div style={{ fontSize: '0.9rem', color: '#6c757d', display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
-              {categoryContent?.created_at && (
-                <span><strong>Content Created:</strong> {new Date(categoryContent.created_at).toLocaleString()}</span>
-              )}
-              {categoryContent?.updated_at && (
-                <span><strong>Content Updated:</strong> {new Date(categoryContent.updated_at).toLocaleString()}</span>
-              )}
-              {categoryContent?.updated_by && (
-                <span><strong>Updated By User:</strong> {categoryContent.updated_by}</span>
-              )}
-              {categorySEO?.created_at && (
-                <span><strong>SEO Created:</strong> {new Date(categorySEO.created_at).toLocaleString()}</span>
-              )}
-              {categorySEO?.updated_at && (
-                <span><strong>SEO Updated:</strong> {new Date(categorySEO.updated_at).toLocaleString()}</span>
-              )}
-              {categorySEO?.updated_by && (
-                <span><strong>SEO Updated By:</strong> {categorySEO.updated_by}</span>
-              )}
-            </div>
-          </div>
-        </div>
       </div>
 
     </>

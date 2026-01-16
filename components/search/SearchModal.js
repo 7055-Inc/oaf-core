@@ -334,6 +334,7 @@ export default function SearchModal({
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder="Search products, artists, articles, events..."
+                aria-label="Search products, artists, articles, and events"
                 autoFocus
                 style={{
                   flex: 1,

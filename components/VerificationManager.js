@@ -41,8 +41,8 @@ export default function VerificationManager() {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      // Fetch verification status and pending applications
-      const statusResponse = await fetch('api/verification/status', {
+      // Fetch verification status from subscriptions endpoint
+      const statusResponse = await fetch(getApiUrl('api/subscriptions/verified/my'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -51,13 +51,13 @@ export default function VerificationManager() {
 
       if (statusResponse.ok) {
         const statusData = await statusResponse.json();
-        setVerificationStatus(statusData.verification_status);
-        setPendingApplications(statusData.pending_applications);
-        setCanApply(statusData.can_apply);
+        setVerificationStatus(statusData.verification_status || null);
+        setPendingApplications(statusData.pending_applications || []);
+        setCanApply(statusData.can_apply !== false);
       }
 
-      // Fetch all applications history
-      const appsResponse = await fetch('api/verification/applications', {
+      // Fetch all applications history from marketplace applications
+      const appsResponse = await fetch(getApiUrl('api/subscriptions/verified/marketplace-applications'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -112,7 +112,7 @@ export default function VerificationManager() {
       const token = localStorage.getItem('token');
       
       // Create the application
-      const response = await fetch('api/verification/applications', {
+      const response = await fetch(getApiUrl('api/subscriptions/verified/marketplace-applications/submit'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -129,7 +129,7 @@ export default function VerificationManager() {
       const result = await response.json();
 
       // Submit the application immediately (simplified for demo - in production, would handle payment first)
-      const submitResponse = await fetch(`api/verification/applications/${result.id}/submit`, {
+      const submitResponse = await fetch(getApiUrl(`api/subscriptions/verified/marketplace-applications/${result.id}/submit`), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

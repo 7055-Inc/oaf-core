@@ -22,6 +22,55 @@
   font-size: 1.5rem;
 }
 
+.header p {
+  margin: 0.25rem 0 0 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+/* Search Bar */
+.searchBar {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 0.75rem 2.5rem 0.75rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--primary-color, #055474);
+  box-shadow: 0 0 0 2px rgba(5, 84, 116, 0.15);
+}
+
+.clearSearch {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 1rem;
+}
+
+.clearSearch:hover {
+  color: #333;
+}
+
+.resultsInfo {
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 1rem;
+}
+
 .quickAdjustButton {
   background-color: #007bff;
   color: white;
@@ -335,4 +384,70 @@
   .statusValue {
     font-size: 1.2rem;
   }
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e9ecef;
+}
+
+.pageButton {
+  background: var(--background-color, #f8f9fa);
+  color: var(--text-color, #333);
+  border: 1px solid var(--border-color, #ddd);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.pageButton:hover:not(:disabled) {
+  background: var(--primary-color, #055474);
+  color: white;
+  border-color: var(--primary-color, #055474);
+}
+
+.pageButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pageNumbers {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.pageNumber {
+  background: transparent;
+  color: var(--text-color, #333);
+  border: 1px solid transparent;
+  padding: 0.4rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.pageNumber:hover {
+  background: #f0f0f0;
+}
+
+.pageNumber.activePage {
+  background: var(--primary-color, #055474);
+  color: white;
+  border-color: var(--primary-color, #055474);
+  font-weight: 600;
+}
+
+.ellipsis {
+  padding: 0.4rem 0.5rem;
+  color: #666;
 } 

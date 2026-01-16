@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { ProductFormProvider, useProductForm } from './ProductFormContext';
-import AccordionSection from './AccordionSection';
+import AccordionSection from '../../../shared/AccordionSection';
 import ProductStatusHeader from './ProductStatusHeader';
 
 // Section components
@@ -47,12 +47,12 @@ function ProductFormContent() {
     loadUserAddons();
   }, [loadCategories, loadUserAddons]);
 
-  // Define sections
+  // Define sections (icons use Font Awesome classes)
   const sections = [
     {
       id: 'productType',
       title: 'Product Type',
-      icon: '📦',
+      icon: 'fa-cube',
       component: ProductTypeSection,
       getSummary: () => getProductTypeSummary(formData),
       show: true,
@@ -63,7 +63,7 @@ function ProductFormContent() {
     {
       id: 'basicInfo',
       title: 'Basic Information',
-      icon: '📝',
+      icon: 'fa-edit',
       component: BasicInfoSection,
       getSummary: () => getBasicInfoSummary(formData),
       show: true,
@@ -74,7 +74,7 @@ function ProductFormContent() {
     {
       id: 'description',
       title: 'Description',
-      icon: '📄',
+      icon: 'fa-file-alt',
       component: DescriptionSection,
       getSummary: () => getDescriptionSummary(formData),
       show: true,
@@ -84,7 +84,7 @@ function ProductFormContent() {
     {
       id: 'images',
       title: 'Images',
-      icon: '📷',
+      icon: 'fa-camera',
       component: ImagesSection,
       getSummary: () => getImagesSummary(formData),
       show: true,
@@ -94,7 +94,7 @@ function ProductFormContent() {
     {
       id: 'inventory',
       title: 'Inventory',
-      icon: '📊',
+      icon: 'fa-boxes',
       component: InventorySection,
       getSummary: () => getInventorySummary(inventoryData, mode),
       show: true,
@@ -104,7 +104,7 @@ function ProductFormContent() {
     {
       id: 'shipping',
       title: 'Shipping',
-      icon: '🚚',
+      icon: 'fa-truck',
       component: ShippingSection,
       getSummary: () => getShippingSummary(formData),
       show: true,
@@ -114,7 +114,7 @@ function ProductFormContent() {
     {
       id: 'searchControl',
       title: 'Search & Feeds',
-      icon: '🔍',
+      icon: 'fa-search',
       component: SearchControlSection,
       getSummary: () => getSearchControlSummary(formData),
       show: true,
@@ -124,7 +124,7 @@ function ProductFormContent() {
     {
       id: 'wholesale',
       title: 'Wholesale',
-      icon: '🏭',
+      icon: 'fa-industry',
       component: WholesaleSection,
       getSummary: () => getWholesaleSummary(formData),
       show: hasAddon('wholesale-addon'),
@@ -134,7 +134,7 @@ function ProductFormContent() {
     {
       id: 'variations',
       title: 'Variations',
-      icon: '🎨',
+      icon: 'fa-palette',
       component: VariationsSection,
       getSummary: () => getVariationsSummary(variations),
       show: formData.product_type === 'variable',
@@ -145,7 +145,7 @@ function ProductFormContent() {
     {
       id: 'walmart',
       title: 'Walmart Marketplace',
-      icon: '🏪',
+      icon: 'fa-store',
       component: WalmartSection,
       getSummary: () => 'Configure Walmart listing',
       show: hasAddon('walmart-connector'),
@@ -155,7 +155,7 @@ function ProductFormContent() {
     {
       id: 'tiktok',
       title: 'TikTok Shop',
-      icon: '🎵',
+      icon: 'fa-music',
       component: TikTokSection,
       getSummary: () => 'Configure TikTok listing',
       show: hasAddon('tiktok-connector'),
@@ -197,34 +197,13 @@ function ProductFormContent() {
 
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-      {/* Header */}
-      <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ margin: '0 0 8px 0', fontSize: '24px' }}>
-          {mode === 'create' ? '✨ Create New Product' : '✏️ Edit Product'}
-        </h2>
-        <p style={{ color: '#666', margin: 0 }}>
-          {mode === 'create' 
-            ? 'Fill in each section and click Continue to save your progress.'
-            : 'Click any section to edit. Changes are saved when you continue.'}
-        </p>
-      </div>
-
       {/* Status Header - shows product status info after first save */}
       <ProductStatusHeader />
 
       {/* Error display */}
       {error && (
-        <div style={{
-          padding: '16px',
-          background: '#f8d7da',
-          color: '#721c24',
-          borderRadius: '8px',
-          marginBottom: '20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px'
-        }}>
-          <span>⚠️</span>
+        <div className="error-alert" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <i className="fas fa-exclamation-triangle"></i>
           <span>{error}</span>
         </div>
       )}
@@ -256,32 +235,15 @@ function ProductFormContent() {
 
       {/* Publish / Update Button */}
       {(isReadyToPublish() || mode === 'edit') && (
-        <div style={{
-          marginTop: '32px',
-          padding: '24px',
-          background: 'linear-gradient(135deg, #055474 0%, #0a7ba8 100%)',
-          borderRadius: '12px',
-          textAlign: 'center'
-        }}>
+        <div className="publish-section">
           <button
             onClick={handlePublish}
             disabled={saving}
-            style={{
-              padding: '16px 48px',
-              fontSize: '18px',
-              fontWeight: 'bold',
-              background: 'white',
-              color: 'var(--primary-color, #055474)',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: saving ? 'not-allowed' : 'pointer',
-              opacity: saving ? 0.7 : 1,
-              transition: 'all 0.2s ease'
-            }}
+            className="publish-button"
           >
-            {saving ? '⏳ Saving...' : (mode === 'create' ? '🚀 Publish Product' : '💾 Update Product')}
+            {saving ? 'Saving...' : (mode === 'create' ? 'Publish Product' : 'Update Product')}
           </button>
-          <p style={{ color: 'rgba(255,255,255,0.8)', marginTop: '12px', fontSize: '13px' }}>
+          <p className="publish-hint">
             {mode === 'create' 
               ? 'Your product will go live immediately after publishing'
               : 'Changes will be applied immediately'}
@@ -291,14 +253,7 @@ function ProductFormContent() {
 
       {/* Draft status indicator */}
       {mode === 'create' && formData.status === 'draft' && (
-        <div style={{
-          marginTop: '16px',
-          textAlign: 'center',
-          color: '#666',
-          fontSize: '13px'
-        }}>
-          💾 Your progress is automatically saved as a draft
-        </div>
+        <p className="draft-hint">Your progress is automatically saved as a draft</p>
       )}
     </div>
   );
@@ -321,7 +276,6 @@ export default function ProductForm({ userData, productId = null, initialData = 
 export { 
   ProductFormProvider, 
   useProductForm,
-  AccordionSection,
   ProductTypeSection,
   BasicInfoSection,
   DescriptionSection,
@@ -330,4 +284,7 @@ export {
   ShippingSection,
   VariationsSection
 };
+
+// Re-export AccordionSection from shared for backwards compatibility
+export { default as AccordionSection } from '../../../shared/AccordionSection';
 

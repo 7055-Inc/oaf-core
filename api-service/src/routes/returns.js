@@ -8,6 +8,18 @@ const path = require('path');
 const fs = require('fs').promises;
 
 /**
+ * Return policy constants (must match frontend lib/returnPolicies.js)
+ */
+const RETURN_POLICIES = {
+  '30_day': { allowsReturn: true, windowDays: 30 },
+  '14_day': { allowsReturn: true, windowDays: 14 },
+  'exchange_only': { allowsReturn: false, windowDays: null },
+  'no_returns': { allowsReturn: false, windowDays: null }
+};
+
+const getReturnPolicy = (key) => RETURN_POLICIES[key] || RETURN_POLICIES['30_day'];
+
+/**
  * @fileoverview Return management routes
  * 
  * Handles comprehensive return processing including:
@@ -74,7 +86,7 @@ router.post('/create', verifyToken, async (req, res) => {
 
     // Verify the order item belongs to the user
     const [orderCheck] = await db.query(`
-      SELECT oi.*, o.user_id, o.status as order_status, p.allow_returns
+      SELECT oi.*, o.user_id, o.status as order_status, o.shipped_at, p.allow_returns
       FROM order_items oi
       JOIN orders o ON oi.order_id = o.id
       JOIN products p ON oi.product_id = p.id
@@ -87,14 +99,41 @@ router.post('/create', verifyToken, async (req, res) => {
 
     const orderItem = orderCheck[0];
 
-    // Check if returns are allowed for this product
-    if (orderItem.allow_returns === false || orderItem.allow_returns === 0) {
-      return res.status(400).json({ error: 'Returns are not allowed for this product' });
-    }
-
     // Check if order is in a returnable state (shipped)
     if (orderItem.order_status !== 'shipped') {
       return res.status(400).json({ error: 'Returns can only be requested for shipped orders' });
+    }
+
+    // Get the product's return policy
+    const policy = getReturnPolicy(orderItem.allow_returns);
+    
+    // Damage/defect claims (Flow A and B) are always allowed regardless of policy
+    // Flow A: wrong_item, damaged_transit (our error - prepaid label)
+    // Flow B: defective, not_as_described (customer choice)
+    const isDamageOrDefect = ['wrong_item', 'damaged_transit', 'defective', 'not_as_described'].includes(return_reason);
+    
+    if (!isDamageOrDefect) {
+      // Standard return (Flow C: changed_mind, other) - enforce policy restrictions
+      
+      // Check if policy allows standard returns
+      if (!policy.allowsReturn) {
+        return res.status(400).json({ 
+          error: 'Standard returns are not allowed for this product. If your item arrived damaged or defective, please select the appropriate reason.' 
+        });
+      }
+      
+      // Check if within return window
+      if (policy.windowDays && orderItem.shipped_at) {
+        const shipDate = new Date(orderItem.shipped_at);
+        const now = new Date();
+        const daysDiff = (now - shipDate) / (1000 * 60 * 60 * 24);
+        
+        if (daysDiff > policy.windowDays) {
+          return res.status(400).json({ 
+            error: `Return window has expired. This product's return policy allows returns within ${policy.windowDays} days of delivery.` 
+          });
+        }
+      }
     }
 
     // Check if return already exists for this item

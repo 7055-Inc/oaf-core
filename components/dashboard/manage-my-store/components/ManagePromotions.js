@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { authenticatedApiRequest } from '../../../../lib/csrf';
 import { authApiRequest } from '../../../../lib/apiUtils';
 
 export default function ManagePromotions({ userData }) {
@@ -50,7 +49,7 @@ export default function ManagePromotions({ userData }) {
 
   const fetchPromotionInvitations = async () => {
     try {
-      const response = await authenticatedApiRequest('vendor/promotions/invitations', {
+      const response = await authApiRequest('vendor/promotions/invitations', {
         method: 'GET'
       });
 
@@ -115,7 +114,7 @@ export default function ManagePromotions({ userData }) {
         couponData.total_usage_limit = parseInt(couponForm.total_usage_limit);
       }
 
-      const response = await authenticatedApiRequest('vendor/coupons/create', {
+      const response = await authApiRequest('vendor/coupons/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -143,7 +142,7 @@ export default function ManagePromotions({ userData }) {
     if (!confirm('Are you sure you want to delete this coupon?')) return;
 
     try {
-      const response = await authenticatedApiRequest(`vendor/coupons/${couponId}`, {
+      const response = await authApiRequest(`vendor/coupons/${couponId}`, {
         method: 'DELETE'
       });
 
@@ -159,7 +158,7 @@ export default function ManagePromotions({ userData }) {
 
   const handleToggleCoupon = async (couponId, isActive) => {
     try {
-      const response = await authenticatedApiRequest(`vendor/coupons/${couponId}`, {
+      const response = await authApiRequest(`vendor/coupons/${couponId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_active: !isActive })
@@ -179,7 +178,7 @@ export default function ManagePromotions({ userData }) {
 
   const respondToInvitation = async (invitationId, response, vendorDiscount = null) => {
     try {
-      const apiResponse = await authenticatedApiRequest(`vendor/promotions/${invitationId}/respond`, {
+      const apiResponse = await authApiRequest(`vendor/promotions/${invitationId}/respond`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

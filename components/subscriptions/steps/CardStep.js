@@ -27,18 +27,14 @@ export default function CardStep({
     setError('');
     
     try {
-      // Check if user has a valid payment method via subscription status
       const response = await authApiRequest(`api/subscriptions/${subscriptionType}/my`);
       const data = await handleApiResponse(response);
       
-      // Check if user has a card on file
       if (data.subscription?.stripe_customer_id) {
-        // User has a Stripe customer ID, check for payment methods
         const cardResponse = await authApiRequest('api/users/payment-methods');
         const cardData = await handleApiResponse(cardResponse);
         
         if (cardData.success && cardData.paymentMethods && cardData.paymentMethods.length > 0) {
-          // User has valid card on file
           const card = cardData.paymentMethods[0];
           setCardInfo({
             brand: card.brand,
@@ -48,7 +44,6 @@ export default function CardStep({
           });
           setHasCard(true);
           
-          // Auto-skip after brief display
           setTimeout(() => {
             onComplete();
           }, 800);
@@ -58,12 +53,10 @@ export default function CardStep({
         }
       }
       
-      // No card found - need to create setup intent
       await createSetupIntent();
       
     } catch (err) {
       console.error('Error checking payment method:', err);
-      // Even on error, try to create setup intent
       await createSetupIntent();
     }
   };
@@ -73,9 +66,7 @@ export default function CardStep({
       const response = await authApiRequest('api/payment-methods/create-setup-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subscription_type: subscriptionType
-        })
+        body: JSON.stringify({ subscription_type: subscriptionType })
       });
       
       const data = await handleApiResponse(response);
@@ -96,7 +87,6 @@ export default function CardStep({
 
   const handleCardSetupSuccess = async (confirmedSetupIntent) => {
     try {
-      // Confirm with backend that card was saved
       const response = await authApiRequest('api/payment-methods/confirm-setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -109,10 +99,7 @@ export default function CardStep({
       const data = await handleApiResponse(response);
       
       if (data.success) {
-        // Card saved successfully
         setHasCard(true);
-        
-        // Brief success display then move to next step
         setTimeout(() => {
           onComplete();
         }, 1000);
@@ -135,10 +122,9 @@ export default function CardStep({
   // Loading state
   if (loading) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <div style={{ fontSize: '16px', color: '#6c757d' }}>
-          Checking payment methods...
-        </div>
+      <div className="loading-state">
+        <div className="spinner" style={{ width: '24px', height: '24px' }}></div>
+        <span>Checking payment methods...</span>
       </div>
     );
   }
@@ -147,26 +133,15 @@ export default function CardStep({
   if (hasCard && !showCardSetup) {
     return (
       <div style={{ padding: '40px', textAlign: 'center' }}>
-        <div style={{ 
-          background: '#d4edda', 
-          border: '2px solid #28a745',
-          borderRadius: '8px',
-          padding: '30px',
-          maxWidth: '600px',
-          margin: '0 auto'
-        }}>
+        <div className="success-alert" style={{ maxWidth: '600px', margin: '0 auto', padding: '30px' }}>
           <div style={{ fontSize: '48px', marginBottom: '20px' }}>✓</div>
-          <h2 style={{ color: '#155724', marginBottom: '10px' }}>
-            Payment Method on File
-          </h2>
+          <h2 style={{ marginBottom: '10px' }}>Payment Method on File</h2>
           {cardInfo && (
-            <p style={{ color: '#155724', marginBottom: '10px' }}>
+            <p style={{ marginBottom: '10px' }}>
               {cardInfo.brand.charAt(0).toUpperCase() + cardInfo.brand.slice(1)} ending in {cardInfo.last4}
             </p>
           )}
-          <p style={{ color: '#155724', fontSize: '14px' }}>
-            Continuing to next step...
-          </p>
+          <p style={{ fontSize: '14px' }}>Continuing to next step...</p>
         </div>
       </div>
     );
@@ -174,31 +149,23 @@ export default function CardStep({
 
   // Show card setup form
   return (
-    <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto' }}>
+    <div style={{ maxWidth: '600px', margin: '0 auto' }}>
       <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-        <h2 style={{ color: '#2c3e50', marginBottom: '10px' }}>
-          Add Payment Method
-        </h2>
-        <p style={{ color: '#6c757d', fontSize: '16px' }}>
-          Save a card on file for {config.displayName}
+        <h2>Add Payment Method</h2>
+        <p style={{ color: '#6c757d' }}>
+          Save a card on file for {config.displayName || 'your subscription'}
         </p>
       </div>
 
       {/* Info Box */}
-      <div style={{ 
-        backgroundColor: '#f8f9fa', 
-        border: '1px solid #dee2e6', 
-        borderRadius: '8px', 
-        padding: '16px', 
-        marginBottom: '24px',
-        fontSize: '14px',
-        lineHeight: '1.5'
-      }}>
+      <div className="form-card">
         <strong>Why we need a payment method:</strong>
         <p style={{ margin: '8px 0 0 0', color: '#6c757d' }}>
-          {config.billingType === 'pay_as_you_go' 
-            ? 'Your card will be charged only when you create shipping labels. No monthly fees or commitments.'
-            : 'Your card will be charged for your subscription and used for automatic renewals.'
+          {config.paymentReason 
+            ? config.paymentReason
+            : config.billingType === 'pay_as_you_go' 
+              ? 'Your card will be charged only when you create shipping labels. No monthly fees or commitments.'
+              : 'Your card will be charged for your subscription and used for automatic renewals.'
           }
         </p>
         <p style={{ margin: '8px 0 0 0', color: '#6c757d', fontSize: '13px' }}>
@@ -207,28 +174,11 @@ export default function CardStep({
       </div>
 
       {/* Error Message */}
-      {error && (
-        <div style={{ 
-          padding: '12px', 
-          marginBottom: '20px', 
-          backgroundColor: '#f8d7da', 
-          border: '1px solid #f5c6cb', 
-          borderRadius: '4px',
-          color: '#721c24'
-        }}>
-          {error}
-        </div>
-      )}
+      {error && <div className="error-alert">{error}</div>}
 
       {/* Stripe Card Setup Component */}
       {showCardSetup && (
-        <div style={{
-          background: 'white',
-          border: '1px solid #dee2e6',
-          borderRadius: '8px',
-          padding: '24px',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.05)'
-        }}>
+        <div className="form-card">
           <StripeCardSetup
             setupIntent={setupIntent}
             onSuccess={handleCardSetupSuccess}
@@ -241,4 +191,3 @@ export default function CardStep({
     </div>
   );
 }
-

@@ -74,6 +74,18 @@ export default function MyEventsMenu({
             </li>
           )}
           
+          {/* Manage Jury Packets - artists only */}
+          {(userData.user_type === 'artist' || userData.user_type === 'admin') && (
+            <li>
+              <button 
+                className={styles.sidebarLink}
+                onClick={() => openSlideIn('manage-jury-packets', { title: 'Manage Jury Packets' })}
+              >
+                Jury Packets
+              </button>
+            </li>
+          )}
+          
           {/* Events I Own - promoters only */}
           {(userData.user_type === 'promoter' || userData.user_type === 'admin') && (
             <li>

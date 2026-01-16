@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { authenticatedApiRequest } from '../../../../lib/csrf';
 import { authApiRequest } from '../../../../lib/apiUtils';
 import { hasAddon } from '../../../../lib/userUtils';
-import slideInStyles from '../../SlideIn.module.css';
 import CSVUploadModal from '../../../csv/CSVUploadModal';
 
 export default function ManageInventory({ userData }) {
@@ -21,6 +19,7 @@ export default function ManageInventory({ userData }) {
   });
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [adjustingInventory, setAdjustingInventory] = useState(false);
+  const [showAllProducts, setShowAllProducts] = useState(false); // Admin-only: show all platform products
 
   // Check user addons for dynamic columns
   const hasTikTokAddon = hasAddon(userData, 'tiktok-connector');
@@ -38,8 +37,12 @@ export default function ManageInventory({ userData }) {
 
   useEffect(() => {
     fetchUserPermissions();
-    fetchProductsWithInventory();
   }, []);
+
+  // Refetch products when showAllProducts toggle changes
+  useEffect(() => {
+    fetchProductsWithInventory();
+  }, [showAllProducts]);
 
   useEffect(() => {
     // Filter products based on search term
@@ -70,12 +73,18 @@ export default function ManageInventory({ userData }) {
   const fetchProductsWithInventory = async () => {
     try {
       setLoading(true);
-      // Get products (will show only user's products unless admin)
-      const response = await authApiRequest('products/my');
+      setSelectedProducts([]); // Clear selections when refetching
+      
+      // Admin can toggle to see all platform products
+      const endpoint = showAllProducts && isAdmin 
+        ? 'products/all?include=inventory,vendor' 
+        : 'products/my';
+      
+      const response = await authApiRequest(endpoint);
       if (!response.ok) throw new Error('Failed to fetch products');
       
       const responseData = await response.json();
-      const productsData = responseData.products;
+      const productsData = responseData.products || [];
       
       // For each product, get or create inventory record
       const productsWithInventory = await Promise.all(
@@ -145,7 +154,7 @@ export default function ManageInventory({ userData }) {
     }
   };
 
-  const handleSingleInventoryUpdate = async (productId, newQuantity, reason = 'Manual adjustment') => {
+  const handleSingleInventoryUpdate = async (productId, newQuantity, newReorderQty, reason = 'Manual adjustment') => {
     try {
       const response = await authApiRequest(
         `inventory/${productId}`,
@@ -154,6 +163,7 @@ export default function ManageInventory({ userData }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             qty_on_hand: parseInt(newQuantity),
+            reorder_qty: parseInt(newReorderQty),
             change_type: 'manual_adjustment',
             reason: reason
           })
@@ -299,8 +309,29 @@ export default function ManageInventory({ userData }) {
         {error && <div className="error-alert">{error}</div>}
         {success && <div className="success-alert">{success}</div>}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-          <div style={{ flex: 1, minWidth: '300px' }}>
+        {/* Admin-only toggle to show all platform products */}
+        {isAdmin && (
+          <div className={`admin-toggle-banner ${showAllProducts ? 'active' : 'inactive'}`}>
+            <label>
+              <input
+                type="checkbox"
+                checked={showAllProducts}
+                onChange={(e) => setShowAllProducts(e.target.checked)}
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+              />
+              Show All Platform Products
+            </label>
+            <span className="toggle-status">
+              {showAllProducts 
+                ? `👑 Admin View: Showing all ${products.length} products across all vendors`
+                : '🔒 Showing only your products'
+              }
+            </span>
+          </div>
+        )}
+
+        <div className="table-header">
+          <div className="search-box">
             <input
               type="text"
               placeholder="Search products by name, SKU, or vendor..."
@@ -309,26 +340,17 @@ export default function ManageInventory({ userData }) {
             />
           </div>
 
-          <div className={slideInStyles.actions}>
-            <button
-              onClick={() => setShowCSVModal(true)}
-              className="secondary"
-
-            >
+          <div className="actions">
+            <button onClick={() => setShowCSVModal(true)} className="secondary">
               Edit Inventory via CSV
             </button>
             
-            <button
-              onClick={handleSelectAll}
-              className="secondary"
-            >
+            <button onClick={handleSelectAll} className="secondary">
               {selectedProducts.length === filteredProducts.length ? 'Deselect All' : 'Select All'}
             </button>
             
             {selectedProducts.length > 0 && (
-              <button
-                onClick={() => setShowBulkModal(true)}
-              >
+              <button onClick={() => setShowBulkModal(true)}>
                 Bulk Update ({selectedProducts.length})
               </button>
             )}
@@ -336,36 +358,29 @@ export default function ManageInventory({ userData }) {
         </div>
 
         <div className="section-box">
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+          <table className="data-table">
             <thead>
-              <tr style={{ backgroundColor: '#f8f9fa' }}>
-                <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', borderBottom: '2px solid #dee2e6', fontSize: '0.8rem' }}>
+              <tr>
+                <th>
                   <input
                     type="checkbox"
                     checked={selectedProducts.length === filteredProducts.length && filteredProducts.length > 0}
                     onChange={handleSelectAll}
                   />
                 </th>
-                <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', borderBottom: '2px solid #dee2e6', fontSize: '0.8rem' }}>Product</th>
-                <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', borderBottom: '2px solid #dee2e6', fontSize: '0.8rem' }}>SKU</th>
-                <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', borderBottom: '2px solid #dee2e6', fontSize: '0.8rem' }}>On Hand</th>
-                <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', borderBottom: '2px solid #dee2e6', fontSize: '0.8rem' }}>On Order</th>
-                <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', borderBottom: '2px solid #dee2e6', fontSize: '0.8rem' }}>Available</th>
-                {hasAnyMarketplaceAddon && (
-                  <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', borderBottom: '2px solid #dee2e6', fontSize: '0.8rem' }}>Total Allocated</th>
-                )}
-                {hasTikTokAddon && (
-                  <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', borderBottom: '2px solid #dee2e6', fontSize: '0.8rem' }}>TT Allocated</th>
-                )}
-                {hasAmazonAddon && (
-                  <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', borderBottom: '2px solid #dee2e6', fontSize: '0.8rem' }}>AMZ Allocated</th>
-                )}
-                {hasEtsyAddon && (
-                  <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', borderBottom: '2px solid #dee2e6', fontSize: '0.8rem' }}>Etsy Allocated</th>
-                )}
-                <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', borderBottom: '2px solid #dee2e6', fontSize: '0.8rem' }}>Reorder Level</th>
-                <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', borderBottom: '2px solid #dee2e6', fontSize: '0.8rem' }}>Status</th>
-                <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', borderBottom: '2px solid #dee2e6', fontSize: '0.8rem' }}>Actions</th>
+                <th>Product</th>
+                <th>SKU</th>
+                {showAllProducts && isAdmin && <th>Vendor</th>}
+                <th>On Hand</th>
+                <th>On Order</th>
+                <th>Available</th>
+                {hasAnyMarketplaceAddon && <th>Total Allocated</th>}
+                {hasTikTokAddon && <th>TT Allocated</th>}
+                {hasAmazonAddon && <th>AMZ Allocated</th>}
+                {hasEtsyAddon && <th>Etsy Allocated</th>}
+                <th>Reorder Level</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -377,7 +392,7 @@ export default function ManageInventory({ userData }) {
                   onSelect={handleProductSelect}
                   onInventoryUpdate={handleSingleInventoryUpdate}
                   onViewHistory={handleViewHistory}
-                  showVendor={false}
+                  showVendor={showAllProducts && isAdmin}
                   hasAnyMarketplaceAddon={hasAnyMarketplaceAddon}
                   hasTikTokAddon={hasTikTokAddon}
                   hasAmazonAddon={hasAmazonAddon}
@@ -462,47 +477,22 @@ export default function ManageInventory({ userData }) {
 
         {/* CSV Job Status Display */}
         {jobStatus && (
-          <div style={{ 
-            position: 'fixed', 
-            bottom: '20px', 
-            right: '20px', 
-            background: 'white', 
-            padding: '1rem', 
-            borderRadius: '8px', 
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            minWidth: '300px',
-            zIndex: 1100
-          }}>
-            <h4 style={{ margin: '0 0 0.5rem 0' }}>CSV Processing Status</h4>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+          <div className="toast-notification">
+            <h4>CSV Processing Status</h4>
+            <div className="toast-row">
               <span>Status:</span>
-              <span style={{ 
-                fontWeight: 'bold', 
-                color: jobStatus.status === 'completed' ? '#059669' : 
-                      jobStatus.status === 'failed' ? '#dc2626' : '#f59e0b' 
-              }}>
-                {jobStatus.status}
-              </span>
+              <span className={`status-${jobStatus.status}`}>{jobStatus.status}</span>
             </div>
-            <div>
-              <span>Progress: {jobStatus.progress}%</span>
-            </div>
-            <div>
-              <span>Processed: {jobStatus.processedRows} / {jobStatus.totalRows}</span>
-            </div>
+            <div><span>Progress: {jobStatus.progress}%</span></div>
+            <div><span>Processed: {jobStatus.processedRows} / {jobStatus.totalRows}</span></div>
             {jobStatus.failedRows > 0 && (
               <div>
                 <span>Failed: </span>
-                <span style={{ color: '#dc2626' }}>{jobStatus.failedRows}</span>
+                <span className="status-failed">{jobStatus.failedRows}</span>
               </div>
             )}
             {(jobStatus.status === 'completed' || jobStatus.status === 'failed') && (
-              <button
-                onClick={() => setJobStatus(null)}
-                className="secondary"
-              >
-                Dismiss
-              </button>
+              <button onClick={() => setJobStatus(null)} className="secondary">Dismiss</button>
             )}
           </div>
         )}
@@ -513,72 +503,47 @@ export default function ManageInventory({ userData }) {
             <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px' }}>
               <h3 className="modal-title">
                 Inventory History - {selectedProductHistory?.product?.name}
-                <button 
-                  onClick={() => setShowHistoryModal(false)}
-                  style={{ 
-                    float: 'right', 
-                    background: 'none', 
-                    border: 'none', 
-                    fontSize: '1.5rem', 
-                    cursor: 'pointer',
-                    padding: '0',
-                    color: '#999'
-                  }}
-                >
-                  ×
-                </button>
+                <button onClick={() => setShowHistoryModal(false)} className="modal-close">×</button>
               </h3>
               <div>
                 {historyLoading ? (
-                  <div style={{ textAlign: 'center', padding: '2rem' }}>
-                    Loading history...
-                  </div>
+                  <div className="loading-state">Loading history...</div>
                 ) : selectedProductHistory?.error ? (
-                  <div style={{ color: 'red', textAlign: 'center', padding: '2rem' }}>
-                    {selectedProductHistory.error}
-                  </div>
+                  <div className="error-state">{selectedProductHistory.error}</div>
                 ) : selectedProductHistory?.history?.length > 0 ? (
                   <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <table className="data-table">
                       <thead>
-                        <tr style={{ borderBottom: '2px solid #dee2e6' }}>
-                          <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600' }}>Date</th>
-                          <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600' }}>Change Type</th>
-                          <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600' }}>Previous Qty</th>
-                          <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600' }}>New Qty</th>
-                          <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600' }}>Change</th>
-                          <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600' }}>Reason</th>
-                          <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600' }}>User</th>
+                        <tr>
+                          <th>Date</th>
+                          <th>Change Type</th>
+                          <th>Previous Qty</th>
+                          <th>New Qty</th>
+                          <th>Change</th>
+                          <th>Reason</th>
+                          <th>User</th>
                         </tr>
                       </thead>
                       <tbody>
                         {selectedProductHistory.history.map((entry, index) => (
-                          <tr key={index} style={{ borderBottom: '1px solid #dee2e6' }}>
-                            <td style={{ padding: '0.75rem', fontSize: '0.85rem' }}>
-                              {new Date(entry.created_at).toLocaleDateString()} {new Date(entry.created_at).toLocaleTimeString()}
-                            </td>
-                            <td style={{ padding: '0.75rem', fontSize: '0.85rem' }}>
-                              <span style={{ 
-                                padding: '0.25rem 0.5rem', 
-                                borderRadius: '4px', 
+                          <tr key={index}>
+                            <td>{new Date(entry.created_at).toLocaleDateString()} {new Date(entry.created_at).toLocaleTimeString()}</td>
+                            <td>
+                              <span className="status-badge" style={{ 
                                 backgroundColor: entry.change_type === 'initial_stock' ? '#e3f2fd' : 
                                                 entry.change_type === 'adjustment' ? '#fff3e0' : '#f3e5f5',
-                                fontSize: '0.75rem'
+                                color: '#333'
                               }}>
                                 {entry.change_type.replace('_', ' ')}
                               </span>
                             </td>
-                            <td style={{ padding: '0.75rem', fontSize: '0.85rem' }}>{entry.previous_qty}</td>
-                            <td style={{ padding: '0.75rem', fontSize: '0.85rem' }}>{entry.new_qty}</td>
-                            <td style={{ 
-                              padding: '0.75rem', 
-                              fontSize: '0.85rem',
-                              color: entry.quantity_change > 0 ? 'green' : entry.quantity_change < 0 ? 'red' : 'black'
-                            }}>
+                            <td>{entry.previous_qty}</td>
+                            <td>{entry.new_qty}</td>
+                            <td style={{ color: entry.quantity_change > 0 ? 'green' : entry.quantity_change < 0 ? 'red' : 'inherit' }}>
                               {entry.quantity_change > 0 ? '+' : ''}{entry.quantity_change}
                             </td>
-                            <td style={{ padding: '0.75rem', fontSize: '0.85rem' }}>{entry.reason || '-'}</td>
-                            <td style={{ padding: '0.75rem', fontSize: '0.85rem' }}>
+                            <td>{entry.reason || '-'}</td>
+                            <td>
                               {entry.first_name && entry.last_name ? 
                                 `${entry.first_name} ${entry.last_name}` : 
                                 entry.username || 'System'
@@ -590,18 +555,11 @@ export default function ManageInventory({ userData }) {
                     </table>
                   </div>
                 ) : (
-                  <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
-                    No inventory history found for this product.
-                  </div>
+                  <div className="empty-state">No inventory history found for this product.</div>
                 )}
               </div>
               <div className="modal-actions">
-                <button 
-                  onClick={() => setShowHistoryModal(false)}
-                  className="secondary"
-                >
-                  Close
-                </button>
+                <button onClick={() => setShowHistoryModal(false)} className="secondary">Close</button>
               </div>
             </div>
           </div>
@@ -614,16 +572,18 @@ export default function ManageInventory({ userData }) {
 function InventoryRow({ product, isSelected, onSelect, onInventoryUpdate, onViewHistory, showVendor, hasAnyMarketplaceAddon, hasTikTokAddon, hasAmazonAddon, hasEtsyAddon }) {
   const [editing, setEditing] = useState(false);
   const [newQuantity, setNewQuantity] = useState(product.inventory?.qty_on_hand || 0);
+  const [newReorderQty, setNewReorderQty] = useState(product.inventory?.reorder_qty || 0);
   const [adjustmentReason, setAdjustmentReason] = useState('');
 
   const handleSave = async () => {
-    await onInventoryUpdate(product.id, newQuantity, adjustmentReason || 'Manual adjustment');
+    await onInventoryUpdate(product.id, newQuantity, newReorderQty, adjustmentReason || 'Manual adjustment');
     setEditing(false);
     setAdjustmentReason('');
   };
 
   const handleCancel = () => {
     setNewQuantity(product.inventory?.qty_on_hand || 0);
+    setNewReorderQty(product.inventory?.reorder_qty || 0);
     setAdjustmentReason('');
     setEditing(false);
   };
@@ -636,101 +596,93 @@ function InventoryRow({ product, isSelected, onSelect, onInventoryUpdate, onView
     const reorderLevel = product.inventory?.reorder_qty || 0;
     
     if (available <= 0) {
-      return <span className={`${slideInStyles.statusBadge} ${slideInStyles.statusOutOfStock}`}>Out of Stock</span>;
+      return <span className="status-badge out-of-stock">Out of Stock</span>;
     } else if (available <= reorderLevel) {
-      return <span className={`${slideInStyles.statusBadge} ${slideInStyles.statusLowStock}`}>Low Stock</span>;
+      return <span className="status-badge low-stock">Low Stock</span>;
     } else {
-      return <span className={`${slideInStyles.statusBadge} ${slideInStyles.statusInStock}`}>In Stock</span>;
+      return <span className="status-badge in-stock">In Stock</span>;
     }
   };
 
   return (
-    <tr style={{ 
-      backgroundColor: isSelected ? '#e3f2fd' : 'transparent',
-      borderBottom: '1px solid #dee2e6'
-    }}>
-      <td style={{ padding: '0.75rem', verticalAlign: 'middle', fontSize: '0.85rem' }}>
+    <tr className={isSelected ? 'selected' : ''}>
+      <td>
         <input
           type="checkbox"
           checked={isSelected}
           onChange={(e) => onSelect(product.id, e.target.checked)}
         />
       </td>
-      <td style={{ padding: '0.75rem', verticalAlign: 'middle', fontSize: '0.85rem' }}>
+      <td>
         <div>
-          <strong style={{ fontSize: '0.85rem' }}>{product.name}</strong>
+          <strong>{product.name}</strong>
           <br />
-          <small style={{ color: '#666', fontSize: '0.7rem' }}>{product.status}</small>
+          <small style={{ color: '#666' }}>{product.status}</small>
         </div>
       </td>
-      <td style={{ padding: '0.75rem', verticalAlign: 'middle', fontSize: '0.85rem' }}>{product.sku}</td>
-      <td style={{ padding: '0.75rem', verticalAlign: 'middle', fontSize: '0.85rem' }}>
+      <td>{product.sku}</td>
+      {showVendor && (
+        <td>
+          <div>
+            <span>{product.vendor_name || product.vendor?.username || 'Unknown'}</span>
+            {product.vendor_id && (
+              <small style={{ display: 'block', color: '#999' }}>ID: {product.vendor_id}</small>
+            )}
+          </div>
+        </td>
+      )}
+      <td>
         {editing ? (
           <input
             type="number"
             value={newQuantity}
             onChange={(e) => setNewQuantity(e.target.value)}
             min="0"
-            style={{ width: '70px', textAlign: 'center', fontSize: '0.8rem' }}
+            style={{ width: '70px', textAlign: 'center' }}
           />
         ) : (
           product.inventory?.qty_on_hand || 0
         )}
       </td>
-      <td style={{ padding: '0.75rem', verticalAlign: 'middle', fontSize: '0.85rem' }}>{product.inventory?.qty_on_order || 0}</td>
-      <td style={{ padding: '0.75rem', verticalAlign: 'middle', fontSize: '0.85rem' }}>{product.inventory?.qty_available || 0}</td>
-      {hasAnyMarketplaceAddon && (
-        <td style={{ padding: '0.75rem', verticalAlign: 'middle', fontSize: '0.85rem' }}>{product.inventory?.total_allocated || 0}</td>
-      )}
-      {hasTikTokAddon && (
-        <td style={{ padding: '0.75rem', verticalAlign: 'middle', fontSize: '0.85rem' }}>{product.inventory?.tiktok_allocated || 0}</td>
-      )}
-      {hasAmazonAddon && (
-        <td style={{ padding: '0.75rem', verticalAlign: 'middle', fontSize: '0.85rem' }}>{product.inventory?.amazon_allocated || 0}</td>
-      )}
-      {hasEtsyAddon && (
-        <td style={{ padding: '0.75rem', verticalAlign: 'middle', fontSize: '0.85rem' }}>{product.inventory?.etsy_allocated || 0}</td>
-      )}
-      <td style={{ padding: '0.75rem', verticalAlign: 'middle', fontSize: '0.85rem' }}>{product.inventory?.reorder_qty || 0}</td>
-      <td style={{ padding: '0.75rem', verticalAlign: 'middle', fontSize: '0.85rem' }}>{getStatusBadge()}</td>
-      <td style={{ padding: '0.75rem', verticalAlign: 'middle', fontSize: '0.85rem' }}>
+      <td>{product.inventory?.qty_on_order || 0}</td>
+      <td>{product.inventory?.qty_available || 0}</td>
+      {hasAnyMarketplaceAddon && <td>{product.inventory?.total_allocated || 0}</td>}
+      {hasTikTokAddon && <td>{product.inventory?.tiktok_allocated || 0}</td>}
+      {hasAmazonAddon && <td>{product.inventory?.amazon_allocated || 0}</td>}
+      {hasEtsyAddon && <td>{product.inventory?.etsy_allocated || 0}</td>}
+      <td>
         {editing ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '180px' }}>
+          <input
+            type="number"
+            value={newReorderQty}
+            onChange={(e) => setNewReorderQty(e.target.value)}
+            min="0"
+            style={{ width: '70px', textAlign: 'center' }}
+          />
+        ) : (
+          product.inventory?.reorder_qty || 0
+        )}
+      </td>
+      <td>{getStatusBadge()}</td>
+      <td>
+        {editing ? (
+          <div className="cell-actions" style={{ flexDirection: 'column', minWidth: '180px' }}>
             <input
               type="text"
               value={adjustmentReason}
               onChange={(e) => setAdjustmentReason(e.target.value)}
               placeholder="Reason for change"
-              style={{ fontSize: '0.75rem' }}
             />
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button onClick={handleSave} style={{ fontSize: '0.75rem', padding: '0.4rem 0.8rem' }}>Save</button>
-              <button onClick={handleCancel} className="secondary" style={{ fontSize: '0.75rem', padding: '0.4rem 0.8rem' }}>Cancel</button>
+            <div className="cell-actions">
+              <button onClick={handleSave}>Save</button>
+              <button onClick={handleCancel} className="secondary">Cancel</button>
             </div>
           </div>
         ) : (
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button
-              onClick={() => setEditing(true)}
-              className="secondary"
-              style={{ fontSize: '0.75rem', padding: '0.4rem 0.8rem' }}
-            >
-              Edit
-            </button>
-            <button
-              onClick={() => window.open(`/dashboard/products/${product.id}`, '_blank')}
-              className="secondary"
-              style={{ fontSize: '0.75rem', padding: '0.4rem 0.8rem' }}
-            >
-              Edit Product
-            </button>
-            <button
-              onClick={() => onViewHistory(product)}
-              className="secondary"
-              style={{ fontSize: '0.75rem', padding: '0.4rem 0.8rem', marginLeft: '0.5rem' }}
-            >
-              History
-            </button>
+          <div className="cell-actions">
+            <button onClick={() => setEditing(true)} className="secondary">Edit</button>
+            <button onClick={() => window.open(`/dashboard/products/edit/${product.id}`, '_blank')} className="secondary">Edit Product</button>
+            <button onClick={() => onViewHistory(product)} className="secondary">History</button>
           </div>
         )}
       </td>

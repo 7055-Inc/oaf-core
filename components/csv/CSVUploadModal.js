@@ -35,11 +35,12 @@ export default function CSVUploadModal({
     
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const droppedFile = e.dataTransfer.files[0];
-      if (droppedFile.type === 'text/csv' || droppedFile.name.endsWith('.csv')) {
+      const name = droppedFile.name.toLowerCase();
+      if (droppedFile.type === 'text/csv' || name.endsWith('.csv') || name.endsWith('.xlsx') || name.endsWith('.xls')) {
         setFile(droppedFile);
         setError(null);
       } else {
-        setError('Please upload a CSV file only');
+        setError('Please upload a CSV or Excel file');
       }
     }
   };
@@ -47,11 +48,12 @@ export default function CSVUploadModal({
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
-      if (selectedFile.type === 'text/csv' || selectedFile.name.endsWith('.csv')) {
+      const name = selectedFile.name.toLowerCase();
+      if (selectedFile.type === 'text/csv' || name.endsWith('.csv') || name.endsWith('.xlsx') || name.endsWith('.xls')) {
         setFile(selectedFile);
         setError(null);
       } else {
-        setError('Please upload a CSV file only');
+        setError('Please upload a CSV or Excel file');
       }
     }
   };
@@ -102,7 +104,7 @@ export default function CSVUploadModal({
 
   const handleDownloadTemplate = async () => {
     try {
-      const response = await authApiRequest(`csv/template/${jobType}`);
+      const response = await authApiRequest(`csv/template/${jobType}?format=xlsx`);
       
       if (!response.ok) {
         throw new Error('Failed to download template');
@@ -113,7 +115,7 @@ export default function CSVUploadModal({
       const a = document.createElement('a');
       a.style.display = 'none';
       a.href = url;
-      a.download = `${jobType}_template.csv`;
+      a.download = `${jobType}_template.xlsx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -125,7 +127,7 @@ export default function CSVUploadModal({
 
   const handleDownloadCurrent = async () => {
     try {
-      const response = await authApiRequest(`csv/export/${jobType}`);
+      const response = await authApiRequest(`csv/export/${jobType}?format=xlsx`);
       
       if (!response.ok) {
         throw new Error('Failed to download current data');
@@ -136,7 +138,7 @@ export default function CSVUploadModal({
       const a = document.createElement('a');
       a.style.display = 'none';
       a.href = url;
-      a.download = `current_${jobType}.csv`;
+      a.download = `current_${jobType}.xlsx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -221,7 +223,7 @@ export default function CSVUploadModal({
         </div>
 
         <div style={{ marginBottom: '1.5rem' }}>
-          <h3>Upload CSV File</h3>
+          <h3>Upload File</h3>
           
           <div
             style={{
@@ -242,7 +244,7 @@ export default function CSVUploadModal({
             <input
               type="file"
               id="csvFileInput"
-              accept=".csv"
+              accept=".csv,.xlsx,.xls"
               onChange={handleFileChange}
               style={{ display: 'none' }}
             />
@@ -259,7 +261,7 @@ export default function CSVUploadModal({
             ) : (
               <div>
                 <p style={{ margin: '0 0 0.5rem 0', fontWeight: 'bold' }}>
-                  Drop CSV file here or click to browse
+                  Drop CSV or Excel file here or click to browse
                 </p>
                 <p style={{ margin: 0, fontSize: '0.9rem', color: '#666' }}>
                   Maximum file size: 50MB

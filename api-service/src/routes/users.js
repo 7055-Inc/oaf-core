@@ -828,8 +828,11 @@ router.patch('/me',
           ]
         );
 
-        // Send submission email for new applications
-        if (applicationResult.insertId) {
+        // Send submission email only for genuinely NEW applications (not updates)
+        // affectedRows = 1 means new insert, affectedRows = 2 means ON DUPLICATE KEY UPDATE happened
+        const isNewApplication = applicationResult.affectedRows === 1 && applicationResult.insertId > 0;
+        
+        if (isNewApplication) {
           try {
             const emailService = new EmailService();
             const artistName = userProfile[0]?.first_name && userProfile[0]?.last_name 
@@ -1149,7 +1152,7 @@ router.get('/profile/by-id/:id', async (req, res) => {
  */
 router.get('/artists', async (req, res) => {
   try {
-    const { limit = 20, offset = 0, random = 'true' } = req.query;
+    const { limit = 20, offset = 0, random = 'true', has_permission } = req.query;
     
     // Validate and sanitize inputs
     const searchLimit = Math.min(parseInt(limit) || 20, 100); // Max 100 results
@@ -1179,10 +1182,13 @@ router.get('/artists', async (req, res) => {
       FROM users u
       LEFT JOIN user_profiles up ON u.id = up.user_id
       LEFT JOIN artist_profiles ap ON u.id = ap.user_id
+      ${has_permission ? 'LEFT JOIN user_permissions perm ON u.id = perm.user_id' : ''}
       WHERE u.user_type = 'artist' 
       AND u.status = 'active'
       AND up.user_id IS NOT NULL
       AND ap.user_id IS NOT NULL
+      AND u.user_type != 'admin'
+      ${has_permission === 'vendor' ? 'AND perm.vendor = 1' : ''}
     `;
     
     // Add ordering - random or by creation date

@@ -29,14 +29,26 @@ export default function EditProductPage() {
     try {
       setLoading(true);
       
-      // Fetch product and user data in parallel
+      // Extract permissions from JWT token (same as main dashboard)
+      let jwtPermissions = [];
+      try {
+        const token = document.cookie.split('token=')[1]?.split(';')[0];
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          jwtPermissions = payload.permissions || [];
+        }
+      } catch (jwtError) {
+        console.warn('Could not extract permissions from JWT:', jwtError);
+      }
+      
+      // Fetch product (with inventory) and user data in parallel
       const [productRes, userRes] = await Promise.all([
-        authApiRequest(`products/${productId}`),
+        authApiRequest(`products/${productId}?include=inventory,images`),
         authApiRequest('users/me')
       ]);
       
       const productData = await productRes.json();
-      const userData = await userRes.json();
+      const userDataRaw = await userRes.json();
       
       // API returns product directly (or { error: ... } on failure)
       if (productData.error) {
@@ -47,8 +59,14 @@ export default function EditProductPage() {
         throw new Error('Product not found');
       }
       
+      // Merge JWT permissions with user data (same as main dashboard)
+      const userDataWithPermissions = {
+        ...userDataRaw,
+        permissions: jwtPermissions
+      };
+      
       setProduct(productData);
-      setUserData(userData);
+      setUserData(userDataWithPermissions);
     } catch (err) {
       console.error('Error loading product:', err);
       setError(err.message || 'Failed to load product');
@@ -118,8 +136,8 @@ export default function EditProductPage() {
       <Header />
       <div style={{
         maxWidth: '900px',
-        margin: '40px auto',
-        padding: '0 20px'
+        margin: '0 auto',
+        padding: '100px 20px 40px 20px'
       }}>
         {/* Breadcrumb */}
         <div style={{ marginBottom: '24px' }}>

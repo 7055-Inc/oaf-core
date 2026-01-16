@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { authenticatedApiRequest } from '../../../../../lib/csrf';
 import { authApiRequest } from '../../../../../lib/apiUtils';
+import { getSubdomainBase } from '../../../../../lib/config';
 
 export default function CustomDomainSection({ site }) {
   const [domainStatus, setDomainStatus] = useState(null);
@@ -718,7 +719,7 @@ export default function CustomDomainSection({ site }) {
               }}>
                 <h5 style={{ margin: '0 0 10px 0', color: '#2c3e50' }}>🎯 Benefits of a Custom Domain:</h5>
                 <ul style={{ margin: '0', paddingLeft: '20px', fontSize: '14px', color: '#495057' }}>
-                  <li>✨ <strong>Professional Branding:</strong> yourname.art instead of yourname.beemeeart.com</li>
+                  <li>✨ <strong>Professional Branding:</strong> yourname.art instead of yourname.{getSubdomainBase()}</li>
                   <li>🔍 <strong>Better SEO:</strong> Your own domain ranks better in search results</li>
                   <li>💼 <strong>Business Credibility:</strong> Looks more professional to clients</li>
                   <li>🎨 <strong>Full Control:</strong> Your brand, your domain, your way</li>

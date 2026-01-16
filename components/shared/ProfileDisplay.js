@@ -1,8 +1,10 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import styles from '../../pages/profile/Profile.module.css';
 import { getSmartMediaUrl, getApiUrl } from '../../lib/config';
 import ContactArtistModal from './ContactArtistModal';
+import ArtistProductCarousel from '../ArtistProductCarousel';
 
 export default function ProfileDisplay({ 
   userProfile, 
@@ -164,12 +166,6 @@ export default function ProfileDisplay({
             {userProfile.country && `, ${userProfile.country}`}
           </span>
         )}
-        {userProfile.bio && (
-          <div className={styles.bioQuote}>
-            <p>{userProfile.bio}</p>
-          </div>
-        )}
-        
         {/* Contact Artist Button - only show for artist profiles that aren't the viewer's own */}
         {userProfile.user_type === 'artist' && !isOwnProfile && (
           <button 
@@ -184,108 +180,166 @@ export default function ProfileDisplay({
 
 
       {userProfile.user_type === 'artist' && (
-        <div className={styles.section}>
-          <h2 className={styles.subtitle}>Artist Details</h2>
-          {userProfile.logo_path && (
-            <div className={styles.logoContainer}>
-              <img
-                src={toAbsoluteImageUrl(userProfile.logo_path)}
-                alt="Business Logo"
-                className={styles.logoImage}
-              />
+        <div className={styles.artistDetailsSection}>
+          {/* Logo and Business Name Header */}
+          {(userProfile.logo_path || userProfile.business_name) && (
+            <div className={styles.artistHeader}>
+              {userProfile.logo_path && (
+                <img
+                  src={toAbsoluteImageUrl(userProfile.logo_path)}
+                  alt="Business Logo"
+                  className={styles.logoImage}
+                />
+              )}
+              <div className={styles.artistHeaderInfo}>
+                {userProfile.business_name && (
+                  <h2 className={styles.businessNameLarge}>{userProfile.business_name}</h2>
+                )}
+                {userProfile.founding_date && (
+                  <span className={styles.foundedBadge}>
+                    Est. {new Date(userProfile.founding_date).getFullYear()}
+                  </span>
+                )}
+              </div>
             </div>
           )}
-          {userProfile.business_name && <p><strong>Business Name:</strong> {userProfile.business_name}</p>}
-          {userProfile.artist_biography && <p><strong>Artist Biography:</strong> {userProfile.artist_biography}</p>}
-          
-          {/* Art Categories and Mediums */}
-          {userProfile.art_categories && Array.isArray(userProfile.art_categories) && userProfile.art_categories.length > 0 && (
-            <p><strong>Art Categories:</strong> {userProfile.art_categories.join(', ')}</p>
+
+          {/* Artist Biography - Featured Quote */}
+          {userProfile.artist_biography && (
+            <div className={styles.biographyCard}>
+              <i className="fas fa-quote-left" style={{ color: 'var(--primary-color)', opacity: 0.3, fontSize: '24px', marginBottom: '8px' }}></i>
+              <p>{userProfile.artist_biography}</p>
+            </div>
           )}
-          {userProfile.art_mediums && Array.isArray(userProfile.art_mediums) && userProfile.art_mediums.length > 0 && (
-            <p><strong>Art Mediums:</strong> {userProfile.art_mediums.join(', ')}</p>
-          )}
-          
-          {/* Custom Work */}
-          <p><strong>Accepts Custom Orders:</strong> {userProfile.does_custom}</p>
-          {userProfile.does_custom === 'yes' && userProfile.custom_details && (
-            <p><strong>Custom Order Details:</strong> {userProfile.custom_details}</p>
-          )}
-          
-          {/* Business Contact */}
-          {userProfile.business_phone && (
-            <p><strong>Business Phone:</strong> {userProfile.business_phone}</p>
-          )}
-          {userProfile.business_website && (
-            <p>
-              <strong>Business Website:</strong>{' '}
-              <a href={userProfile.business_website} target="_blank" rel="noopener noreferrer" className={styles.link}>
-                {userProfile.business_website}
-              </a>
-            </p>
-          )}
-          {userProfile.customer_service_email && (
-            <p><strong>Customer Service Email:</strong> {userProfile.customer_service_email}</p>
-          )}
-          {userProfile.legal_name && (
-            <p><strong>Legal Business Name:</strong> {userProfile.legal_name}</p>
-          )}
-          {userProfile.tax_id && (
-            <p><strong>Tax ID:</strong> {userProfile.tax_id}</p>
-          )}
-          {userProfile.founding_date && (
-            <p><strong>Founded:</strong> {new Date(userProfile.founding_date).toLocaleDateString()}</p>
-          )}
-          
-          {/* Studio Address */}
-          {(userProfile.studio_address_line1 || userProfile.studio_address_line2) && (
-            <div className={styles.addressSection}>
-              <h3>Studio Address</h3>
-              <div className={styles.address}>
-                {userProfile.studio_address_line1 && <div>{userProfile.studio_address_line1}</div>}
-                {userProfile.studio_address_line2 && <div>{userProfile.studio_address_line2}</div>}
-                {(userProfile.studio_city || userProfile.studio_state || userProfile.studio_zip) && (
-                  <div>
-                    {userProfile.studio_city && `${userProfile.studio_city}, `}
-                    {userProfile.studio_state && `${userProfile.studio_state} `}
-                    {userProfile.studio_zip}
+
+          {/* Categories & Mediums as Tags */}
+          {((userProfile.art_categories && Array.isArray(userProfile.art_categories) && userProfile.art_categories.length > 0) ||
+            (userProfile.art_mediums && Array.isArray(userProfile.art_mediums) && userProfile.art_mediums.length > 0)) && (
+            <div className={styles.tagsSection}>
+              {userProfile.art_categories && Array.isArray(userProfile.art_categories) && userProfile.art_categories.length > 0 && (
+                <div className={styles.tagGroup}>
+                  <span className={styles.tagLabel}>Categories</span>
+                  <div className={styles.tagList}>
+                    {userProfile.art_categories.map((cat, idx) => (
+                      <span key={idx} className={styles.tag}>{cat}</span>
+                    ))}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+              {userProfile.art_mediums && Array.isArray(userProfile.art_mediums) && userProfile.art_mediums.length > 0 && (
+                <div className={styles.tagGroup}>
+                  <span className={styles.tagLabel}>Mediums</span>
+                  <div className={styles.tagList}>
+                    {userProfile.art_mediums.map((med, idx) => (
+                      <span key={idx} className={styles.tagMedium}>{med}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
-          
-          {/* Business Social Media */}
-          {(userProfile.business_social_facebook || userProfile.business_social_instagram || userProfile.business_social_tiktok || userProfile.business_social_twitter || userProfile.business_social_pinterest) && (
-            <div className={styles.businessSocialSection}>
-              <h3>Business Social Media</h3>
-              <div className={styles.socialIcons}>
-                {userProfile.business_social_facebook && (
-                  <a href={userProfile.business_social_facebook} target="_blank" rel="noopener noreferrer" className={styles.link}>
-                    <i className="fa-brands fa-facebook-f"></i>
-                  </a>
-                )}
-                {userProfile.business_social_instagram && (
-                  <a href={userProfile.business_social_instagram} target="_blank" rel="noopener noreferrer" className={styles.link}>
-                    <i className="fa-brands fa-instagram"></i>
-                  </a>
-                )}
-                {userProfile.business_social_tiktok && (
-                  <a href={userProfile.business_social_tiktok} target="_blank" rel="noopener noreferrer" className={styles.link}>
-                    <i className="fa-brands fa-tiktok"></i>
-                  </a>
-                )}
-                {userProfile.business_social_twitter && (
-                  <a href={userProfile.business_social_twitter} target="_blank" rel="noopener noreferrer" className={styles.link}>
-                    <i className="fa-brands fa-x-twitter"></i>
-                  </a>
-                )}
-                {userProfile.business_social_pinterest && (
-                  <a href={userProfile.business_social_pinterest} target="_blank" rel="noopener noreferrer" className={styles.link}>
-                    <i className="fa-brands fa-pinterest-p"></i>
-                  </a>
-                )}
+
+          {/* Artist Badges Row */}
+          <div className={styles.badgesRow}>
+            {/* Custom Badge */}
+            {userProfile.does_custom === 'yes' && (
+              <div className={styles.badge} data-badge="custom">
+                <i className="fas fa-paint-brush"></i>
+                <span>Artist Does Custom</span>
               </div>
+            )}
+            {/* Future badges will go here: Verified, Top Seller, Fast Shipper, etc. */}
+          </div>
+
+          {/* Custom Work Details (if available) */}
+          {userProfile.does_custom === 'yes' && userProfile.custom_details && (
+            <div className={styles.customDetailsCard}>
+              <p>{userProfile.custom_details}</p>
+            </div>
+          )}
+
+          {/* Contact & Location Grid */}
+          <div className={styles.contactGrid}>
+            {/* Location Card */}
+            {(userProfile.studio_city || userProfile.studio_state) && (
+              <div className={styles.contactCard}>
+                <i className="fas fa-map-marker-alt"></i>
+                <div>
+                  <span className={styles.contactLabel}>Studio Location</span>
+                  <span className={styles.contactValue}>
+                    {[userProfile.studio_city, userProfile.studio_state].filter(Boolean).join(', ')}
+                    {userProfile.studio_zip && ` ${userProfile.studio_zip}`}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Phone Card */}
+            {userProfile.business_phone && (
+              <div className={styles.contactCard}>
+                <i className="fas fa-phone"></i>
+                <div>
+                  <span className={styles.contactLabel}>Phone</span>
+                  <span className={styles.contactValue}>{userProfile.business_phone}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Email Card */}
+            {userProfile.customer_service_email && (
+              <div className={styles.contactCard}>
+                <i className="fas fa-envelope"></i>
+                <div>
+                  <span className={styles.contactLabel}>Email</span>
+                  <a href={`mailto:${userProfile.customer_service_email}`} className={styles.contactValue}>
+                    {userProfile.customer_service_email}
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {/* Website Card */}
+            {userProfile.business_website && (
+              <div className={styles.contactCard}>
+                <i className="fas fa-globe"></i>
+                <div>
+                  <span className={styles.contactLabel}>Website</span>
+                  <a href={userProfile.business_website} target="_blank" rel="noopener noreferrer" className={styles.contactValue}>
+                    {userProfile.business_website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Business Social Media Icons */}
+          {(userProfile.business_social_facebook || userProfile.business_social_instagram || userProfile.business_social_tiktok || userProfile.business_social_twitter || userProfile.business_social_pinterest) && (
+            <div className={styles.businessSocialRow}>
+              {userProfile.business_social_facebook && (
+                <a href={userProfile.business_social_facebook} target="_blank" rel="noopener noreferrer" className={styles.socialIconBtn} title="Facebook">
+                  <i className="fa-brands fa-facebook-f"></i>
+                </a>
+              )}
+              {userProfile.business_social_instagram && (
+                <a href={userProfile.business_social_instagram} target="_blank" rel="noopener noreferrer" className={styles.socialIconBtn} title="Instagram">
+                  <i className="fa-brands fa-instagram"></i>
+                </a>
+              )}
+              {userProfile.business_social_tiktok && (
+                <a href={userProfile.business_social_tiktok} target="_blank" rel="noopener noreferrer" className={styles.socialIconBtn} title="TikTok">
+                  <i className="fa-brands fa-tiktok"></i>
+                </a>
+              )}
+              {userProfile.business_social_twitter && (
+                <a href={userProfile.business_social_twitter} target="_blank" rel="noopener noreferrer" className={styles.socialIconBtn} title="X (Twitter)">
+                  <i className="fa-brands fa-x-twitter"></i>
+                </a>
+              )}
+              {userProfile.business_social_pinterest && (
+                <a href={userProfile.business_social_pinterest} target="_blank" rel="noopener noreferrer" className={styles.socialIconBtn} title="Pinterest">
+                  <i className="fa-brands fa-pinterest-p"></i>
+                </a>
+              )}
             </div>
           )}
         </div>
@@ -443,74 +497,20 @@ export default function ProfileDisplay({
         </div>
       )}
 
-      {/* Products Section - Only show if artist has products */}
+      {/* Products Section - Using Carousel */}
       {!loadingProducts && products.length > 0 && (
-        <div className={styles.section}>
-          <h2 className={styles.subtitle}>Products</h2>
-          <div className={styles.productsGrid}>
-            {products.map((product) => {
-              // Process image URL the same way as marketplace
-              let primaryImage = null;
-              if (product.images && product.images.length > 0) {
-                const imageUrl = typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url;
-                
-                // If it's already a full URL, use as-is
-                if (imageUrl && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
-                  primaryImage = imageUrl;
-                }
-                // If it's a temp_images path, use API base URL directly
-                else if (imageUrl && imageUrl.startsWith('/temp_images/')) {
-                  primaryImage = `${getApiUrl()}${imageUrl}`;
-                }
-                // Otherwise, use smart media proxy
-                else if (imageUrl) {
-                  primaryImage = getSmartMediaUrl(imageUrl);
-                }
-              }
-              
-              const isOutOfStock = product.inventory && product.inventory.stock_quantity <= 0;
-              
-              return (
-                <a 
-                  key={product.id} 
-                  href={`/products/${product.id}`}
-                  className={styles.productCard}
-                >
-                  <div className={styles.productImageWrapper}>
-                    {primaryImage ? (
-                      <img 
-                        src={primaryImage} 
-                        alt={product.title || product.name}
-                        className={styles.productImage}
-                      />
-                    ) : (
-                      <div className={styles.productImagePlaceholder}>
-                        <i className="fa-solid fa-image"></i>
-                      </div>
-                    )}
-                    {isOutOfStock && (
-                      <div className={styles.outOfStockBadge}>Out of Stock</div>
-                    )}
-                  </div>
-                  <div className={styles.productInfo}>
-                    <h3 className={styles.productTitle}>{product.title}</h3>
-                    {product.description && (
-                      <p className={styles.productDescription}>
-                        {product.description.length > 80 
-                          ? product.description.substring(0, 80) + '...' 
-                          : product.description}
-                      </p>
-                    )}
-                    <div className={styles.productFooter}>
-                      <p className={styles.productPrice}>${parseFloat(product.price).toFixed(2)}</p>
-                      {product.inventory && product.inventory.stock_quantity > 0 && product.inventory.stock_quantity <= 5 && (
-                        <span className={styles.lowStockBadge}>Only {product.inventory.stock_quantity} left</span>
-                      )}
-                    </div>
-                  </div>
-                </a>
-              );
-            })}
+        <div className={styles.productsSection}>
+          <ArtistProductCarousel 
+            vendorId={userProfile.id}
+            artistName={userProfile.business_name || userProfile.display_name || 
+              (userProfile.first_name && userProfile.last_name 
+                ? `${userProfile.first_name} ${userProfile.last_name}` 
+                : 'this artist')}
+          />
+          <div className={styles.seeAllLink}>
+            <Link href={`/artist/${userProfile.id}/products`}>
+              See All <i className="fas fa-arrow-right"></i>
+            </Link>
           </div>
         </div>
       )}

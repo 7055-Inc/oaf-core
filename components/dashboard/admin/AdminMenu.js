@@ -6,7 +6,8 @@ export default function AdminMenu({
   userData, 
   collapsedSections = {}, 
   toggleSection = () => {}, 
-  openSlideIn = () => {} 
+  openSlideIn = () => {},
+  notifications = {}
 }) {
   if (!userData) return null;
   
@@ -15,6 +16,13 @@ export default function AdminMenu({
   const hasManageSystem = userData.permissions?.includes('manage_system');
   
   if (!isAdmin && !hasManageSystem) return null;
+
+  // Calculate total admin notifications
+  const totalNotifications = 
+    (notifications.marketplace_applications || 0) +
+    (notifications.wholesale_applications || 0) +
+    (notifications.pending_returns || 0) +
+    (notifications.open_tickets || 0);
   
   return (
     <div className={styles.sidebarSection}>
@@ -24,10 +32,21 @@ export default function AdminMenu({
       >
         <span className={styles.accountHeader}>
           Admin
+          {totalNotifications > 0 && (
+            <span className={styles.notificationBadge}>{totalNotifications}</span>
+          )}
         </span>
       </h3>
       {!collapsedSections['admin'] && (
         <ul>
+          <li>
+            <button 
+              className={styles.sidebarLink}
+              onClick={() => openSlideIn('admin-refunds', { title: 'Refunds' })}
+            >
+              Refunds
+            </button>
+          </li>
           <li>
             <button 
               className={styles.sidebarLink}
@@ -42,6 +61,9 @@ export default function AdminMenu({
               onClick={() => openSlideIn('marketplace-applications', { title: 'Marketplace Applications' })}
             >
               Marketplace Applications
+              {notifications.marketplace_applications > 0 && (
+                <span className={styles.notificationBadge}>{notifications.marketplace_applications}</span>
+              )}
             </button>
           </li>
           <li>
@@ -58,6 +80,20 @@ export default function AdminMenu({
               onClick={() => openSlideIn('wholesale-applications', { title: 'Wholesale Applications' })}
             >
               Wholesale Applications
+              {notifications.wholesale_applications > 0 && (
+                <span className={styles.notificationBadge}>{notifications.wholesale_applications}</span>
+              )}
+            </button>
+          </li>
+          <li>
+            <button 
+              className={styles.sidebarLink}
+              onClick={() => openSlideIn('support-tickets', { title: 'Support Tickets' })}
+            >
+              Support Tickets
+              {notifications.open_tickets > 0 && (
+                <span className={styles.notificationBadge}>{notifications.open_tickets}</span>
+              )}
             </button>
           </li>
           <li>
@@ -66,6 +102,9 @@ export default function AdminMenu({
               onClick={() => openSlideIn('admin-returns', { title: 'Returns Management' })}
             >
               Returns Management
+              {notifications.pending_returns > 0 && (
+                <span className={styles.notificationBadge}>{notifications.pending_returns}</span>
+              )}
             </button>
           </li>
           <li>

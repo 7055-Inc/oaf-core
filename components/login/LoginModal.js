@@ -110,8 +110,9 @@ export default function LoginModal() {
         localStorage.setItem('refreshToken', data.refreshToken);
         
         // Set secure cookies for middleware
-        document.cookie = `token=${data.token}; ${getCookieConfig()}; max-age=7200`;
-        document.cookie = `refreshToken=${data.refreshToken}; ${getCookieConfig()}; max-age=604800`;
+        const cookieConfig = getCookieConfig();
+        document.cookie = `token=${data.token}; path=/; domain=${cookieConfig.domain}; ${cookieConfig.secure ? 'secure; ' : ''}SameSite=${cookieConfig.sameSite}; max-age=7200`;
+        document.cookie = `refreshToken=${data.refreshToken}; path=/; domain=${cookieConfig.domain}; ${cookieConfig.secure ? 'secure; ' : ''}SameSite=${cookieConfig.sameSite}; max-age=604800`;
         
         // Wait a moment for the cookies to be set
         await new Promise(resolve => setTimeout(resolve, 100));

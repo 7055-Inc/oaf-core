@@ -117,6 +117,21 @@ export default function VerifiedPricingTiers({ userData, onSubscriptionSuccess }
   };
 
   const handleApplicationSubmit = async () => {
+    // Validate required fields before submission
+    const missingFields = [];
+    if (!workDescription.trim()) missingFields.push('Work Description');
+    if (!rawMaterials) missingFields.push('Raw Materials photo');
+    if (!workInProcess1) missingFields.push('Work in Progress (Step 1) photo');
+    if (!workInProcess2) missingFields.push('Work in Progress (Step 2) photo');
+    if (!workInProcess3) missingFields.push('Work in Progress (Step 3) photo');
+    if (!artistAtWork) missingFields.push('Photo of You Creating Your Work');
+    if (!boothDisplay) missingFields.push('Booth/Studio Display photo');
+
+    if (missingFields.length > 0) {
+      alert(`Please complete all required fields:\n\n• ${missingFields.join('\n• ')}`);
+      return;
+    }
+
     try {
       setProcessing(true);
 
@@ -472,9 +487,11 @@ export default function VerifiedPricingTiers({ userData, onSubscriptionSuccess }
 
               {/* Media Upload Section */}
               <div style={{ marginBottom: '25px' }}>
-                <h4 style={{ color: '#2c3e50', marginBottom: '15px' }}>Portfolio Media</h4>
+                <h4 style={{ color: '#2c3e50', marginBottom: '10px' }}>
+                  Portfolio Media <span style={{ color: '#dc3545', fontWeight: 'normal', fontSize: '12px' }}>*Required</span>
+                </h4>
                 <p style={{ color: '#6c757d', fontSize: '14px', marginBottom: '20px' }}>
-                  Please upload images and videos that showcase your artistic process and finished work.
+                  All 6 images below are required. Videos are optional.
                 </p>
 
                 {/* Image Uploads */}
@@ -482,7 +499,7 @@ export default function VerifiedPricingTiers({ userData, onSubscriptionSuccess }
                   
                   <div>
                     <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: 'bold' }}>
-                      Raw Materials
+                      Raw Materials <span style={{ color: '#dc3545' }}>*</span>
                     </label>
                     <input
                       type="file"
@@ -495,7 +512,7 @@ export default function VerifiedPricingTiers({ userData, onSubscriptionSuccess }
 
                   <div>
                     <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: 'bold' }}>
-                      Work in Process 1
+                      Work in Process 1 <span style={{ color: '#dc3545' }}>*</span>
                     </label>
                     <input
                       type="file"
@@ -508,7 +525,7 @@ export default function VerifiedPricingTiers({ userData, onSubscriptionSuccess }
 
                   <div>
                     <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: 'bold' }}>
-                      Work in Process 2
+                      Work in Process 2 <span style={{ color: '#dc3545' }}>*</span>
                     </label>
                     <input
                       type="file"
@@ -521,7 +538,7 @@ export default function VerifiedPricingTiers({ userData, onSubscriptionSuccess }
 
                   <div>
                     <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: 'bold' }}>
-                      Work in Process 3
+                      Work in Process 3 <span style={{ color: '#dc3545' }}>*</span>
                     </label>
                     <input
                       type="file"
@@ -534,7 +551,7 @@ export default function VerifiedPricingTiers({ userData, onSubscriptionSuccess }
 
                   <div>
                     <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: 'bold' }}>
-                      Artist at Work
+                      Artist at Work <span style={{ color: '#dc3545' }}>*</span>
                     </label>
                     <input
                       type="file"
@@ -547,7 +564,7 @@ export default function VerifiedPricingTiers({ userData, onSubscriptionSuccess }
 
                   <div>
                     <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: 'bold' }}>
-                      Booth Display
+                      Booth Display <span style={{ color: '#dc3545' }}>*</span>
                     </label>
                     <input
                       type="file"
@@ -560,6 +577,7 @@ export default function VerifiedPricingTiers({ userData, onSubscriptionSuccess }
                 </div>
 
                 {/* Video Uploads */}
+                <p style={{ color: '#6c757d', fontSize: '13px', marginBottom: '10px' }}>Videos (Optional)</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
                   
                   <div>

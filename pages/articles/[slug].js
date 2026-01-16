@@ -29,6 +29,12 @@ export default function ArticlePage() {
       const data = await response.json();
       
       if (data.article) {
+        // Redirect help articles to their proper template
+        if (data.article.page_type === 'help_article' && data.article.section) {
+          router.replace(`/help/${data.article.section}/${data.article.slug}`);
+          return;
+        }
+        
         setArticle(data.article);
         await updateViewCount(data.article.id);
         fetchRelatedArticles(data.article.topics);
@@ -315,25 +321,43 @@ export default function ArticlePage() {
 
   if (loading) {
     return (
-      <div className={styles.container}>
-        <div className={styles.loading}>Loading article...</div>
-      </div>
+      <>
+        <Head>
+          <title>Loading Article | Brakebee</title>
+          {slug && <link rel="canonical" href={getFrontendUrl(`/articles/${slug}`)} />}
+        </Head>
+        <div className={styles.container}>
+          <div className={styles.loading}>Loading article...</div>
+        </div>
+      </>
     );
   }
 
   if (error) {
     return (
-      <div className={styles.container}>
-        <div className={styles.error}>{error}</div>
-      </div>
+      <>
+        <Head>
+          <title>Article Error | Brakebee</title>
+          {slug && <link rel="canonical" href={getFrontendUrl(`/articles/${slug}`)} />}
+        </Head>
+        <div className={styles.container}>
+          <div className={styles.error}>{error}</div>
+        </div>
+      </>
     );
   }
 
   if (!article) {
     return (
-      <div className={styles.container}>
-        <div className={styles.error}>Article not found</div>
-      </div>
+      <>
+        <Head>
+          <title>Article Not Found | Brakebee</title>
+          {slug && <link rel="canonical" href={getFrontendUrl(`/articles/${slug}`)} />}
+        </Head>
+        <div className={styles.container}>
+          <div className={styles.error}>Article not found</div>
+        </div>
+      </>
     );
   }
 
@@ -343,12 +367,12 @@ export default function ArticlePage() {
         <title>{article.meta_title || article.title}</title>
         <meta name="description" content={article.meta_description || article.excerpt} />
         <meta name="keywords" content={article.meta_keywords || ''} />
-        <link rel="canonical" href={`/articles/${article.slug}`} />
+        <link rel="canonical" href={getFrontendUrl(`/articles/${slug}`)} />
         
         <meta property="og:title" content={article.og_title || article.title} />
         <meta property="og:description" content={article.og_description || article.excerpt} />
         <meta property="og:type" content="article" />
-        <meta property="og:url" content={`/articles/${article.slug}`} />
+        <meta property="og:url" content={getFrontendUrl(`/articles/${slug}`)} />
         <meta property="og:image" content={article.og_image || article.featured_image || '/default-article.jpg'} />
         <meta property="article:published_time" content={article.published_at} />
         <meta property="article:author" content={article.author_display_name || article.author_username} />

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import WholesalePricing from '../../components/WholesalePricing';
 import { isWholesaleCustomer } from '../../lib/userUtils';
 import { getAuthToken } from '../../lib/csrf';
-import { getFrontendUrl } from '../../lib/config';
+import { getFrontendUrl, getApiUrl, getSubdomainBase, config } from '../../lib/config';
 import styles from './ArtistStorefront.module.css';
 
 const ArtistStorefront = () => {
@@ -39,12 +39,37 @@ const ArtistStorefront = () => {
     // Extract subdomain from the current URL if query params aren't available
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
-      if (hostname.includes('.beemeeart.com') && hostname !== 'main.beemeeart.com') {
+      const subdomainBase = getSubdomainBase();
+      
+      // Check if this is a subdomain of the main site
+      if (hostname.includes(`.${subdomainBase}`) && !hostname.startsWith('main.') && !hostname.startsWith('www.')) {
         const subdomainFromUrl = hostname.split('.')[0];
         setExtractedSubdomain(subdomainFromUrl);
       }
+      // Check if this is a custom domain (not our main domain or localhost)
+      else if (!hostname.includes(subdomainBase) && 
+               hostname !== 'localhost' && 
+               !hostname.startsWith('127.0.0.1')) {
+        // This is a custom domain - resolve it to get the subdomain
+        resolveCustomDomain(hostname);
+      }
     }
   }, []);
+
+  // Resolve custom domain to subdomain
+  const resolveCustomDomain = async (domain) => {
+    try {
+      const response = await fetch(`${config.API_BASE_URL}/api/sites/resolve-custom-domain/${domain}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.subdomain) {
+          setExtractedSubdomain(data.subdomain);
+        }
+      }
+    } catch (error) {
+      console.error('Error resolving custom domain:', error);
+    }
+  };
 
   useEffect(() => {
     const subdomainToUse = subdomain || extractedSubdomain;
@@ -303,7 +328,7 @@ const ArtistStorefront = () => {
       <div className={styles.error}>
         <h1>Gallery Not Found</h1>
         <p>Sorry, this artist gallery is not available.</p>
-        <Link href="https://main.beemeeart.com">
+        <Link href={getFrontendUrl()}>
           <a className={styles.homeLink}>← Back to Main Site</a>
         </Link>
       </div>
@@ -325,7 +350,7 @@ const ArtistStorefront = () => {
         <meta property="og:title" content={pageTitle} />
         <meta property="og:description" content={pageDescription} />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content={`https://${subdomain}.beemeeart.com`} />
+        <meta property="og:url" content={siteData?.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.${getSubdomainBase()}`} />
         {siteData.profile_image_path && (
           <meta property="og:image" content={siteData.profile_image_path} />
         )}
@@ -367,16 +392,16 @@ const ArtistStorefront = () => {
             </div>
 
             <nav className={styles.navigation}>
-              <Link href={siteData.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.beemeeart.com`}>
+              <Link href={siteData.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.${getSubdomainBase()}`}>
                 <a className={styles.navLink}>Home</a>
               </Link>
               {articles.map(article => (
-                <Link key={article.id} href={`${siteData.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.beemeeart.com`}/${article.slug}`}>
+                <Link key={article.id} href={`${siteData.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.${getSubdomainBase()}`}/${article.slug}`}>
                   <a className={styles.navLink}>{article.title}</a>
                 </Link>
               ))}
               {pages.find(page => page.page_type === 'contact') && (
-                <Link href={`${siteData.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.beemeeart.com`}/${pages.find(page => page.page_type === 'contact').slug}`}>
+                <Link href={`${siteData.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.${getSubdomainBase()}`}/${pages.find(page => page.page_type === 'contact').slug}`}>
                   <a className={styles.navLink}>{pages.find(page => page.page_type === 'contact').title}</a>
                 </Link>
               )}

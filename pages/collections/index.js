@@ -28,7 +28,12 @@ export default function Collections() {
       const data = await response.json();
       
       if (data.success) {
-        setCategories(data.categories || []);
+        // Find the Shop category and use its children as the main categories
+        const allCategories = data.categories || [];
+        const shopCategory = allCategories.find(cat => cat.name === 'Shop' || cat.id === 7);
+        const shopChildren = shopCategory?.children || [];
+        
+        setCategories(shopChildren);
         setFlatCategories(data.flat_categories || []);
       } else {
         throw new Error('Invalid response format');

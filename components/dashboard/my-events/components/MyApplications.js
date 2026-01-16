@@ -8,6 +8,7 @@ export default function MyApplications({ userData }) {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [deleting, setDeleting] = useState(null);
 
   useEffect(() => {
     fetchApplications();
@@ -60,6 +61,37 @@ export default function MyApplications({ userData }) {
       month: 'short',
       day: 'numeric'
     });
+  };
+
+  const handleDeleteApplication = async (appId) => {
+    if (!confirm('Are you sure you want to delete this draft application?')) {
+      return;
+    }
+    
+    try {
+      setDeleting(appId);
+      const token = getAuthToken();
+      
+      const response = await fetch(getApiUrl(`api/applications/${appId}`), {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete application');
+      }
+
+      // Remove from list
+      setApplications(prev => prev.filter(app => app.id !== appId));
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setDeleting(null);
+    }
   };
 
   if (loading) {
@@ -128,9 +160,23 @@ export default function MyApplications({ userData }) {
                         View Event
                       </Link>
                       {app.status === 'draft' && (
-                        <button className="primary" style={{ fontSize: '14px', padding: '6px 12px' }}>
-                          Complete
-                        </button>
+                        <>
+                          <Link 
+                            href={`/events/${app.event_id}`} 
+                            className="primary"
+                            style={{ fontSize: '14px', padding: '6px 12px' }}
+                          >
+                            Complete
+                          </Link>
+                          <button 
+                            className="danger" 
+                            style={{ fontSize: '14px', padding: '6px 12px' }}
+                            onClick={() => handleDeleteApplication(app.id)}
+                            disabled={deleting === app.id}
+                          >
+                            {deleting === app.id ? 'Deleting...' : 'Delete'}
+                          </button>
+                        </>
                       )}
                     </div>
                   </td>

@@ -295,10 +295,14 @@ router.post('/refresh', async (req, res) => {
     const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
 
     // Look up the refresh token in database
+    // Check both active tokens AND recently rotated tokens (within 30 second grace period)
     let tokenRecord;
     try {
       [tokenRecord] = await db.query(
-        'SELECT user_id, expires_at FROM refresh_tokens WHERE token_hash = ? AND expires_at > NOW()',
+        `SELECT user_id, expires_at, rotated_at FROM refresh_tokens 
+         WHERE token_hash = ? 
+         AND expires_at > NOW()
+         AND (rotated_at IS NULL OR rotated_at > DATE_SUB(NOW(), INTERVAL 30 SECOND))`,
         [tokenHash]
       );
     } catch (dbError) {
@@ -308,6 +312,31 @@ router.post('/refresh', async (req, res) => {
     if (!tokenRecord || !tokenRecord[0]) {
       secureLogger.warn('Invalid or expired refresh token', { tokenHash: tokenHash.substring(0, 8) + '...' });
       return res.status(401).json({ error: 'Invalid or expired refresh token' });
+    }
+    
+    // If token was already rotated, return the new token info from cache
+    // This handles the race condition where multiple tabs try to refresh simultaneously
+    if (tokenRecord[0].rotated_at) {
+      secureLogger.info('Refresh token already rotated, checking for successor', { userId: tokenRecord[0].user_id });
+      // The token was already used - find the newest token for this user/device
+      const [latestToken] = await db.query(
+        `SELECT id FROM refresh_tokens 
+         WHERE user_id = ? AND rotated_at IS NULL 
+         ORDER BY created_at DESC LIMIT 1`,
+        [tokenRecord[0].user_id]
+      );
+      
+      if (!latestToken || !latestToken[0]) {
+        // Edge case: no valid successor found, force re-login
+        return res.status(401).json({ error: 'Session expired, please log in again' });
+      }
+      
+      // Return a signal that client should use their stored token
+      // (the other tab already updated localStorage/cookies)
+      return res.status(200).json({ 
+        tokenAlreadyRefreshed: true,
+        message: 'Token was already refreshed by another session'
+      });
     }
 
     const userId = tokenRecord[0].user_id;
@@ -368,11 +397,18 @@ router.post('/refresh', async (req, res) => {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
     try {
-      // Remove old refresh token and add new one
-      await db.query('DELETE FROM refresh_tokens WHERE token_hash = ?', [tokenHash]);
+      // Mark old refresh token as rotated (don't delete yet - allows grace period for race conditions)
+      // A cleanup job should delete tokens where rotated_at < NOW() - INTERVAL 5 MINUTE
+      await db.query('UPDATE refresh_tokens SET rotated_at = NOW() WHERE token_hash = ?', [tokenHash]);
       await db.query(
         'INSERT INTO refresh_tokens (user_id, token_hash, expires_at, device_info) VALUES (?, ?, ?, ?)',
         [userId, newTokenHash, expiresAt, req.get('User-Agent') || 'Unknown']
+      );
+      
+      // Cleanup: delete old rotated tokens (older than 5 minutes) for this user
+      await db.query(
+        'DELETE FROM refresh_tokens WHERE user_id = ? AND rotated_at IS NOT NULL AND rotated_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)',
+        [userId]
       );
     } catch (dbError) {
       secureLogger.error('Failed to rotate refresh token', dbError);

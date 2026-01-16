@@ -8,8 +8,24 @@ export default function PolicyPage() {
   const [policy, setPolicy] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [cookiePreference, setCookiePreference] = useState(null);
   const router = useRouter();
   const params = useParams();
+
+  // Load cookie preference on mount (only for cookies page)
+  useEffect(() => {
+    if (params?.type === 'cookies' && typeof window !== 'undefined') {
+      const consent = localStorage.getItem('cookieConsent_v2');
+      setCookiePreference(consent || 'none');
+    }
+  }, [params?.type]);
+
+  const handleCookieToggle = (newPreference) => {
+    if (newPreference === cookiePreference) return;
+    localStorage.setItem('cookieConsent_v2', newPreference);
+    localStorage.setItem('cookieConsentDate', new Date().toISOString());
+    window.location.reload();
+  };
 
   const policyTitles = {
     'shipping': 'Shipping Policy',
@@ -141,6 +157,31 @@ export default function PolicyPage() {
             className={styles.policyText}
             dangerouslySetInnerHTML={{ __html: policy }}
           />
+        )}
+
+        {/* Cookie Preference Toggle - only on cookies page */}
+        {params.type === 'cookies' && cookiePreference && (
+          <div className={styles.cookiePreference}>
+            <p className={styles.preferenceLabel}>
+              Your current cookie preference: <strong>{cookiePreference === 'all' ? 'All Cookies' : cookiePreference === 'required' ? 'Required Only' : 'Not Set'}</strong>
+            </p>
+            <div className="toggle-switch">
+              <div className="toggle-labels">
+                <span 
+                  className={cookiePreference === 'required' ? 'active' : ''}
+                  onClick={() => handleCookieToggle('required')}
+                >
+                  Required Only
+                </span>
+                <span 
+                  className={cookiePreference === 'all' ? 'active' : ''}
+                  onClick={() => handleCookieToggle('all')}
+                >
+                  All Cookies
+                </span>
+              </div>
+            </div>
+          </div>
         )}
 
         <div className={styles.backLink}>

@@ -150,12 +150,12 @@ export default function ImagesSection() {
         
         {uploading ? (
           <div style={{ color: '#666' }}>
-            <div style={{ fontSize: '24px', marginBottom: '8px' }}>⏳</div>
+            <div style={{ fontSize: '24px', marginBottom: '8px' }}><i className="fas fa-spinner fa-spin"></i></div>
             Uploading...
           </div>
         ) : (
           <>
-            <div style={{ fontSize: '32px', marginBottom: '8px' }}>📷</div>
+            <div style={{ fontSize: '32px', marginBottom: '8px' }}><i className="fas fa-camera"></i></div>
             <div style={{ fontWeight: '600', marginBottom: '4px' }}>
               Click to upload images
             </div>
@@ -258,7 +258,7 @@ export default function ImagesSection() {
                   }}
                   title="Edit image details"
                 >
-                  ✏️
+                  <i className="fas fa-pencil-alt"></i>
                 </button>
                 
                 {/* Remove button */}

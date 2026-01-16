@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 
 /**
- * AccordionSection - Reusable collapsible section for product form
+ * AccordionSection - Reusable collapsible section for forms
+ * 
+ * Used by: Product Form, Event Form
  * 
  * States:
  * - pending: Grey, not started
@@ -42,7 +44,7 @@ export default function AccordionSection({
     }
   };
 
-  // Style based on status
+  // Style based on status - using CSS variables from global.css
   const getHeaderStyle = () => {
     const base = {
       display: 'flex',
@@ -50,7 +52,7 @@ export default function AccordionSection({
       justifyContent: 'space-between',
       padding: '16px 20px',
       cursor: 'pointer',
-      borderRadius: isExpanded ? '8px 8px 0 0' : '8px',
+      borderRadius: isExpanded ? 'var(--border-radius-sm) var(--border-radius-sm) 0 0' : 'var(--border-radius-sm)',
       transition: 'all 0.2s ease',
       userSelect: 'none'
     };
@@ -59,23 +61,23 @@ export default function AccordionSection({
       case 'complete':
         return {
           ...base,
-          background: 'var(--primary-color, #055474)',
-          color: 'white',
-          border: '2px solid var(--primary-color, #055474)'
+          background: 'var(--gradient-primary)',
+          color: 'var(--accent-color)',
+          border: '2px solid var(--primary-color)'
         };
       case 'active':
         return {
           ...base,
-          background: 'white',
-          color: 'var(--primary-color, #055474)',
-          border: '2px solid var(--primary-color, #055474)'
+          background: 'var(--background-color)',
+          color: 'var(--primary-color)',
+          border: '2px solid var(--primary-color)'
         };
       default: // pending
         return {
           ...base,
           background: '#f8f9fa',
           color: '#6c757d',
-          border: '2px solid #dee2e6'
+          border: '1px solid #dee2e6'
         };
     }
   };
@@ -83,20 +85,33 @@ export default function AccordionSection({
   const getContentStyle = () => ({
     display: isExpanded ? 'block' : 'none',
     padding: '20px',
-    background: 'white',
-    borderRadius: '0 0 8px 8px',
-    border: '2px solid var(--primary-color, #055474)',
+    background: 'var(--background-color)',
+    borderRadius: '0 0 var(--border-radius-sm) var(--border-radius-sm)',
+    border: '2px solid var(--primary-color)',
     borderTop: 'none'
   });
 
   return (
     <div style={{ marginBottom: '12px' }}>
       {/* Header */}
-      <div style={getHeaderStyle()} onClick={handleToggle}>
+      <div 
+        style={getHeaderStyle()} 
+        onClick={handleToggle}
+        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), handleToggle())}
+        role="button"
+        tabIndex={0}
+        aria-expanded={isExpanded}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {/* Status indicator */}
-          <span style={{ fontSize: '20px' }}>
-            {status === 'complete' ? '✓' : icon || '○'}
+          {/* Status indicator - show checkmark when complete, otherwise section icon */}
+          <span style={{ fontSize: '16px', width: '20px', textAlign: 'center' }}>
+            {status === 'complete' ? (
+              <i className="fas fa-check"></i>
+            ) : icon ? (
+              <i className={`fas ${icon}`}></i>
+            ) : (
+              <i className="far fa-circle"></i>
+            )}
           </span>
           
           {/* Title */}
@@ -123,7 +138,7 @@ export default function AccordionSection({
           transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
           transition: 'transform 0.2s ease'
         }}>
-          ▼
+          <i className="fas fa-chevron-down"></i>
         </span>
       </div>
 
@@ -133,32 +148,9 @@ export default function AccordionSection({
         
         {/* Next/Continue button */}
         {showNext && !isLast && (
-          <div style={{ 
-            marginTop: '20px', 
-            paddingTop: '20px', 
-            borderTop: '1px solid #eee',
-            display: 'flex',
-            justifyContent: 'flex-end'
-          }}>
-            <button
-              type="button"
-              onClick={handleNext}
-              style={{
-                padding: '12px 32px',
-                background: 'var(--primary-color, #055474)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                fontSize: '14px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-            >
-              {nextLabel}
-              <span>→</span>
+          <div className="form-submit-section" style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #eee', paddingTop: '20px' }}>
+            <button type="button" onClick={handleNext}>
+              {nextLabel} <i className="fas fa-arrow-right"></i>
             </button>
           </div>
         )}

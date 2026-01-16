@@ -68,12 +68,18 @@ export default function ProfileView() {
 
   if (error) {
     return (
-      <div>
-        <div className={styles.container}>
-          <h1 className={styles.title}>Profile Not Found</h1>
-          <p className={styles.error}>Error: {error}</p>
+      <>
+        <Head>
+          <title>Profile Not Found | Brakebee</title>
+          {id && <link rel="canonical" href={`https://brakebee.com/profile/${id}`} />}
+        </Head>
+        <div>
+          <div className={styles.container}>
+            <h1 className={styles.title}>Profile Not Found</h1>
+            <p className={styles.error}>Error: {error}</p>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 

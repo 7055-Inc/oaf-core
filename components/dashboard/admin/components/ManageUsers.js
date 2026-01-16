@@ -516,27 +516,28 @@ export default function ManageUsers() {
 
       <div className="section-box">
         <table className={styles.table}>
+          <caption className="sr-only">User accounts list</caption>
           <thead className={styles.tableHeader}>
             <tr className={styles.tableRow}>
-              <th className={styles.tableHeaderCell} onClick={() => handleSort('id')} style={{ cursor: 'pointer' }}>
+              <th scope="col" className={styles.tableHeaderCell} onClick={() => handleSort('id')} style={{ cursor: 'pointer' }}>
                 ID {sortField === 'id' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
-              <th className={styles.tableHeaderCell} onClick={() => handleSort('username')} style={{ cursor: 'pointer' }}>
+              <th scope="col" className={styles.tableHeaderCell} onClick={() => handleSort('username')} style={{ cursor: 'pointer' }}>
                 Username {sortField === 'username' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
-              <th className={styles.tableHeaderCell} onClick={() => handleSort('name')} style={{ cursor: 'pointer' }}>
+              <th scope="col" className={styles.tableHeaderCell} onClick={() => handleSort('name')} style={{ cursor: 'pointer' }}>
                 Name {sortField === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
-              <th className={styles.tableHeaderCell} onClick={() => handleSort('email')} style={{ cursor: 'pointer' }}>
+              <th scope="col" className={styles.tableHeaderCell} onClick={() => handleSort('email')} style={{ cursor: 'pointer' }}>
                 Email {sortField === 'email' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
-              <th className={styles.tableHeaderCell} onClick={() => handleSort('user_type')} style={{ cursor: 'pointer' }}>
+              <th scope="col" className={styles.tableHeaderCell} onClick={() => handleSort('user_type')} style={{ cursor: 'pointer' }}>
                 Type {sortField === 'user_type' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
-              <th className={styles.tableHeaderCell} onClick={() => handleSort('status')} style={{ cursor: 'pointer' }}>
+              <th scope="col" className={styles.tableHeaderCell} onClick={() => handleSort('status')} style={{ cursor: 'pointer' }}>
                 Status {sortField === 'status' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
-              <th className={styles.tableHeaderCell} onClick={() => handleSort('created_at')} style={{ cursor: 'pointer' }}>
+              <th scope="col" className={styles.tableHeaderCell} onClick={() => handleSort('created_at')} style={{ cursor: 'pointer' }}>
                 Created {sortField === 'created_at' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
               <th className={styles.tableHeaderCell}>Actions</th>
@@ -587,7 +588,7 @@ export default function ManageUsers() {
                     <button 
                       onClick={() => handleDelete(user)}
                       className="danger"
-                      title="Delete User"
+                      title="Delete user and all associated data"
                       style={{ padding: '4px 8px', fontSize: '12px' }}
                     >
                       🗑️ Delete
@@ -746,10 +747,16 @@ export default function ManageUsers() {
           alignItems: 'center',
           zIndex: 1000
         }}>
-          <div className="form-card" style={{ maxWidth: '400px', margin: '20px' }}>
-            <h3 style={{ marginBottom: '15px', color: '#dc3545' }}>Confirm Delete</h3>
-            <p style={{ marginBottom: '10px' }}>Are you sure you want to delete user "{userToDelete.username}"?</p>
-            <p style={{ marginBottom: '20px', color: '#6c757d' }}>This action cannot be undone.</p>
+          <div className="form-card" style={{ maxWidth: '500px', margin: '20px' }}>
+            <h3 style={{ marginBottom: '15px', color: '#dc3545' }}>Delete User and All Associated Data</h3>
+            <p style={{ marginBottom: '10px' }}>Are you sure you want to delete user "{userToDelete.username}" and all their associated data?</p>
+            <p style={{ marginBottom: '10px', fontSize: '13px', color: '#6c757d' }}>
+              <strong>Will be preserved:</strong> Orders, transactions, returns, tax records (set to anonymous)
+            </p>
+            <p style={{ marginBottom: '10px', fontSize: '13px', color: '#dc3545' }}>
+              <strong>Will be deleted:</strong> Products, sites, media, reviews, profiles, API keys
+            </p>
+            <p style={{ marginBottom: '20px', color: '#dc3545', fontWeight: 'bold' }}>This action cannot be undone.</p>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
               <button 
                 onClick={() => {
@@ -1169,7 +1176,7 @@ function UserEditModal({ user, onSave, onCancel, onDelete, isCreating = false })
                 className="danger"
                 style={{ marginRight: 'auto' }}
               >
-                Delete User
+                Delete User and All Data
               </button>
             )}
           </div>

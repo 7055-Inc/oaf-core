@@ -116,6 +116,7 @@ export default function Header() {
   }, []);
 
   // Fetch categories for Collections dropdown (with localStorage cache)
+  // Only show Shop category's children (art medium categories)
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -134,7 +135,12 @@ export default function Header() {
         const response = await fetch(endpoint);
         if (response.ok) {
           const data = await response.json();
-          const categoriesData = data.categories || [];
+          const allCategories = data.categories || [];
+          
+          // Find Shop category and use its children as the dropdown categories
+          const shopCategory = allCategories.find(cat => cat.name === 'Shop' || cat.id === 7);
+          const categoriesData = shopCategory?.children || [];
+          
           setCategories(categoriesData);
           
           // Cache the result
@@ -275,50 +281,69 @@ export default function Header() {
 
           {/* Navigation Menu - Desktop */}
           <nav className={styles.navigation}>
-            <Link href="/marketplace" className={styles.navLink}>
-              Shop
-            </Link>
-            
-            {/* Collections with Dropdown */}
+            {/* Browse Art with Dropdown */}
             <div 
               className={styles.navLinkContainer}
               onMouseEnter={handleCollectionsEnter}
               onMouseLeave={handleCollectionsLeave}
             >
-              <Link href="/collections" className={styles.navLink}>
-                Collections
-              </Link>
-              {showCollectionsDropdown && categories.length > 0 && (
+              <span className={styles.navLink} style={{ cursor: 'pointer' }}>
+                Browse Art
+              </span>
+              {showCollectionsDropdown && (
                 <div 
-                  className={styles.collectionsDropdown}
+                  className={styles.browseArtDropdown}
                   onMouseEnter={handleCollectionsEnter}
                   onMouseLeave={handleCollectionsLeave}
                 >
-                  <div className={styles.categoriesGrid}>
-                    {categories.map(category => (
-                      <div key={category.id} className={styles.categoryColumn}>
-                        <Link 
-                          href={`/category/${category.id}`} 
-                          className={styles.parentCategoryLink}
-                        >
-                          {category.name}
-                        </Link>
-                        {category.children && category.children.length > 0 && (
-                          <div className={styles.childCategories}>
-                            {category.children.map(child => (
+                  {/* Browse by Category - with nested categories */}
+                  <div className={styles.browseArtItem}>
+                    <Link href="/collections" className={styles.browseArtLink}>
+                      Browse by Category
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: '8px' }}>
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                      </svg>
+                    </Link>
+                    {categories.length > 0 && (
+                      <div className={styles.categoriesSubmenu}>
+                        <div className={styles.categoriesGrid}>
+                          {categories.map(category => (
+                            <div key={category.id} className={styles.categoryColumn}>
                               <Link 
-                                key={child.id}
-                                href={`/category/${child.id}`} 
-                                className={styles.childCategoryLink}
+                                href={`/category/${category.id}`} 
+                                className={styles.parentCategoryLink}
                               >
-                                {child.name}
+                                {category.name}
                               </Link>
-                            ))}
-                          </div>
-                        )}
+                              {category.children && category.children.length > 0 && (
+                                <div className={styles.childCategories}>
+                                  {category.children.map(child => (
+                                    <Link 
+                                      key={child.id}
+                                      href={`/category/${child.id}`} 
+                                      className={styles.childCategoryLink}
+                                    >
+                                      {child.name}
+                                    </Link>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    ))}
+                    )}
                   </div>
+                  
+                  {/* Browse by Artist */}
+                  <Link href="/artists" className={styles.browseArtLink}>
+                    Browse by Artist
+                  </Link>
+                  
+                  {/* New Arrivals */}
+                  <Link href="/new-arrivals" className={styles.browseArtLink}>
+                    New Arrivals
+                  </Link>
                 </div>
               )}
             </div>
@@ -341,7 +366,7 @@ export default function Header() {
               onClick={() => handleSearchModalOpen()}
               title="Search with AI"
             >
-              <svg className={styles.magnifierIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg className={styles.magnifierIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <circle cx="11" cy="11" r="8"/>
                 <path d="m21 21-4.35-4.35"/>
               </svg>
@@ -351,8 +376,8 @@ export default function Header() {
             {/* Cart Icon - if logged in */}
             {isLoggedIn && !isLoading && (
               <div className={styles.cartContainer}>
-                <Link href="/cart" className={styles.cartLink}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <Link href="/cart" className={styles.cartLink} aria-label="Shopping cart">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                     <circle cx="9" cy="21" r="1"/>
                     <circle cx="20" cy="21" r="1"/>
                     <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
@@ -425,7 +450,7 @@ export default function Header() {
 
             {/* Stacked Links Section */}
             <div className={styles.stackedLinksSection}>
-              <button className={styles.stackedButton} onClick={() => window.location.href = '/artists/sell'}>
+              <button className={styles.stackedButton} onClick={() => window.location.href = '/makers'}>
                 For Artists
               </button>
               <button className={styles.stackedButton} onClick={() => window.location.href = '/promoter'}>
@@ -439,23 +464,26 @@ export default function Header() {
         {showMobileMenu && (
           <div className={`${styles.mobileMenuPanel} mobile-menu-container`}>
             <nav className={styles.mobileNavigation}>
-              <Link href="/marketplace" className={styles.mobileNavLink}>
-                Shop
-              </Link>
-              <Link href="/collections" className={styles.mobileNavLink}>
-                Collections
-              </Link>
+              {/* Browse Art Section */}
+              <div className={styles.mobileMenuSection}>
+                <span className={styles.mobileMenuSectionTitle}>Browse Art</span>
+                <Link href="/collections" className={styles.mobileNavLinkIndent}>
+                  By Category
+                </Link>
+                <Link href="/artists" className={styles.mobileNavLinkIndent}>
+                  By Artist
+                </Link>
+                <Link href="/new-arrivals" className={styles.mobileNavLinkIndent}>
+                  New Arrivals
+                </Link>
+              </div>
+              
               <Link href="/events" className={styles.mobileNavLink}>
                 Events
               </Link>
-              <Link href="/artists" className={styles.mobileNavLink}>
-                Meet the Artists
-              </Link>
+              
               <div className={styles.mobileStackedLinks}>
-                <Link href="/collections" className={styles.mobileNavLink}>
-                  Shop Collections
-                </Link>
-                <Link href="/artists/sell" className={styles.mobileNavLink}>
+                <Link href="/makers" className={styles.mobileNavLink}>
                   For Artists
                 </Link>
                 <Link href="/promoter" className={styles.mobileNavLink}>

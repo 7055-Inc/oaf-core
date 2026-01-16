@@ -89,7 +89,7 @@ export async function subdomainRouter(req) {
     // Route to appropriate artist storefront page
     const path = req.nextUrl.pathname;
     
-    if (path === '/') {
+    if (path === '/' || path === '') {
       // Homepage
       const rewriteUrl = new URL('/artist-storefront', req.url);
       rewriteUrl.searchParams.set('subdomain', subdomain);
@@ -122,6 +122,13 @@ export async function subdomainRouter(req) {
     } else if (path.startsWith('/api/')) {
       // API calls should pass through
       return NextResponse.next();
+    } else if (path.startsWith('/_next/static/') || path.startsWith('/_next/image/')) {
+      // Static assets and image optimization should pass through
+      return NextResponse.next();
+    } else if (path.startsWith('/_next/data/')) {
+      // Block /_next/data/ requests on subdomains - these would return main site data
+      // Return 404 so Next.js falls back to client-side data fetching
+      return new NextResponse(null, { status: 404 });
     } else {
       // Route to custom 404 page for unknown paths
       const rewriteUrl = new URL('/custom-sites/subdomain-404', req.url);

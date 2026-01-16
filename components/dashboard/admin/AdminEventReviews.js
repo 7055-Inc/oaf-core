@@ -282,15 +282,16 @@ export default function AdminEventReviews() {
         ) : (
           <div className={styles.table}>
             <table>
+              <caption className="sr-only">Pending event reviews</caption>
               <thead>
                 <tr>
-                  <th>Event</th>
-                  <th>Email</th>
-                  <th>Type</th>
-                  <th>Rating</th>
-                  <th>Review</th>
-                  <th>Submitted</th>
-                  <th>Added By</th>
+                  <th scope="col">Event</th>
+                  <th scope="col">Email</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Rating</th>
+                  <th scope="col">Review</th>
+                  <th scope="col">Submitted</th>
+                  <th scope="col">Added By</th>
                 </tr>
               </thead>
               <tbody>

@@ -1,10 +1,10 @@
 server {
     listen 443 ssl;
-    server_name mobile.beemeeart.com;
+    server_name mobile.brakebee.com;
     
     # SSL configuration
-    ssl_certificate /etc/letsencrypt/live/mobile.beemeeart.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/mobile.beemeeart.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/mobile.brakebee.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/mobile.brakebee.com/privkey.pem;
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
     
@@ -23,8 +23,8 @@ server {
     add_header X-Frame-Options "SAMEORIGIN" always;
     
     # Logging configuration
-    access_log /var/log/nginx/mobile_beemeeart_access.log;
-    error_log  /var/log/nginx/mobile_beemeeart_error.log error;
+    access_log /var/log/nginx/mobile_brakebee_access.log;
+    error_log  /var/log/nginx/mobile_brakebee_error.log error;
     
     # Forward all requests to the mobile app development server
     location / {
@@ -46,6 +46,6 @@ server {
 
 server {
     listen 80;
-    server_name mobile.beemeeart.com;
+    server_name mobile.brakebee.com;
     return 301 https://$host$request_uri;
 }

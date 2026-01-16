@@ -158,6 +158,7 @@ router.get('/', async (req, res) => {
         a.status,
         a.slug,
         a.page_type,
+        a.section,
         a.featured_image_id,
         a.created_at,
         a.updated_at,
@@ -167,10 +168,32 @@ router.get('/', async (req, res) => {
     `;
     
     const params = [];
+    const conditions = [];
     
     // If user is not admin, only show published articles
     if (!roles.includes('admin')) {
-      query += ` WHERE a.status = 'published'`;
+      conditions.push('a.status = ?');
+      params.push(req.query.status || 'published');
+    } else if (req.query.status) {
+      conditions.push('a.status = ?');
+      params.push(req.query.status);
+    }
+    
+    // Filter by page_type
+    if (req.query.page_type) {
+      conditions.push('a.page_type = ?');
+      params.push(req.query.page_type);
+    }
+    
+    // Filter by section (JSON array - check if section contains the value)
+    if (req.query.section) {
+      conditions.push('(a.section IS NOT NULL AND JSON_CONTAINS(a.section, ?))');
+      params.push(JSON.stringify(req.query.section));
+    }
+    
+    // Build WHERE clause
+    if (conditions.length > 0) {
+      query += ` WHERE ${conditions.join(' AND ')}`;
     }
     
     // Add ordering and pagination
@@ -180,13 +203,26 @@ router.get('/', async (req, res) => {
     console.log('Executing query:', query);
     const [articles] = await db.query(query, params);
     
-    // Get total count for pagination
-    let countQuery = `SELECT COUNT(*) as total FROM articles a`;
-    if (!roles.includes('admin')) {
-      countQuery += ` WHERE a.status = 'published'`;
+    // Load images for each article
+    for (const article of articles) {
+      const [images] = await db.query(
+        'SELECT id, image_url as url, friendly_name, is_primary, alt_text, `order`, category FROM article_images WHERE article_id = ? ORDER BY `order` ASC',
+        [article.id]
+      );
+      article.images = images;
+      // Get primary image URL for backwards compatibility
+      const primaryImage = images.find(img => img.is_primary) || images[0];
+      article.featured_image = primaryImage?.url || null;
     }
     
-    const [countResult] = await db.query(countQuery);
+    // Get total count for pagination (using same conditions, minus pagination params)
+    let countQuery = `SELECT COUNT(*) as total FROM articles a`;
+    const countParams = params.slice(0, -2); // Remove limit and offset
+    if (conditions.length > 0) {
+      countQuery += ` WHERE ${conditions.join(' AND ')}`;
+    }
+    
+    const [countResult] = await db.query(countQuery, countParams);
     const totalItems = countResult[0].total;
     const totalPages = Math.ceil(totalItems / limit);
     
@@ -415,6 +451,57 @@ router.get('/series/:slug', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/articles/series
+ * Create a new article series
+ * 
+ * @route POST /api/articles/series
+ * @middleware verifyToken - Requires user authentication
+ * @param {string} req.body.series_name - Series name (required)
+ * @param {string} [req.body.description] - Series description
+ * @returns {Object} Created series with id and slug
+ */
+router.post('/series', verifyToken, checkContentPermissions, async (req, res) => {
+  try {
+    const { series_name, description } = req.body;
+    
+    if (!series_name) {
+      return res.status(400).json({ error: 'Series name is required' });
+    }
+    
+    // Generate slug
+    const baseSlug = generateSlug(series_name);
+    let slug = baseSlug;
+    let counter = 1;
+    
+    // Ensure slug is unique
+    while (true) {
+      const [existing] = await db.query('SELECT id FROM article_series WHERE slug = ?', [slug]);
+      if (!existing[0]) break;
+      slug = `${baseSlug}-${counter}`;
+      counter++;
+    }
+    
+    // Create series
+    const [result] = await db.query(`
+      INSERT INTO article_series (series_name, slug, description)
+      VALUES (?, ?, ?)
+    `, [series_name, slug, description || null]);
+    
+    res.status(201).json({
+      message: 'Series created successfully',
+      series: {
+        id: result.insertId,
+        series_name,
+        slug
+      }
+    });
+  } catch (err) {
+    console.error('Error creating series:', err);
+    res.status(500).json({ error: 'Failed to create series' });
+  }
+});
+
 // /:slug route moved to end of file after all specific routes
 
 /**
@@ -446,6 +533,9 @@ router.post('/', verifyToken, checkContentPermissions, async (req, res) => {
       content,
       excerpt,
       status = 'draft',
+      page_type = 'article',
+      section = null,
+      images = [],
       topics = [],
       tags = [],
       series_id,
@@ -475,10 +565,11 @@ router.post('/', verifyToken, checkContentPermissions, async (req, res) => {
     // Calculate reading time
     const readingTime = calculateReadingTime(content);
     
-    // Create article
+    // Create article (section is stored as JSON array)
+    const sectionJson = Array.isArray(section) && section.length > 0 ? JSON.stringify(section) : null;
     const [result] = await db.query(`
-      INSERT INTO articles (title, slug, content, excerpt, author_id, status, published_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO articles (title, slug, content, excerpt, author_id, status, page_type, section, published_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       title,
       slug,
@@ -486,6 +577,8 @@ router.post('/', verifyToken, checkContentPermissions, async (req, res) => {
       excerpt,
       req.userId,
       status,
+      page_type,
+      sectionJson,
       status === 'published' ? new Date() : null
     ]);
     
@@ -522,6 +615,25 @@ router.post('/', verifyToken, checkContentPermissions, async (req, res) => {
         social.og_description || null,
         social.twitter_card_type || 'summary'
       ]);
+    }
+    
+    // Add images
+    if (images && images.length > 0) {
+      for (let i = 0; i < images.length; i++) {
+        const img = images[i];
+        await db.query(`
+          INSERT INTO article_images (article_id, image_url, friendly_name, is_primary, alt_text, \`order\`, category)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `, [
+          articleId,
+          img.url,
+          img.friendly_name || null,
+          img.is_primary ? 1 : 0,
+          img.alt_text || null,
+          img.order ?? i,
+          img.category || 'content'
+        ]);
+      }
     }
     
     // Add topics
@@ -583,6 +695,9 @@ router.put('/:id', verifyToken, async (req, res) => {
       content,
       excerpt,
       status,
+      page_type,
+      section,
+      images,
       topics = [],
       tags = [],
       series_id,
@@ -649,11 +764,48 @@ router.put('/:id', verifyToken, async (req, res) => {
       }
     }
     
+    if (page_type) {
+      updateFields.push('page_type = ?');
+      updateValues.push(page_type);
+    }
+    
+    if (section !== undefined) {
+      updateFields.push('section = ?');
+      // Convert array to JSON string for storage
+      const sectionJson = Array.isArray(section) && section.length > 0 ? JSON.stringify(section) : null;
+      updateValues.push(sectionJson);
+    }
+    
     if (updateFields.length > 0) {
       updateValues.push(id);
       await db.query(`
         UPDATE articles SET ${updateFields.join(', ')} WHERE id = ?
       `, updateValues);
+    }
+    
+    // Update images if provided
+    if (images !== undefined) {
+      // Delete existing images
+      await db.query('DELETE FROM article_images WHERE article_id = ?', [id]);
+      
+      // Insert new images
+      if (images && images.length > 0) {
+        for (let i = 0; i < images.length; i++) {
+          const img = images[i];
+          await db.query(`
+            INSERT INTO article_images (article_id, image_url, friendly_name, is_primary, alt_text, \`order\`, category)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+          `, [
+            id,
+            img.url,
+            img.friendly_name || null,
+            img.is_primary ? 1 : 0,
+            img.alt_text || null,
+            img.order ?? i,
+            img.category || 'content'
+          ]);
+        }
+      }
     }
     
     // Update topics
@@ -723,7 +875,42 @@ router.put('/:id', verifyToken, async (req, res) => {
       ]);
     }
     
-    res.json({ message: 'Article updated successfully' });
+    // Fetch and return the updated article
+    const [updatedArticle] = await db.query(`
+      SELECT 
+        a.*,
+        u.username as author_username
+      FROM articles a
+      LEFT JOIN users u ON a.author_id = u.id
+      WHERE a.id = ?
+    `, [id]);
+    
+    // Fetch images for the updated article
+    const [articleImages] = await db.query(
+      'SELECT id, image_url as url, friendly_name, is_primary, alt_text, `order`, category FROM article_images WHERE article_id = ? ORDER BY `order`',
+      [id]
+    );
+    
+    // Fetch topic IDs
+    const [topicRelations] = await db.query(
+      'SELECT topic_id FROM article_topic_relations WHERE article_id = ?',
+      [id]
+    );
+    
+    // Fetch tag IDs
+    const [tagRelations] = await db.query(
+      'SELECT tag_id FROM article_tag_relations WHERE article_id = ?',
+      [id]
+    );
+    
+    const articleData = {
+      ...updatedArticle[0],
+      images: articleImages,
+      topic_ids: topicRelations.map(r => r.topic_id),
+      tag_ids: tagRelations.map(r => r.tag_id)
+    };
+    
+    res.json(articleData);
   } catch (err) {
     console.error('Error updating article:', err);
     res.status(500).json({ error: 'Failed to update article' });
@@ -1796,18 +1983,89 @@ router.get('/:slug', async (req, res) => {
         last_viewed = NOW()
     `, [article[0].id]);
     
+    // Get images
+    const [images] = await db.query(`
+      SELECT id, image_url as url, friendly_name, is_primary, alt_text, \`order\`, category
+      FROM article_images
+      WHERE article_id = ?
+      ORDER BY \`order\` ASC
+    `, [article[0].id]);
+    
     res.json({
       article: {
         ...article[0],
         topics,
         tags,
         series: seriesNavigation || null,
-        connections
+        connections,
+        images
       }
     });
   } catch (err) {
     console.error('Error fetching article:', err);
     res.status(500).json({ error: 'Failed to fetch article' });
+  }
+});
+
+/**
+ * POST /articles/upload
+ * Upload images for articles (featured image, content images)
+ * 
+ * @route POST /api/articles/upload
+ * @param {string} article_id - Query param: article ID or 'new' for new articles
+ * @param {File[]} images - Uploaded image files
+ * @returns {Object} Object containing uploaded image URLs
+ */
+router.post('/upload', verifyToken, checkContentPermissions, upload.array('images'), async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded' });
+    }
+
+    const { article_id } = req.query;
+    
+    // For existing articles, verify ownership/permission
+    if (article_id && article_id !== 'new') {
+      const [article] = await db.query('SELECT * FROM articles WHERE id = ?', [article_id]);
+      if (!article.length) {
+        return res.status(404).json({ error: 'Article not found' });
+      }
+      
+      // Check authorization: either article author or admin/content manager
+      const [userPermissions] = await db.query('SELECT * FROM user_permissions WHERE user_id = ?', [req.userId]);
+      const isAdmin = userPermissions[0]?.manage_system || false;
+      const canManageContent = userPermissions[0]?.manage_content || false;
+      const isAuthor = article[0].author_id === req.userId;
+      
+      if (!isAdmin && !canManageContent && !isAuthor) {
+        return res.status(403).json({ error: 'Not authorized to upload images for this article' });
+      }
+    }
+
+    const urls = [];
+    
+    // Record temp image URLs
+    for (const file of req.files) {
+      const imagePath = `/temp_images/articles/${file.filename}`;
+      
+      // Insert into pending_images for processing
+      await db.query(
+        'INSERT INTO pending_images (user_id, image_path, original_name, mime_type, status) VALUES (?, ?, ?, ?, ?)',
+        [req.userId, imagePath, file.originalname, file.mimetype, 'pending']
+      );
+      
+      urls.push(imagePath);
+    }
+
+    res.json({ 
+      success: true,
+      urls,
+      message: `${urls.length} image(s) uploaded successfully`
+    });
+    
+  } catch (err) {
+    console.error('Error uploading article images:', err);
+    res.status(500).json({ error: 'Failed to upload images' });
   }
 });
 

@@ -56,8 +56,18 @@ async function fetchProducts() {
       -- Inventory availability
       COALESCE(inv.qty_available, 0) as qty_available,
       
-      -- Brand (vendor business name, fallback to "Brakebee")
-      COALESCE(ap.business_name, pp.business_name, 'Brakebee') as brand,
+      -- Brand (vendor business name, fallback to first/last name, then "Artist")
+      -- Matches product page logic: business_name || (first && last ? "first last" : "Artist")
+      COALESCE(
+        NULLIF(ap.business_name, ''),
+        CASE 
+          WHEN up.first_name IS NOT NULL AND up.first_name != '' 
+           AND up.last_name IS NOT NULL AND up.last_name != ''
+          THEN CONCAT(up.first_name, ' ', up.last_name)
+          ELSE NULL
+        END,
+        'Artist'
+      ) as brand,
       
       -- Feed metadata
       pfm.condition,
@@ -81,7 +91,10 @@ async function fetchProducts() {
       ps.height,
       ps.weight,
       ps.dimension_unit,
-      ps.weight_unit
+      ps.weight_unit,
+      
+      -- Return policy
+      p.allow_returns
       
     FROM products p
     
@@ -117,10 +130,10 @@ async function fetchProducts() {
     -- Join shipping info (package_number = 1 for primary package)
     LEFT JOIN product_shipping ps ON p.id = ps.product_id AND ps.package_number = 1
     
-    -- Join vendor/user info for brand
+    -- Join vendor/user info for brand (matches product page API query)
     LEFT JOIN users u ON p.vendor_id = u.id
+    LEFT JOIN user_profiles up ON u.id = up.user_id
     LEFT JOIN artist_profiles ap ON u.id = ap.user_id
-    LEFT JOIN promoter_profiles pp ON u.id = pp.user_id
     
     -- Only active products with valid prices (Google rejects $0 products)
     WHERE p.status = 'active'
@@ -134,6 +147,20 @@ async function fetchProducts() {
 }
 
 /**
+ * Map internal return policy to Google Merchant Center return_policy_label
+ * These labels must match what's configured in Merchant Center > Settings > Return policies
+ */
+function mapReturnPolicyLabel(allowReturns) {
+  const policyMap = {
+    '30_day': '30_days',
+    '14_day': '14_days',
+    'exchange_only': 'exchange_only',
+    'no_returns': 'no_returns'
+  };
+  return policyMap[allowReturns] || '30_days';
+}
+
+/**
  * Transform database row to Google Merchant Center format
  */
 function transformToFeedFormat(product, processedImage = null) {
@@ -143,8 +170,8 @@ function transformToFeedFormat(product, processedImage = null) {
   // Format price (must include currency)
   const price = `${parseFloat(product.price).toFixed(2)} USD`;
   
-  // Generate product link
-  const link = `${BASE_URL}/products/${product.sku}`;
+  // Generate product link (use product ID, not SKU)
+  const link = `${BASE_URL}/products/${product.id}`;
   
   // Use processed image URL from media system
   let imageLink = '';
@@ -170,21 +197,37 @@ function transformToFeedFormat(product, processedImage = null) {
     itemGroupId = product.parent_id.toString();
   }
   
-  // Handle shipping weight - set to "0" for free shipping, otherwise use actual weight
+  // Handle shipping weight
   let shippingWeight = '';
-  if (product.ship_method === 'free') {
-    shippingWeight = '0';
-  } else if (product.weight && product.weight_unit) {
+  if (product.weight && product.weight_unit) {
     shippingWeight = `${product.weight} ${product.weight_unit}`;
-  } else {
-    // Default to 0 if no weight specified
-    shippingWeight = '0';
   }
   
+  // Handle shipping dimensions
+  const dimensionUnit = product.dimension_unit || 'in';
+  let shippingLength = '';
+  let shippingWidth = '';
+  let shippingHeight = '';
+  
+  if (product.length) {
+    shippingLength = `${product.length} ${dimensionUnit}`;
+  }
+  if (product.width) {
+    shippingWidth = `${product.width} ${dimensionUnit}`;
+  }
+  if (product.height) {
+    shippingHeight = `${product.height} ${dimensionUnit}`;
+  }
+  
+  // Append "by [brand]" to title to match product page
+  const titleWithBrand = product.title 
+    ? `${product.title} by ${product.brand || 'Brakebee'}`
+    : '';
+
   return {
     id: product.sku, // Use SKU as the unique identifier
     item_group_id: itemGroupId || '',
-    title: product.title || '',
+    title: titleWithBrand,
     description: description,
     link: link,
     image_link: imageLink,
@@ -201,7 +244,11 @@ function transformToFeedFormat(product, processedImage = null) {
     custom_label_2: product.custom_label_2 || '',
     custom_label_3: product.custom_label_3 || '',
     custom_label_4: product.custom_label_4 || '',
-    shipping_weight: shippingWeight
+    shipping_weight: shippingWeight,
+    shipping_length: shippingLength,
+    shipping_width: shippingWidth,
+    shipping_height: shippingHeight,
+    return_policy_label: mapReturnPolicyLabel(product.allow_returns)
   };
 }
 
@@ -264,7 +311,11 @@ async function generateFeed() {
         'custom_label_2',
         'custom_label_3',
         'custom_label_4',
-        'shipping_weight'
+        'shipping_weight',
+        'shipping_length',
+        'shipping_width',
+        'shipping_height',
+        'return_policy_label'
       ]
     });
     

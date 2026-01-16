@@ -5,6 +5,7 @@ const verifyToken = require('../middleware/jwt');
 const { requirePermission } = require('../middleware/permissions');
 const EmailService = require('../services/emailService');
 const discountService = require('../services/discountService');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 // Import maintenance control routes
 const maintenanceRoutes = require('./admin/maintenance');
@@ -31,6 +32,49 @@ const promoterOnboardingRoutes = require('./admin/promoter-onboarding');
 const emailService = new EmailService();
 
 // Note: All admin endpoints now use requirePermission('manage_system') instead of hardcoded admin checks
+
+/**
+ * Get admin notification counts for dashboard badges
+ * @route GET /api/admin/notifications
+ * @access Private (requires manage_system permission)
+ * @returns {Object} Counts of pending items requiring admin attention
+ */
+router.get('/notifications', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    // Get pending marketplace applications count (column is marketplace_status)
+    const [marketplaceApps] = await db.execute(
+      `SELECT COUNT(*) as count FROM marketplace_applications WHERE marketplace_status = 'pending'`
+    );
+
+    // Get pending wholesale applications count
+    const [wholesaleApps] = await db.execute(
+      `SELECT COUNT(*) as count FROM wholesale_applications WHERE status = 'pending'`
+    );
+
+    // Get pending returns count (column is return_status)
+    const [pendingReturns] = await db.execute(
+      `SELECT COUNT(*) as count FROM returns WHERE return_status = 'pending'`
+    );
+
+    // Get open support tickets count (tickets needing admin attention)
+    const [openTickets] = await db.execute(
+      `SELECT COUNT(*) as count FROM support_tickets WHERE status IN ('open', 'awaiting_support', 'escalated')`
+    );
+
+    res.json({
+      success: true,
+      notifications: {
+        marketplace_applications: marketplaceApps[0]?.count || 0,
+        wholesale_applications: wholesaleApps[0]?.count || 0,
+        pending_returns: pendingReturns[0]?.count || 0,
+        open_tickets: openTickets[0]?.count || 0
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching admin notifications:', err.message);
+    res.status(500).json({ error: 'Failed to fetch admin notifications' });
+  }
+});
 
 /**
  * List all users
@@ -222,24 +266,158 @@ router.put('/users/:id', verifyToken, requirePermission('manage_system'), async 
 });
 
 /**
- * Delete a user
+ * Delete a user and cascade all associated data
  * @route DELETE /api/admin/users/:id
  * @access Private (requires manage_system permission)
  * @param {Object} req - Express request object
  * @param {string} req.params.id - User ID to delete
  * @param {Object} res - Express response object
- * @returns {Object} Deletion confirmation
+ * @returns {Object} Deletion confirmation with summary of affected data
+ * 
+ * WARNING: This permanently deletes the user and ALL associated data including:
+ * - Orders, transactions, financial records
+ * - Products, media, sites
+ * - Reviews, applications, etc.
  */
 router.delete('/users/:id', verifyToken, requirePermission('manage_system'), async (req, res) => {
   console.log('DELETE /admin/users/:id request received, userId:', req.userId);
   const { id } = req.params;
+  
+  const connection = await db.getConnection();
+  
   try {
-    await db.execute('DELETE FROM users WHERE id = ?', [id]);
-    res.json({ message: 'User deleted successfully' });
+    await connection.beginTransaction();
+    
+    // Track what we're deleting for the response
+    const deletionSummary = { deleted: [] };
+    
+    // ============================================
+    // STEP 1: DELETE FROM TABLES WITH NO ACTION/RESTRICT CONSTRAINTS
+    // These must be deleted first as they block user deletion
+    // ============================================
+    
+    // Application fee payments (NO ACTION, NOT NULL) - DELETE
+    const [appFees] = await connection.execute(
+      'SELECT COUNT(*) as count FROM application_fee_payments WHERE artist_id = ? OR promoter_id = ?', [id, id]
+    );
+    if (appFees[0].count > 0) {
+      await connection.execute('DELETE FROM application_fee_payments WHERE artist_id = ?', [id]);
+      await connection.execute('DELETE FROM application_fee_payments WHERE promoter_id = ?', [id]);
+      deletionSummary.deleted.push(`${appFees[0].count} application fee payments`);
+    }
+    
+    // Financial settings (RESTRICT, NOT NULL) - DELETE
+    await connection.execute('DELETE FROM financial_settings WHERE user_id = ?', [id]);
+    await connection.execute('DELETE FROM financial_settings WHERE created_by = ?', [id]);
+    await connection.execute('DELETE FROM financial_settings WHERE updated_by = ?', [id]);
+    
+    // Vendor tax summary (NO ACTION, NOT NULL) - DELETE
+    const [taxSummary] = await connection.execute(
+      'SELECT COUNT(*) as count FROM vendor_tax_summary WHERE vendor_id = ?', [id]
+    );
+    if (taxSummary[0].count > 0) {
+      await connection.execute('DELETE FROM vendor_tax_summary WHERE vendor_id = ?', [id]);
+      deletionSummary.deleted.push(`${taxSummary[0].count} tax summary records`);
+    }
+    
+    // Walmart order items (NO ACTION, NOT NULL) - DELETE
+    await connection.execute('DELETE FROM walmart_order_items WHERE vendor_id = ?', [id]);
+    
+    // Announcements (NO ACTION, NOT NULL) - DELETE
+    await connection.execute('DELETE FROM announcements WHERE created_by = ?', [id]);
+    
+    // Cart collections (NO ACTION, NOT NULL) - DELETE
+    await connection.execute('DELETE FROM cart_collections WHERE user_id = ?', [id]);
+    
+    // Saved items (NO ACTION, NOT NULL) - DELETE
+    await connection.execute('DELETE FROM saved_items WHERE user_id = ?', [id]);
+    
+    // Search queries (NO ACTION) - DELETE
+    await connection.execute('DELETE FROM search_queries WHERE user_id = ?', [id]);
+    
+    // User acknowledgments (NO ACTION, NOT NULL) - DELETE
+    await connection.execute('DELETE FROM user_acknowledgments WHERE user_id = ?', [id]);
+    
+    // Event artists - added_by (NO ACTION, NOT NULL) - DELETE where they added artists
+    await connection.execute('DELETE FROM event_artists WHERE added_by = ?', [id]);
+    
+    // Events - created_by/updated_by (NO ACTION, NOT NULL) - SET to admin user or NULL if allowed
+    // For events, we preserve them by setting to a system user (1000000007) or NULL
+    await connection.execute('UPDATE events SET created_by = 1000000007 WHERE created_by = ?', [id]);
+    await connection.execute('UPDATE events SET updated_by = 1000000007 WHERE updated_by = ?', [id]);
+    
+    // Promotions (NO ACTION, NOT NULL) - DELETE
+    await connection.execute('DELETE FROM promotions WHERE created_by_admin_id = ?', [id]);
+    
+    // Promotion products - added_by (NO ACTION, NOT NULL) - DELETE
+    await connection.execute('DELETE FROM promotion_products WHERE added_by_user_id = ?', [id]);
+    
+    // Shipping policies - created_by (NO ACTION, NOT NULL) - DELETE
+    await connection.execute('DELETE FROM shipping_policies WHERE created_by = ?', [id]);
+    
+    // Terms versions (NO ACTION, NOT NULL) - UPDATE to system user
+    await connection.execute('UPDATE terms_versions SET created_by = 1000000007 WHERE created_by = ?', [id]);
+    
+    // Coupons - can be NULL so UPDATE
+    await connection.execute('UPDATE coupons SET created_by_vendor_id = NULL WHERE created_by_vendor_id = ?', [id]);
+    await connection.execute('UPDATE coupons SET created_by_admin_id = NULL WHERE created_by_admin_id = ?', [id]);
+    
+    // Event applications - jury_reviewed_by can be NULL so UPDATE
+    await connection.execute('UPDATE event_applications SET jury_reviewed_by = NULL WHERE jury_reviewed_by = ?', [id]);
+    
+    // ============================================
+    // STEP 2: COUNT WHAT WILL BE CASCADE DELETED
+    // ============================================
+    
+    const [products] = await connection.execute(
+      'SELECT COUNT(*) as count FROM products WHERE vendor_id = ?', [id]
+    );
+    if (products[0].count > 0) {
+      deletionSummary.deleted.push(`${products[0].count} products`);
+    }
+    
+    const [sites] = await connection.execute(
+      'SELECT COUNT(*) as count FROM sites WHERE user_id = ?', [id]
+    );
+    if (sites[0].count > 0) {
+      deletionSummary.deleted.push(`${sites[0].count} sites`);
+    }
+    
+    const [media] = await connection.execute(
+      'SELECT COUNT(*) as count FROM media_library WHERE user_id = ?', [id]
+    );
+    if (media[0].count > 0) {
+      deletionSummary.deleted.push(`${media[0].count} media files`);
+    }
+    
+    const [reviews] = await connection.execute(
+      'SELECT COUNT(*) as count FROM reviews WHERE reviewer_id = ?', [id]
+    );
+    if (reviews[0].count > 0) {
+      deletionSummary.deleted.push(`${reviews[0].count} reviews`);
+    }
+    
+    // ============================================
+    // STEP 4: DELETE THE USER
+    // CASCADE will handle remaining related data
+    // ============================================
+    
+    await connection.execute('DELETE FROM users WHERE id = ?', [id]);
+    
+    await connection.commit();
+    
+    res.json({ 
+      message: 'User and all associated data deleted successfully',
+      summary: deletionSummary
+    });
+    
   } catch (err) {
+    await connection.rollback();
     console.error('Error deleting user:', err.message, err.stack);
     res.setHeader('Content-Type', 'application/json');
-    res.status(500).json({ error: 'Failed to delete user' });
+    res.status(500).json({ error: 'Failed to delete user', details: err.message });
+  } finally {
+    connection.release();
   }
 });
 
@@ -2763,6 +2941,200 @@ router.get('/impersonation-history', verifyToken, requirePermission('manage_syst
   } catch (error) {
     console.error('Error fetching impersonation history:', error);
     res.status(500).json({ error: 'Failed to fetch impersonation history' });
+  }
+});
+
+// ===== APPLICATION FEE REFUNDS =====
+
+/**
+ * Get applications with payment info for admin refunds
+ * @route GET /api/admin/applications
+ * @access Private (requires manage_system permission)
+ */
+router.get('/applications', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search = '', status = '' } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    let whereClause = '1=1';
+    const params = [];
+
+    // Filter by status
+    if (status) {
+      const statuses = status.split(',').map(s => s.trim());
+      whereClause += ` AND ea.status IN (${statuses.map(() => '?').join(',')})`;
+      params.push(...statuses);
+    }
+
+    // Search filter
+    if (search) {
+      whereClause += ` AND (
+        e.title LIKE ? OR 
+        artist.username LIKE ? OR 
+        CONCAT(artist_profile.first_name, ' ', artist_profile.last_name) LIKE ?
+      )`;
+      const searchTerm = `%${search}%`;
+      params.push(searchTerm, searchTerm, searchTerm);
+    }
+
+    // Get total count
+    const [countResult] = await db.execute(`
+      SELECT COUNT(*) as total
+      FROM event_applications ea
+      JOIN events e ON ea.event_id = e.id
+      JOIN users artist ON ea.artist_id = artist.id
+      LEFT JOIN user_profiles artist_profile ON artist.id = artist_profile.user_id
+      WHERE ${whereClause}
+    `, params);
+
+    const total = countResult[0].total;
+    const totalPages = Math.ceil(total / parseInt(limit));
+
+    // Get applications with payment info
+    const [applications] = await db.execute(`
+      SELECT 
+        ea.id,
+        ea.event_id,
+        ea.artist_id,
+        ea.status,
+        ea.payment_status,
+        ea.submitted_at,
+        e.title as event_title,
+        e.promoter_id,
+        CONCAT(promoter_profile.first_name, ' ', promoter_profile.last_name) as promoter_name,
+        artist.username as artist_email,
+        CONCAT(artist_profile.first_name, ' ', artist_profile.last_name) as artist_name,
+        afp.amount_total as amount_paid,
+        afp.stripe_payment_intent_id,
+        afp.stripe_transfer_id,
+        afp.refunded_at
+      FROM event_applications ea
+      JOIN events e ON ea.event_id = e.id
+      JOIN users artist ON ea.artist_id = artist.id
+      LEFT JOIN user_profiles artist_profile ON artist.id = artist_profile.user_id
+      LEFT JOIN users promoter ON e.promoter_id = promoter.id
+      LEFT JOIN user_profiles promoter_profile ON promoter.id = promoter_profile.user_id
+      LEFT JOIN application_fee_payments afp ON ea.id = afp.application_id AND afp.status = 'succeeded'
+      WHERE ${whereClause}
+      ORDER BY ea.submitted_at DESC
+      LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}
+    `, params);
+
+    res.json({
+      applications,
+      total,
+      totalPages,
+      page: parseInt(page)
+    });
+  } catch (error) {
+    console.error('Error fetching admin applications:', error);
+    res.status(500).json({ error: 'Failed to fetch applications' });
+  }
+});
+
+/**
+ * Refund application fee
+ * @route POST /api/admin/applications/:id/refund
+ * @access Private (requires manage_system permission)
+ */
+router.post('/applications/:id/refund', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason = 'Admin refund' } = req.body;
+
+    // Get the payment record
+    const [payments] = await db.execute(`
+      SELECT afp.*, ea.status as app_status
+      FROM application_fee_payments afp
+      JOIN event_applications ea ON afp.application_id = ea.id
+      WHERE afp.application_id = ? AND afp.status = 'succeeded'
+    `, [id]);
+
+    if (payments.length === 0) {
+      return res.status(404).json({ error: 'No payment found for this application' });
+    }
+
+    const payment = payments[0];
+
+    if (payment.refunded_at) {
+      return res.status(400).json({ error: 'This payment has already been refunded' });
+    }
+
+    // Step 1: Reverse the transfer to promoter (if one was made)
+    if (payment.stripe_transfer_id) {
+      try {
+        await stripe.transfers.createReversal(payment.stripe_transfer_id, {
+          description: `Refund for application #${id}: ${reason}`
+        });
+      } catch (transferError) {
+        console.error('Error reversing transfer:', transferError);
+        // Continue with refund even if transfer reversal fails
+      }
+    }
+
+    // Step 2: Refund the original payment
+    const refund = await stripe.refunds.create({
+      payment_intent: payment.stripe_payment_intent_id,
+      reason: 'requested_by_customer',
+      metadata: {
+        application_id: id,
+        admin_user_id: req.userId,
+        refund_reason: reason
+      }
+    });
+
+    // Step 3: Update the payment record
+    await db.execute(`
+      UPDATE application_fee_payments 
+      SET status = 'refunded', 
+          refunded_at = NOW(), 
+          refund_reason = ?,
+          updated_at = NOW()
+      WHERE id = ?
+    `, [reason, payment.id]);
+
+    // Step 4: Update application payment status
+    await db.execute(`
+      UPDATE event_applications 
+      SET payment_status = 'refunded',
+          updated_at = NOW()
+      WHERE id = ?
+    `, [id]);
+
+    // Step 5: Send refund notification email
+    try {
+      const [appDetails] = await db.execute(`
+        SELECT ea.artist_id, e.title as event_title, up.first_name, up.last_name
+        FROM event_applications ea
+        JOIN events e ON ea.event_id = e.id
+        JOIN user_profiles up ON ea.artist_id = up.user_id
+        WHERE ea.id = ?
+      `, [id]);
+      
+      if (appDetails[0]) {
+        const EmailService = require('../services/emailService');
+        const emailService = new EmailService();
+        await emailService.sendEmail(appDetails[0].artist_id, 'application_fee_refunded', {
+          artist_name: `${appDetails[0].first_name} ${appDetails[0].last_name}`,
+          event_title: appDetails[0].event_title,
+          refund_amount: `$${parseFloat(payment.amount_total).toFixed(2)}`,
+          refund_date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+          contact_email: 'support@brakebee.com'
+        });
+      }
+    } catch (emailError) {
+      console.error('Failed to send refund notification email:', emailError);
+    }
+
+    res.json({
+      success: true,
+      refund_id: refund.id,
+      message: `Refund of $${parseFloat(payment.amount_total).toFixed(2)} processed successfully`
+    });
+
+  } catch (error) {
+    console.error('Error processing refund:', error);
+    res.status(500).json({ error: error.message || 'Failed to process refund' });
   }
 });
 

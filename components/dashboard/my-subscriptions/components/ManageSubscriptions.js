@@ -65,11 +65,10 @@ export default function ManageSubscriptions({ userData }) {
           status: data.hasSubscription ? 'active' : 'inactive',
           sitesCount: data.sitesCount || 0,
           plan: data.hasSubscription ? 'Website Subscription' : null,
-          monthlyPrice: data.hasSubscription ? 14.99 : 0, // Base price - would need API enhancement for actual plan
+          monthlyPrice: data.hasSubscription ? 14.99 : 0,
           features: ['Website Creation', 'Custom Domains', 'Site Management']
         };
       } else if (response.status === 404) {
-        // API endpoint doesn't exist yet - check permissions instead
         const hasSites = userData?.permissions?.includes('sites');
         return {
           type: 'website',
@@ -82,7 +81,6 @@ export default function ManageSubscriptions({ userData }) {
       }
     } catch (error) {
       console.error('Error loading website subscription:', error);
-      // Fallback to permission check
       const hasSites = userData?.permissions?.includes('sites');
       return {
         type: 'website',
@@ -107,7 +105,7 @@ export default function ManageSubscriptions({ userData }) {
           cardLast4: data.subscription?.cardLast4,
           preferConnectBalance: data.subscription?.preferConnectBalance,
           plan: 'Shipping Labels (Pay-as-you-go)',
-          monthlyPrice: 0, // Pay-as-you-go
+          monthlyPrice: 0,
           features: ['Shipping Label Creation', 'Multiple Carriers', 'Tracking Updates']
         };
       }
@@ -118,7 +116,6 @@ export default function ManageSubscriptions({ userData }) {
   };
 
   const loadVerificationSubscription = async () => {
-    // Verification subscription - check via new universal flow API
     try {
       const response = await authApiRequest('api/subscriptions/verified/my');
       if (response.ok) {
@@ -128,7 +125,7 @@ export default function ManageSubscriptions({ userData }) {
             type: 'verification',
             status: data.subscription?.status || 'active',
             plan: 'Artist Verification',
-            annualPrice: 50, // $50/year
+            annualPrice: 50,
             isAnnual: true,
             features: ['Verified Badge', 'Enhanced Profile', 'Priority Support']
           };
@@ -141,18 +138,16 @@ export default function ManageSubscriptions({ userData }) {
   };
 
   const loadMarketplaceSubscription = async () => {
-    // Marketplace subscription - check via new universal flow API
     try {
       const response = await authApiRequest('api/subscriptions/verified/my');
       if (response.ok) {
         const data = await response.json();
-        // Check if user has marketplace tier specifically
         if (data.subscription?.tier === 'Marketplace Seller' && data.has_permission) {
           return {
             type: 'marketplace',
             status: data.subscription?.status || 'active',
             plan: 'Marketplace Seller',
-            monthlyPrice: 0, // Free
+            monthlyPrice: 0,
             features: ['Sell on Marketplace', 'FREE Verified Badge', 'Commission-based']
           };
         }
@@ -170,10 +165,8 @@ export default function ManageSubscriptions({ userData }) {
     Object.values(subscriptionData).forEach(sub => {
       if (sub && sub.status === 'active') {
         totalActive++;
-        // Handle both monthly and annual subscriptions
         if (sub.isAnnual && sub.annualPrice) {
           // Don't add annual fees to monthly total
-          // They're billed separately
         } else {
           monthlyTotal += parseFloat(sub.monthlyPrice) || 0;
         }
@@ -183,7 +176,7 @@ export default function ManageSubscriptions({ userData }) {
     setSubscriptionStats({
       totalActive,
       monthlyTotal,
-      nextBillingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // Placeholder
+      nextBillingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
     });
   };
 
@@ -202,7 +195,6 @@ export default function ManageSubscriptions({ userData }) {
           console.warn('Unknown action:', action);
       }
       
-      // Refresh data after action
       await loadAllSubscriptions();
       
     } catch (error) {
@@ -220,7 +212,6 @@ export default function ManageSubscriptions({ userData }) {
     }
 
     try {
-      // Future implementation is now active:
       let endpoint;
       switch (subscriptionType) {
         case 'website':
@@ -233,7 +224,7 @@ export default function ManageSubscriptions({ userData }) {
           endpoint = 'subscriptions/verified/cancel';
           break;
         case 'marketplace':
-          endpoint = 'subscriptions/verified/cancel'; // Same backend as verified
+          endpoint = 'subscriptions/verified/cancel';
           break;
         default:
           throw new Error(`Cancellation not implemented for ${subscriptionType}`);
@@ -252,7 +243,6 @@ export default function ManageSubscriptions({ userData }) {
       const result = await response.json();
       alert(`Subscription canceled successfully.\n\n${result.note || result.message}`);
       
-      // Refresh data
       await loadAllSubscriptions();
       
     } catch (error) {
@@ -262,7 +252,6 @@ export default function ManageSubscriptions({ userData }) {
   };
 
   const handleSubscribeToService = async (subscriptionType) => {
-    // Open the appropriate subscription slide-in
     const slideInTypes = {
       'website': 'website-subscriptions',
       'shipping': 'shipping-labels-subscriptions',
@@ -272,9 +261,8 @@ export default function ManageSubscriptions({ userData }) {
     
     const slideInType = slideInTypes[subscriptionType];
     if (slideInType) {
-      // Trigger slide-in open event (parent dashboard will handle)
-      window.dispatchEvent(new CustomEvent('openSlideIn', { 
-        detail: { type: slideInType } 
+      window.dispatchEvent(new CustomEvent('dashboard-open-slide-in', { 
+        detail: { type: slideInType, title: `${subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1)} Subscription` } 
       }));
     } else {
       alert(`Subscription activation for ${subscriptionType} coming soon!`);
@@ -283,37 +271,18 @@ export default function ManageSubscriptions({ userData }) {
 
   if (loading) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <div style={{ 
-          width: '40px', 
-          height: '40px', 
-          border: '4px solid #f3f3f3',
-          borderTop: '4px solid #055474',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite',
-          margin: '0 auto 20px'
-        }}></div>
-        <p>Loading your subscriptions...</p>
+      <div className="loading-state">
+        <div className="spinner" style={{ width: '24px', height: '24px' }}></div>
+        <span>Loading your subscriptions...</span>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '20px' }}>
-      {error && (
-        <div style={{ 
-          padding: '15px', 
-          backgroundColor: '#f8d7da', 
-          border: '1px solid #dc3545', 
-          borderRadius: '4px', 
-          marginBottom: '20px',
-          color: '#721c24'
-        }}>
-          {error}
-        </div>
-      )}
+    <div>
+      {error && <div className="error-alert">{error}</div>}
 
-      {/* Subscription & Addon Table */}
+      {/* Subscription Table */}
       <SubscriptionTable 
         subscriptions={subscriptions}
         userData={userData}
@@ -322,17 +291,10 @@ export default function ManageSubscriptions({ userData }) {
       />
 
       {/* Monthly Total */}
-      <div style={{ 
-        marginTop: '20px',
-        padding: '15px',
-        backgroundColor: '#f8f9fa',
-        border: '1px solid #dee2e6',
-        borderRadius: '4px',
-        textAlign: 'right'
-      }}>
-        <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#2c3e50' }}>
+      <div className="form-card" style={{ textAlign: 'right' }}>
+        <strong style={{ fontSize: '18px' }}>
           Your current monthly subscription fee: ${subscriptionStats.monthlyTotal.toFixed(2)}
-        </div>
+        </strong>
       </div>
 
       {/* Connect Balance Preference */}
@@ -344,22 +306,14 @@ export default function ManageSubscriptions({ userData }) {
       )}
 
       {/* Billing Info */}
-      <div style={{ 
-        marginTop: '20px',
-        padding: '15px',
-        backgroundColor: '#e7f3ff',
-        border: '1px solid #b8daff',
-        borderRadius: '4px'
-      }}>
-        <div style={{ fontSize: '14px', color: '#004085' }}>
-          <strong>ℹ️ Billing Information:</strong> All subscription renewals are charged as a lump-sum fee on or around the 20th of each month.
-        </div>
+      <div className="form-card" style={{ backgroundColor: '#e7f3ff', borderColor: '#b8daff' }}>
+        <strong>ℹ️ Billing Information:</strong> All subscription renewals are charged as a lump-sum fee on or around the 20th of each month.
       </div>
     </div>
   );
 }
 
-// Subscription & Addon Table Component
+// Subscription Table Component
 function SubscriptionTable({ subscriptions, userData, onAction, onRefresh }) {
   const [availableAddons, setAvailableAddons] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -375,7 +329,6 @@ function SubscriptionTable({ subscriptions, userData, onAction, onRefresh }) {
         const data = await response.json();
         setAvailableAddons(data.addons || []);
       } else {
-        console.warn('Addons API not available, using empty list');
         setAvailableAddons([]);
       }
     } catch (error) {
@@ -384,9 +337,7 @@ function SubscriptionTable({ subscriptions, userData, onAction, onRefresh }) {
     }
   };
 
-  // Define all available subscriptions and addons
   const allSubscriptionsAndAddons = [
-    // Core Subscriptions
     {
       id: 'website',
       name: 'Website Subscription',
@@ -399,7 +350,7 @@ function SubscriptionTable({ subscriptions, userData, onAction, onRefresh }) {
       id: 'shipping',
       name: 'Shipping Labels',
       type: 'subscription',
-      monthlyFee: 0, // Pay-as-you-go
+      monthlyFee: 0,
       isActive: subscriptions.shipping?.status === 'active',
       description: 'Pay-as-you-go shipping label creation'
     },
@@ -407,7 +358,7 @@ function SubscriptionTable({ subscriptions, userData, onAction, onRefresh }) {
       id: 'verification',
       name: 'Artist Verification',
       type: 'subscription',
-      annualFee: 50, // $50/year
+      annualFee: 50,
       isAnnual: true,
       isActive: subscriptions.verification?.status === 'active',
       description: 'Verified artist status and enhanced features'
@@ -416,11 +367,10 @@ function SubscriptionTable({ subscriptions, userData, onAction, onRefresh }) {
       id: 'marketplace',
       name: 'Marketplace Seller',
       type: 'subscription',
-      monthlyFee: 0, // Free
+      monthlyFee: 0,
       isActive: subscriptions.marketplace?.status === 'active',
       description: 'Sell on marketplace + FREE verified badge'
     },
-    // Addons (loaded dynamically)
     ...availableAddons.map(addon => ({
       id: `addon_${addon.id}`,
       name: addon.addon_name || addon.name,
@@ -473,157 +423,108 @@ function SubscriptionTable({ subscriptions, userData, onAction, onRefresh }) {
   };
 
   return (
-    <div style={{ marginBottom: '20px' }}>
+    <div className="form-card" style={{ padding: 0, overflow: 'hidden' }}>
+      {/* Table Header */}
       <div style={{ 
-        border: '1px solid #dee2e6', 
-        borderRadius: '4px', 
-        overflow: 'hidden',
-        backgroundColor: 'white'
+        display: 'grid', 
+        gridTemplateColumns: '2fr 1fr 1fr', 
+        gap: '15px',
+        padding: '15px',
+        backgroundColor: '#f8f9fa',
+        borderBottom: '1px solid #dee2e6',
+        fontWeight: 'bold'
       }}>
-        {/* Table Header */}
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: '2fr 1fr 1fr', 
-          gap: '15px',
-          padding: '15px',
-          backgroundColor: '#f8f9fa',
-          borderBottom: '1px solid #dee2e6',
-          fontWeight: 'bold',
-          color: '#495057'
-        }}>
-          <div>Subscription/Add-on</div>
-          <div style={{ textAlign: 'center' }}>Monthly Fee</div>
-          <div style={{ textAlign: 'center' }}>Action</div>
-        </div>
+        <div>Subscription/Add-on</div>
+        <div style={{ textAlign: 'center' }}>Fee</div>
+        <div style={{ textAlign: 'center' }}>Action</div>
+      </div>
 
-        {/* Table Rows */}
-        {allSubscriptionsAndAddons.map((item, index) => (
-          <div key={item.id} style={{ 
+      {/* Table Rows */}
+      {allSubscriptionsAndAddons.map((item, index) => (
+        <div 
+          key={item.id} 
+          style={{ 
             display: 'grid', 
             gridTemplateColumns: '2fr 1fr 1fr', 
             gap: '15px',
             padding: '15px',
             borderBottom: index < allSubscriptionsAndAddons.length - 1 ? '1px solid #dee2e6' : 'none',
-            backgroundColor: item.isActive ? '#f8fff8' : 'white'
-          }}>
-            {/* Name & Description */}
-    <div>
-              <div style={{ 
-                fontWeight: 'bold', 
-                color: '#2c3e50',
-                marginBottom: '4px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                {item.name}
-                {item.isActive && (
-                  <span style={{
-                    backgroundColor: '#28a745',
-                    color: 'white',
-                    padding: '2px 6px',
-                    borderRadius: '3px',
-                    fontSize: '11px',
-                    fontWeight: 'bold'
-                  }}>
-                    ACTIVE
-                  </span>
-                )}
-                {item.type === 'addon' && (
-                  <span style={{
-                    backgroundColor: '#6c757d',
-                    color: 'white',
-                    padding: '2px 6px',
-                    borderRadius: '3px',
-                    fontSize: '11px',
-                    fontWeight: 'bold'
-                  }}>
-                    ADD-ON
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: '13px', color: '#6c757d' }}>
-                {item.description}
-              </div>
-            </div>
-
-            {/* Monthly Fee */}
-            <div style={{ 
-              textAlign: 'center',
-              fontSize: '16px',
-              fontWeight: 'bold',
-              color: '#055474',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexDirection: 'column',
-              gap: '4px'
-            }}>
-              {(() => {
-                if (item.isAnnual && item.annualFee) {
-                  // Annual subscription
-                  return (
-                    <>
-                      <div>${item.annualFee.toFixed(2)}/year</div>
-                    </>
-                  );
-                }
-                const fee = parseFloat(item.monthlyFee) || 0;
-                return fee > 0 ? `$${fee.toFixed(2)}/mo` : 'Free';
-              })()}
-              {item.id === 'shipping' && (
-                <div style={{ fontSize: '11px', color: '#6c757d' }}>
-                  (Pay-as-you-go)
-                </div>
+            backgroundColor: item.isActive ? '#f0fff0' : 'white'
+          }}
+        >
+          {/* Name & Description */}
+          <div>
+            <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+              {item.name}
+              {item.isActive && (
+                <span style={{
+                  backgroundColor: '#28a745',
+                  color: 'white',
+                  padding: '2px 6px',
+                  borderRadius: '3px',
+                  fontSize: '11px',
+                  marginLeft: '8px'
+                }}>
+                  ACTIVE
+                </span>
+              )}
+              {item.type === 'addon' && (
+                <span style={{
+                  backgroundColor: '#6c757d',
+                  color: 'white',
+                  padding: '2px 6px',
+                  borderRadius: '3px',
+                  fontSize: '11px',
+                  marginLeft: '8px'
+                }}>
+                  ADD-ON
+                </span>
               )}
             </div>
-
-            {/* Action Button */}
-            <div style={{ 
-              textAlign: 'center',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              {item.isActive ? (
-                <button
-                  onClick={() => handleActionClick(item, 'cancel')}
-                  disabled={loading}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#dc3545',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    fontSize: '14px',
-                    cursor: loading ? 'not-allowed' : 'pointer',
-                    opacity: loading ? 0.6 : 1
-                  }}
-                >
-                  Cancel
-                </button>
-              ) : (
-                <button
-                  onClick={() => handleActionClick(item, 'subscribe')}
-                  disabled={loading}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#28a745',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    fontSize: '14px',
-                    cursor: loading ? 'not-allowed' : 'pointer',
-                    opacity: loading ? 0.6 : 1
-                  }}
-                >
-                  Subscribe Now
-                </button>
-              )}
+            <div style={{ fontSize: '13px', color: '#6c757d' }}>
+              {item.description}
             </div>
           </div>
-        ))}
-      </div>
+
+          {/* Fee */}
+          <div style={{ textAlign: 'center', fontWeight: 'bold', color: 'var(--primary-color)', alignSelf: 'center' }}>
+            {item.isAnnual && item.annualFee 
+              ? `$${item.annualFee.toFixed(2)}/year`
+              : (item.monthlyFee > 0 ? `$${item.monthlyFee.toFixed(2)}/mo` : 'Free')
+            }
+            {item.id === 'shipping' && (
+              <div style={{ fontSize: '11px', color: '#6c757d', fontWeight: 'normal' }}>
+                (Pay-as-you-go)
+              </div>
+            )}
+          </div>
+
+          {/* Action Button */}
+          <div style={{ textAlign: 'center', alignSelf: 'center' }}>
+            {item.isActive ? (
+              <button
+                onClick={() => handleActionClick(item, 'cancel')}
+                disabled={loading}
+                style={{ 
+                  background: '#dc3545',
+                  opacity: loading ? 0.6 : 1 
+                }}
+              >
+                Cancel
+              </button>
+            ) : (
+              <button
+                className="secondary"
+                onClick={() => handleActionClick(item, 'subscribe')}
+                disabled={loading}
+                style={{ opacity: loading ? 0.6 : 1 }}
+              >
+                Subscribe Now
+              </button>
+            )}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -635,7 +536,6 @@ function ConnectBalancePreference({ userData, onUpdate }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Load current preference from shipping subscription (if exists)
     loadCurrentPreference();
   }, []);
 
@@ -659,14 +559,12 @@ function ConnectBalancePreference({ userData, onUpdate }) {
       const response = await authApiRequest('api/subscriptions/shipping/preferences', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          preferConnectBalance: checked
-        })
+        body: JSON.stringify({ preferConnectBalance: checked })
       });
 
       if (response.ok) {
         setPreferConnectBalance(checked);
-        onUpdate(); // Refresh parent data
+        onUpdate();
       } else {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to update preference');
@@ -680,13 +578,7 @@ function ConnectBalancePreference({ userData, onUpdate }) {
   };
 
   return (
-    <div style={{ 
-      marginTop: '20px',
-      padding: '15px',
-      backgroundColor: '#f8f9fa',
-      border: '1px solid #dee2e6',
-      borderRadius: '4px'
-    }}>
+    <div className="form-card">
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <input
           type="checkbox"
@@ -694,13 +586,12 @@ function ConnectBalancePreference({ userData, onUpdate }) {
           checked={preferConnectBalance}
           onChange={(e) => handlePreferenceChange(e.target.checked)}
           disabled={loading}
-          style={{ transform: 'scale(1.2)' }}
+          style={{ width: 'auto' }}
         />
         <label 
           htmlFor="preferConnectBalance" 
           style={{ 
-            fontSize: '14px', 
-            color: '#2c3e50',
+            margin: 0,
             cursor: loading ? 'not-allowed' : 'pointer',
             opacity: loading ? 0.6 : 1
           }}
@@ -709,21 +600,9 @@ function ConnectBalancePreference({ userData, onUpdate }) {
         </label>
       </div>
       
-      {error && (
-        <div style={{ 
-          marginTop: '8px',
-          fontSize: '12px', 
-          color: '#dc3545' 
-        }}>
-          {error}
-        </div>
-      )}
+      {error && <div style={{ marginTop: '8px', fontSize: '12px', color: '#dc3545' }}>{error}</div>}
       
-      <div style={{ 
-        marginTop: '8px',
-        fontSize: '12px', 
-        color: '#6c757d' 
-      }}>
+      <div style={{ marginTop: '8px', fontSize: '12px', color: '#6c757d' }}>
         When enabled, we'll use your Connect earnings balance before charging your card for subscription fees.
       </div>
     </div>

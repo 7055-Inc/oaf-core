@@ -1,27 +1,38 @@
 import { useState, useEffect } from 'react';
 import { useProductForm } from '../ProductFormContext';
 import { authenticatedApiRequest } from '../../../../../lib/csrf';
+import VariationBulkEditor from '../../../../VariationBulkEditor';
 
 /**
  * VariationsSection - Manage product variations for variable products
- * Based on existing VariationManager but adapted for accordion UX
+ * Integrates variation type selection, combination generation, and bulk editor
  */
 export default function VariationsSection() {
-  const { formData, variations, setVariations, savedProductId } = useProductForm();
+  const { formData, variations, setVariations, savedProductId, saving } = useProductForm();
   
   const [variationTypes, setVariationTypes] = useState([]);
   const [selectedTypes, setSelectedTypes] = useState([]);
   const [combinations, setCombinations] = useState([]);
   const [activeCombinations, setActiveCombinations] = useState(new Set());
-  const [step, setStep] = useState(1); // 1: Select types, 2: Select combinations
+  const [step, setStep] = useState(1); // 1: Select types, 2: Select combinations, 3: Bulk editor
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [newTypeName, setNewTypeName] = useState('');
+  const [draftChildren, setDraftChildren] = useState([]); // Created draft child products
 
   // Load variation types on mount
   useEffect(() => {
     fetchVariationTypes();
   }, []);
+
+  // If we already have variations (edit mode), show them
+  useEffect(() => {
+    if (variations && variations.length > 0 && step === 1) {
+      // We have existing variations, show them in step 3
+      setDraftChildren(variations);
+      setStep(3);
+    }
+  }, [variations]);
 
   const fetchVariationTypes = async () => {
     try {
@@ -31,7 +42,7 @@ export default function VariationsSection() {
         setVariationTypes(types);
       }
     } catch (err) {
-      console.error('Error loading variation types:', err);
+      // Silent fail
     }
   };
 
@@ -46,7 +57,6 @@ export default function VariationsSection() {
       }
       return [];
     } catch (err) {
-      console.error('Error loading variation values:', err);
       return [];
     }
   };
@@ -104,7 +114,7 @@ export default function VariationsSection() {
         }));
       }
     } catch (err) {
-      console.error('Failed to add value:', err);
+      // Silent fail
     }
   };
 
@@ -157,15 +167,167 @@ export default function VariationsSection() {
     setActiveCombinations(newActive);
   };
 
-  const handleConfirmVariations = () => {
-    const selectedVariations = combinations
-      .filter((_, index) => activeCombinations.has(index))
-      .map(combo => ({
-        combination: combo,
-        name: combo.map(v => v.valueName).join(' × ')
-      }));
+  // Generate SKU for variation
+  const generateSKU = (baseSKU, combinationName, index) => {
+    if (!baseSKU) return `VAR-${index + 1}`;
     
-    setVariations(selectedVariations);
+    const combinationCode = combinationName
+      .split(' × ')
+      .map(val => val.substring(0, 2).toUpperCase())
+      .join('');
+    
+    return `${baseSKU}-${combinationCode}`;
+  };
+
+  // Create draft children from selected combinations
+  const handleCreateDraftChildren = async () => {
+    if (!savedProductId) {
+      setError('Please save the product first before creating variations.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const selectedVariations = combinations.filter((_, index) => activeCombinations.has(index));
+      
+      if (selectedVariations.length === 0) {
+        setError('Please select at least one variation.');
+        setLoading(false);
+        return;
+      }
+
+      // Create draft children one by one
+      const createdDrafts = [];
+      
+      for (let i = 0; i < selectedVariations.length; i++) {
+        const combination = selectedVariations[i];
+        const combinationName = combination.map(v => v.valueName).join(' × ');
+        
+        const draftPayload = {
+          name: `${formData.name} - ${combinationName}`,
+          description: formData.description,
+          short_description: formData.short_description,
+          price: formData.price,
+          sku: generateSKU(formData.sku, combinationName, i),
+          category_id: formData.category_id,
+          parent_id: savedProductId,
+          product_type: 'variant',
+          status: 'draft',
+          ship_method: formData.ship_method,
+          ship_rate: formData.ship_rate,
+          shipping_services: formData.shipping_services,
+          width: formData.width,
+          height: formData.height,
+          depth: formData.depth,
+          weight: formData.weight,
+          dimension_unit: formData.dimension_unit,
+          weight_unit: formData.weight_unit,
+          images: formData.images || [],
+          beginning_inventory: 0,
+          reorder_qty: 0
+        };
+
+        const response = await authenticatedApiRequest('products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(draftPayload)
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(`Failed to create "${combinationName}": ${errorData.error}`);
+        }
+
+        const createdProduct = await response.json();
+        
+        // Store variation type/value associations
+        for (const combo of combination) {
+          if (combo.typeId && combo.valueId) {
+            await authenticatedApiRequest('products/variations', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                product_id: createdProduct.id,
+                variation_type_id: combo.typeId,
+                variation_value_id: combo.valueId
+              })
+            });
+          }
+        }
+        
+        createdDrafts.push(createdProduct);
+        
+        // Small delay to prevent rate limiting
+        if (i < selectedVariations.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+
+      setDraftChildren(createdDrafts);
+      setVariations(createdDrafts);
+      setStep(3);
+      
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle bulk editor save - activate all variations
+  const handleBulkEditorSave = async (finalizedVariations) => {
+    setLoading(true);
+    setError('');
+
+    try {
+      // Update each variation with final data and activate
+      for (const variation of finalizedVariations) {
+        const updatePayload = {
+          name: variation.name,
+          description: variation.description,
+          short_description: variation.shortDescription,
+          price: parseFloat(variation.price),
+          beginning_inventory: parseInt(variation.inventory) || 0,
+          reorder_qty: parseInt(variation.reorder_qty) || parseInt(variation.inventory) || 0,
+          sku: variation.sku,
+          width: variation.dimensions?.width || '',
+          height: variation.dimensions?.height || '',
+          depth: variation.dimensions?.depth || '',
+          weight: variation.dimensions?.weight || '',
+          dimension_unit: variation.dimensions?.dimension_unit || 'in',
+          weight_unit: variation.dimensions?.weight_unit || 'lbs',
+          ship_method: variation.shipping?.ship_method || 'free',
+          ship_rate: variation.shipping?.ship_rate || '',
+          shipping_services: variation.shipping?.shipping_services || '',
+          images: (variation.images || []).map(img => typeof img === 'string' ? img : img.url),
+          status: 'active'
+        };
+
+        const response = await authenticatedApiRequest(`products/${variation.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatePayload)
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(`Failed to activate "${variation.name}": ${errorData.error}`);
+        }
+      }
+
+      // Update variations in context
+      setVariations(finalizedVariations);
+      
+      // Show success
+      setError('');
+      
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const inputStyle = {
@@ -272,7 +434,7 @@ export default function VariationsSection() {
                         color: isSelected ? 'var(--primary-color, #055474)' : '#333'
                       }}
                     >
-                      {isSelected && '✓ '}{type.variation_name}
+                      {isSelected && <><i className="fas fa-check" style={{ marginRight: '4px' }}></i></>}{type.variation_name}
                     </button>
                   );
                 })}
@@ -423,36 +585,70 @@ export default function VariationsSection() {
                   fontSize: '12px',
                   color: activeCombinations.has(index) ? 'var(--primary-color, #055474)' : '#666'
                 }}>
-                  {activeCombinations.has(index) ? '✓ Selected' : 'Click to select'}
+                  {activeCombinations.has(index) ? <><i className="fas fa-check" style={{ marginRight: '4px' }}></i>Selected</> : 'Click to select'}
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Confirm Button */}
+          {/* Create Variations Button */}
           <button
             type="button"
-            onClick={handleConfirmVariations}
-            disabled={activeCombinations.size === 0}
+            onClick={handleCreateDraftChildren}
+            disabled={activeCombinations.size === 0 || loading || !savedProductId}
             style={{
               width: '100%',
               padding: '14px',
-              background: activeCombinations.size > 0 ? '#28a745' : '#ccc',
+              background: activeCombinations.size > 0 && savedProductId ? '#28a745' : '#ccc',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
-              cursor: activeCombinations.size > 0 ? 'pointer' : 'not-allowed',
+              cursor: activeCombinations.size > 0 && savedProductId ? 'pointer' : 'not-allowed',
               fontWeight: '600',
               fontSize: '15px'
             }}
           >
-            ✓ Confirm {activeCombinations.size} Variation{activeCombinations.size !== 1 ? 's' : ''}
+            {loading ? 'Creating Variations...' : `Create ${activeCombinations.size} Variation${activeCombinations.size !== 1 ? 's' : ''} →`}
           </button>
+          
+          {!savedProductId && (
+            <div style={{ marginTop: '8px', fontSize: '12px', color: '#dc3545', textAlign: 'center' }}>
+              Please save the product first (in Basic Info) before creating variations.
+            </div>
+          )}
         </>
       )}
 
-      {/* Show confirmed variations */}
-      {variations.length > 0 && (
+      {/* Step 3: Bulk Editor */}
+      {step === 3 && draftChildren.length > 0 && (
+        <>
+          <div style={{ marginBottom: '16px' }}>
+            <button
+              type="button"
+              onClick={() => setStep(2)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--primary-color, #055474)',
+                cursor: 'pointer',
+                fontSize: '13px'
+              }}
+            >
+              ← Back to combination selection
+            </button>
+          </div>
+
+          <VariationBulkEditor
+            variations={draftChildren}
+            parentProductData={formData}
+            onSave={handleBulkEditorSave}
+            onBack={() => setStep(2)}
+          />
+        </>
+      )}
+
+      {/* Show confirmed variations summary */}
+      {variations.length > 0 && step !== 3 && (
         <div style={{ 
           marginTop: '20px', 
           padding: '16px', 
@@ -460,7 +656,7 @@ export default function VariationsSection() {
           borderRadius: '8px' 
         }}>
           <div style={{ fontWeight: '600', marginBottom: '8px', color: '#28a745' }}>
-            ✓ {variations.length} variation{variations.length !== 1 ? 's' : ''} configured
+            <i className="fas fa-check" style={{ marginRight: '4px' }}></i> {variations.length} variation{variations.length !== 1 ? 's' : ''} created
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
             {variations.slice(0, 10).map((v, i) => (
@@ -482,6 +678,25 @@ export default function VariationsSection() {
               </span>
             )}
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              setDraftChildren(variations);
+              setStep(3);
+            }}
+            style={{
+              marginTop: '12px',
+              padding: '8px 16px',
+              background: 'var(--primary-color, #055474)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '13px'
+            }}
+          >
+            Edit Variations
+          </button>
         </div>
       )}
     </div>
@@ -574,4 +789,3 @@ export function getVariationsSummary(variations) {
   if (!variations || variations.length === 0) return null;
   return `${variations.length} variation${variations.length !== 1 ? 's' : ''} configured`;
 }
-

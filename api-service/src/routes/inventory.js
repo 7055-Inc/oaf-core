@@ -30,8 +30,10 @@ const { secureLogger } = require('../middleware/secureLogger');
 router.get('/history', verifyToken, async (req, res) => {
   try {
     // Get all inventory history for products owned by this user
+    // Include SKU for search functionality
     const [history] = await db.query(
-      `SELECT ih.*, p.name as product_name, up.first_name, up.last_name, u.username,
+      `SELECT ih.*, p.name as product_name, p.sku as product_sku,
+              up.first_name, up.last_name, u.username,
               (ih.new_qty - ih.previous_qty) as quantity_change
        FROM inventory_history ih 
        JOIN products p ON ih.product_id = p.id
@@ -39,7 +41,7 @@ router.get('/history', verifyToken, async (req, res) => {
        LEFT JOIN user_profiles up ON u.id = up.user_id
        WHERE p.vendor_id = ?
        ORDER BY ih.created_at DESC 
-       LIMIT 200`,
+       LIMIT 5000`,
       [req.userId]
     );
     
@@ -176,7 +178,7 @@ router.get('/:productId', verifyToken, async (req, res) => {
 router.put('/:productId', verifyToken, async (req, res) => {
   try {
     const { productId } = req.params;
-    const { qty_on_hand, change_type, reason } = req.body;
+    const { qty_on_hand, reorder_qty, change_type, reason } = req.body;
     
     if (qty_on_hand === undefined || !change_type) {
       return res.status(400).json({
@@ -200,15 +202,16 @@ router.put('/:productId', verifyToken, async (req, res) => {
     
     const previousQty = current[0].qty_on_hand;
     const qtyOnOrder = current[0].qty_on_order || 0;
+    const newReorderQty = reorder_qty !== undefined ? parseInt(reorder_qty) : current[0].reorder_qty;
     
     // Start transaction to ensure data consistency
     await db.query('START TRANSACTION');
     
     try {
-      // Update inventory record
+      // Update inventory record (include reorder_qty if provided)
       await db.query(
-        'UPDATE product_inventory SET qty_on_hand = ?, updated_by = ? WHERE product_id = ?',
-        [qty_on_hand, req.userId, productId]
+        'UPDATE product_inventory SET qty_on_hand = ?, reorder_qty = ?, updated_by = ? WHERE product_id = ?',
+        [qty_on_hand, newReorderQty, req.userId, productId]
       );
       
       // Add to history
@@ -237,6 +240,7 @@ router.put('/:productId', verifyToken, async (req, res) => {
           qty_on_hand: qty_on_hand,
           qty_on_order: qtyOnOrder,
           qty_available: newQtyAvailable,
+          reorder_qty: newReorderQty,
           qty_truly_available: updatedInventory[0].qty_truly_available,
           total_allocated: updatedInventory[0].total_allocated,
           tiktok_allocated: updatedInventory[0].tiktok_allocated

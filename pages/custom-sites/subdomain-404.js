@@ -3,7 +3,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import RandomProductCarousel from '../../components/RandomProductCarousel';
-import { getApiUrl } from '../../lib/config';
+import { getApiUrl, getSubdomainUrl, getFrontendUrl } from '../../lib/config';
 import styles from '../../styles/subdomain-404.module.css';
 
 const SubdomainCustom404 = () => {
@@ -34,7 +34,7 @@ const SubdomainCustom404 = () => {
       setSiteData(siteData);
       
       // Fetch products for this vendor
-      const productsRes = await fetch(`products/all?include=images&vendor_id=${siteData.user_id}`);
+      const productsRes = await fetch(getApiUrl(`products/all?include=images&vendor_id=${siteData.user_id}`));
       if (productsRes.ok) {
         const productsData = await productsRes.json();
         const products = productsData.products || productsData || [];
@@ -56,7 +56,7 @@ const SubdomainCustom404 = () => {
       // Go to site homepage - use custom domain if available
       const siteUrl = isCustomDomain === 'true' && hostname 
         ? `https://${hostname}`
-        : `https://${subdomain}.beemeeart.com`;
+        : getSubdomainUrl(subdomain);
       window.location.href = siteUrl;
     }
   };
@@ -64,7 +64,7 @@ const SubdomainCustom404 = () => {
   const getSiteUrl = () => {
     return isCustomDomain === 'true' && hostname 
       ? `https://${hostname}`
-      : `https://${subdomain}.beemeeart.com`;
+      : getSubdomainUrl(subdomain);
   };
 
   const getCustomStyles = () => {
@@ -90,7 +90,7 @@ const SubdomainCustom404 = () => {
       <div className={styles.errorContainer}>
         <h1>Site Not Found</h1>
         <p>The site "{subdomain}" could not be found.</p>
-        <Link href="https://main.beemeeart.com">
+        <Link href={getFrontendUrl()}>
           <a className={styles.homeLink}>Visit Main Site</a>
         </Link>
       </div>
@@ -142,7 +142,7 @@ const SubdomainCustom404 = () => {
                 </a>
               </Link>
               
-              <Link href="https://main.beemeeart.com">
+              <Link href={getFrontendUrl()}>
                 <a className={`${styles.button} ${styles.tertiaryButton}`}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="12" cy="12" r="3"/>

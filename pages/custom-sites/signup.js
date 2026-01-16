@@ -266,8 +266,8 @@ const SignupCallbackPage = () => {
         const isSecure = window.location.protocol === 'https:';
         const secureFlag = isSecure ? '; secure' : '';
         
-        document.cookie = `token=${data.token}; path=/; domain=${cookieDomain}${secureFlag}; samesite=lax; max-age=7200`;
-        document.cookie = `refreshToken=${data.refreshToken}; path=/; domain=${cookieDomain}${secureFlag}; samesite=lax; max-age=604800`;
+        document.cookie = `token=${data.token}; path=/; domain=${cookieDomain}${secureFlag}; SameSite=Lax; max-age=7200`;
+        document.cookie = `refreshToken=${data.refreshToken}; path=/; domain=${cookieDomain}${secureFlag}; SameSite=Lax; max-age=604800`;
         
         setStatus('success');
         setMessage('Authentication successful! Redirecting...');
@@ -299,9 +299,9 @@ const SignupCallbackPage = () => {
     <>
       <Head>
         <title>
-          {mode === 'verifyEmail' ? 'Verifying Email' : 'Completing Authentication'} - Online Art Festival
+          {mode === 'verifyEmail' ? 'Verifying Email' : 'Completing Authentication'} - Brakebee
         </title>
-        <meta name="description" content="Completing your authentication with Online Art Festival." />
+        <meta name="description" content="Completing your authentication with Brakebee." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
@@ -309,7 +309,7 @@ const SignupCallbackPage = () => {
       <div className={styles.container}>
         <div className={styles.content}>
           <div className={styles.logo}>
-            <h1 className={styles.title}>Online Art Festival</h1>
+            <h1 className={styles.title}>Brakebee</h1>
           </div>
           
           <div className={styles.message}>
