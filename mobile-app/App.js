@@ -3,7 +3,8 @@ import { StyleSheet, Text, View, TouchableOpacity, Image, Dimensions } from 'rea
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { setupAutoRefresh, clearAutoRefresh } from './lib/auth';
+import { setupAutoRefresh, clearAutoRefresh, getAuthToken } from './lib/auth';
+import { config, getApiUrl } from './lib/config';
 import LoginScreen from './components/LoginScreen';
 import SignupScreen from './components/SignupScreen';
 
@@ -160,22 +161,25 @@ export default function App() {
       const refreshToken = await AsyncStorage.getItem('refreshToken');
       
       if (token && refreshToken) {
-        // Validate token with backend
-        const response = await fetch('https://api.beemeeart.com/auth/exchange', {
-          method: 'POST',
+        // Validate token with v2 auth endpoint
+        const response = await fetch(getApiUrl(config.AUTH_VALIDATE), {
+          method: 'GET',
           headers: {
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            provider: 'validate',
-            token: token
-          })
+          }
         });
         
         if (response.ok) {
-          setIsAuthenticated(true);
-          setupAutoRefresh(); // Start auto-refresh for existing users
-          console.log('User already authenticated - auto-refresh enabled');
+          const result = await response.json();
+          if (result.success && result.data?.valid) {
+            setIsAuthenticated(true);
+            setupAutoRefresh(); // Start auto-refresh for existing users
+            console.log('User already authenticated - auto-refresh enabled');
+          } else {
+            // Token invalid, clear storage
+            await AsyncStorage.multiRemove(['token', 'refreshToken', 'userId']);
+          }
         } else {
           // Token invalid, clear storage
           await AsyncStorage.multiRemove(['token', 'refreshToken', 'userId']);

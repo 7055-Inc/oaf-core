@@ -149,7 +149,12 @@ const smartAuthLimiter = (req, res, next) => {
 // Load authentication routes first (no CSRF protection needed for login)
 secureLogger.info('Loading authentication routes');
 try {
+  // Legacy v1 auth routes (for backward compatibility)
   app.use('/auth', smartAuthLimiter, require('./routes/auth'));
+  
+  // New v2 modular auth routes
+  app.use('/api/v2/auth', smartAuthLimiter, require('./modules/auth').router);
+  secureLogger.info('Loaded v2 auth module');
 } catch (err) {
   secureLogger.error('Error loading auth routes', err);
   process.exit(1);

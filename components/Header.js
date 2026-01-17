@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { usePageType } from '../hooks/usePageType';
-import { getAuthToken, clearAuthTokens } from '../lib/csrf';
+import { getAuthToken, clearAuthTokens } from '../lib/auth';
 import { authApiRequest, apiGet, API_ENDPOINTS } from '../lib/apiUtils';
 import styles from './Header.module.css';
 
@@ -14,7 +14,7 @@ const SearchModal = dynamic(() => import('./search').then(mod => ({ default: mod
   loading: () => null
 });
 
-const ImpersonationExitButton = dynamic(() => import('./ImpersonationExitButton'), {
+const ImpersonationExitButton = dynamic(() => import('./admin/ImpersonationExitButton'), {
   ssr: false,
   loading: () => null
 });

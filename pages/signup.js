@@ -5,7 +5,7 @@ import Head from 'next/head';
 import { getAuth, createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import firebaseApp from '../lib/firebase';
 import { getApiUrl } from '../lib/config';
-import { clearAuthTokens } from '../lib/csrf';
+import { clearAuthTokens, storeTokens } from '../lib/auth';
 
 export default function Signup() {
   const [email, setEmail] = useState('');
@@ -88,31 +88,26 @@ export default function Signup() {
       // Clear any existing tokens first
       clearAuthTokens();
       
-      const response = await fetch(getApiUrl('auth/exchange'), {
+      // Use v2 login endpoint
+      const response = await fetch(getApiUrl('api/v2/auth/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ provider, token, email }),
+        body: JSON.stringify({ idToken: token, provider }),
         credentials: 'include'
       });
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Authentication failed');
+        throw new Error(errorData.error?.message || 'Authentication failed');
       }
       
-      const data = await response.json();
+      const result = await response.json();
       
-      if (data.token && data.refreshToken) {
-        // Set both tokens in localStorage and cookies
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('refreshToken', data.refreshToken);
-        
-        // Set secure cookies for middleware
-        const cookieDomain = process.env.NEXT_PUBLIC_COOKIE_DOMAIN || '.brakebee.com';
-        document.cookie = `token=${data.token}; path=/; domain=${cookieDomain}; secure; SameSite=Lax; max-age=7200`;
-        document.cookie = `refreshToken=${data.refreshToken}; path=/; domain=${cookieDomain}; secure; SameSite=Lax; max-age=604800`;
+      if (result.success && result.data?.accessToken && result.data?.refreshToken) {
+        // Store tokens using auth module (handles both localStorage and cookies)
+        storeTokens(result.data.accessToken, result.data.refreshToken);
         
         // Wait a moment for the cookies to be set
         await new Promise(resolve => setTimeout(resolve, 100));

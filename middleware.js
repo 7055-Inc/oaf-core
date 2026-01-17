@@ -20,10 +20,14 @@ export default async function middleware(req) {
   }
   
   // Route to subdomain handler for artist sites and custom domains
+  // Exclude staging/mobile subdomains - they should use checklist like main domain
   if ((hostname.includes('.brakebee.com') && 
        hostname !== 'main.brakebee.com' && 
        hostname !== 'www.brakebee.com' &&
+       hostname !== 'staging.brakebee.com' &&
        !hostname.startsWith('api') &&
+       !hostname.startsWith('staging') &&
+       !hostname.startsWith('mobile') &&
        !hostname.startsWith('www')) ||
       (!hostname.includes('.brakebee.com') && 
        hostname !== 'brakebee.com' &&

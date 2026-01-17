@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
 import { getAuth, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import firebaseApp from '../lib/firebase';
-import { setupAutoRefresh } from '../lib/auth';
+import { setupAutoRefresh, storeAuthTokens } from '../lib/auth';
+import { config, getApiUrl } from '../lib/config';
 
 export default function SignupScreen({ onLogin, onSwitchToLogin }) {
   const [email, setEmail] = useState('');
@@ -52,28 +52,27 @@ export default function SignupScreen({ onLogin, onSwitchToLogin }) {
     }
   };
 
-  const authenticateWithBackend = async (provider, token, email) => {
+  const authenticateWithBackend = async (provider, idToken, email) => {
     try {
-      const response = await fetch('https://api.beemeeart.com/auth/exchange', {
+      // Use v2 auth endpoint
+      const response = await fetch(getApiUrl(config.AUTH_LOGIN), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ provider, token, email })
+        body: JSON.stringify({ idToken, provider, email })
       });
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Authentication failed');
+        throw new Error(errorData.error?.message || 'Authentication failed');
       }
       
-      const data = await response.json();
+      const result = await response.json();
       
-      if (data.token && data.refreshToken) {
-        // Store tokens in AsyncStorage
-        await AsyncStorage.setItem('token', data.token);
-        await AsyncStorage.setItem('refreshToken', data.refreshToken);
-        await AsyncStorage.setItem('userId', data.userId?.toString() || '');
+      // Handle v2 response format: { success, data: { accessToken, refreshToken, user } }
+      if (result.success && result.data?.accessToken) {
+        await storeAuthTokens(result.data);
         
         console.log('Authentication successful, tokens stored');
         

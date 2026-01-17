@@ -1,9 +1,9 @@
-import '../styles/global.css';
+import '../modules/styles/global.css';
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { MainLayout } from '../components/layouts';
-import CookieBanner, { hasFullCookieConsent } from '../components/CookieBanner';
+import CookieBanner, { hasFullCookieConsent } from '../components/profiles/CookieBanner';
 import WelcomeBanner from '../components/WelcomeBanner';
 
 // Google Tag Manager ID

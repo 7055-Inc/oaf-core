@@ -53,24 +53,28 @@ export async function checklist(req) {
   }
 
   try {
-    // Call API service to verify token
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/exchange`, {
-      method: 'POST',
+    // Call v2 auth service to validate token
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v2/auth/validate`, {
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        provider: 'validate',
-        token: token
-      })
+      }
     });
 
     if (!response.ok) {
       return loginRedirect();
     }
 
-    const { roles, permissions } = await response.json();
+    const result = await response.json();
+    
+    // Handle v2 response format: { success, data: { valid, user: { roles, permissions } } }
+    if (!result.success || !result.data?.valid) {
+      return loginRedirect();
+    }
+    
+    const { roles, permissions } = result.data.user;
+    
+    // Roles are validated by the v2 endpoint, but double-check
     if (!roles || !roles.length) {
       return loginRedirect();
     }

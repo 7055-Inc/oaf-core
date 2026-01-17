@@ -1,102 +1,49 @@
-const db = require('../../config/db');
-
 /**
- * Permission validation middleware for the new logical permission system
- * Replaces hardcoded user type checks with flexible permission-based access
+ * Permission Middleware (Backward Compatibility Wrapper)
+ * 
+ * This file now re-exports from the auth module with interface adapters.
+ * New code should import from: require('../modules/auth')
+ * 
+ * @deprecated Import from '../modules/auth' instead
  */
+
+const { 
+  hasPermission: _hasPermission, 
+  hasRole,
+  isAdmin,
+  PERMISSIONS 
+} = require('../modules/auth/services/permissions');
+
+const {
+  requirePermission,
+  requireAllAccess,
+  canAccessAll,
+  getEffectivePermissions,
+} = require('../modules/auth/middleware/requirePermission');
 
 /**
  * Check if a user has a specific permission
- * Handles admin auto-permissions, permission restrictions, and inheritance
+ * Adapter for old interface: hasPermission(req, permission)
+ * New interface is: hasPermission(permissions, roles, permission)
  */
 const hasPermission = (req, permission) => {
-  // Admin users get all permissions automatically
-  if (req.roles && req.roles.includes('admin')) {
-    return true;
-  }
-  
-  // Promoter users automatically get events permission
-  if (permission === 'events' && req.roles && req.roles.includes('promoter')) {
-    return true;
-  }
-  
-  // Check if user has the specific permission
-  if (req.permissions && req.permissions.includes(permission)) {
-    return true;
-  }
-  
-  // Handle permission inheritance: vendor and events permissions grant stripe_connect access
-  if (permission === 'stripe_connect' && req.permissions && req.permissions.includes('vendor')) {
-    return true;
-  }
-  if (permission === 'stripe_connect' && req.permissions && req.permissions.includes('events')) {
-    return true;
-  }
-  // Promoters also get stripe_connect for payment processing
-  if (permission === 'stripe_connect' && req.roles && req.roles.includes('promoter')) {
-    return true;
-  }
-  
-  // Handle permission inheritance: vendor permission grants marketplace access
-  if (permission === 'marketplace' && req.permissions && req.permissions.includes('vendor')) {
-    return true;
-  }
-  
-  return false;
+  const permissions = req.permissions || [];
+  const roles = req.roles || [];
+  return _hasPermission(permissions, roles, permission);
 };
-
-
-
-/**
- * Require a specific permission to access an endpoint
- * Usage: router.get('/endpoint', verifyToken, requirePermission('vendor'), handler)
- */
-const requirePermission = (permission) => {
-  return (req, res, next) => {
-    if (!hasPermission(req, permission)) {
-      return res.status(403).json({ 
-        error: `Access denied. Required permission: ${permission}` 
-      });
-    }
-    next();
-  };
-};
-
-/**
- * Check if user can access "all" data vs just "my" data
- * Admin users can access all data, regular users can only access their own
- */
-const canAccessAll = (req) => {
-  return req.roles && req.roles.includes('admin');
-};
-
-/**
- * Middleware to enforce /my vs /all access patterns
- * Usage: router.get('/users/all', verifyToken, requireAllAccess, handler)
- */
-const requireAllAccess = (req, res, next) => {
-  if (!canAccessAll(req)) {
-    return res.status(403).json({ 
-      error: 'Access denied. Admin privileges required to access all data.' 
-    });
-  }
-  next();
-};
-
-// Removed deprecated permission restrictions system
-// All permissions are now managed through simple JWT-based checking
 
 /**
  * Legacy support: Check if user has specific user type
- * Use sparingly - prefer permission-based checks where possible
+ * @deprecated Use hasRole from modules/auth instead
  */
 const hasUserType = (req, userType) => {
-  return req.roles && req.roles.includes(userType);
+  const roles = req.roles || [];
+  return hasRole(roles, userType);
 };
 
 /**
  * Legacy middleware: Require specific user type
- * Use sparingly - prefer permission-based checks where possible
+ * @deprecated Use requireRole from modules/auth/middleware instead
  */
 const requireUserType = (userType) => {
   return (req, res, next) => {
@@ -109,35 +56,6 @@ const requireUserType = (userType) => {
   };
 };
 
-/**
- * Get user's effective permissions including admin/promoter auto-permissions
- */
-const getEffectivePermissions = (req) => {
-  const permissions = [...(req.permissions || [])];
-  
-  // Admin users get all permissions automatically
-  if (req.roles && req.roles.includes('admin')) {
-    const allPermissions = ['vendor', 'events', 'stripe_connect', 'manage_sites', 'manage_content', 'manage_system', 'shipping'];
-    for (const permission of allPermissions) {
-      if (!permissions.includes(permission)) {
-        permissions.push(permission);
-      }
-    }
-  }
-  
-  // Promoter users automatically get events and stripe_connect permissions
-  if (req.roles && req.roles.includes('promoter')) {
-    const promoterPermissions = ['events', 'stripe_connect'];
-    for (const permission of promoterPermissions) {
-      if (!permissions.includes(permission)) {
-        permissions.push(permission);
-      }
-    }
-  }
-  
-  return permissions;
-};
-
 module.exports = {
   hasPermission,
   requirePermission,
@@ -145,5 +63,5 @@ module.exports = {
   requireAllAccess,
   hasUserType,
   requireUserType,
-  getEffectivePermissions
-}; 
+  getEffectivePermissions,
+};

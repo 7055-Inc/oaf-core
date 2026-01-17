@@ -1,0 +1,991 @@
+# Module Architecture Guide
+
+## Overview
+
+This document defines the rules and patterns for the Brakebee modular refactoring. The goal is to transform scattered, tightly-coupled code into clean, reusable "plug & play" modules.
+
+---
+
+## Core Principles
+
+1. **Modules are self-contained** - Each module owns its routes, logic, and types
+2. **Shared code is explicit** - Common utilities live in a dedicated `shared/` module
+3. **Gradual migration** - New modules integrate with old system during transition
+4. **Delete as you go** - Remove old code once new module is stable
+5. **Mobile-first API design** - APIs work for web, mobile, and third-party consumers
+6. **Backend/Frontend separation** - Clear boundaries between API and client code
+
+---
+
+## Backend vs Frontend Separation
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        BACKEND (Express API)                        │
+│                    api-service/src/modules/                         │
+├─────────────────────────────────────────────────────────────────────┤
+│  • Runs on Node.js server                                           │
+│  • HTTP request handling (routes)                                   │
+│  • Database access (services)                                       │
+│  • JWT creation/verification                                        │
+│  • Business logic                                                   │
+│  • NEVER runs in browser                                            │
+└─────────────────────────────────────────────────────────────────────┘
+                                  │
+                                  │ HTTP / JSON
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                      FRONTEND (Next.js + Mobile)                    │
+│                      lib/ + components/ + pages/                    │
+├─────────────────────────────────────────────────────────────────────┤
+│  • Runs in browser / React Native                                   │
+│  • Makes API calls (lib/*/api.js)                                   │
+│  • Token storage (localStorage, cookies, AsyncStorage)              │
+│  • UI components                                                    │
+│  • NEVER accesses database directly                                 │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### What Goes Where
+
+| Concern | Backend (`api-service/src/modules/`) | Frontend (`lib/`, `components/`) |
+|---------|--------------------------------------|----------------------------------|
+| JWT creation | ✅ `auth/services/jwt.js` | ❌ Never |
+| JWT verification | ✅ `auth/middleware/requireAuth.js` | ❌ Never |
+| JWT storage | ❌ Stateless | ✅ `lib/auth/tokens.js` |
+| Token refresh call | ✅ `auth/routes.js` handles | ✅ `lib/auth/refresh.js` calls |
+| Permission building | ✅ `auth/services/permissions.js` | ❌ Never |
+| Database queries | ✅ All services | ❌ Never |
+| CSRF validation | ✅ `shared/middleware/csrf.js` | ❌ Never |
+| CSRF fetch | ❌ Never | ✅ `lib/shared/csrf.js` |
+| Firebase verify | ✅ `auth/services/firebase.js` | ❌ Never |
+| Firebase login UI | ❌ Never | ✅ `components/auth/LoginModal.js` |
+
+---
+
+## Directory Structure
+
+The architecture separates **backend** (API) from **frontend** (Next.js/Mobile), with mirrored module structures:
+
+```
+/var/www/staging/
+│
+├── api-service/src/
+│   │
+│   └── modules/                  # BACKEND MODULES (Express API)
+│       │
+│       ├── auth/                 # Authentication module
+│       │   ├── index.js          # Module exports (router + services)
+│       │   ├── routes.js         # Express routes (/api/v2/auth/*)
+│       │   ├── services/         # Business logic
+│       │   │   ├── index.js      # Re-exports all services
+│       │   │   ├── firebase.js   # Firebase auth operations
+│       │   │   ├── jwt.js        # JWT creation/validation
+│       │   │   ├── session.js    # Session management
+│       │   │   └── permissions.js # Role/permission checks
+│       │   ├── middleware/       # Auth-specific middleware
+│       │   │   ├── index.js      # Re-exports all middleware
+│       │   │   ├── requireAuth.js # Require authenticated user
+│       │   │   ├── requirePermission.js
+│       │   │   └── requireRole.js # Require specific role
+│       │   ├── helpers/          # Utility functions
+│       │   │   └── permissions.js # Permission constants, inheritance
+│       │   ├── validation/       # Request validation schemas
+│       │   │   └── auth.js
+│       │   ├── types.js          # JSDoc type definitions
+│       │   └── README.md         # Module documentation
+│       │
+│       ├── profiles/             # User profiles module
+│       │   ├── index.js
+│       │   ├── routes.js
+│       │   └── services/
+│       │
+│       ├── catalog/              # Product catalog module
+│       │   ├── index.js
+│       │   ├── routes.js
+│       │   └── services/
+│       │
+│       ├── commerce/             # Commerce module
+│       │   ├── index.js
+│       │   ├── routes.js
+│       │   └── services/
+│       │
+│       ├── events/               # Events module
+│       │   ├── index.js
+│       │   ├── routes.js
+│       │   └── services/
+│       │
+│       ├── websites/             # Artist websites module
+│       │   ├── index.js
+│       │   ├── routes.js
+│       │   └── services/
+│       │
+│       ├── content/              # Content module
+│       │   ├── index.js
+│       │   ├── routes.js
+│       │   └── services/
+│       │
+│       ├── marketing/            # Marketing module
+│       │   ├── index.js
+│       │   ├── routes.js
+│       │   └── services/
+│       │
+│       ├── admin/                # Admin module
+│       │   ├── index.js
+│       │   ├── routes.js
+│       │   └── services/
+│       │
+│       └── shared/               # SHARED: Cross-module utilities
+│           ├── middleware/
+│           │   ├── index.js      # Re-exports all middleware
+│           │   ├── errorHandler.js
+│           │   ├── rateLimiter.js
+│           │   ├── csrf.js
+│           │   └── logger.js
+│           ├── services/
+│           │   ├── index.js      # Re-exports all services
+│           │   ├── db.js
+│           │   ├── email.js
+│           │   ├── stripe.js
+│           │   └── storage.js
+│           └── utils/
+│               ├── index.js
+│               ├── validation.js
+│               └── pagination.js
+│
+│
+├── lib/                          # FRONTEND MODULES (Next.js)
+│   │
+│   ├── auth/                     # Mirrors api-service/src/modules/auth
+│   │   ├── index.js              # Re-exports all auth utilities
+│   │   ├── tokens.js             # getAuthToken, clearAuthTokens, isTokenExpired
+│   │   ├── refresh.js            # refreshAuthToken, startTokenRefreshTimer
+│   │   ├── api.js                # authenticatedApiRequest
+│   │   └── impersonation.js      # start/stop impersonation
+│   │
+│   ├── profiles/                 # Profile API helpers
+│   │   ├── index.js
+│   │   └── api.js
+│   │
+│   ├── catalog/                  # Product API helpers
+│   │   ├── index.js
+│   │   └── api.js
+│   │
+│   ├── commerce/                 # Cart/checkout helpers
+│   │   ├── index.js
+│   │   ├── api.js
+│   │   └── cart.js               # Cart state management
+│   │
+│   └── shared/                   # Shared frontend utilities
+│       ├── index.js
+│       ├── csrf.js               # CSRF token fetch/cache
+│       ├── config.js             # Environment config
+│       └── apiUtils.js           # Base API utilities
+│
+│
+├── components/                   # FRONTEND UI COMPONENTS
+│   │
+│   ├── auth/                     # Auth components
+│   │   ├── LoginModal.js
+│   │   ├── SignupForm.js
+│   │   └── ImpersonationExitButton.js
+│   │
+│   ├── profiles/                 # Profile components
+│   │   ├── EditProfile.js
+│   │   └── AvatarUpload.js
+│   │
+│   ├── catalog/                  # Catalog components
+│   │   ├── ProductCard.js
+│   │   ├── ProductGrid.js
+│   │   └── ProductForm/
+│   │
+│   ├── commerce/                 # Commerce components
+│   │   ├── CartDrawer.js
+│   │   ├── CheckoutForm.js
+│   │   └── OrderSummary.js
+│   │
+│   └── shared/                   # Reusable UI components
+│       ├── Button/
+│       ├── Modal/
+│       └── Form/
+│
+│
+├── mobile-app/
+│   └── lib/                      # MOBILE (mirrors web lib/)
+│       ├── auth/
+│       │   ├── index.js
+│       │   ├── tokens.js         # AsyncStorage instead of localStorage
+│       │   ├── refresh.js
+│       │   └── api.js
+│       └── shared/
+│
+│
+└── api-service/src/
+    ├── modules/                  # NEW (above)
+    ├── routes/                   # OLD: Legacy routes (migrate from here)
+    └── middleware/               # OLD: Legacy middleware (migrate from here)
+```
+
+---
+
+## Module Structure Rules
+
+### 1. Index.js Pattern (Clean Imports)
+
+Every module and subfolder has an `index.js` that re-exports its contents. This enables clean imports:
+
+```javascript
+// GOOD: Clean imports via index.js
+const { requireAuth, requirePermission } = require('../auth');
+const { jwtService, sessionService } = require('../auth/services');
+
+// BAD: Direct file imports (avoid)
+const requireAuth = require('../auth/middleware/requireAuth');
+const jwtService = require('../auth/services/jwt');
+```
+
+#### Module Entry Point (`index.js`)
+
+```javascript
+// api-service/src/modules/auth/index.js
+const router = require('./routes');
+const services = require('./services');
+const middleware = require('./middleware');
+
+module.exports = {
+  // Router for mounting
+  router,
+  
+  // Services for cross-module use
+  ...services,
+  
+  // Middleware exports
+  ...middleware,
+  
+  // Backward compatibility alias
+  verifyToken: middleware.requireAuth,
+};
+```
+
+#### Services Index
+
+```javascript
+// api-service/src/modules/auth/services/index.js
+module.exports = {
+  jwtService: require('./jwt'),
+  sessionService: require('./session'),
+  permissionsService: require('./permissions'),
+  firebaseService: require('./firebase'),
+};
+```
+
+#### Middleware Index
+
+```javascript
+// api-service/src/modules/auth/middleware/index.js
+module.exports = {
+  requireAuth: require('./requireAuth'),
+  requirePermission: require('./requirePermission'),
+  requireRole: require('./requireRole'),
+};
+```
+
+#### Frontend Module Index
+
+```javascript
+// lib/auth/index.js
+export * from './tokens';
+export * from './refresh';
+export * from './api';
+export * from './impersonation';
+
+// Named default exports
+export { getAuthToken, clearAuthTokens, isTokenExpired } from './tokens';
+export { refreshAuthToken, startTokenRefreshTimer } from './refresh';
+export { authenticatedApiRequest, secureApiRequest } from './api';
+```
+
+### 2. Import Patterns
+
+| Importing From | Pattern | Example |
+|----------------|---------|---------|
+| Same module | Relative | `require('./services/jwt')` |
+| Other module | Via index | `require('../auth')` |
+| Shared | Via index | `require('../shared/services')` |
+| Frontend lib | ES import | `import { getAuthToken } from '../../lib/auth'` |
+
+### 3. Routes File (`routes.js`)
+
+All routes are versioned and prefixed:
+
+```javascript
+// modules/auth/routes.js
+const express = require('express');
+const router = express.Router();
+
+// All routes automatically prefixed with /api/v2/auth
+router.post('/login', authController.login);
+router.post('/logout', authController.logout);
+router.post('/refresh', authController.refreshToken);
+router.get('/me', requireAuth, authController.getCurrentUser);
+
+module.exports = router;
+```
+
+### 4. Services (Business Logic)
+
+Services contain pure business logic, no HTTP concerns:
+
+```javascript
+// modules/auth/services/jwt.js
+const jwt = require('jsonwebtoken');
+
+/**
+ * Create access token for user
+ * @param {User} user - User object
+ * @returns {string} JWT token
+ */
+function createAccessToken(user) {
+  return jwt.sign(
+    { userId: user.id, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: '2h' }
+  );
+}
+
+/**
+ * Validate and decode token
+ * @param {string} token - JWT token
+ * @returns {Object|null} Decoded payload or null
+ */
+function validateToken(token) {
+  try {
+    return jwt.verify(token, process.env.JWT_SECRET);
+  } catch {
+    return null;
+  }
+}
+
+module.exports = { createAccessToken, validateToken };
+```
+
+### 5. Types (JSDoc Type Definitions)
+
+Use JSDoc for type documentation (works with VS Code IntelliSense):
+
+```javascript
+// modules/auth/types.js
+
+/**
+ * @typedef {Object} User
+ * @property {number} id - User ID
+ * @property {string} email - User email
+ * @property {string} role - User role (buyer|artist|vendor|admin)
+ * @property {boolean} emailVerified - Email verification status
+ */
+
+/**
+ * @typedef {Object} AuthTokens
+ * @property {string} accessToken - Short-lived access token
+ * @property {string} refreshToken - Long-lived refresh token
+ * @property {number} expiresIn - Access token expiry (seconds)
+ */
+
+/**
+ * @typedef {Object} LoginRequest
+ * @property {string} email - User email
+ * @property {string} password - User password
+ */
+
+module.exports = {};  // Types only, no runtime exports
+```
+
+---
+
+## API Standards (RESTful CRUD)
+
+Our API follows **RESTful conventions** for third-party compatibility. Each module has **one routes file** that defines clean CRUD endpoints, with business logic extracted to helpers/services.
+
+### URL Structure
+
+```
+/api/v2/{module}/{resource}
+/api/v2/{module}/{resource}/{id}
+/api/v2/{module}/{resource}/{id}/{sub-resource}
+```
+
+### HTTP Methods (CRUD)
+
+| Method | Action | URL Pattern | Example |
+|--------|--------|-------------|---------|
+| `GET` | List all | `/api/v2/catalog/products` | Get all products |
+| `GET` | Get one | `/api/v2/catalog/products/:id` | Get product by ID |
+| `POST` | Create | `/api/v2/catalog/products` | Create new product |
+| `PUT` | Replace | `/api/v2/catalog/products/:id` | Replace entire product |
+| `PATCH` | Update | `/api/v2/catalog/products/:id` | Update specific fields |
+| `DELETE` | Delete | `/api/v2/catalog/products/:id` | Delete product |
+
+### Standard Response Format
+
+```javascript
+// Success response
+{
+  "success": true,
+  "data": { ... },           // Single object or array
+  "meta": {                  // Optional metadata
+    "page": 1,
+    "limit": 20,
+    "total": 150,
+    "totalPages": 8
+  }
+}
+
+// Error response
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid email format",
+    "details": [             // Optional field-level errors
+      { "field": "email", "message": "Must be valid email" }
+    ]
+  }
+}
+```
+
+### HTTP Status Codes
+
+| Code | Usage |
+|------|-------|
+| `200` | Success (GET, PUT, PATCH) |
+| `201` | Created (POST) |
+| `204` | No Content (DELETE) |
+| `400` | Bad Request (validation errors) |
+| `401` | Unauthorized (not logged in) |
+| `403` | Forbidden (no permission) |
+| `404` | Not Found |
+| `409` | Conflict (duplicate, etc.) |
+| `422` | Unprocessable Entity (business logic error) |
+| `429` | Too Many Requests (rate limited) |
+| `500` | Internal Server Error |
+
+### Route File Architecture
+
+Each module has ONE `routes.js` file with clean CRUD endpoints:
+
+```javascript
+// modules/catalog/routes.js
+const express = require('express');
+const router = express.Router();
+const { requireAuth } = require('../shared/middleware/auth');
+const { validate } = require('../shared/middleware/validator');
+const productService = require('./services/products');
+const productHelpers = require('./helpers/products');
+const { productSchema, productUpdateSchema } = require('./validation/products');
+
+// ============================================================================
+// PRODUCTS CRUD
+// ============================================================================
+
+/**
+ * GET /api/v2/catalog/products
+ * List products with filtering, sorting, pagination
+ */
+router.get('/products', async (req, res, next) => {
+  try {
+    const filters = productHelpers.parseFilters(req.query);
+    const pagination = productHelpers.parsePagination(req.query);
+    
+    const result = await productService.list(filters, pagination);
+    
+    res.json({
+      success: true,
+      data: result.products,
+      meta: result.meta
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/v2/catalog/products/:id
+ * Get single product by ID
+ */
+router.get('/products/:id', async (req, res, next) => {
+  try {
+    const product = await productService.getById(req.params.id);
+    
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Product not found' }
+      });
+    }
+    
+    res.json({ success: true, data: product });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/v2/catalog/products
+ * Create new product
+ */
+router.post('/products', 
+  requireAuth, 
+  validate(productSchema),
+  async (req, res, next) => {
+    try {
+      const product = await productService.create(req.user.id, req.body);
+      res.status(201).json({ success: true, data: product });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * PATCH /api/v2/catalog/products/:id
+ * Update product fields
+ */
+router.patch('/products/:id',
+  requireAuth,
+  validate(productUpdateSchema),
+  async (req, res, next) => {
+    try {
+      const product = await productService.update(
+        req.params.id, 
+        req.user.id, 
+        req.body
+      );
+      res.json({ success: true, data: product });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * DELETE /api/v2/catalog/products/:id
+ * Delete product
+ */
+router.delete('/products/:id',
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      await productService.delete(req.params.id, req.user.id);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+module.exports = router;
+```
+
+### Module File Hierarchy
+
+```
+modules/catalog/
+├── index.js              # Module entry point
+├── routes.js             # ONE file: all CRUD endpoints
+├── services/             # Business logic (called by routes)
+│   ├── products.js       # Product CRUD operations
+│   ├── categories.js     # Category operations
+│   └── inventory.js      # Inventory operations
+├── helpers/              # Route helpers (keep routes clean)
+│   ├── products.js       # Filter parsing, formatting
+│   └── pagination.js     # Pagination helpers
+├── validation/           # Request validation schemas
+│   ├── products.js       # Product validation rules
+│   └── categories.js     # Category validation rules
+├── types.js              # JSDoc type definitions
+└── README.md             # Module documentation
+```
+
+### Layer Responsibilities
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         ROUTES (routes.js)                      │
+│  • HTTP handling only                                           │
+│  • Request parsing                                              │
+│  • Response formatting                                          │
+│  • Error handling                                               │
+│  • NO business logic                                            │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     HELPERS (helpers/*.js)                      │
+│  • Parse query params → filter objects                          │
+│  • Format data for responses                                    │
+│  • Validation helpers                                           │
+│  • Utility functions for routes                                 │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    SERVICES (services/*.js)                     │
+│  • Business logic                                               │
+│  • Database operations                                          │
+│  • External API calls                                           │
+│  • Reusable across routes                                       │
+│  • NO HTTP concerns                                             │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      DATABASE (shared/db.js)                    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Query Parameters (Standard)
+
+| Parameter | Usage | Example |
+|-----------|-------|---------|
+| `page` | Page number | `?page=2` |
+| `limit` | Items per page | `?limit=20` |
+| `sort` | Sort field | `?sort=created_at` |
+| `order` | Sort direction | `?order=desc` |
+| `search` | Text search | `?search=painting` |
+| `filter[field]` | Field filter | `?filter[status]=active` |
+| `include` | Related data | `?include=category,images` |
+| `fields` | Sparse fieldsets | `?fields=id,name,price` |
+
+### Auth Header
+
+```
+Authorization: Bearer {access_token}
+```
+
+### OpenAPI Compatibility
+
+Each module can export OpenAPI schema for documentation:
+
+```javascript
+// modules/catalog/openapi.js
+module.exports = {
+  paths: {
+    '/api/v2/catalog/products': {
+      get: {
+        summary: 'List products',
+        tags: ['Catalog'],
+        parameters: [...],
+        responses: {...}
+      },
+      post: {
+        summary: 'Create product',
+        tags: ['Catalog'],
+        requestBody: {...},
+        responses: {...}
+      }
+    }
+  }
+};
+```
+
+### Mounting Modules
+
+```javascript
+// api-service/src/server.js (updated)
+
+// Legacy routes (v1 - no version prefix)
+app.use('/auth', require('./routes/auth'));           // OLD
+app.use('/products', require('./routes/products'));   // OLD
+
+// New modular routes (v2)
+app.use('/api/v2/auth', require('./modules/auth').router);
+app.use('/api/v2/profiles', require('./modules/profiles').router);
+app.use('/api/v2/catalog', require('./modules/catalog').router);
+// ... etc
+```
+
+---
+
+## Migration Strategy
+
+### Phase 1: Create Module Shell
+```
+1. Create module directory structure
+2. Create index.js, routes.js, types.js
+3. Create README.md with module spec
+```
+
+### Phase 2: Extract Services
+```
+1. Identify business logic in old routes
+2. Extract to service files
+3. Add JSDoc types
+4. Write basic tests
+```
+
+### Phase 3: Create v2 Routes
+```
+1. Create new routes calling services
+2. Mount at /api/v2/{module}
+3. Test new endpoints
+```
+
+### Phase 4: Migrate Consumers
+```
+1. Update frontend to use v2 endpoints
+2. Update mobile app
+3. Add deprecation headers to v1
+```
+
+### Phase 5: Cleanup
+```
+1. Remove old route file
+2. Remove old middleware
+3. Update documentation
+```
+
+### Example Migration Tracking
+
+```markdown
+## Auth Module Migration
+
+### Files to Migrate
+- [x] api-service/src/routes/auth.js → modules/auth/routes.js
+- [ ] api-service/src/middleware/auth.js → modules/auth/middleware/
+- [ ] lib/firebase.js → modules/auth/services/firebase.js
+- [ ] lib/csrf.js → modules/shared/middleware/csrf.js
+
+### New Files Created
+- [x] modules/auth/index.js
+- [x] modules/auth/routes.js
+- [ ] modules/auth/services/jwt.js
+- [ ] modules/auth/services/firebase.js
+- [ ] modules/auth/middleware/requireAuth.js
+
+### Consumers to Update
+- [ ] pages/login.js
+- [ ] pages/signup.js
+- [ ] components/login/LoginModal.js
+- [ ] mobile-app/components/LoginScreen.js
+```
+
+---
+
+## Cross-Module Communication
+
+### Importing from Other Modules
+
+```javascript
+// api-service/src/modules/commerce/services/checkout.js
+const { jwtService, sessionService } = require('../../auth');
+const { productService } = require('../../catalog');
+
+async function createCheckout(userId, cartItems) {
+  // Use auth service to validate user
+  const user = await jwtService.validateToken(token);
+  
+  // Use catalog service to validate products
+  const products = await productService.validateProducts(cartItems);
+  
+  // ... checkout logic
+}
+```
+
+### Shared Services
+
+```javascript
+// api-service/src/modules/shared/services/email.js
+const nodemailer = require('nodemailer');
+
+async function sendEmail({ to, subject, html }) {
+  // Email sending logic
+}
+
+module.exports = { sendEmail };
+
+// Usage in any module (via index):
+const { email } = require('../shared/services');
+await email.sendEmail({ to, subject, html });
+```
+
+---
+
+## Frontend Component Rules
+
+### Shared Components Location
+
+```
+components/
+├── shared/                 # Truly reusable (no business logic)
+│   ├── Button/
+│   │   ├── Button.js
+│   │   ├── Button.module.css
+│   │   └── index.js
+│   ├── Modal/
+│   ├── Form/
+│   │   ├── Input.js
+│   │   ├── Select.js
+│   │   └── Checkbox.js
+│   └── ...
+│
+├── auth/                   # Auth-specific components
+│   ├── LoginForm.js
+│   ├── SignupForm.js
+│   └── ...
+│
+├── catalog/                # Catalog-specific components
+│   ├── ProductCard.js
+│   ├── ProductGrid.js
+│   └── ...
+│
+└── commerce/               # Commerce-specific components
+    ├── CartItem.js
+    ├── CheckoutForm.js
+    └── ...
+```
+
+### CSS Architecture
+
+```css
+/* styles/variables.css */
+:root {
+  /* Colors */
+  --color-primary: #2563eb;
+  --color-secondary: #64748b;
+  --color-success: #22c55e;
+  --color-error: #ef4444;
+  
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  
+  /* Typography */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'Fira Code', monospace;
+  
+  /* Borders */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 1rem;
+}
+```
+
+---
+
+## Module Checklist Template
+
+When creating a new module, use this checklist:
+
+```markdown
+## [Module Name] Module
+
+### Setup
+- [ ] Create directory: `modules/{name}/`
+- [ ] Create `index.js` (module entry)
+- [ ] Create `routes.js` (API routes)
+- [ ] Create `types.js` (type definitions)
+- [ ] Create `README.md` (documentation)
+- [ ] Create `services/` directory
+
+### Services
+- [ ] Identify all business logic
+- [ ] Create service files
+- [ ] Add JSDoc documentation
+- [ ] Handle errors properly
+
+### Routes
+- [ ] Define v2 endpoints
+- [ ] Add input validation
+- [ ] Add proper error responses
+- [ ] Mount in server.js
+
+### Migration
+- [ ] List old files to migrate
+- [ ] Update frontend consumers
+- [ ] Update mobile consumers
+- [ ] Add deprecation to v1
+- [ ] Delete old files
+
+### Documentation
+- [ ] Document all endpoints
+- [ ] Document types
+- [ ] Add examples
+- [ ] Update ARCHITECTURE.md
+```
+
+---
+
+## Backward Compatibility & Migration
+
+### Wrapper Files (Temporary)
+
+During refactoring, old files become **thin wrappers** that re-export from new modules. This allows 100+ existing files to work without immediate changes:
+
+| Old File | Now Re-exports From | Consumer Count |
+|----------|---------------------|----------------|
+| `api-service/src/middleware/jwt.js` | `modules/auth/middleware/requireAuth` | 44 files |
+| `api-service/src/middleware/permissions.js` | `modules/auth/middleware/` + `services/` | 30 files |
+| `lib/csrf.js` (auth functions) | `lib/auth/*` | 81 files |
+
+**How it works:**
+```javascript
+// OLD: api-service/src/middleware/jwt.js (now a wrapper)
+const requireAuth = require('../modules/auth/middleware/requireAuth');
+module.exports = requireAuth;  // Same export signature, new implementation
+```
+
+**Rules:**
+1. **New code** should import from `modules/auth` directly
+2. **Existing code** continues to work via wrappers (no immediate changes needed)
+3. **Update imports when you touch a file** - as you refactor files into other modules (profiles, catalog, etc.), update their auth imports to use the new paths
+4. **After ALL modules refactored**, delete wrapper files in final cleanup pass
+
+### Aliased Exports (Temporary)
+
+During the refactor, some modules export **both old and new names** for the same function:
+
+| Module | Old Name | New Name | Usage |
+|--------|----------|----------|-------|
+| Auth | `verifyToken` | `requireAuth` | JWT middleware |
+
+**Rules:**
+1. **New code** should use the new name (`requireAuth`)
+2. **Existing code** can keep using old name (wrappers handle it)
+3. **Update to new names when you touch a file** during other module refactors
+4. **After ALL modules refactored**, remove old aliases in final cleanup pass
+
+### Post-Refactor Cleanup Checklist
+
+**TIMING: Only after ALL modules are refactored** (profiles, catalog, commerce, events, websites, marketing, admin, etc.). During refactoring, wrappers stay in place. This checklist is the FINAL step:
+
+**Auth Module Wrappers (remove after all consumers migrated):**
+- [ ] `api-service/src/middleware/jwt.js` → Delete (44 files import this)
+- [ ] `api-service/src/middleware/permissions.js` → Delete (30 files import this)
+- [ ] `lib/csrf.js` auth re-exports → Remove lines 193-218 (81 files import auth from here)
+- [ ] `api-service/src/routes/auth.js` → Delete legacy v1 routes (24KB)
+
+**Alias Cleanup:**
+- [ ] Search for `verifyToken` usage → replace with `requireAuth`
+- [ ] Remove `verifyToken` alias from `modules/auth/index.js`
+- [ ] Search for any other deprecated aliases
+
+**Import Path Updates:**
+- [ ] Update all `require('./middleware/jwt')` → `require('./modules/auth')`
+- [ ] Update all `require('./middleware/permissions')` → `require('./modules/auth')`
+- [ ] Update all `import from 'lib/csrf'` auth imports → `import from 'lib/auth'`
+
+**File Cleanup:**
+- [ ] Remove empty/deprecated files from `api-service/src/routes/`
+- [ ] Remove empty/deprecated files from `api-service/src/middleware/`
+- [ ] Update documentation to remove migration notes
+
+---
+
+## Related Documents
+
+- [ARCHITECTURE.md](./ARCHITECTURE.md) - System overview
+- [REFACTOR_WORKFLOW.md](./REFACTOR_WORKFLOW.md) - Development workflow
+- [database/schema.sql](../database/schema.sql) - Database schema

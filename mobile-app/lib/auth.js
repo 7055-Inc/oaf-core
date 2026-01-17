@@ -1,4 +1,10 @@
+/**
+ * Mobile App Auth Utilities
+ * Handles token storage, refresh, and authenticated requests
+ */
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { config, getApiUrl } from './config';
 
 // Auto-refresh tokens before they expire
 let refreshTimer = null;
@@ -19,6 +25,10 @@ export const clearAutoRefresh = () => {
   }
 };
 
+/**
+ * Refresh the auth token using refresh token
+ * Uses v2 API endpoint
+ */
 export const refreshAuthToken = async () => {
   try {
     const refreshToken = await AsyncStorage.getItem('refreshToken');
@@ -28,7 +38,7 @@ export const refreshAuthToken = async () => {
       return false;
     }
 
-    const response = await fetch('https://api.beemeeart.com/auth/refresh', {
+    const response = await fetch(getApiUrl(config.AUTH_REFRESH), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -38,26 +48,64 @@ export const refreshAuthToken = async () => {
 
     if (!response.ok) {
       console.error('Token refresh failed');
-      await AsyncStorage.multiRemove(['token', 'refreshToken', 'userId']);
+      await clearAuthTokens();
       return false;
     }
 
-    const data = await response.json();
+    const result = await response.json();
+    
+    // Handle v2 response format: { success, data: { accessToken, refreshToken } }
+    if (!result.success || !result.data) {
+      console.error('Invalid refresh response');
+      await clearAuthTokens();
+      return false;
+    }
     
     // Update tokens
-    await AsyncStorage.setItem('token', data.token);
-    await AsyncStorage.setItem('refreshToken', data.refreshToken);
+    await AsyncStorage.setItem('token', result.data.accessToken);
+    await AsyncStorage.setItem('refreshToken', result.data.refreshToken);
     
     console.log('Token refreshed successfully');
     return true;
     
   } catch (error) {
     console.error('Error refreshing token:', error);
-    await AsyncStorage.multiRemove(['token', 'refreshToken', 'userId']);
+    await clearAuthTokens();
     return false;
   }
 };
 
+/**
+ * Clear all auth tokens
+ */
+export const clearAuthTokens = async () => {
+  clearAutoRefresh();
+  await AsyncStorage.multiRemove(['token', 'refreshToken', 'userId']);
+};
+
+/**
+ * Get stored auth token
+ */
+export const getAuthToken = async () => {
+  return await AsyncStorage.getItem('token');
+};
+
+/**
+ * Store auth tokens from v2 login response
+ * @param {Object} data - Response data from v2 auth/login
+ */
+export const storeAuthTokens = async (data) => {
+  await AsyncStorage.setItem('token', data.accessToken);
+  await AsyncStorage.setItem('refreshToken', data.refreshToken);
+  if (data.user?.userId) {
+    await AsyncStorage.setItem('userId', data.user.userId.toString());
+  }
+};
+
+/**
+ * Make an authenticated API request
+ * Automatically handles token refresh on 401
+ */
 export const makeAuthenticatedRequest = async (url, options = {}) => {
   let token = await AsyncStorage.getItem('token');
   
@@ -92,4 +140,4 @@ export const makeAuthenticatedRequest = async (url, options = {}) => {
   }
 
   return response;
-}; 
+};
