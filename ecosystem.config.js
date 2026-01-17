@@ -1,8 +1,9 @@
 module.exports = {
   apps: [
     {
-      name: 'oaf',
+      name: 'staging-frontend',
       script: 'server.js',
+      cwd: '/var/www/staging',
       exec_mode: 'fork',
       instances: 1,
       autorestart: true,
@@ -10,13 +11,13 @@ module.exports = {
       max_memory_restart: '1G',
       env: {
         NODE_ENV: 'production',
-        PORT: 3000
+        PORT: 3002
       }
     },
     {
-      name: 'api-service',
+      name: 'staging-api',
       script: 'src/server.js',
-      cwd: '/var/www/main/api-service',
+      cwd: '/var/www/staging/api-service',
       exec_mode: 'fork',
       instances: 1,
       autorestart: true,
@@ -25,79 +26,10 @@ module.exports = {
       env_file: '.env',
       env: {
         NODE_ENV: 'production',
-        API_GATEWAY_PORT: 3001,
+        API_GATEWAY_PORT: 3003,
         API_VERSION: '1.0.0',
-        API_INSTANCE: '0'
+        API_INSTANCE: 'staging'
       }
-    },
-    {
-      name: 'csv-worker',
-      script: 'csv-processor.js',
-      cwd: '/var/www/main/csv-workers',
-      exec_mode: 'fork',
-      instances: 1,
-      autorestart: true,
-      watch: false,
-      max_memory_restart: '500M',
-      env_file: '.env',
-      env: {
-        NODE_ENV: 'production'
-      }
-    },
-    {
-      name: 'leo-ai-platform',
-      script: 'src/server.js',
-      cwd: '/var/www/main/leo',
-      instances: 1,
-      autorestart: true,
-      watch: false,
-      max_memory_restart: '8G',
-      env_file: '.env',
-      env: {
-        NODE_ENV: 'production',
-        SERVICE_NAME: 'leo-ai-platform'
-      },
-      error_file: '/var/www/main/logs/leo-error.log',
-      out_file: '/var/www/main/logs/leo-out.log',
-      log_file: '/var/www/main/logs/leo-combined.log',
-      time: true
-    },
-    {
-      name: 'luca-costing-platform',
-      script: 'src/server.js',
-      cwd: '/var/www/main/luca',
-      instances: 1,
-      autorestart: true,
-      watch: false,
-      max_memory_restart: '6G',
-      env_file: '/var/www/main/luca/.env',
-      env: {
-        NODE_ENV: 'production',
-        PORT: 3004
-      },
-      error_file: '/var/www/main/logs/luca-error.log',
-      out_file: '/var/www/main/logs/luca-out.log',
-      log_file: '/var/www/main/logs/luca-combined.log',
-      time: true
-    },
-    {
-      name: 'chromadb',
-      script: 'start-chroma.sh',
-      cwd: '/var/www/main/leo',
-      interpreter: '/bin/bash',
-      instances: 1,
-      autorestart: true,
-      watch: false,
-      max_memory_restart: '2G',
-      env: {
-        CHROMA_SERVER_CORS_ALLOW_ORIGINS: '["*"]',
-        CHROMA_HOST: '0.0.0.0',
-        CHROMA_PORT: '8000'
-      },
-      error_file: '/var/www/main/logs/chromadb-error.log',
-      out_file: '/var/www/main/logs/chromadb-out.log',
-      log_file: '/var/www/main/logs/chromadb-combined.log',
-      time: true
     }
   ]
-}; 
+};

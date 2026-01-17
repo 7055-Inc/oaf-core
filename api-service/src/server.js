@@ -1,4 +1,4 @@
-require('dotenv').config({ path: '/var/www/main/api-service/.env' });
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
@@ -119,7 +119,7 @@ app.use((err, req, res, next) => {
 });
 
 // Serve static files from temp_images
-app.use('/temp_images', express.static('/var/www/main/api-service/temp_images'));
+app.use('/temp_images', express.static(path.join(__dirname, '../temp_images')));
 
 // Apply general API rate limiting to all routes
 secureLogger.info('Applying rate limiting');

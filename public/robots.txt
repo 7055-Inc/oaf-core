@@ -9,7 +9,7 @@ Disallow: /profile-completion
 Disallow: /terms-acceptance
 
 # Host
-Host: https://brakebee.com
+Host: https://staging.brakebee.com
 
 # Sitemaps
-Sitemap: https://brakebee.com/sitemap.xml
+Sitemap: https://staging.brakebee.com/sitemap.xml
