@@ -36,7 +36,13 @@ export async function subdomainRouter(req) {
   }
   
   // Skip if this is not a subdomain pattern and not a custom domain
-  if (!isCustomDomain && (!hostname.includes('.brakebee.com') || subdomain === 'www' || subdomain === 'api')) {
+  // Also skip staging-related subdomains
+  if (!isCustomDomain && (!hostname.includes('.brakebee.com') || subdomain === 'www' || subdomain === 'api' || subdomain === 'staging' || subdomain === 'mobile')) {
+    return NextResponse.next();
+  }
+  
+  // Skip staging subdomains entirely (api.staging, mobile.staging, etc.)
+  if (hostname.includes('.staging.brakebee.com') || hostname === 'staging.brakebee.com') {
     return NextResponse.next();
   }
   
@@ -89,35 +95,38 @@ export async function subdomainRouter(req) {
     // Route to appropriate artist storefront page
     const path = req.nextUrl.pathname;
     
+    // Helper to set common params for affiliate tracking
+    const setCommonParams = (url) => {
+      url.searchParams.set('subdomain', subdomain);
+      url.searchParams.set('userId', siteData.user_id);
+      url.searchParams.set('siteName', siteData.site_name);
+      // Pass site ID for affiliate tracking (promoter sites get auto-attribution)
+      if (siteData.id) url.searchParams.set('siteId', siteData.id);
+      if (siteData.is_promoter_site) url.searchParams.set('isPromoterSite', 'true');
+    };
+    
     if (path === '/' || path === '') {
       // Homepage
       const rewriteUrl = new URL('/artist-storefront', req.url);
-      rewriteUrl.searchParams.set('subdomain', subdomain);
-      rewriteUrl.searchParams.set('userId', siteData.user_id);
-      rewriteUrl.searchParams.set('siteName', siteData.site_name);
+      setCommonParams(rewriteUrl);
       rewriteUrl.searchParams.set('themeName', siteData.theme_name);
       return NextResponse.rewrite(rewriteUrl);
     } else if (path === '/about') {
       // About page
       const rewriteUrl = new URL('/artist-storefront/about', req.url);
-      rewriteUrl.searchParams.set('subdomain', subdomain);
-      rewriteUrl.searchParams.set('userId', siteData.user_id);
-      rewriteUrl.searchParams.set('siteName', siteData.site_name);
+      setCommonParams(rewriteUrl);
       return NextResponse.rewrite(rewriteUrl);
     } else if (path === '/products' || path === '/gallery') {
       // Products/Gallery page
       const rewriteUrl = new URL('/artist-storefront/products', req.url);
-      rewriteUrl.searchParams.set('subdomain', subdomain);
-      rewriteUrl.searchParams.set('userId', siteData.user_id);
-      rewriteUrl.searchParams.set('siteName', siteData.site_name);
+      setCommonParams(rewriteUrl);
       return NextResponse.rewrite(rewriteUrl);
     } else if (path.startsWith('/product/')) {
       // Individual product page (if we have one)
       const productId = path.split('/product/')[1];
       const rewriteUrl = new URL('/artist-storefront/product', req.url);
-      rewriteUrl.searchParams.set('subdomain', subdomain);
+      setCommonParams(rewriteUrl);
       rewriteUrl.searchParams.set('productId', productId);
-      rewriteUrl.searchParams.set('userId', siteData.user_id);
       return NextResponse.rewrite(rewriteUrl);
     } else if (path.startsWith('/api/')) {
       // API calls should pass through
