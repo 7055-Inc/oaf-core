@@ -1,4 +1,5 @@
 import '../modules/styles/global.css';
+import '../modules/dashboard/styles/dashboard.css';
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';

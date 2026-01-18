@@ -1,0 +1,426 @@
+/**
+ * Dashboard Module Styles
+ * 
+ * Layout-only styles for the dashboard shell.
+ * Forms, buttons, tables, modals, etc. use global.css
+ * 
+ * Loaded when entering dashboard via DashboardShell component.
+ */
+
+/* =============================================================================
+   DASHBOARD HEADER
+   ============================================================================= */
+
+.dashboard-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background-color: white;
+  border-bottom: 1px solid rgba(5, 84, 116, 0.1);
+  z-index: 1000;
+}
+
+.dashboard-header-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dashboard-header-logo img {
+  width: 100px;
+  height: auto;
+}
+
+.dashboard-header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* Breadcrumbs container */
+.dashboard-breadcrumbs {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  background-color: rgba(5, 84, 116, 0.02);
+}
+
+/* =============================================================================
+   DASHBOARD SHELL
+   ============================================================================= */
+
+.dashboard-shell {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f5f7fa;
+}
+
+.dashboard-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* Prevents flex child overflow */
+}
+
+/* =============================================================================
+   SIDEBAR
+   ============================================================================= */
+
+.dashboard-sidebar {
+  width: 260px;
+  background: white;
+  border-right: 1px solid rgba(5, 84, 116, 0.1);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 900;
+  overflow-y: auto;
+}
+
+.dashboard-sidebar.collapsed {
+  width: 60px;
+}
+
+.dashboard-sidebar-header {
+  padding: 1rem;
+  border-bottom: 1px solid rgba(5, 84, 116, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dashboard-sidebar-toggle {
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  cursor: pointer;
+  color: var(--primary-color);
+  border-radius: 4px;
+}
+
+.dashboard-sidebar-toggle:hover {
+  background: rgba(5, 84, 116, 0.05);
+}
+
+/* Sidebar offset for main content */
+.dashboard-main {
+  margin-left: 260px;
+  transition: margin-left 0.3s ease;
+}
+
+.dashboard-sidebar.collapsed + .dashboard-main,
+.sidebar-collapsed .dashboard-main {
+  margin-left: 60px;
+}
+
+/* =============================================================================
+   SIDEBAR MENU
+   ============================================================================= */
+
+.sidebar-menu {
+  flex: 1;
+  padding: 1rem 0;
+}
+
+.sidebar-menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sidebar-menu-section {
+  margin-bottom: 0.25rem;
+}
+
+.sidebar-menu-header-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar-menu-header {
+  flex: 1;
+  display: block;
+  padding: 0.75rem 1rem;
+  color: var(--text-color);
+  font-weight: 600;
+  font-size: 0.9rem;
+  font-family: var(--font-body);
+  text-decoration: none;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  margin: 0;
+}
+
+.sidebar-menu-header:hover {
+  background-color: rgba(5, 84, 116, 0.05);
+}
+
+.sidebar-menu-header.active {
+  color: var(--primary-color);
+  background-color: rgba(5, 84, 116, 0.08);
+}
+
+.sidebar-menu-header-collapsed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: 0.25rem auto;
+  border-radius: 4px;
+  color: var(--text-color);
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+}
+
+.sidebar-menu-header-collapsed:hover {
+  background-color: rgba(5, 84, 116, 0.05);
+}
+
+.sidebar-menu-header-collapsed.active {
+  color: var(--primary-color);
+  background-color: rgba(5, 84, 116, 0.1);
+}
+
+.sidebar-menu-expand {
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  margin-right: 0.5rem;
+  cursor: pointer;
+  color: rgba(5, 84, 116, 0.5);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.sidebar-menu-expand:hover {
+  background-color: rgba(5, 84, 116, 0.05);
+  color: var(--primary-color);
+}
+
+.sidebar-menu-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.3s ease;
+}
+
+.sidebar-menu-items.expanded {
+  max-height: 500px;
+}
+
+.sidebar-menu-item {
+  display: block;
+  padding: 0.6rem 1rem 0.6rem 2rem;
+  color: #666;
+  font-size: 0.85rem;
+  font-family: var(--font-body);
+  text-decoration: none;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  margin: 0;
+}
+
+.sidebar-menu-item:hover {
+  background-color: rgba(5, 84, 116, 0.05);
+  color: var(--primary-color);
+}
+
+.sidebar-menu-item.active {
+  color: var(--primary-color);
+  background-color: rgba(5, 84, 116, 0.08);
+  font-weight: 600;
+}
+
+/* Collapsed sidebar - hide text */
+.dashboard-sidebar.collapsed .sidebar-menu-header-text,
+.dashboard-sidebar.collapsed .sidebar-menu-header-arrow,
+.dashboard-sidebar.collapsed .sidebar-menu-items {
+  display: none;
+}
+
+.dashboard-sidebar.collapsed .sidebar-menu-header {
+  justify-content: center;
+  padding: 0.75rem;
+}
+
+.dashboard-sidebar.collapsed .sidebar-menu-header-icon {
+  margin-right: 0;
+}
+
+/* =============================================================================
+   CONTENT AREA
+   ============================================================================= */
+
+.dashboard-content {
+  flex: 1;
+  padding: 1.5rem 2rem;
+  overflow-y: auto;
+}
+
+.dashboard-content-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* =============================================================================
+   PAGE HEADER (reusable)
+   ============================================================================= */
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(5, 84, 116, 0.1);
+}
+
+.page-header-title {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  color: var(--primary-color);
+  margin: 0;
+}
+
+.page-header-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* =============================================================================
+   FORM PANEL (replaces slideins)
+   ============================================================================= */
+
+.form-panel {
+  background: white;
+  border-radius: var(--border-radius-md);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-soft);
+}
+
+.form-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(5, 84, 116, 0.1);
+}
+
+.form-panel-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-color);
+  margin: 0;
+}
+
+/* =============================================================================
+   STAT CARD
+   ============================================================================= */
+
+.stat-card {
+  background: white;
+  border-radius: var(--border-radius-md);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-soft);
+}
+
+.stat-card-label {
+  font-size: 0.8rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-card-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.stat-card-change {
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+.stat-card-change.positive {
+  color: var(--success-color);
+}
+
+.stat-card-change.negative {
+  color: #dc3545;
+}
+
+/* =============================================================================
+   RESPONSIVE
+   ============================================================================= */
+
+@media (max-width: 1024px) {
+  .dashboard-sidebar {
+    width: 60px;
+  }
+  
+  .dashboard-sidebar .sidebar-menu-header-text,
+  .dashboard-sidebar .sidebar-menu-header-arrow,
+  .dashboard-sidebar .sidebar-menu-items {
+    display: none;
+  }
+  
+  .dashboard-sidebar .sidebar-menu-header {
+    justify-content: center;
+    padding: 0.75rem;
+  }
+  
+  .dashboard-sidebar .sidebar-menu-header-icon {
+    margin-right: 0;
+  }
+  
+  .dashboard-main {
+    margin-left: 60px;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-sidebar {
+    transform: translateX(-100%);
+    width: 260px;
+  }
+  
+  .dashboard-sidebar.mobile-open {
+    transform: translateX(0);
+  }
+  
+  .dashboard-main {
+    margin-left: 0;
+  }
+  
+  .dashboard-content {
+    padding: 1rem;
+  }
+  
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .page-header-actions {
+    width: 100%;
+  }
+}

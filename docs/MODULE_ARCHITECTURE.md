@@ -95,10 +95,17 @@ The architecture separates **backend** (API) from **frontend** (Next.js/Mobile),
 │       │   ├── types.js          # JSDoc type definitions
 │       │   └── README.md         # Module documentation
 │       │
-│       ├── profiles/             # User profiles module
+│       ├── users/                # User management module
 │       │   ├── index.js
 │       │   ├── routes.js
-│       │   └── services/
+│       │   ├── services/
+│       │   │   ├── users.js      # User CRUD
+│       │   │   ├── profiles.js   # Profile management
+│       │   │   ├── personas.js   # Artist personas
+│       │   │   └── verification.js
+│       │   ├── middleware/
+│       │   ├── helpers/
+│       │   └── validation/
 │       │
 │       ├── catalog/              # Product catalog module
 │       │   ├── index.js
@@ -163,9 +170,9 @@ The architecture separates **backend** (API) from **frontend** (Next.js/Mobile),
 │   │   ├── api.js                # authenticatedApiRequest
 │   │   └── impersonation.js      # start/stop impersonation
 │   │
-│   ├── profiles/                 # Profile API helpers
+│   ├── users/                    # User management API helpers
 │   │   ├── index.js
-│   │   └── api.js
+│   │   └── api.js                # User, profile, persona API calls
 │   │
 │   ├── catalog/                  # Product API helpers
 │   │   ├── index.js
@@ -220,11 +227,208 @@ The architecture separates **backend** (API) from **frontend** (Next.js/Mobile),
 │       └── shared/
 │
 │
+├── modules/                      # FRONTEND MODULES (ongoing)
+│   │
+│   ├── styles/                   # Global styles module
+│   │   └── global.css            # ✅ Site-wide styles (imported in _app.js)
+│   │
+│   └── dashboard/                # Dashboard UI module (page-based)
+│       ├── index.js              # ✅ Module exports
+│       ├── config/
+│       │   └── menuConfig.js     # ✅ Permission-based menu structure
+│       ├── components/
+│       │   ├── index.js          # ✅ Component exports
+│       │   ├── layout/           # ✅ Shell, sidebar, navigation
+│       │   │   ├── index.js
+│       │   │   ├── DashboardShell.js  # ✅ Main wrapper
+│       │   │   ├── DashboardHeader.js # ✅ Global styles + Breadcrumb
+│       │   │   ├── DashboardFooter.js # ✅ With policy links
+│       │   │   ├── Sidebar.js         # ✅ Collapsible nav
+│       │   │   └── SidebarMenu.js     # ✅ Config-driven menu
+│       │   ├── widgets/          # ✅ Widget system (migrated)
+│       │   │   ├── WidgetGrid.js
+│       │   │   ├── WidgetRenderer.js
+│       │   │   └── items/
+│       │   ├── shared/           # Dashboard-specific reusables (TODO)
+│       │   ├── users/            # User management section (TODO)
+│       │   ├── catalog/          # Product management section (TODO)
+│       │   ├── commerce/         # Orders section (TODO)
+│       │   ├── events/           # Events section (TODO)
+│       │   ├── websites/         # Sites section (TODO)
+│       │   └── admin/            # Admin section (TODO)
+│       ├── hooks/
+│       ├── styles/
+│       │   └── dashboard.css     # ✅ Dashboard layout (imported in _app.js)
+│       └── README.md             # ✅ Updated documentation
+│
+│
 └── api-service/src/
     ├── modules/                  # NEW (above)
     ├── routes/                   # OLD: Legacy routes (migrate from here)
     └── middleware/               # OLD: Legacy middleware (migrate from here)
 ```
+
+---
+
+## Users Module Specification
+
+The Users module is the second core module after Auth. It encompasses all user management functionality including profiles, personas, verification, and admin user management.
+
+### Current Inventory (Pre-Refactor)
+
+**Backend API Routes:**
+| File | Lines | Purpose |
+|------|-------|---------|
+| `routes/users.js` | ~1700 | User CRUD, profile management, completion status |
+| `routes/personas.js` | ~300 | Artist personas (sub-profiles) |
+| `routes/admin.js` | various | User management admin endpoints |
+
+**Frontend Pages:**
+| Path | Purpose |
+|------|---------|
+| `/profile/[id]` | Public profile view |
+| `/profile/edit` | Profile editing |
+| `/profile/setup` | Initial profile setup |
+| `/profile-completion` | Required fields completion |
+| `/user-type-selection` | Choose artist/community/promoter |
+
+**Dashboard Components (Current Slide-ins):**
+
+*My Account Section:*
+- `EditProfile.js` - Edit own profile
+- `ViewProfile.js` - View own profile  
+- `EmailPreferences.js` - Email settings
+- `PaymentSettings.js` - Payment methods
+- `ShippingSettings.js` - Shipping addresses
+- `MyOrders.js` - Order history
+
+*Admin Section:*
+- `ManageUsers.js` - Full user management (~1195 lines)
+- `ManagePermissions.js` - Permission toggles (~207 lines)
+
+### Backend Structure: `api-service/src/modules/users/`
+
+```
+users/
+├── index.js              # Module entry point
+├── routes.js             # v2 RESTful endpoints (/api/v2/users/*)
+├── README.md             # Module documentation
+├── services/
+│   ├── index.js          # Re-exports all services
+│   ├── user.js           # User CRUD operations
+│   ├── profile.js        # Profile management
+│   ├── persona.js        # Artist personas
+│   ├── completion.js     # Profile completion logic
+│   └── verification.js   # Email/identity verification
+├── middleware/
+│   ├── index.js
+│   └── requireProfile.js # Require complete profile
+├── helpers/
+│   ├── index.js
+│   └── profileTypes.js   # Artist/community/promoter type logic
+└── validation/
+    └── schemas.js        # Request validation schemas
+```
+
+### Frontend Utilities: `lib/users/`
+
+```
+users/
+├── index.js              # Re-exports all utilities
+├── api.js                # API wrapper functions
+└── types.js              # JSDoc type definitions
+```
+
+### Dashboard Components: `modules/dashboard/components/users/`
+
+```
+users/
+├── index.js              # Re-exports all components
+├── ProfileView.js        # View own profile (page)
+├── ProfileEdit.js        # Edit own profile (page)
+├── EmailPreferences.js   # Email settings (page)
+├── PaymentSettings.js    # Payment methods (page)
+├── ShippingSettings.js   # Shipping addresses (page)
+├── OrderHistory.js       # Order history (page)
+├── PersonaManager.js     # Manage personas (page, vendor only)
+└── admin/
+    ├── index.js
+    ├── UserList.js       # Admin user list (page)
+    ├── UserDetail.js     # Admin user detail/edit (page)
+    └── PermissionManager.js # Permission management (page)
+```
+
+### Dashboard Menu Structure (Users Section)
+
+```javascript
+// In modules/dashboard/config/menuConfig.js
+{
+  id: 'users',
+  label: 'Users',
+  href: '/dashboard/users',
+  items: [
+    { label: 'My Profile', href: '/dashboard/users/profile' },
+    { label: 'Edit Profile', href: '/dashboard/users/profile/edit' },
+    { label: 'My Personas', href: '/dashboard/users/personas', permission: 'vendor' },
+    { label: 'Email Preferences', href: '/dashboard/users/email' },
+    { label: 'Payment Settings', href: '/dashboard/users/payments' },
+    { label: 'Shipping Addresses', href: '/dashboard/users/shipping' },
+    { label: 'Order History', href: '/dashboard/users/orders' },
+    // Admin only
+    { label: 'User Management', href: '/dashboard/users/admin', adminOnly: true },
+    { label: 'Permissions', href: '/dashboard/users/admin/permissions', adminOnly: true },
+  ]
+}
+```
+
+### v2 API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/v2/users/me` | Get current user's full profile |
+| `PUT` | `/api/v2/users/me` | Update current user's profile |
+| `GET` | `/api/v2/users/me/completion` | Get profile completion status |
+| `GET` | `/api/v2/users/:id` | Get public profile (limited fields) |
+| `GET` | `/api/v2/users/me/personas` | Get current user's personas |
+| `POST` | `/api/v2/users/me/personas` | Create new persona |
+| `PUT` | `/api/v2/users/me/personas/:id` | Update persona |
+| `DELETE` | `/api/v2/users/me/personas/:id` | Delete persona |
+| `GET` | `/api/v2/users` | List users (admin only) |
+| `GET` | `/api/v2/users/:id/full` | Get full user data (admin only) |
+| `PUT` | `/api/v2/users/:id` | Update any user (admin only) |
+| `DELETE` | `/api/v2/users/:id` | Delete user (admin only) |
+| `PUT` | `/api/v2/users/:id/permissions` | Update user permissions (admin only) |
+
+### Implementation Phases
+
+**Phase 1: Backend Module**
+- [ ] Create module directory structure
+- [ ] Extract services from `routes/users.js`
+- [ ] Extract services from `routes/personas.js`
+- [ ] Create v2 RESTful endpoints
+- [ ] Create backward-compatible wrappers for old routes
+
+**Phase 2: Frontend Utilities**
+- [ ] Build `lib/users/api.js` wrapper functions
+- [ ] Create JSDoc type definitions
+- [ ] Update existing pages to use new utilities
+
+**Phase 3: Dashboard Pages**
+- [ ] Convert `EditProfile` slide-in to page
+- [ ] Convert `ViewProfile` slide-in to page
+- [ ] Convert remaining My Account items
+- [ ] Convert admin `ManageUsers` to page
+- [ ] Convert admin `ManagePermissions` to page
+
+**Phase 4: Menu Integration**
+- [ ] Add Users section to `menuConfig.js`
+- [ ] Create dashboard route pages
+- [ ] Remove old slide-in menu items
+
+**Phase 5: Cleanup**
+- [ ] Delete old slide-in components
+- [ ] Delete wrapper files
+- [ ] Update documentation
 
 ---
 
@@ -844,32 +1048,38 @@ components/
     └── ...
 ```
 
-### CSS Architecture
+### CSS Architecture (Global-First)
+
+**Strategy:** Avoid component-level `.module.css` files. Use global styles:
+
+1. **`modules/styles/global.css`** - Site-wide styles (buttons, forms, tables, modals)
+2. **`modules/dashboard/styles/dashboard.css`** - Dashboard layout styles
+3. **Module-specific styles** only when truly unique to a single component
+
+**Rules:**
+- New components use global CSS class names directly (no `styles.className`)
+- Buttons use global `.secondary`, forms use global form classes
+- Layout uses `dashboard.css` classes (`.dashboard-header`, `.sidebar-menu`, etc.)
+- Only create `.module.css` if a component has truly unique, non-reusable styles
+
+**CSS Variables (in global.css):**
 
 ```css
-/* styles/variables.css */
 :root {
-  /* Colors */
-  --color-primary: #2563eb;
-  --color-secondary: #64748b;
-  --color-success: #22c55e;
-  --color-error: #ef4444;
-  
-  /* Spacing */
-  --spacing-xs: 0.25rem;
-  --spacing-sm: 0.5rem;
-  --spacing-md: 1rem;
-  --spacing-lg: 1.5rem;
-  --spacing-xl: 2rem;
+  /* Brand Colors */
+  --primary-color: #055474;
+  --secondary-color: #3E1C56;
+  --text-color: #333333;
+  --success-color: #198754;
   
   /* Typography */
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-mono: 'Fira Code', monospace;
+  --font-heading: 'Permanent Marker', cursive;
+  --font-body: 'Nunito Sans', sans-serif;
   
-  /* Borders */
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 1rem;
+  /* Design Tokens */
+  --border-radius-sm: 2px;
+  --border-radius-md: 4px;
+  --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 ```
 

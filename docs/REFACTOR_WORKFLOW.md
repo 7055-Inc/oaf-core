@@ -6,6 +6,27 @@ This document outlines the development workflow for the modular refactoring of t
 
 ---
 
+## Current Progress
+
+| Module | Status | Notes |
+|--------|--------|-------|
+| **Auth** | ✅ Complete | v2 endpoints live, wrappers in place for backward compatibility |
+| **Users** | 🔄 Planning | Spec complete, ready to implement |
+| **Dashboard** | 🔄 In Progress | Shell, sidebar, menu, header, footer complete |
+| **Catalog** | ⏳ Pending | Depends on Users |
+| **Commerce** | ⏳ Pending | Depends on Catalog |
+| **Events** | ⏳ Pending | Depends on Users |
+| **Websites** | ⏳ Pending | Depends on Users |
+| **Content** | ⏳ Pending | - |
+| **Marketing** | ⏳ Pending | Depends on Commerce |
+
+### What's Next
+1. **Users Module** - Backend services, v2 endpoints, frontend utilities
+2. **Dashboard Users Section** - Convert slide-ins to pages, add to menu
+3. **Catalog Module** - Product management
+
+---
+
 ## Flow Chart
 
 ```
@@ -118,7 +139,7 @@ Modules should be refactored in dependency order:
 
 ```
 ┌────────┐    ┌──────────┐    ┌─────────┐    ┌──────────┐    ┌───────────┐
-│  AUTH  │───►│ PROFILES │───►│ CATALOG │───►│ COMMERCE │───►│ WEBSITES  │
+│  AUTH  │───►│  USERS   │───►│ CATALOG │───►│ COMMERCE │───►│ WEBSITES  │
 └────────┘    └──────────┘    └─────────┘    └──────────┘    └───────────┘
      │                                                              │
      │         ┌──────────┐    ┌─────────┐    ┌─────────┐           │
@@ -131,14 +152,15 @@ Modules should be refactored in dependency order:
 | Module | Description | Dependencies |
 |--------|-------------|--------------|
 | **Auth** | Firebase auth, JWT, sessions, permissions, impersonation | None |
-| **Profiles** | Users, artists, vendors, promoters | Auth |
-| **Catalog** | Products, categories, variations, inventory, media | Auth, Profiles |
-| **Commerce** | Cart, checkout, orders, payments, shipping, refunds, taxes | Auth, Profiles, Catalog |
-| **Websites** | Subdomains, themes, customization, custom domains | Auth, Profiles |
-| **Events** | Listings, applications, calendar, reviews | Auth, Profiles |
+| **Users** | User accounts, profiles, personas, verification, roles | Auth |
+| **Catalog** | Products, categories, variations, inventory, media | Auth, Users |
+| **Commerce** | Cart, checkout, orders, payments, shipping, refunds, taxes | Auth, Users, Catalog |
+| **Websites** | Subdomains, themes, customization, custom domains | Auth, Users |
+| **Events** | Listings, applications, calendar, reviews | Auth, Users |
 | **Content** | Articles, help center, policies | Auth |
-| **Marketing** | Affiliates, promoters, coupons, newsletters | Auth, Profiles, Commerce |
+| **Marketing** | Affiliates, promoters, coupons, newsletters | Auth, Users, Commerce |
 | **Admin** | Dashboard, widgets, reports, moderation | All modules |
+| **Dashboard** | Frontend UI module (ongoing) - page-based dashboard | All modules |
 
 ---
 
@@ -156,7 +178,7 @@ All commits should follow this format for easy tracking:
 |--------|-------|
 | `[docs]` | Documentation, specs, API definitions |
 | `[auth]` | Auth module changes |
-| `[profiles]` | Profiles module changes |
+| `[users]` | Users module changes |
 | `[catalog]` | Catalog module changes |
 | `[commerce]` | Commerce module changes |
 | `[websites]` | Websites module changes |
@@ -164,6 +186,7 @@ All commits should follow this format for easy tracking:
 | `[content]` | Content module changes |
 | `[marketing]` | Marketing module changes |
 | `[admin]` | Admin module changes |
+| `[dashboard]` | Dashboard UI module changes |
 | `[shared]` | Shared utilities, types, middleware |
 | `[hotfix]` | Bug fixes (not part of refactor) |
 | `[cleanup]` | Removing deprecated code |
@@ -175,7 +198,10 @@ All commits should follow this format for easy tracking:
 [docs] Auth module API specification
 [auth] Add JWT refresh token rotation
 [auth] Migrate /login to v2 pattern  
-[profiles] Extract user types to shared module
+[users] Add persona management endpoints
+[users] Extract user types to shared module
+[dashboard] Create dashboard shell layout
+[dashboard] Add users section components
 [catalog] Product validation middleware
 [hotfix] Fix cart total calculation
 [cleanup] Remove deprecated auth endpoints

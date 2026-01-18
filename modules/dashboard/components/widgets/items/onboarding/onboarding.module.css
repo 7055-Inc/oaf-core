@@ -1,0 +1,210 @@
+/* Onboarding Banner Container */
+.banner {
+  width: 100%;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, rgba(5, 84, 116, 0.05) 0%, rgba(62, 28, 86, 0.05) 100%);
+}
+
+/* Individual Suggestion Card */
+.suggestion {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 900px;
+  padding: 1.25rem 1.5rem;
+  background: white;
+  border: 3px solid transparent;
+  background-image: linear-gradient(white, white), linear-gradient(135deg, #055474 0%, #3e1c56 100%);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Icon Section */
+.iconSection {
+  flex-shrink: 0;
+}
+
+.icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.25rem;
+}
+
+/* Content Section */
+.content {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  font-family: var(--font-body);
+}
+
+.description {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+/* Missing Fields Tags */
+.missingFields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.fieldTag {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  background: #f3f4f6;
+  color: #4b5563;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 100px;
+}
+
+/* Actions Section */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.primaryAction {
+  padding: 0.6rem 1.25rem;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 50%, var(--primary-color) 100%);
+  background-size: 200% 100%;
+  color: white;
+  border: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.primaryAction:hover {
+  background-position: 100% 0;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(5, 84, 116, 0.3);
+}
+
+.snoozeAction {
+  padding: 0.4rem 1rem;
+  background: transparent;
+  color: #9ca3af;
+  border: none;
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.snoozeAction:hover {
+  color: #6b7280;
+}
+
+/* Loading State */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary-color);
+  font-size: 1.5rem;
+}
+
+/* Error State */
+.error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #dc2626;
+  font-size: 0.875rem;
+}
+
+/* All Done State */
+.allDone {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--success-color);
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.allDone i {
+  font-size: 1.5rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .suggestion {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+    padding: 1.25rem;
+  }
+
+  .content {
+    order: 2;
+  }
+
+  .iconSection {
+    order: 1;
+  }
+
+  .actions {
+    order: 3;
+    width: 100%;
+  }
+
+  .primaryAction {
+    width: 100%;
+  }
+
+  .missingFields {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .widget {
+    padding: 0.75rem;
+  }
+
+  .suggestion {
+    padding: 1rem;
+  }
+
+  .icon {
+    width: 45px;
+    height: 45px;
+    font-size: 1.1rem;
+  }
+
+  .title {
+    font-size: 1rem;
+  }
+
+  .description {
+    font-size: 0.85rem;
+  }
+}
+

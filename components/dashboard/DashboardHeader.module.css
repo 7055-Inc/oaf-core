@@ -5,7 +5,6 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 70px;
   background-color: white;
   border-bottom: 1px solid rgba(5, 84, 116, 0.1);
   z-index: 1000;
@@ -16,10 +15,11 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 2rem;
-  height: 100%;
+  height: 70px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  border-bottom: 1px solid rgba(5, 84, 116, 0.08);
 }
 
 /* Logo Section */
@@ -174,5 +174,74 @@
   .logoImage {
     width: 70px;
     height: auto;
+  }
+}
+
+/* Breadcrumbs - Below header divider */
+.breadcrumbContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0.5rem 2rem;
+  background-color: rgba(5, 84, 116, 0.02);
+}
+
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+  font-size: 13px;
+  font-family: var(--font-body);
+}
+
+.breadcrumbItem {
+  display: flex;
+  align-items: center;
+}
+
+.breadcrumbSeparator {
+  margin: 0 0.5rem;
+  color: rgba(5, 84, 116, 0.3);
+  font-weight: 300;
+}
+
+.breadcrumbLink {
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.breadcrumbLink:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+.breadcrumbCurrent {
+  color: rgba(5, 84, 116, 0.6);
+  font-weight: 500;
+}
+
+/* Responsive breadcrumbs */
+@media (max-width: 768px) {
+  .breadcrumbContainer {
+    padding: 0.5rem 1rem;
+  }
+  
+  .breadcrumbs {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .breadcrumbContainer {
+    padding: 0.4rem 0.75rem;
+  }
+  
+  .breadcrumbs {
+    font-size: 11px;
+  }
+  
+  .breadcrumbSeparator {
+    margin: 0 0.35rem;
   }
 }
