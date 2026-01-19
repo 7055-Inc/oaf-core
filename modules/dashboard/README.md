@@ -35,20 +35,23 @@ Old imports still work via wrappers at:
 - `components/dashboard/DashboardGrid.js`
 - `components/dashboard/WidgetRenderer.js`
 
+### Users Section (✅ Complete)
+- ✅ ProfileForm (accordion-based editor with sections)
+- ✅ EmailPreferences
+- ✅ PaymentSettings
+- ✅ ShippingSettings
+- ✅ PersonaList / PersonaForm
+- ✅ UserManagement (admin)
+- ✅ PersonaManagement (admin)
+- ✅ VerificationHub
+
+### Shared Components (✅ Added)
+- ✅ AccordionSection (moved from components/shared)
+
 ### Next Steps
-1. **Wire DashboardShell** to dashboard index page
-2. **Users Section** - First module-specific section:
-   - ProfileView.js - View own profile
-   - ProfileEdit.js - Edit own profile
-   - EmailPreferences.js - Email settings
-   - PaymentSettings.js - Payment methods
-   - ShippingSettings.js - Shipping addresses
-   - OrderHistory.js - Order history
-   - PersonaManager.js - Manage personas (vendor only)
-   - admin/UserList.js - Admin user management
-   - admin/PermissionManager.js - Admin permission management
-3. **Shared components** - PageHeader, FormPanel, DataTable, etc.
-4. **Convert footer to global styles**
+1. **Catalog Section** - Product management components
+2. **Commerce Section** - Order management (MyOrders)
+3. **Convert footer to global styles**
 
 ---
 
@@ -83,49 +86,64 @@ Old imports still work via wrappers at:
 ```
 modules/dashboard/
 ├── components/
+│   ├── index.js              # Component exports
+│   │
 │   ├── layout/               # Dashboard shell components
-│   │   ├── DashboardShell.js # Main wrapper (sidebar + content area)
-│   │   ├── Sidebar.js        # Collapsible navigation menu
-│   │   ├── SidebarMenu.js    # Menu with nested items
-│   │   └── ContentArea.js    # Page content wrapper
+│   │   ├── index.js
+│   │   ├── DashboardShell.js # Main wrapper (sidebar + header + content + footer)
+│   │   ├── DashboardHeader.js
+│   │   ├── DashboardFooter.js
+│   │   ├── Sidebar.js        # Collapsible navigation container
+│   │   └── SidebarMenu.js    # Config-driven, permission-based menu
 │   │
 │   ├── shared/               # Dashboard-specific reusable components
-│   │   ├── DataTable/        # Sortable, filterable tables
-│   │   ├── StatCard/         # Stat display cards
-│   │   ├── PageHeader/       # Page title + actions
-│   │   ├── FormPanel/        # Form container (replaces slideins)
-│   │   └── ActionBar/        # Bulk action toolbar
+│   │   ├── index.js
+│   │   └── AccordionSection.js # Collapsible form sections
 │   │
-│   ├── users/                # User management components
-│   │   ├── UserList.js
-│   │   ├── UserForm.js
-│   │   ├── ProfileEditor.js
-│   │   └── ...
+│   ├── users/                # User management components ✅
+│   │   ├── index.js
+│   │   ├── EmailPreferences.js
+│   │   ├── PaymentSettings.js
+│   │   ├── ShippingSettings.js
+│   │   ├── PersonaList.js
+│   │   ├── PersonaForm.js
+│   │   ├── UserManagement.js    # Admin
+│   │   ├── PersonaManagement.js # Admin
+│   │   ├── VerificationHub.js
+│   │   └── profile-form/        # Accordion-based profile editor
+│   │       ├── index.js
+│   │       ├── ProfileFormContext.js
+│   │       ├── data/
+│   │       │   ├── artistOptions.js
+│   │       │   └── communityOptions.js
+│   │       └── sections/
+│   │           ├── index.js
+│   │           ├── PersonalInfoSection.js
+│   │           ├── AddressSection.js
+│   │           ├── SocialMediaSection.js
+│   │           ├── ProfileImagesSection.js
+│   │           ├── AdditionalInfoSection.js
+│   │           ├── ArtistProfileSection.js
+│   │           ├── PromoterProfileSection.js
+│   │           └── CommunityPreferencesSection.js
 │   │
-│   ├── catalog/              # Product management components
-│   │   ├── ProductList.js
-│   │   ├── ProductForm.js
-│   │   └── ...
+│   ├── widgets/              # Widget system (migrated)
+│   │   ├── index.js
+│   │   ├── WidgetGrid.js
+│   │   ├── WidgetRenderer.js
+│   │   └── items/
 │   │
-│   ├── commerce/             # Order management components
-│   │   └── ...
-│   │
-│   ├── events/               # Event management components
-│   │   └── ...
-│   │
-│   ├── websites/             # Site management components
-│   │   └── ...
-│   │
-│   └── admin/                # Admin-only components
-│       └── ...
+│   ├── catalog/              # Product management (pending)
+│   ├── commerce/             # Order management (pending)
+│   ├── events/               # Event management (pending)
+│   └── websites/             # Site management (pending)
 │
-├── hooks/                    # Dashboard-specific hooks
-│   ├── useDataTable.js       # Table state management
-│   └── useDashboardNav.js    # Navigation helpers
+├── config/
+│   ├── index.js
+│   └── menuConfig.js         # Permission-based menu structure
 │
-├── styles/                   # Dashboard styles
-│   ├── dashboard.css         # Core dashboard styles
-│   └── variables.css         # Dashboard-specific CSS variables
+├── styles/
+│   └── dashboard.css         # Dashboard layout styles
 │
 └── README.md                 # This file
 ```
@@ -189,31 +207,36 @@ Dashboard (home/widgets)
 - [x] Create `DashboardFooter.js` with policy links
 - [x] Keep existing widget grid on `/dashboard` index
 
-### Phase 2: Users Section 🔄 Next
-- [ ] Wire DashboardShell to dashboard index page
-- [ ] Create `/dashboard/users/profile` page
-- [ ] Create `/dashboard/users/profile/edit` page
-- [ ] Create `/dashboard/users/personas` page
-- [ ] Create `/dashboard/users/email` page
-- [ ] Create `/dashboard/users/payments` page
-- [ ] Create `/dashboard/users/shipping` page
-- [ ] Create `/dashboard/users/orders` page
-- [ ] Create `/dashboard/users/admin` page (admin)
-- [ ] Create `/dashboard/users/admin/permissions` page (admin)
-- [ ] Update menuConfig.js with Users section
+### Phase 2: Users Section ✅ Complete
+- [x] Wire DashboardShell to dashboard pages
+- [x] Create `/dashboard/users/profile` page
+- [x] Create `/dashboard/users/profile/edit` page (accordion ProfileForm)
+- [x] Create `/dashboard/users/personas/*` pages
+- [x] Create `/dashboard/users/email` page
+- [x] Create `/dashboard/users/payments` page
+- [x] Create `/dashboard/users/shipping` page
+- [x] Create `/dashboard/users/manage` page (admin)
+- [x] Create `/dashboard/users/personas/manage/*` pages (admin)
+- [x] Create `/dashboard/users/verification` page
+- [x] Update menuConfig.js with Users section
+- [x] Add user-type color coding to menu
+- [x] Delete old slide-in components
 
-### Phase 3+: Other Sections
-- [ ] Catalog section (with Catalog module)
-- [ ] Commerce section (with Commerce module)
+### Phase 3: Catalog Section 🔄 Next
+- [ ] Move AccordionSection wrapper (product-form still uses old path)
+- [ ] Catalog section components
+- [ ] Product form migration to modular location
+- [ ] Commerce section (MyOrders)
+
+### Phase 4+: Other Sections
 - [ ] Events section (with Events module)
 - [ ] Websites section (with Websites module)
-- [ ] Admin section (with Admin module)
+- [ ] Admin section (global admin tools)
 
 ### Final: Cleanup
-- [ ] Remove old slidein components
-- [ ] Remove old menu items
+- [ ] Remove remaining wrapper files
 - [ ] Clean up unused CSS
-- [ ] Delete wrapper files
+- [ ] Delete legacy routes after wrapper period
 
 ---
 

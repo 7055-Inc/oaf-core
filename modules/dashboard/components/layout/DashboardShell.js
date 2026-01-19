@@ -3,9 +3,12 @@ import { useState, useEffect } from 'react';
 import DashboardHeader from './DashboardHeader';
 import DashboardFooter from './DashboardFooter';
 import Sidebar from './Sidebar';
+import { getCurrentUser } from '../../../../lib/users';
+import { getAuthToken } from '../../../../lib/auth';
 
-export default function DashboardShell({ children, userData }) {
+export default function DashboardShell({ children, userData: propUserData }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [userData, setUserData] = useState(propUserData || null);
   
   // Load saved preference
   useEffect(() => {
@@ -15,6 +18,28 @@ export default function DashboardShell({ children, userData }) {
     }
   }, []);
 
+  // Fetch user data if not provided
+  useEffect(() => {
+    if (propUserData) {
+      setUserData(propUserData);
+      return;
+    }
+    
+    const fetchUser = async () => {
+      try {
+        const token = getAuthToken();
+        if (!token) return;
+        
+        const user = await getCurrentUser();
+        setUserData(user);
+      } catch (err) {
+        console.error('Error fetching user for sidebar:', err);
+      }
+    };
+    
+    fetchUser();
+  }, [propUserData]);
+
   const handleToggleSidebar = () => {
     const newState = !sidebarCollapsed;
     setSidebarCollapsed(newState);
@@ -22,24 +47,27 @@ export default function DashboardShell({ children, userData }) {
   };
 
   return (
-    <div className={`dashboard-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-      <Sidebar 
-        userData={userData} 
-        collapsed={sidebarCollapsed} 
-        onToggle={handleToggleSidebar} 
-      />
+    <>
+      {/* Fixed header at top */}
+      <DashboardHeader />
       
-      <div className="dashboard-main">
-        <DashboardHeader />
+      <div className={`dashboard-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        <Sidebar 
+          userData={userData} 
+          collapsed={sidebarCollapsed} 
+          onToggle={handleToggleSidebar} 
+        />
         
-        <main className="dashboard-content">
-          <div className="dashboard-content-inner">
-            {children}
-          </div>
-        </main>
-        
-        <DashboardFooter />
+        <div className="dashboard-main">
+          <main className="dashboard-content">
+            <div className="dashboard-content-inner">
+              {children}
+            </div>
+          </main>
+          
+          <DashboardFooter />
+        </div>
       </div>
-    </div>
+    </>
   );
 }

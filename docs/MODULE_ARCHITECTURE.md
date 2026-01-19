@@ -107,10 +107,32 @@ The architecture separates **backend** (API) from **frontend** (Next.js/Mobile),
 │       │   ├── helpers/
 │       │   └── validation/
 │       │
-│       ├── catalog/              # Product catalog module
+│       ├── catalog/              # ✅ Product catalog module
 │       │   ├── index.js
 │       │   ├── routes.js
-│       │   └── services/
+│       │   ├── services/
+│       │   │   ├── index.js
+│       │   │   ├── product.js
+│       │   │   ├── category.js
+│       │   │   ├── collection.js
+│       │   │   └── importExport.js
+│       │   └── README.md
+│       │
+│       ├── csv/                  # ✅ Bulk import/export module
+│       │   ├── index.js
+│       │   ├── routes.js
+│       │   ├── worker.js         # Integrated Bull queue worker
+│       │   ├── services/
+│       │   │   ├── index.js
+│       │   │   ├── queue.js      # Bull queue setup
+│       │   │   ├── jobs.js       # Job tracking
+│       │   │   ├── processor.js  # Main job router
+│       │   │   ├── parsers.js    # CSV/Excel parsing
+│       │   │   ├── products.js   # Product import
+│       │   │   ├── inventory.js  # Inventory import
+│       │   │   ├── templates.js  # Template generation
+│       │   │   └── reports.js    # Saved reports
+│       │   └── README.md
 │       │
 │       ├── commerce/             # Commerce module
 │       │   ├── index.js
@@ -175,6 +197,10 @@ The architecture separates **backend** (API) from **frontend** (Next.js/Mobile),
 │   │   └── api.js                # User, profile, persona API calls
 │   │
 │   ├── catalog/                  # Product API helpers
+│   │   ├── index.js
+│   │   └── api.js
+│   │
+│   ├── csv/                      # Bulk import/export API helpers
 │   │   ├── index.js
 │   │   └── api.js
 │   │
@@ -249,9 +275,9 @@ The architecture separates **backend** (API) from **frontend** (Next.js/Mobile),
 │       │   │   ├── WidgetGrid.js
 │       │   │   ├── WidgetRenderer.js
 │       │   │   └── items/
-│       │   ├── shared/           # Dashboard-specific reusables (TODO)
-│       │   ├── users/            # User management section (TODO)
-│       │   ├── catalog/          # Product management section (TODO)
+│       │   ├── shared/           # ✅ Dashboard-specific reusables
+│       │   ├── users/            # ✅ User management section
+│       │   ├── catalog/          # ✅ Product management section
 │       │   ├── commerce/         # Orders section (TODO)
 │       │   ├── events/           # Events section (TODO)
 │       │   ├── websites/         # Sites section (TODO)
@@ -401,34 +427,241 @@ users/
 
 ### Implementation Phases
 
-**Phase 1: Backend Module**
-- [ ] Create module directory structure
-- [ ] Extract services from `routes/users.js`
-- [ ] Extract services from `routes/personas.js`
-- [ ] Create v2 RESTful endpoints
-- [ ] Create backward-compatible wrappers for old routes
+**Phase 1: Backend Module** ✅ Complete
+- [x] Create module directory structure
+- [x] Extract services from `routes/users.js`
+- [x] Extract services from `routes/personas.js`
+- [x] Create v2 RESTful endpoints (30+ endpoints)
+- [x] Create backward-compatible wrappers for old routes
 
-**Phase 2: Frontend Utilities**
-- [ ] Build `lib/users/api.js` wrapper functions
-- [ ] Create JSDoc type definitions
-- [ ] Update existing pages to use new utilities
+**Phase 2: Frontend Utilities** ✅ Complete
+- [x] Build `lib/users/api.js` wrapper functions
+- [x] Update existing pages to use new utilities
 
-**Phase 3: Dashboard Pages**
-- [ ] Convert `EditProfile` slide-in to page
-- [ ] Convert `ViewProfile` slide-in to page
-- [ ] Convert remaining My Account items
-- [ ] Convert admin `ManageUsers` to page
-- [ ] Convert admin `ManagePermissions` to page
+**Phase 3: Dashboard Pages** ✅ Complete
+- [x] Convert `EditProfile` slide-in to page (accordion-based ProfileForm)
+- [x] Convert `ViewProfile` slide-in to page
+- [x] Convert remaining My Account items (Email, Payment, Shipping)
+- [x] Convert admin `ManageUsers` to page
+- [x] Convert admin `ManagePersonas` to page
+- [x] Add Verification hub page
 
-**Phase 4: Menu Integration**
-- [ ] Add Users section to `menuConfig.js`
-- [ ] Create dashboard route pages
-- [ ] Remove old slide-in menu items
+**Phase 4: Menu Integration** ✅ Complete
+- [x] Add Users section to `menuConfig.js`
+- [x] Create dashboard route pages
+- [x] Add user-type color coding (admin=green, artist=purple, promoter=orange)
+- [x] Remove old slide-in menu items
 
-**Phase 5: Cleanup**
-- [ ] Delete old slide-in components
-- [ ] Delete wrapper files
-- [ ] Update documentation
+**Phase 5: Cleanup** ✅ Complete
+- [x] Delete old slide-in components (EditProfile, ViewProfile, EmailPreferences, PaymentSettings, ShippingSettings)
+- [x] Update onboarding widgets to use page navigation
+- [x] Update documentation
+- [ ] Delete wrapper files (after migration period)
+- [ ] Delete legacy route files (after migration period)
+
+---
+
+## Catalog Module Specification
+
+The Catalog module handles product management including products, categories, user collections, and import/export functionality.
+
+### Backend Structure: `api-service/src/modules/catalog/`
+
+```
+catalog/
+├── index.js              # Module entry point
+├── routes.js             # v2 RESTful endpoints (/api/v2/catalog/*)
+├── README.md             # Module documentation
+└── services/
+    ├── index.js          # Re-exports all services
+    ├── product.js        # Product CRUD operations
+    ├── category.js       # Category operations
+    ├── collection.js     # User/vendor collections
+    └── importExport.js   # CSV/Excel export, templates
+```
+
+### Frontend Structure
+
+**API Client (`lib/catalog/`):**
+```
+catalog/
+├── index.js              # Re-exports all functions
+└── api.js                # All v2 API calls
+```
+
+**Public Components (`components/catalog/`):**
+```
+catalog/
+├── index.js              # Re-exports components
+├── ProductCard.js        # Single product display
+└── ProductGrid.js        # Grid of products
+```
+
+**Dashboard Components (`modules/dashboard/components/catalog/`):**
+```
+catalog/
+├── index.js              # Re-exports components
+├── ProductList.js        # Product listing with filters
+├── CollectionsManager.js # Manage user collections
+├── CatalogImportExport.js # Bulk import/export
+└── product-form/         # Product create/edit form
+    ├── index.js
+    ├── ProductFormContext.js
+    ├── ProductStatusHeader.js
+    └── sections/         # Form sections
+```
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v2/catalog/products` | List products |
+| GET | `/api/v2/catalog/products/:id` | Get product |
+| POST | `/api/v2/catalog/products` | Create product |
+| PATCH | `/api/v2/catalog/products/:id` | Update product |
+| DELETE | `/api/v2/catalog/products/:id` | Delete product |
+| GET | `/api/v2/catalog/categories` | List categories |
+| GET | `/api/v2/catalog/collections` | List user collections |
+| POST | `/api/v2/catalog/collections` | Create collection |
+| PUT | `/api/v2/catalog/collections/:id` | Update collection |
+| DELETE | `/api/v2/catalog/collections/:id` | Delete collection |
+| POST | `/api/v2/catalog/export` | Export products |
+| GET | `/api/v2/catalog/public/products` | Public product listing |
+
+### Implementation Status
+
+**Phase 1: Backend Module** ✅ Complete
+- [x] Create module directory structure
+- [x] Extract services from legacy `routes/products.js`
+- [x] Create v2 RESTful routes
+- [x] Create README.md
+
+**Phase 2: Frontend Utilities** ✅ Complete
+- [x] Build `lib/catalog/api.js` wrapper functions
+- [x] All functions use v2 endpoints only
+
+**Phase 3: Dashboard Components** ✅ Complete
+- [x] ProductList with v2 API
+- [x] ProductForm with v2 API
+- [x] CollectionsManager with v2 API
+- [x] CatalogImportExport with v2 API
+
+**Phase 4: Public Components** ✅ Complete
+- [x] Create `components/catalog/`
+- [x] ProductCard component
+- [x] ProductGrid component
+
+**Phase 5: Cleanup** (Pending)
+- [ ] Delete old components (`components/dashboard/manage-my-store/`)
+- [ ] Remove old menu items pointing to legacy components
+- [ ] Delete legacy route files (after migration period)
+
+---
+
+## CSV Module Specification
+
+### Overview
+
+Bulk import/export module for CSV and Excel file processing. Runs as an integrated worker within the API service, using direct service calls to other modules instead of HTTP API requests.
+
+### Key Feature: Integrated Worker
+
+Unlike the old standalone `csv-workers` service that made HTTP calls with JWT/CSRF, this module's worker runs within the API process and calls module services directly:
+
+```javascript
+// Old approach (csv-workers service)
+const response = await makeAPICall('/products', {
+  method: 'POST',
+  body: JSON.stringify(productPayload)
+}, userJWT, userRefreshToken);
+
+// New approach (integrated worker)
+const { productService } = require('../catalog');
+const product = await productService.create(vendorId, productData);
+```
+
+Benefits:
+- No JWT refresh handling needed
+- No CSRF token overhead
+- Shared database connection pool
+- Simpler error handling
+- Better performance
+
+### Backend Structure (`api-service/src/modules/csv/`)
+
+```
+csv/
+├── index.js              # Module exports
+├── routes.js             # API endpoints
+├── worker.js             # Bull queue consumer (starts with server)
+├── services/
+│   ├── index.js          # Service exports
+│   ├── queue.js          # Bull queue setup
+│   ├── jobs.js           # Job tracking
+│   ├── processor.js      # Main job router
+│   ├── parsers.js        # CSV/Excel parsing
+│   ├── products.js       # Product import (uses catalog module)
+│   ├── inventory.js      # Inventory import (uses catalog module)
+│   ├── templates.js      # Template generation
+│   └── reports.js        # Saved reports CRUD
+└── README.md
+```
+
+### Frontend Structure
+
+```
+lib/csv/
+├── index.js              # Re-exports all functions
+└── api.js                # uploadFile, getJobStatus, downloadTemplate, etc.
+```
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v2/csv/upload` | Upload CSV/Excel for processing |
+| GET | `/api/v2/csv/jobs/:jobId` | Get job status |
+| DELETE | `/api/v2/csv/jobs/:jobId` | Delete job |
+| GET | `/api/v2/csv/templates/:jobType` | Download import template |
+| GET | `/api/v2/csv/reports` | List saved reports |
+| POST | `/api/v2/csv/reports` | Save report config |
+| DELETE | `/api/v2/csv/reports/:reportId` | Delete saved report |
+
+### Job Types
+
+| Type | Permission | Uses Module |
+|------|------------|-------------|
+| `product_upload` | vendor | `catalog.productService` |
+| `inventory_upload` | vendor | `catalog.productService` |
+| `user_upload` | admin | `users.userService` (pending) |
+| `event_upload` | vendor | `events.eventService` (pending) |
+
+### Implementation Status
+
+**Phase 1: Module Structure** ✅
+- [x] Create module directory structure
+- [x] Create index.js, routes.js, worker.js
+- [x] Create services (queue, jobs, parsers, processor)
+
+**Phase 2: Product/Inventory Processing** ✅
+- [x] Product import using `catalog.productService`
+- [x] Inventory import using `catalog.productService`
+- [x] Direct service calls (no HTTP)
+
+**Phase 3: API Routes** ✅
+- [x] Upload endpoint
+- [x] Job status endpoint
+- [x] Template download endpoint
+- [x] Saved reports CRUD
+
+**Phase 4: Frontend Integration** ✅
+- [x] Create `lib/csv/api.js`
+- [x] Update `CatalogImportExport` component to use v2 API
+
+**Phase 5: Cleanup** (Pending)
+- [ ] Stop old `csv-worker` PM2 process
+- [ ] Delete `csv-workers/` directory
+- [ ] Remove old `/csv/*` routes from server.js
 
 ---
 

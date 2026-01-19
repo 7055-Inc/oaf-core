@@ -10,12 +10,10 @@ export * from './layout';
 export * from './widgets';
 
 // Shared components
-// export * from './shared';
+export * from './shared';
 
-// Domain section components are imported directly from their folders:
-// - ./users/
-// - ./catalog/
-// - ./commerce/
-// - ./events/
-// - ./websites/
-// - ./admin/
+// Users section components
+export * from './users';
+
+// Catalog section components
+export * from './catalog';

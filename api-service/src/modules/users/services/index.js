@@ -1,17 +1,25 @@
 /**
- * Users Services
+ * Users Module Services
  * Re-exports all user-related services
  */
 
-// TODO: Implement and export services as they are created
-// const userService = require('./users');
-// const profileService = require('./profiles');
-// const personaService = require('./personas');
-// const verificationService = require('./verification');
+const userService = require('./user');
+const profileService = require('./profile');
+const personaService = require('./persona');
+const completionService = require('./completion');
+const permissionsService = require('./permissions');
 
 module.exports = {
-  // userService,
-  // profileService,
-  // personaService,
-  // verificationService,
+  userService,
+  profileService,
+  personaService,
+  completionService,
+  permissionsService,
+  
+  // Spread individual exports for convenience
+  ...userService,
+  ...profileService,
+  ...personaService,
+  ...completionService,
+  ...permissionsService,
 };

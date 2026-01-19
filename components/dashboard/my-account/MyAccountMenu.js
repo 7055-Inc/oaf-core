@@ -1,9 +1,8 @@
 // My Account Menu Component
-// This file will contain ONLY the menu building logic for My Account section
+// Most items migrated to new sidebar - only unmigrated items remain here
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { authApiRequest, API_ENDPOINTS } from '../../../lib/apiUtils';
-import { hasPermission } from '../../../lib/userUtils';
 import styles from '../../../pages/dashboard/Dashboard.module.css';
 
 export default function MyAccountMenu({ 
@@ -16,11 +15,9 @@ export default function MyAccountMenu({
   const [shortcuts, setShortcuts] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Load current shortcuts to check which ones are already added
   useEffect(() => {
     loadShortcuts();
     
-    // Listen for shortcut updates from the widget
     const handleShortcutUpdate = () => {
       loadShortcuts();
     };
@@ -58,8 +55,6 @@ export default function MyAccountMenu({
       if (response.ok) {
         const result = await response.json();
         setShortcuts(result.shortcuts);
-        
-        // Notify other components that shortcuts were updated
         window.dispatchEvent(new CustomEvent('shortcuts-updated'));
       }
     } catch (err) {
@@ -75,7 +70,6 @@ export default function MyAccountMenu({
 
   if (!userData) return null;
   
-  // Calculate total notifications for My Account section
   const totalNotifications = (notifications.awaiting_response || 0);
   
   return (
@@ -93,39 +87,7 @@ export default function MyAccountMenu({
       </h3>
       {!collapsedSections['my-account'] && (
         <ul>
-          <li>
-            <div className={styles.menuItemContent}>
-              <button 
-                className={styles.sidebarLink}
-                onClick={() => openSlideIn('edit-profile', { title: 'Edit Profile' })}
-              >
-                Edit Profile
-              </button>
-              {!hasShortcut('edit-profile') && (
-                <button
-                  className={styles.addShortcutButton}
-                  onClick={() => addShortcut({
-                    id: 'edit-profile',
-                    label: 'Edit Profile',
-                    icon: 'fas fa-user-edit',
-                    slideInType: 'edit-profile'
-                  })}
-                  disabled={loading}
-                  title="Add to shortcuts"
-                >
-                  <i className="fas fa-plus"></i>
-                </button>
-              )}
-            </div>
-          </li>
-          <li>
-            <button 
-              className={styles.sidebarLink}
-              onClick={() => openSlideIn('view-profile', { title: 'View Profile' })}
-            >
-              View Profile
-            </button>
-          </li>
+          {/* My Orders - Still uses slide-in (Commerce module not migrated) */}
           <li>
             <div className={styles.menuItemContent}>
               <button 
@@ -151,31 +113,8 @@ export default function MyAccountMenu({
               )}
             </div>
           </li>
-          <li>
-            <div className={styles.menuItemContent}>
-              <button 
-                className={styles.sidebarLink}
-                onClick={() => openSlideIn('email-settings', { title: 'Email Settings' })}
-              >
-                Email Settings
-              </button>
-              {!hasShortcut('email-settings') && (
-                <button
-                  className={styles.addShortcutButton}
-                  onClick={() => addShortcut({
-                    id: 'email-settings',
-                    label: 'Email Settings',
-                    icon: 'fas fa-envelope-open-text',
-                    slideInType: 'email-settings'
-                  })}
-                  disabled={loading}
-                  title="Add to shortcuts"
-                >
-                  <i className="fas fa-plus"></i>
-                </button>
-              )}
-            </div>
-          </li>
+          
+          {/* My Tickets - External link */}
           <li>
             <Link href="/help/tickets" className={styles.sidebarLink}>
               My Tickets
@@ -184,45 +123,6 @@ export default function MyAccountMenu({
               )}
             </Link>
           </li>
-          {/* Payment Settings - Only show if user has stripe_connect permission */}
-          {hasPermission(userData, 'stripe_connect') && (
-            <li>
-              <button 
-                className={styles.sidebarLink}
-                onClick={() => openSlideIn('payment-settings', { title: 'Payment Settings' })}
-              >
-                Payment Settings
-              </button>
-            </li>
-          )}
-          {/* Shipping Settings - Only show if user has shipping permission */}
-          {hasPermission(userData, 'shipping') && (
-            <li>
-              <div className={styles.menuItemContent}>
-                <button 
-                  className={styles.sidebarLink}
-                  onClick={() => openSlideIn('shipping-settings', { title: 'Shipping Settings' })}
-                >
-                  Shipping Settings
-                </button>
-                {!hasShortcut('shipping-settings') && (
-                  <button
-                    className={styles.addShortcutButton}
-                    onClick={() => addShortcut({
-                      id: 'shipping-settings',
-                      label: 'Shipping Settings',
-                      icon: 'fas fa-shipping-fast',
-                      slideInType: 'shipping-settings'
-                    })}
-                    disabled={loading}
-                    title="Add to shortcuts"
-                  >
-                    <i className="fas fa-plus"></i>
-                  </button>
-                )}
-              </div>
-            </li>
-          )}
         </ul>
       )}
     </div>

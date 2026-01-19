@@ -1,4 +1,4 @@
-/* Dashboard Container */
+/* Dashboard Container - now handled by DashboardShell */
 .dashboardContainer {
   min-height: 100vh;
   display: flex;
@@ -6,7 +6,32 @@
   position: relative; /* For slide-in overlay positioning */
 }
 
-/* Collapsed Header */
+/* Dashboard Content - inside DashboardShell */
+.dashboardContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  position: relative;
+}
+
+/* Legacy Menu - old sidebar menus, temporary until pages converted */
+.legacyMenu {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.legacyMenu h4 {
+  font-size: 0.85rem;
+  color: #666;
+  margin: 0 0 0.5rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Collapsed Header - legacy, may be removed */
 .collapsedHeader {
   background: #055474;
   padding: 8px 20px;
@@ -31,7 +56,7 @@
   background-color: rgba(255, 255, 255, 0.1);
 }
 
-/* Main Content Layout */
+/* Main Content Layout - legacy, may be removed */
 .mainContent {
   display: flex;
   flex: 1;
@@ -40,7 +65,7 @@
   position: relative;
 }
 
-/* Sidebar */
+/* Sidebar - legacy class, replaced by legacyMenu */
 .sidebar {
   width: 280px;
   background: #f8f9fa;

@@ -14,7 +14,26 @@
  * Permission logic:
  * - If no permission/userTypes specified, item is visible to all logged-in users
  * - adminOnly users see everything regardless of other permissions
+ * 
+ * Styling:
+ * - Menu items are color-coded by user type visibility
+ * - This helps admins see which items are for which user types
  */
+
+/**
+ * User-type based menu link colors
+ * - Items visible to everyone: no special color (inherit)
+ * - Admin only: green
+ * - Artist only: purple (#3e1c56)
+ * - Promoter only: orange
+ * - Admins see ALL items but with their target user-type color
+ */
+export const menuStyleColors = {
+  adminOnly: '#198754',      // Green - admin-only items
+  artist: '#3e1c56',         // Purple - artist items (admins see purple too)
+  promoter: '#fd7e14',       // Orange - promoter items (admins see orange too)
+  default: 'inherit',        // No special color - visible to everyone
+};
 
 const menuConfig = [
   {
@@ -25,7 +44,7 @@ const menuConfig = [
   },
   {
     id: 'users',
-    label: 'Users',
+    label: 'My Account',
     href: '/dashboard/users',
     items: [
       { 
@@ -33,17 +52,40 @@ const menuConfig = [
         href: '/dashboard/users/profile' 
       },
       { 
-        label: 'My Personas', 
+        label: 'Edit Profile', 
+        href: '/dashboard/users/profile/edit' 
+      },
+      { 
+        label: 'Artist Personas', 
         href: '/dashboard/users/personas',
-        permission: 'personas'
+        userTypes: ['artist']
+      },
+      { 
+        label: 'Email Preferences', 
+        href: '/dashboard/users/email' 
+      },
+      { 
+        label: 'Payment Settings', 
+        href: '/dashboard/users/payments' 
+      },
+      { 
+        label: 'Shipping Settings', 
+        href: '/dashboard/users/shipping' 
       },
       { 
         label: 'Verification', 
-        href: '/dashboard/users/verification' 
+        href: '/dashboard/users/verification',
+        userTypes: ['artist']
+      },
+      // Admin-only user management items
+      { 
+        label: 'Manage Users', 
+        href: '/dashboard/users/manage',
+        adminOnly: true 
       },
       { 
-        label: 'User Management', 
-        href: '/dashboard/users/manage', 
+        label: 'All Personas', 
+        href: '/dashboard/users/personas/manage',
         adminOnly: true 
       },
     ]
@@ -184,35 +226,6 @@ const menuConfig = [
       { 
         label: 'Billing History', 
         href: '/dashboard/subscriptions/billing' 
-      },
-    ]
-  },
-  {
-    id: 'admin',
-    label: 'Admin',
-    href: '/dashboard/admin',
-    adminOnly: true,
-    items: [
-      { 
-        label: 'Applications', 
-        href: '/dashboard/admin/applications' 
-      },
-      { 
-        label: 'Support Tickets', 
-        href: '/dashboard/admin/tickets' 
-      },
-      { 
-        label: 'System Settings', 
-        href: '/dashboard/admin/settings',
-        permission: 'manage_system'
-      },
-      { 
-        label: 'Content Management', 
-        href: '/dashboard/admin/content' 
-      },
-      { 
-        label: 'Developers', 
-        href: '/dashboard/admin/developers' 
       },
     ]
   },

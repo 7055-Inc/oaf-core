@@ -1,0 +1,153 @@
+/**
+ * Global Alert & Notification Styles
+ * Imported by global.css
+ */
+
+/* =============================================================================
+   ALERT BOXES
+   ============================================================================= */
+
+.error-alert {
+  background-color: #fef2f2;
+  color: #b91c1c;
+  padding: 16px 20px;
+  border-radius: var(--border-radius-sm);
+  margin-bottom: 20px;
+  border: none;
+  border-left: 4px solid #ef4444;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.success-alert {
+  background-color: #f0fdf4;
+  color: #166534;
+  padding: 16px 20px;
+  border-radius: var(--border-radius-sm);
+  margin-bottom: 20px;
+  border: none;
+  border-left: 4px solid #22c55e;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.warning-alert {
+  background-color: #fffbeb;
+  color: #92400e;
+  padding: 16px 20px;
+  border-radius: var(--border-radius-sm);
+  margin-bottom: 20px;
+  border: none;
+  border-left: 4px solid #f59e0b;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.info-alert {
+  background-color: #eff6ff;
+  color: #1e40af;
+  padding: 16px 20px;
+  border-radius: var(--border-radius-sm);
+  margin-bottom: 20px;
+  border: none;
+  border-left: 4px solid #3b82f6;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+/* =============================================================================
+   INFO BANNER (promotional/highlight)
+   ============================================================================= */
+
+.info-banner {
+  display: flex;
+  gap: 14px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, rgba(5, 84, 116, 0.06), rgba(5, 84, 116, 0.02));
+  border: 1px solid rgba(5, 84, 116, 0.15);
+  border-radius: 10px;
+  margin-bottom: 24px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.info-banner i {
+  font-size: 20px;
+  color: var(--primary-color);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.info-banner strong {
+  display: block;
+  color: var(--primary-color);
+  margin-bottom: 4px;
+}
+
+.info-banner p {
+  margin: 0;
+  color: #555;
+}
+
+/* =============================================================================
+   TOAST NOTIFICATIONS
+   ============================================================================= */
+
+.toast-notification {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: white;
+  padding: 16px 20px;
+  border-radius: var(--border-radius-sm);
+  box-shadow: var(--shadow-lg);
+  min-width: 320px;
+  max-width: 400px;
+  z-index: 1100;
+  animation: slideInRight 0.3s ease;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.toast-notification h4 {
+  margin: 0 0 12px 0;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.toast-notification .toast-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.toast-notification .status-completed {
+  font-weight: 600;
+  color: #059669;
+}
+
+.toast-notification .status-failed {
+  font-weight: 600;
+  color: #dc2626;
+}
+
+.toast-notification .status-processing {
+  font-weight: 600;
+  color: #f59e0b;
+}

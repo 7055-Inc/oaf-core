@@ -1,0 +1,58 @@
+/**
+ * Global Tab Styles
+ * Imported by global.css
+ */
+
+/* =============================================================================
+   TAB NAVIGATION
+   ============================================================================= */
+
+.tab-container {
+  display: flex;
+  margin-bottom: 28px;
+  background: #f5f5f5;
+  border-radius: var(--border-radius-sm);
+  padding: 4px;
+  gap: 4px;
+}
+
+.tab,
+.tab.active {
+  padding: 12px 24px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  color: #666;
+}
+
+.tab:hover {
+  background-color: #e8e8e8;
+  color: #333;
+}
+
+.tab.active {
+  color: #fff;
+  background-color: var(--primary-color);
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* =============================================================================
+   TAB CONTENT
+   ============================================================================= */
+
+.tab-content {
+  border-radius: 0 0 12px 12px;
+}
+
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active {
+  display: block;
+}

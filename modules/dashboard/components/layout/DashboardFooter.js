@@ -4,13 +4,13 @@ import styles from './DashboardFooter.module.css';
 
 const footerLinks = [
   { href: '/help', label: 'Help Center' },
-  { href: '/shipping-policy', label: 'Shipping Policy' },
-  { href: '/returns-exchanges', label: 'Returns & Exchanges' },
-  { href: '/terms', label: 'Terms of Service' },
-  { href: '/privacy', label: 'Privacy Policy' },
-  { href: '/cookie-preferences', label: 'Cookie Preferences' },
-  { href: '/copyright-policy', label: 'Copyright Policy' },
-  { href: '/marketplace-transparency', label: 'Marketplace Transparency' },
+  { href: '/policies/shipping', label: 'Shipping Policy' },
+  { href: '/policies/returns', label: 'Returns & Exchanges' },
+  { href: '/policies/terms', label: 'Terms of Service' },
+  { href: '/policies/privacy', label: 'Privacy Policy' },
+  { href: '/policies/cookies', label: 'Cookie Preferences' },
+  { href: '/policies/copyright', label: 'Copyright Policy' },
+  { href: '/policies/transparency', label: 'Marketplace Transparency' },
 ];
 
 export default function DashboardFooter() {

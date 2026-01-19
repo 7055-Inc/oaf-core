@@ -9,21 +9,21 @@
  * - Admin user management
  * 
  * @module users
- * @status Planned - structure in place, implementation pending
  */
 
-// TODO: Implement routes
-// const router = require('./routes');
-
-// TODO: Implement services
-// const services = require('./services');
-
-// TODO: Implement middleware
-// const middleware = require('./middleware');
+const router = require('./routes');
+const services = require('./services');
 
 module.exports = {
-  // Placeholder exports - uncomment as implemented
-  // router,
-  // ...services,
-  // ...middleware,
+  // Router for mounting in server.js
+  router,
+  
+  // Individual services
+  userService: services.userService,
+  profileService: services.profileService,
+  personaService: services.personaService,
+  completionService: services.completionService,
+  
+  // Spread all service functions for convenience
+  ...services,
 };

@@ -11,9 +11,9 @@ This document outlines the development workflow for the modular refactoring of t
 | Module | Status | Notes |
 |--------|--------|-------|
 | **Auth** | ✅ Complete | v2 endpoints live, wrappers in place for backward compatibility |
-| **Users** | 🔄 Planning | Spec complete, ready to implement |
-| **Dashboard** | 🔄 In Progress | Shell, sidebar, menu, header, footer complete |
-| **Catalog** | ⏳ Pending | Depends on Users |
+| **Users** | ✅ Complete | Backend services, v2 API, frontend lib, dashboard components, pages |
+| **Dashboard** | ✅ Users + Catalog Lists | Shell, sidebar, menu, Users section, product listings |
+| **Catalog** | 🔄 In Progress | Product listing done, CRUD pending |
 | **Commerce** | ⏳ Pending | Depends on Catalog |
 | **Events** | ⏳ Pending | Depends on Users |
 | **Websites** | ⏳ Pending | Depends on Users |
@@ -21,9 +21,10 @@ This document outlines the development workflow for the modular refactoring of t
 | **Marketing** | ⏳ Pending | Depends on Commerce |
 
 ### What's Next
-1. **Users Module** - Backend services, v2 endpoints, frontend utilities
-2. **Dashboard Users Section** - Convert slide-ins to pages, add to menu
-3. **Catalog Module** - Product management
+1. **Catalog CRUD** - Product create/update/delete v2 endpoints
+2. **Product Form Migration** - Convert product form to accordion pattern
+3. **Catalog Categories/Collections** - Category and collection management
+4. **Commerce Module** - Orders, cart, payments
 
 ---
 

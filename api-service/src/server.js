@@ -160,6 +160,38 @@ try {
   process.exit(1);
 }
 
+// Users module (v2)
+secureLogger.info('Loading users module');
+try {
+  app.use('/api/v2/users', apiLimiter, require('./modules/users').router);
+  secureLogger.info('Loaded v2 users module');
+} catch (err) {
+  secureLogger.error('Error loading users module', err);
+  // Don't exit - users module is not critical for startup
+}
+
+// Catalog module (v2)
+secureLogger.info('Loading catalog module');
+try {
+  app.use('/api/v2/catalog', apiLimiter, require('./modules/catalog').router);
+  secureLogger.info('Loaded v2 catalog module');
+} catch (err) {
+  secureLogger.error('Error loading catalog module', err);
+  // Don't exit - catalog module is not critical for startup
+}
+
+// Load CSV module (with integrated worker)
+secureLogger.info('Loading CSV module');
+try {
+  const csvModule = require('./modules/csv');
+  app.use('/api/v2/csv', apiLimiter, csvModule.router);
+  // Initialize the worker to process background jobs
+  csvModule.initWorker();
+  secureLogger.info('Loaded v2 CSV module with worker');
+} catch (err) {
+  secureLogger.error('Error loading CSV module', err);
+}
+
 // Apply CSRF token provider for all requests
 secureLogger.info('Applying CSRF protection');
 app.use(csrfTokenProvider);

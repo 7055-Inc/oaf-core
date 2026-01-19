@@ -1,13 +1,13 @@
 import React from 'react';
+import { useRouter } from 'next/router';
 import styles from './onboarding.module.css';
 
-export default function CompleteProfileSuggestion({ suggestionData, onSnooze, openSlideIn }) {
+export default function CompleteProfileSuggestion({ suggestionData, onSnooze }) {
+  const router = useRouter();
   const missingFields = suggestionData?.missingFields || [];
 
   const handleEditProfile = () => {
-    if (openSlideIn) {
-      openSlideIn('edit-profile', { title: 'Edit Profile' });
-    }
+    router.push('/dashboard/users/profile/edit');
   };
 
   // Show up to 3 missing items in the description

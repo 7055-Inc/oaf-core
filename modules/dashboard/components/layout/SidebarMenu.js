@@ -1,8 +1,40 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import menuConfig from '../../config/menuConfig';
+import menuConfig, { menuStyleColors } from '../../config/menuConfig';
 import { hasPermission, isAdmin } from '../../../../lib/userUtils';
+
+/**
+ * Get the style color for a menu item based on its user-type visibility
+ * - adminOnly → green
+ * - artist only → purple
+ * - promoter only → orange
+ * - everyone/multiple types → default (no color)
+ */
+function getItemColor(item) {
+  // Admin-only items are green
+  if (item.adminOnly) {
+    return menuStyleColors.adminOnly;
+  }
+  
+  // Check userTypes for specific coloring
+  if (item.userTypes && item.userTypes.length > 0) {
+    const types = item.userTypes;
+    
+    // If only artist (or admin+artist), use purple
+    if (types.includes('artist') && !types.includes('promoter') && !types.includes('community')) {
+      return menuStyleColors.artist;
+    }
+    
+    // If only promoter (or admin+promoter), use orange
+    if (types.includes('promoter') && !types.includes('artist') && !types.includes('community')) {
+      return menuStyleColors.promoter;
+    }
+  }
+  
+  // Default - no special color
+  return menuStyleColors.default;
+}
 
 /**
  * Check if user can see a menu item based on permissions
@@ -81,6 +113,19 @@ export default function SidebarMenu({ userData, collapsed }) {
     }));
   };
 
+  // Show loading state while user data is being fetched
+  if (!userData) {
+    return (
+      <ul className="sidebar-menu-list">
+        <li className="sidebar-menu-section">
+          <div className="sidebar-menu-header" style={{ color: '#999', fontStyle: 'italic' }}>
+            Loading menu...
+          </div>
+        </li>
+      </ul>
+    );
+  }
+
   const visibleSections = menuConfig.filter(section => canUserSeeItem(section, userData));
 
   if (collapsed) {
@@ -144,16 +189,22 @@ export default function SidebarMenu({ userData, collapsed }) {
             
             {visibleItems.length > 0 && (
               <ul className={`sidebar-menu-items ${isExpanded ? 'expanded' : ''}`}>
-                {visibleItems.map(item => (
-                  <li key={item.href}>
-                    <a 
-                      href={item.href}
-                      className={`sidebar-menu-item ${isPathActive(item.href, currentPath, item.exact) ? 'active' : ''}`}
-                    >
-                      {item.label}
-                    </a>
-                  </li>
-                ))}
+                {visibleItems.map(item => {
+                  const itemColor = getItemColor(item);
+                  const colorStyle = itemColor !== 'inherit' ? { color: itemColor } : {};
+                  
+                  return (
+                    <li key={item.href}>
+                      <a 
+                        href={item.href}
+                        className={`sidebar-menu-item ${isPathActive(item.href, currentPath, item.exact) ? 'active' : ''}`}
+                        style={colorStyle}
+                      >
+                        {item.label}
+                      </a>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </li>

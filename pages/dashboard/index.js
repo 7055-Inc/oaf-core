@@ -5,8 +5,7 @@ import Link from 'next/link';
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
 import { authApiRequest } from '../../lib/apiUtils';
-import DashboardHeader from '../../components/dashboard/DashboardHeader';
-import DashboardFooter from '../../components/dashboard/DashboardFooter';
+import DashboardShell from '../../modules/dashboard/components/layout/DashboardShell';
 
 
 
@@ -39,12 +38,7 @@ import '../../components/dashboard/SlideIn.module.css';
 
 
 import MyAccountMenu from '../../components/dashboard/my-account/MyAccountMenu';
-import EditProfile from '../../components/dashboard/my-account/components/EditProfile';
-import ViewProfile from '../../components/dashboard/my-account/components/ViewProfile';
 import MyOrders from '../../components/dashboard/my-account/components/MyOrders';
-import EmailPreferences from '../../components/dashboard/my-account/components/EmailPreferences';
-import PaymentSettings from '../../components/dashboard/my-account/components/PaymentSettings';
-import ShippingSettings from '../../components/dashboard/my-account/components/ShippingSettings';
 import ManageMyStoreMenu from '../../components/dashboard/manage-my-store/ManageMyStoreMenu';
 import MyEventsMenu from '../../components/dashboard/my-events/MyEventsMenu';
 import MyApplications from '../../components/dashboard/my-events/components/MyApplications';
@@ -281,24 +275,22 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <div>
-        <DashboardHeader />
+      <DashboardShell>
         <div className={styles.container}>
           <h1>Error</h1>
           <p>{error}</p>
         </div>
-      </div>
+      </DashboardShell>
     );
   }
 
   if (!userData) {
     return (
-      <div>
-        <DashboardHeader />
+      <DashboardShell>
         <div className={styles.container}>
           <h1>Loading...</h1>
         </div>
-      </div>
+      </DashboardShell>
     );
   }
 
@@ -396,49 +388,12 @@ export default function Dashboard() {
 
 
     // Handle My Account slide-ins
-    if (slideInContent.type === 'edit-profile') {
-      return (
-        <EditProfile
-          userData={userData}
-        />
-      );
-    }
-    
-    if (slideInContent.type === 'view-profile') {
-      return (
-        <ViewProfile
-          userData={userData}
-        />
-      );
-    }
+    // Note: edit-profile, view-profile, email-settings, payment-settings, shipping-settings
+    // have been migrated to page-based navigation at /dashboard/users/*
     
     if (slideInContent.type === 'my-orders') {
       return (
         <MyOrders
-          userData={userData}
-        />
-      );
-    }
-    
-    if (slideInContent.type === 'email-settings') {
-      return (
-        <EmailPreferences
-          userId={userData.id}
-        />
-      );
-    }
-    
-    if (slideInContent.type === 'payment-settings') {
-      return (
-        <PaymentSettings
-          userData={userData}
-        />
-      );
-    }
-    
-    if (slideInContent.type === 'shipping-settings') {
-      return (
-        <ShippingSettings
           userData={userData}
         />
       );
@@ -858,24 +813,10 @@ export default function Dashboard() {
       <Head>
         <script src="https://js.stripe.com/v3/" async></script>
       </Head>
-      <div className={styles.dashboardContainer}>
-        {/* Collapsible Header */}
-      {headerCollapsed ? (
-        <div className={styles.collapsedHeader}>
-          <button 
-            onClick={() => setHeaderCollapsed(false)}
-            className={styles.expandButton}
-          >
-            ☰ Click here to open menu
-          </button>
-        </div>
-      ) : (
-        <DashboardHeader />
-      )}
-
-      <div className={styles.mainContent}>
-        {/* Left Sidebar */}
-        <div className={styles.sidebar}>
+      <DashboardShell userData={userData}>
+        <div className={styles.dashboardContent}>
+          {/* Legacy Menu - below new sidebar, will be removed as pages are converted */}
+          <div className={styles.legacyMenu}>
           {/* My Account Section */}
           {userData && (
             <MyAccountMenu
@@ -987,35 +928,34 @@ export default function Dashboard() {
 
 
 
-        </div>
+          </div>
 
-        {/* Right Content Area */}
-        <div className={styles.contentArea}>
-          {renderContent()}
-        </div>
+          {/* Widget Grid / Content Area */}
+          <div className={styles.contentArea}>
+            {renderContent()}
+          </div>
 
-        {/* Slide-In Overlay */}
-        {slideInContent && (
-          <div className={styles.slideInOverlay}>
-            <div className={styles.slideInPanel}>
-              <div className={styles.slideInContainer}>
-                <div className={styles.slideInHeader}>
-                  <button className={styles.backButton} onClick={closeSlideIn}>
-                    <i className="fas fa-arrow-left"></i>
-                    Back to Dashboard
-                  </button>
-                  <h2 className={styles.slideInTitle}>{slideInContent.title || 'Slide-In Title'}</h2>
-                </div>
-                <div className={styles.slideInContent}>
-                  {renderSlideInContent()}
+          {/* Slide-In Overlay */}
+          {slideInContent && (
+            <div className={styles.slideInOverlay}>
+              <div className={styles.slideInPanel}>
+                <div className={styles.slideInContainer}>
+                  <div className={styles.slideInHeader}>
+                    <button className={styles.backButton} onClick={closeSlideIn}>
+                      <i className="fas fa-arrow-left"></i>
+                      Back to Dashboard
+                    </button>
+                    <h2 className={styles.slideInTitle}>{slideInContent.title || 'Slide-In Title'}</h2>
+                  </div>
+                  <div className={styles.slideInContent}>
+                    {renderSlideInContent()}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
-      </div>
-    </div>
-    <DashboardFooter />
+          )}
+        </div>
+      </DashboardShell>
     </>
   );
 } 

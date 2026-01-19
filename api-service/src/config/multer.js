@@ -20,7 +20,7 @@ const articlesDir = path.join(uploadDir, 'articles');
 // Create storage configuration
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    if (file.fieldname === 'profile_image' || file.fieldname === 'header_image' || file.fieldname === 'logo_image') {
+    if (file.fieldname === 'profile_image' || file.fieldname === 'header_image' || file.fieldname === 'logo_image' || file.fieldname === 'persona_image') {
       cb(null, profilesDir);
     } else if (file.fieldname === 'site_image') {
       cb(null, sitesDir);
@@ -49,6 +49,10 @@ const storage = multer.diskStorage({
       const type = file.fieldname === 'profile_image' ? 'profile' : 
                    file.fieldname === 'header_image' ? 'header' : 'logo';
       filename = `${req.userId}-${type}-${uniqueSuffix}${path.extname(file.originalname).toLowerCase()}`;
+    } else if (file.fieldname === 'persona_image') {
+      // For persona profile images
+      const personaId = req.params.id || req.query.persona_id || 'new';
+      filename = `${req.userId}-persona-${personaId}-${uniqueSuffix}${path.extname(file.originalname).toLowerCase()}`;
     } else if (file.fieldname === 'site_image') {
       // For site images
       filename = `${req.userId}-site-${uniqueSuffix}${path.extname(file.originalname).toLowerCase()}`;
