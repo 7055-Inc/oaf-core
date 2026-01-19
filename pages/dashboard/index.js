@@ -50,7 +50,7 @@ import AddNew from '../../components/dashboard/my-events/components/AddNew';
 import ApplicationsReceived from '../../components/dashboard/my-events/components/ApplicationsReceived';
 import MyProducts from '../../components/dashboard/manage-my-store/components/MyProducts';
 import AddProduct from '../../components/dashboard/manage-my-store/components/AddProduct';
-import MyPolicies from '../../components/dashboard/manage-my-store/components/MyPolicies';
+// MyPolicies removed - policies now per-product
 import ManageInventory from '../../components/dashboard/manage-my-store/components/ManageInventory';
 import InventoryLog from '../../components/dashboard/manage-my-store/components/InventoryLog';
 import CatalogManager from '../../components/dashboard/manage-my-store/components/CatalogManager';
@@ -419,14 +419,6 @@ export default function Dashboard() {
     if (slideInContent.type === 'add-product') {
       return (
         <AddProduct
-          userData={userData}
-        />
-      );
-    }
-    
-    if (slideInContent.type === 'my-policies') {
-      return (
-        <MyPolicies
           userData={userData}
         />
       );

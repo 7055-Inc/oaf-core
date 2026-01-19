@@ -14,7 +14,7 @@ const SearchModal = dynamic(() => import('./search').then(mod => ({ default: mod
   loading: () => null
 });
 
-const ImpersonationExitButton = dynamic(() => import('./admin/ImpersonationExitButton'), {
+const ImpersonationExitButton = dynamic(() => import('../modules/dashboard/components/users/ImpersonationExitButton'), {
   ssr: false,
   loading: () => null
 });

@@ -1,6 +1,7 @@
 /**
  * Collection Service
- * User/vendor product collections (custom categories)
+ * User/vendor store categories (for organizing their website store)
+ * Products link to user_categories via the product_categories join table
  */
 
 const db = require('../../../../config/db');
@@ -46,7 +47,7 @@ async function listByUser(userId, options = {}) {
   if (includeProductCount) {
     for (const collection of collections) {
       const [countResult] = await db.query(
-        'SELECT COUNT(*) as count FROM product_user_categories WHERE category_id = ?',
+        'SELECT COUNT(*) as count FROM product_categories WHERE category_id = ?',
         [collection.id]
       );
       collection.product_count = countResult[0].count;
@@ -97,18 +98,12 @@ async function create(userId, data) {
     name,
     description = '',
     parent_id = null,
-    display_order = 0,
-    slug = null
+    display_order = 0
   } = data;
 
   if (!name) {
     throw new Error('Collection name is required');
   }
-
-  // Generate slug if not provided
-  const collectionSlug = slug || name.toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
 
   // Check for duplicate name at same level
   let duplicateQuery = 'SELECT id FROM user_categories WHERE user_id = ? AND name = ?';
@@ -127,9 +122,9 @@ async function create(userId, data) {
   }
 
   const [result] = await db.query(
-    `INSERT INTO user_categories (user_id, name, description, parent_id, display_order, slug)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [userId, name, description, parent_id, display_order, collectionSlug]
+    `INSERT INTO user_categories (user_id, name, description, parent_id, display_order)
+     VALUES (?, ?, ?, ?, ?)`,
+    [userId, name, description, parent_id, display_order]
   );
 
   return findById(result.insertId);
@@ -157,8 +152,7 @@ async function update(collectionId, userId, data) {
     name,
     description,
     parent_id,
-    display_order,
-    slug
+    display_order
   } = data;
 
   const updates = [];
@@ -179,10 +173,6 @@ async function update(collectionId, userId, data) {
   if (display_order !== undefined) {
     updates.push('display_order = ?');
     values.push(display_order);
-  }
-  if (slug !== undefined) {
-    updates.push('slug = ?');
-    values.push(slug);
   }
 
   if (updates.length > 0) {
@@ -228,15 +218,19 @@ async function remove(collectionId, userId) {
     throw new Error('Not authorized to delete this collection');
   }
 
-  // Remove product associations
-  await db.query(
-    'DELETE FROM product_user_categories WHERE category_id = ?',
+  // Check if collection has children
+  const [children] = await db.query(
+    'SELECT id FROM user_categories WHERE parent_id = ?',
     [collectionId]
   );
+  
+  if (children.length > 0) {
+    throw new Error('Cannot delete collection with subcategories');
+  }
 
-  // Update children to have no parent (promote to root level)
+  // Remove product associations from product_categories
   await db.query(
-    'UPDATE user_categories SET parent_id = NULL WHERE parent_id = ?',
+    'DELETE FROM product_categories WHERE category_id = ?',
     [collectionId]
   );
 
@@ -260,11 +254,11 @@ async function getProducts(collectionId, options = {}) {
   const offset = (page - 1) * limit;
 
   const [products] = await db.query(
-    `SELECT p.*, puc.display_order as collection_order
+    `SELECT p.*
      FROM products p
-     JOIN product_user_categories puc ON p.id = puc.product_id
-     WHERE puc.category_id = ? AND p.status != 'deleted'
-     ORDER BY puc.display_order ASC
+     JOIN product_categories pc ON p.id = pc.product_id
+     WHERE pc.category_id = ? AND p.status != 'deleted'
+     ORDER BY p.name ASC
      LIMIT ? OFFSET ?`,
     [collectionId, limit, offset]
   );
@@ -291,7 +285,7 @@ async function addProduct(collectionId, productId, userId) {
 
   // Check if already in collection
   const [existing] = await db.query(
-    'SELECT id FROM product_user_categories WHERE category_id = ? AND product_id = ?',
+    'SELECT product_id FROM product_categories WHERE category_id = ? AND product_id = ?',
     [collectionId, productId]
   );
 
@@ -299,17 +293,9 @@ async function addProduct(collectionId, productId, userId) {
     return { added: false, message: 'Product already in collection' };
   }
 
-  // Get max display order
-  const [maxOrder] = await db.query(
-    'SELECT MAX(display_order) as max_order FROM product_user_categories WHERE category_id = ?',
-    [collectionId]
-  );
-
-  const displayOrder = (maxOrder[0].max_order || 0) + 1;
-
   await db.query(
-    'INSERT INTO product_user_categories (category_id, product_id, display_order) VALUES (?, ?, ?)',
-    [collectionId, productId, displayOrder]
+    'INSERT INTO product_categories (category_id, product_id) VALUES (?, ?)',
+    [collectionId, productId]
   );
 
   return { added: true };
@@ -333,7 +319,7 @@ async function removeProduct(collectionId, productId, userId) {
   }
 
   await db.query(
-    'DELETE FROM product_user_categories WHERE category_id = ? AND product_id = ?',
+    'DELETE FROM product_categories WHERE category_id = ? AND product_id = ?',
     [collectionId, productId]
   );
 

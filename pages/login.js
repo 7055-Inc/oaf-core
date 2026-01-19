@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
-import LoginModal from '../components/auth/LoginModal';
+import { LoginModal } from '../modules/auth';
 
 export default function Login() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);

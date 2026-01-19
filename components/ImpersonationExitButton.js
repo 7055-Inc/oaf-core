@@ -1,7 +1,11 @@
 /**
- * DEPRECATED: This file is kept for backward compatibility.
- * Import from 'components/admin/ImpersonationExitButton' instead.
+ * ImpersonationExitButton - WRAPPER (Gradual Migration)
+ * 
+ * This file re-exports from the new location.
+ * Delete this file after updating all imports to use:
+ *   import { ImpersonationExitButton } from '../modules/dashboard/components/users';
+ * 
+ * @deprecated Use modules/dashboard/components/users/ImpersonationExitButton instead
  */
 
-// Re-export from new location
 export { default } from './admin/ImpersonationExitButton';

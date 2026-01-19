@@ -632,7 +632,7 @@ router.patch('/products/:id/inventory', requireAuth, async (req, res) => {
       });
     }
 
-    await productService.updateInventory(productId, req.body);
+    await productService.updateInventory(productId, { ...req.body, created_by: req.userId });
     const inventory = await productService.getInventory(productId);
 
     res.json({
@@ -642,6 +642,50 @@ router.patch('/products/:id/inventory', requireAuth, async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating inventory:', error);
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: error.message, status: 500 }
+    });
+  }
+});
+
+/**
+ * GET /api/v2/catalog/products/:id/inventory/history
+ * Get product inventory history
+ */
+router.get('/products/:id/inventory/history', requireAuth, async (req, res) => {
+  try {
+    const productId = parseInt(req.params.id);
+    const history = await productService.getInventoryHistory(productId);
+
+    res.json({ success: true, data: history || [] });
+  } catch (error) {
+    console.error('Error getting inventory history:', error);
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: error.message, status: 500 }
+    });
+  }
+});
+
+/**
+ * GET /api/v2/catalog/inventory/history
+ * Get all inventory history for current user's products
+ */
+router.get('/inventory/history', requireAuth, async (req, res) => {
+  try {
+    const { page = 1, limit = 100, search } = req.query;
+    
+    // Always filter by user's own products (no admin override)
+    const history = await productService.getAllInventoryHistory(
+      req.userId, 
+      false, // Never show all products - use CSV for admin bulk operations
+      { page: parseInt(page), limit: parseInt(limit), search }
+    );
+
+    res.json({ success: true, data: history });
+  } catch (error) {
+    console.error('Error getting all inventory history:', error);
     res.status(500).json({
       success: false,
       error: { code: 'INTERNAL_ERROR', message: error.message, status: 500 }
@@ -984,7 +1028,8 @@ router.delete('/collections/:id', requireAuth, async (req, res) => {
 
 /**
  * GET /api/v2/catalog/collections/:id/products
- * Get products in a collection
+ * Get products in a collection (user_category)
+ * Products link to user_categories via product_categories table
  */
 router.get('/collections/:id/products', requireAuth, async (req, res) => {
   try {
@@ -1010,6 +1055,11 @@ router.get('/collections/:id/products', requireAuth, async (req, res) => {
       page: parseInt(page),
       limit: parseInt(limit)
     });
+
+    // Add images to each product
+    for (const product of products) {
+      product.images = await productService.getImages(product.id);
+    }
 
     res.json({ success: true, data: products });
   } catch (error) {

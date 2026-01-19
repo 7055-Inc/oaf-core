@@ -145,14 +145,39 @@ async function list(options = {}) {
  * @returns {Promise<Array>}
  */
 async function getImages(productId) {
-  const [images] = await db.query(
+  // Get vendor_id for the pending_images path pattern
+  const [product] = await db.query(
+    'SELECT vendor_id FROM products WHERE id = ?',
+    [productId]
+  );
+  
+  // Get pending/temp images from pending_images table
+  let tempImages = [];
+  if (product && product[0]) {
+    const vendorId = product[0].vendor_id;
+    const [pending] = await db.query(
+      `SELECT image_path as url, 0 as is_primary
+       FROM pending_images
+       WHERE image_path LIKE ? AND status = 'pending'`,
+      [`/temp_images/products/${vendorId}-${productId}-%`]
+    );
+    tempImages = pending.map(img => ({ url: img.url, is_primary: false }));
+  }
+  
+  // Get permanent images from product_images
+  const [permanentImages] = await db.query(
     `SELECT id, image_url as url, is_primary, \`order\`
      FROM product_images
      WHERE product_id = ?
      ORDER BY is_primary DESC, \`order\` ASC`,
     [productId]
   );
-  return images;
+  
+  // Combine: permanent images first, then temp images
+  return [
+    ...permanentImages.map(img => ({ url: img.url, is_primary: img.is_primary === 1 })),
+    ...tempImages
+  ];
 }
 
 /**
@@ -162,7 +187,7 @@ async function getImages(productId) {
  */
 async function getInventory(productId) {
   const [rows] = await db.query(
-    'SELECT * FROM inventory WHERE product_id = ?',
+    'SELECT * FROM product_inventory_with_allocations WHERE product_id = ?',
     [productId]
   );
   return rows[0] || null;
@@ -175,9 +200,9 @@ async function getInventory(productId) {
  */
 async function getChildren(parentId) {
   const [children] = await db.query(
-    `SELECT p.*, i.qty_on_hand, i.qty_available
+    `SELECT p.*, pi.qty_on_hand, pi.qty_available
      FROM products p
-     LEFT JOIN inventory i ON p.id = i.product_id
+     LEFT JOIN product_inventory pi ON p.id = pi.product_id
      WHERE p.parent_id = ?
      ORDER BY p.name ASC`,
     [parentId]
@@ -298,9 +323,9 @@ async function create(vendorId, data) {
   // Create inventory record
   const { qty_on_hand = 0, reorder_qty = 0 } = data;
   await db.query(
-    `INSERT INTO inventory (product_id, qty_on_hand, qty_available, reorder_qty)
-     VALUES (?, ?, ?, ?)`,
-    [productId, qty_on_hand, qty_on_hand, reorder_qty]
+    `INSERT INTO product_inventory (product_id, qty_on_hand, qty_on_order, reorder_qty)
+     VALUES (?, ?, 0, ?)`,
+    [productId, qty_on_hand, reorder_qty]
   );
 
   return findById(productId);
@@ -383,7 +408,7 @@ async function update(productId, vendorId, data, isAdmin = false) {
  * @param {Object} data - Inventory data
  */
 async function updateInventory(productId, data) {
-  const { qty_on_hand, reorder_qty } = data;
+  const { qty_on_hand, reorder_qty, change_type = 'manual_adjustment', reason = '', created_by } = data;
   
   // Check if inventory record exists
   const existing = await getInventory(productId);
@@ -391,10 +416,11 @@ async function updateInventory(productId, data) {
   if (existing) {
     const updates = [];
     const values = [];
+    const previousQty = existing.qty_on_hand || 0;
     
     if (qty_on_hand !== undefined) {
-      updates.push('qty_on_hand = ?', 'qty_available = ?');
-      values.push(qty_on_hand, qty_on_hand - (existing.qty_reserved || 0));
+      updates.push('qty_on_hand = ?');
+      values.push(qty_on_hand);
     }
     if (reorder_qty !== undefined) {
       updates.push('reorder_qty = ?');
@@ -404,17 +430,92 @@ async function updateInventory(productId, data) {
     if (updates.length > 0) {
       values.push(productId);
       await db.query(
-        `UPDATE inventory SET ${updates.join(', ')} WHERE product_id = ?`,
+        `UPDATE product_inventory SET ${updates.join(', ')} WHERE product_id = ?`,
         values
       );
+      
+      // Add history record if quantity changed
+      if (qty_on_hand !== undefined && qty_on_hand !== previousQty) {
+        await db.query(
+          `INSERT INTO inventory_history (product_id, change_type, previous_qty, new_qty, reason, created_by)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [productId, change_type, previousQty, qty_on_hand, reason, created_by || null]
+        );
+      }
     }
   } else {
     await db.query(
-      `INSERT INTO inventory (product_id, qty_on_hand, qty_available, reorder_qty)
-       VALUES (?, ?, ?, ?)`,
-      [productId, qty_on_hand || 0, qty_on_hand || 0, reorder_qty || 0]
+      `INSERT INTO product_inventory (product_id, qty_on_hand, qty_on_order, reorder_qty)
+       VALUES (?, ?, 0, ?)`,
+      [productId, qty_on_hand || 0, reorder_qty || 0]
     );
+    
+    // Add initial history if quantity > 0
+    if (qty_on_hand > 0) {
+      await db.query(
+        `INSERT INTO inventory_history (product_id, change_type, previous_qty, new_qty, reason, created_by)
+         VALUES (?, ?, 0, ?, ?, ?)`,
+        [productId, 'initial_stock', qty_on_hand, 'Initial inventory setup', created_by || null]
+      );
+    }
   }
+}
+
+/**
+ * Get inventory history for a specific product
+ * @param {number} productId - Product ID
+ * @returns {Promise<Array>}
+ */
+async function getInventoryHistory(productId) {
+  const [rows] = await db.query(
+    `SELECT ih.*, up.first_name, up.last_name, u.username,
+            (ih.new_qty - ih.previous_qty) as quantity_change
+     FROM inventory_history ih 
+     LEFT JOIN users u ON ih.created_by = u.id 
+     LEFT JOIN user_profiles up ON u.id = up.user_id
+     WHERE ih.product_id = ? 
+     ORDER BY ih.created_at DESC 
+     LIMIT 100`,
+    [productId]
+  );
+  return rows;
+}
+
+/**
+ * Get all inventory history for a user's products
+ * @param {number} userId - User ID
+ * @param {boolean} isAdmin - If true, show all products
+ * @param {Object} options - Query options
+ * @returns {Promise<Array>}
+ */
+async function getAllInventoryHistory(userId, isAdmin = false, options = {}) {
+  const { page = 1, limit = 100, search } = options;
+  const offset = (page - 1) * limit;
+  
+  let whereClause = isAdmin ? '1=1' : 'p.vendor_id = ?';
+  const params = isAdmin ? [] : [userId];
+  
+  if (search) {
+    whereClause += ' AND (p.name LIKE ? OR p.sku LIKE ?)';
+    params.push(`%${search}%`, `%${search}%`);
+  }
+  
+  params.push(limit, offset);
+  
+  const [rows] = await db.query(
+    `SELECT ih.*, p.name as product_name, p.sku as product_sku,
+            up.first_name, up.last_name, u.username,
+            (ih.new_qty - ih.previous_qty) as quantity_change
+     FROM inventory_history ih 
+     JOIN products p ON ih.product_id = p.id
+     LEFT JOIN users u ON ih.created_by = u.id 
+     LEFT JOIN user_profiles up ON u.id = up.user_id
+     WHERE ${whereClause}
+     ORDER BY ih.created_at DESC 
+     LIMIT ? OFFSET ?`,
+    params
+  );
+  return rows;
 }
 
 /**
@@ -510,7 +611,8 @@ async function hardDelete(productId, vendorId, isAdmin = false) {
   }
 
   // Delete related records
-  await db.query('DELETE FROM inventory WHERE product_id = ?', [productId]);
+  await db.query('DELETE FROM inventory_history WHERE product_id = ?', [productId]);
+  await db.query('DELETE FROM product_inventory WHERE product_id = ?', [productId]);
   await db.query('DELETE FROM product_images WHERE product_id = ?', [productId]);
   await db.query('DELETE FROM products WHERE id = ?', [productId]);
 
@@ -628,6 +730,8 @@ module.exports = {
   list,
   getImages,
   getInventory,
+  getInventoryHistory,
+  getAllInventoryHistory,
   getChildren,
   getVendorInfo,
   getStats,

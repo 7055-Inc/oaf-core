@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Breadcrumb from '../../components/Breadcrumb';
 import { getApiUrl } from '../../lib/config';
-import ProfileDisplay from '../../components/shared/ProfileDisplay';
+import ProfileDisplay from '../../components/users/ProfileDisplay';
 import { authenticatedApiRequest } from '../../lib/csrf';
 import styles from './Profile.module.css';
 

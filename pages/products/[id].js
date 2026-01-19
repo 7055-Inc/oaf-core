@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
 import Breadcrumb from '../../components/Breadcrumb';
-import AboutTheArtist from '../../components/AboutTheArtist';
+import { AboutTheArtist } from '../../components/users';
 import VariationSelector from '../../components/VariationSelector';
 import ArtistProductCarousel from '../../components/ArtistProductCarousel';
 import WholesalePricing from '../../components/WholesalePricing';

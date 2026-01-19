@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { EventFormProvider, useEventForm } from './EventFormContext';
-import AccordionSection from '../../../shared/AccordionSection';
+import { AccordionSection } from '../../../../modules/dashboard/components/shared';
 
 // Section components
 import BasicInfoSection, { getBasicInfoSummary } from './sections/BasicInfoSection';

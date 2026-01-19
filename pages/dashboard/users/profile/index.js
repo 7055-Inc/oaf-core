@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import DashboardShell from '../../../../modules/dashboard/components/layout/DashboardShell';
-import ProfileDisplay from '../../../../components/shared/ProfileDisplay';
+import ProfileDisplay from '../../../../components/users/ProfileDisplay';
 import { getCurrentUser } from '../../../../lib/users';
 import { getAuthToken } from '../../../../lib/auth';
 

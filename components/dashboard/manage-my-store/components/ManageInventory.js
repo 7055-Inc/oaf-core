@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { authApiRequest } from '../../../../lib/apiUtils';
 import { hasAddon } from '../../../../lib/userUtils';
-import CSVUploadModal from '../../../csv/CSVUploadModal';
+import { uploadFile as csvUploadFile, getJobStatus as csvGetJobStatus } from '../../../../lib/csv';
 
 export default function ManageInventory({ userData }) {
   const [products, setProducts] = useState([]);
@@ -249,22 +249,19 @@ export default function ManageInventory({ userData }) {
 
   const checkJobStatus = async (jobId) => {
     try {
-      const response = await authApiRequest(`csv/job/${jobId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setJobStatus(data.job);
-        
-        if (data.job.status === 'processing' || data.job.status === 'pending') {
-          // Check again in 2 seconds
-          setTimeout(() => checkJobStatus(jobId), 2000);
-        } else if (data.job.status === 'completed') {
-          // Refresh inventory data
-          await fetchProductsWithInventory();
-          setSuccess('CSV processing completed successfully!');
-          setTimeout(() => setSuccess(null), 5000);
-        } else if (data.job.status === 'failed') {
-          setError(`CSV processing failed: ${data.job.errorSummary}`);
-        }
+      const data = await csvGetJobStatus(jobId);
+      setJobStatus(data.job);
+      
+      if (data.job.status === 'processing' || data.job.status === 'pending') {
+        // Check again in 2 seconds
+        setTimeout(() => checkJobStatus(jobId), 2000);
+      } else if (data.job.status === 'completed') {
+        // Refresh inventory data
+        await fetchProductsWithInventory();
+        setSuccess('CSV processing completed successfully!');
+        setTimeout(() => setSuccess(null), 5000);
+      } else if (data.job.status === 'failed') {
+        setError(`CSV processing failed: ${data.job.errorSummary}`);
       }
     } catch (err) {
       setError('Failed to check job status');
@@ -467,13 +464,34 @@ export default function ManageInventory({ userData }) {
         )}
 
         {/* CSV Upload Modal */}
-        <CSVUploadModal
-          isOpen={showCSVModal}
-          onClose={() => setShowCSVModal(false)}
-          jobType="inventory_upload"
-          title="Upload Inventory CSV"
-          onUploadStart={handleCSVUploadStart}
-        />
+        {showCSVModal && (
+          <div className="modal-overlay" onClick={() => setShowCSVModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>Upload Inventory CSV</h3>
+                <button className="close-btn" onClick={() => setShowCSVModal(false)}>×</button>
+              </div>
+              <div className="modal-body">
+                <p className="form-hint">Upload a CSV or Excel file with SKU and quantity columns to bulk update inventory.</p>
+                <input
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    try {
+                      const result = await csvUploadFile(file, 'inventory_upload');
+                      handleCSVUploadStart(result.jobId);
+                      setShowCSVModal(false);
+                    } catch (err) {
+                      setError(err.message);
+                    }
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* CSV Job Status Display */}
         {jobStatus && (

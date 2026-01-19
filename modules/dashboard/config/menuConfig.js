@@ -84,6 +84,11 @@ const menuConfig = [
         adminOnly: true 
       },
       { 
+        label: 'Act As...', 
+        href: '/dashboard/users/manage?action=impersonate',
+        adminOnly: true 
+      },
+      { 
         label: 'All Personas', 
         href: '/dashboard/users/personas/manage',
         adminOnly: true 
@@ -111,6 +116,14 @@ const menuConfig = [
       { 
         label: 'Collections', 
         href: '/dashboard/catalog/collections' 
+      },
+      { 
+        label: 'Manage Inventory', 
+        href: '/dashboard/catalog/inventory' 
+      },
+      { 
+        label: 'Inventory Log', 
+        href: '/dashboard/catalog/inventory/log' 
       },
       { 
         label: 'All Products', 

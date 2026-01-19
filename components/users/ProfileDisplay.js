@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import styles from '../../pages/profile/Profile.module.css';
 import { getSmartMediaUrl, getApiUrl } from '../../lib/config';
-import ContactArtistModal from './ContactArtistModal';
+import ContactArtistModal from '../shared/ContactArtistModal';
 import ArtistProductCarousel from '../ArtistProductCarousel';
 
 export default function ProfileDisplay({ 

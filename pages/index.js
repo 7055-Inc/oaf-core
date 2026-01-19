@@ -19,7 +19,7 @@ const ArtistCarousel = dynamic(() => import('../components/ArtistCarousel'), {
   loading: () => <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading artists...</div>
 });
 
-const LoginModal = dynamic(() => import('../components/login/LoginModal'), {
+const LoginModal = dynamic(() => import('../modules/auth/components/LoginModal'), {
   ssr: false,
   loading: () => null
 });

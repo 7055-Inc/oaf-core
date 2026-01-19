@@ -14,3 +14,4 @@ export { default as ProfileForm } from './profile-form';
 // Admin components (visible only to admins)
 export { default as UserManagement } from './UserManagement';
 export { default as PersonaManagement } from './PersonaManagement';
+export { default as ImpersonationExitButton } from './ImpersonationExitButton';

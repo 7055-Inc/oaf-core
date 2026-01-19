@@ -2,9 +2,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
-import firebaseApp from '../../lib/firebase';
-import { clearAuthTokens, storeTokens } from '../../lib/auth';
-import { getApiUrl } from '../../lib/config';
+import firebaseApp from '../../../lib/firebase';
+import { clearAuthTokens, storeTokens } from '../../../lib/auth';
+import { getApiUrl } from '../../../lib/config';
 
 
 export default function LoginModal() {
