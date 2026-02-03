@@ -1,13 +1,13 @@
-# Online Art Festival API Documentation
+# Brakebee API Documentation
 
 ## Overview
-This document provides comprehensive documentation for the Online Art Festival API system. It covers authentication, available endpoints, request/response formats, and usage examples.
+This document provides comprehensive documentation for the Brakebee API system. It covers authentication, available endpoints, request/response formats, and usage examples.
 
 ## Base Information
 
 ### Base URL
 ```
-https://api2.onlineartfestival.com
+https://api.brakebee.com
 ```
 
 ### Authentication
@@ -18,7 +18,7 @@ Authorization: Bearer <your-jwt-token>
 ```
 
 ### API Keys (3rd Party Access)
-For 3rd party integrations, API keys provide access to the system. API keys are managed through the `/api-keys` endpoints and are the foundation of the authentication system.
+For 3rd party integrations, API keys provide access to the system. API keys are managed through the `/api/v2/auth/keys` endpoints and are the foundation of the authentication system.
 
 ### Response Format
 All responses are returned in JSON format with consistent structure:
@@ -56,55 +56,48 @@ The API implements CSRF protection using cookie-based tokens. Include the CSRF t
 
 ---
 
-# API Keys Management
+# API Keys Management (v2)
 
-The API Keys system provides authentication infrastructure for 3rd party access to the Online Art Festival API.
+The API Keys system provides authentication infrastructure for 3rd party access to the Brakebee API. Lives under the auth module.
 
 ## Base Path
 ```
-/api-keys
+/api/v2/auth/keys
 ```
 
 ## Endpoints
 
-### 1. Get API Keys
-**GET** `/api-keys`
+### 1. List API Keys
+**GET** `/api/v2/auth/keys`
 
 Returns all API keys for the authenticated user.
 
 **Authentication:** Required (JWT token)
 
-**Response:**
-```json
-[
-  {
-    "public_key": "pk_1234567890abcdef",
-    "name": "Production API Key",
-    "created_at": "2024-01-15T10:30:00.000Z",
-    "is_active": true
-  },
-  {
-    "public_key": "pk_0987654321fedcba",
-    "name": "Development API Key", 
-    "created_at": "2024-01-10T14:20:00.000Z",
-    "is_active": true
-  }
-]
-```
+**Response:** Array of `{ public_key, name, created_at, is_active }`
 
-### Authentication Error
-```json
-{
-  "error": "No token provided"
-}
-```
+### 2. Create API Key
+**POST** `/api/v2/auth/keys`  
+**Body:** `{ "name": "My Key" }`
+
+Creates a new key pair. Returns `{ public_key, private_key, name }` once; private_key is not stored in plaintext.
+
+### 3. Toggle API Key
+**PUT** `/api/v2/auth/keys/:publicKey/toggle`
+
+Toggles `is_active` for a key owned by the user.
+
+### 4. Delete API Key
+**DELETE** `/api/v2/auth/keys/:publicKey`
+
+Deletes a key owned by the user.
 
 ### Usage Examples
 
 #### JavaScript (Fetch API)
 ```javascript
 // Get user's API keys
-const response = await fetch('https://api2.onlineartfestival.com/api-keys', {
+const response = await fetch('https://api.brakebee.com/api/v2/auth/keys', {
   headers: {
     'Authorization': `Bearer ${userJwtToken}`,
     'Content-Type': 'application/json'
@@ -116,7 +109,7 @@ const apiKeys = await response.json();
 #### cURL
 ```bash
 # Get API keys for authenticated user
-curl -X GET "https://api2.onlineartfestival.com/api-keys" \
+curl -X GET "https://api.brakebee.com/api/v2/auth/keys" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json"
 ```
@@ -499,15 +492,15 @@ Returns all active event types for use in event creation and management.
 ### JavaScript (Fetch API)
 ```javascript
 // Get all events
-const response = await fetch('https://api2.onlineartfestival.com/api/events');
+const response = await fetch('https://api.brakebee.com/api/events');
 const events = await response.json();
 
 // Get event types (reference data)
-const typesResponse = await fetch('https://api2.onlineartfestival.com/api/events/types');
+const typesResponse = await fetch('https://api.brakebee.com/api/events/types');
 const eventTypes = await typesResponse.json();
 
 // Get authenticated user's custom events
-const customEvents = await fetch('https://api2.onlineartfestival.com/api/events/my-events', {
+const customEvents = await fetch('https://api.brakebee.com/api/events/my-events', {
   headers: {
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json'
@@ -515,7 +508,7 @@ const customEvents = await fetch('https://api2.onlineartfestival.com/api/events/
 });
 
 // Create a custom event
-const newEvent = await fetch('https://api2.onlineartfestival.com/api/events/custom', {
+const newEvent = await fetch('https://api.brakebee.com/api/events/custom', {
   method: 'POST',
   headers: {
     'Authorization': `Bearer ${token}`,
@@ -535,17 +528,17 @@ const newEvent = await fetch('https://api2.onlineartfestival.com/api/events/cust
 ### cURL Examples
 ```bash
 # Get all events
-curl -X GET "https://api2.onlineartfestival.com/api/events"
+curl -X GET "https://api.brakebee.com/api/events"
 
 # Get event types (reference data)
-curl -X GET "https://api2.onlineartfestival.com/api/events/types"
+curl -X GET "https://api.brakebee.com/api/events/types"
 
 # Get user's custom events (requires authentication)
-curl -X GET "https://api2.onlineartfestival.com/api/events/my-events" \
+curl -X GET "https://api.brakebee.com/api/events/my-events" \
   -H "Authorization: Bearer YOUR_TOKEN"
 
 # Create custom event
-curl -X POST "https://api2.onlineartfestival.com/api/events/custom" \
+curl -X POST "https://api.brakebee.com/api/events/custom" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -926,11 +919,11 @@ Creates a new value for a variation type.
 ### JavaScript (Fetch API)
 ```javascript
 // Get all products
-const response = await fetch('https://api2.onlineartfestival.com/products');
+const response = await fetch('https://api.brakebee.com/products');
 const products = await response.json();
 
 // Get variation types (requires authentication)
-const variationTypes = await fetch('https://api2.onlineartfestival.com/products/variations/types', {
+const variationTypes = await fetch('https://api.brakebee.com/products/variations/types', {
   headers: {
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json'
@@ -938,7 +931,7 @@ const variationTypes = await fetch('https://api2.onlineartfestival.com/products/
 });
 
 // Create variation type
-const newVariationType = await fetch('https://api2.onlineartfestival.com/products/variations/types', {
+const newVariationType = await fetch('https://api.brakebee.com/products/variations/types', {
   method: 'POST',
   headers: {
     'Authorization': `Bearer ${token}`,
@@ -954,14 +947,14 @@ const newVariationType = await fetch('https://api2.onlineartfestival.com/product
 ### cURL Examples
 ```bash
 # Get all products (public)
-curl -X GET "https://api2.onlineartfestival.com/products"
+curl -X GET "https://api.brakebee.com/products"
 
 # Get variation types (requires authentication)
-curl -X GET "https://api2.onlineartfestival.com/products/variations/types" \
+curl -X GET "https://api.brakebee.com/products/variations/types" \
   -H "Authorization: Bearer YOUR_TOKEN"
 
 # Create variation type
-curl -X POST "https://api2.onlineartfestival.com/products/variations/types" \
+curl -X POST "https://api.brakebee.com/products/variations/types" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{

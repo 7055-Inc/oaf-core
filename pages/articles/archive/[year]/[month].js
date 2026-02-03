@@ -72,8 +72,8 @@ export default function DateArchivePage() {
 
   // SEO meta tags
   const monthName = getMonthName(month);
-  const metaTitle = `Articles from ${monthName} ${year} - Online Art Festival`;
-  const metaDescription = `Browse articles published in ${monthName} ${year} on Online Art Festival. Discover art insights, techniques, and stories from our community of artists.`;
+  const metaTitle = `Articles from ${monthName} ${year} | Brakebee`;
+  const metaDescription = `Browse articles published in ${monthName} ${year} on Brakebee. Discover art insights, techniques, and stories from our community of artists.`;
   const canonicalUrl = getFrontendUrl(`/articles/archive/${year}/${month}`);
 
   // Generate JSON-LD structured data
@@ -97,8 +97,8 @@ export default function DateArchivePage() {
         "datePublished": article.published_at,
         "publisher": {
           "@type": "Organization",
-          "name": "Online Art Festival",
-          "url": ""
+          "name": "Brakebee",
+          "url": "https://brakebee.com"
         }
       }))
     };

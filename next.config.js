@@ -32,7 +32,7 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'api.beemeeart.com',
+        hostname: 'api.brakebee.com',
         pathname: '/**',
       },
       {

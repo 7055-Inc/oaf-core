@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import PaintbrushLoader from './PaintbrushLoader';
 import { getApiUrl } from '../../lib/config';
+import { fetchEvent } from '../../lib/events/api';
 
 const CATEGORY_OPTIONS = [
   { label: 'All', value: 'all' },
@@ -191,20 +192,17 @@ export default function SearchResults({
         enriched.articles = (await Promise.all(articlePromises)).filter(a => a !== null);
       }
 
-      // Fetch events
+      // Fetch events (v2)
       if (leoResults.results?.events?.length > 0) {
         const eventIds = leoResults.results.events.map(e => e.id);
         const eventPromises = eventIds.map(async (id) => {
           try {
-            const response = await fetch(getApiUrl(`events/${id}`));
-            if (response.ok) {
-              const eventData = await response.json();
-              return { 
-                ...eventData, 
-                leoRelevance: leoResults.results.events.find(e => e.id === id)?.relevance,
-                resultType: 'event'
-              };
-            }
+            const eventData = await fetchEvent(id);
+            return {
+              ...eventData,
+              leoRelevance: leoResults.results.events.find(e => e.id === id)?.relevance,
+              resultType: 'event'
+            };
           } catch (error) {
             console.warn(`Failed to fetch event ${id}:`, error);
           }

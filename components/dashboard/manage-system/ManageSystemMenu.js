@@ -28,38 +28,11 @@ export default function ManageSystemMenu({
       </h3>
       {!collapsedSections['manage-system'] && (
         <ul>
-          <li>
-            <button 
-              className={styles.sidebarLink}
-              onClick={() => openSlideIn('manage-announcements', { title: 'Manage Announcements' })}
-            >
-              Manage Announcements
-            </button>
-          </li>
-          <li>
-            <button 
-              className={styles.sidebarLink}
-              onClick={() => openSlideIn('manage-hero-settings', { title: 'Hero Settings' })}
-            >
-              Hero Settings
-            </button>
-          </li>
-          <li>
-            <button 
-              className={styles.sidebarLink}
-              onClick={() => openSlideIn('manage-email-core', { title: 'Email Core' })}
-            >
-              Email Core
-            </button>
-          </li>
-          <li>
-            <button 
-              className={styles.sidebarLink}
-              onClick={() => openSlideIn('manage-terms-core', { title: 'Terms Core' })}
-            >
-              Terms Core
-            </button>
-          </li>
+          {/* Manage Announcements and Hero Settings moved to /dashboard/system/homepage */}
+          {/* Email Core moved to /dashboard/system/email */}
+          {/* Terms Core moved to /dashboard/system/terms */}
+          {/* Custom Policies moved to /dashboard/system/terms (Policies tab) */}
+          {/* Unclaimed Events moved to /dashboard/events/unclaimed */}
           <li>
             <button 
               className={styles.sidebarLink}
@@ -68,61 +41,8 @@ export default function ManageSystemMenu({
               Categories
             </button>
           </li>
-          <li>
-            <button 
-              className={styles.sidebarLink}
-              onClick={() => openSlideIn('manage-custom-policies', { title: 'Custom Policies' })}
-            >
-              Custom Policies
-            </button>
-          </li>
-          <li>
-            <button 
-              className={styles.sidebarLink}
-              onClick={() => openSlideIn('maintenance-control', { title: 'Maintenance Control' })}
-            >
-              Maintenance Control
-            </button>
-          </li>
-          <li>
-            <button 
-              className={styles.sidebarLink}
-              onClick={() => openSlideIn('add-promoter', { title: 'Add Promoter' })}
-            >
-              Add Promoter
-            </button>
-          </li>
-          <li>
-            <button 
-              className={styles.sidebarLink}
-              onClick={() => openSlideIn('unclaimed-events', { title: 'Unclaimed Events' })}
-            >
-              Unclaimed Events
-            </button>
-          </li>
-          
-          {/* Feeds Section */}
-          <li style={{ marginTop: '15px' }}>
-            <span style={{ 
-              display: 'block', 
-              padding: '5px 0', 
-              fontSize: '11px', 
-              fontWeight: 'bold', 
-              color: '#999',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              Marketplace Feeds
-            </span>
-          </li>
-          <li>
-            <button 
-              className={styles.sidebarLink}
-              onClick={() => openSlideIn('walmart-feed', { title: 'Walmart Feed Management' })}
-            >
-              🏪 Walmart Feed
-            </button>
-          </li>
+          {/* Maintenance Control removed - not needed for staging workflow */}
+          {/* Walmart Feed moved to Catalog > Addons > Walmart Connector Admin */}
         </ul>
       )}
     </div>

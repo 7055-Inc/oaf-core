@@ -131,6 +131,7 @@ export default function Signup() {
       <Head>
         <title>Sign Up | Brakebee</title>
         <meta name="description" content="Create your free Brakebee account. Join our community of artists and art lovers to discover, create, and share unique artwork." />
+        <meta name="robots" content="noindex, nofollow" />
       </Head>
       
       <div className="section-box" style={{ maxWidth: '400px', margin: '2rem auto' }}>

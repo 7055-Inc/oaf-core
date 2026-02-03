@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { DashboardShell } from '../../../../modules/dashboard/components/layout';
-import { ProductList } from '../../../../modules/dashboard/components/catalog';
+import { ProductList } from '../../../../modules/catalog';
 import { authApiRequest } from '../../../../lib/apiUtils';
 
 export default function AdminProductsPage() {

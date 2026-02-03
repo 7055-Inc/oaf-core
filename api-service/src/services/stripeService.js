@@ -1,6 +1,6 @@
 /**
  * Stripe Service
- * Comprehensive payment processing service for the Beemeeart platform
+ * Comprehensive payment processing service for the Brakebee platform
  * Handles vendor accounts, payment intents, tax calculations, subscriptions, and financial reporting
  */
 
@@ -49,7 +49,7 @@ class StripeService {
         business_type: 'individual',
         metadata: {
           vendor_id: vendorId.toString(),
-          platform: 'beemeeart'
+          platform: 'brakebee'
         }
       });
 
@@ -75,7 +75,7 @@ class StripeService {
   async createAccountLink(stripeAccountId, vendorId) {
     try {
       // Use environment-configured frontend URL for Stripe Connect onboarding
-      const baseUrl = process.env.FRONTEND_URL || 'https://beemeeart.com';
+      const baseUrl = process.env.FRONTEND_URL || 'https://brakebee.com';
       
       const accountLink = await this.stripe.accountLinks.create({
         account: stripeAccountId,
@@ -135,7 +135,7 @@ class StripeService {
         currency: currency.toLowerCase(),
         metadata: {
           order_id: metadata.order_id?.toString(),
-          platform: 'beemeeart',
+          platform: 'brakebee',
           ...metadata
         },
         automatic_payment_methods: {
@@ -282,7 +282,7 @@ class StripeService {
         currency: currency.toLowerCase(),
         expires_at: expires_at, // Custom expiration timestamp
         metadata: {
-          platform: 'beemeeart',
+          platform: 'brakebee',
           payment_type: 'event_booth_fee',
           ...metadata
         },
@@ -798,7 +798,7 @@ class StripeService {
         name: name,
         metadata: {
           user_id: userId.toString(),
-          platform: 'beemeeart'
+          platform: 'brakebee'
         }
       });
 
@@ -848,7 +848,7 @@ class StripeService {
         metadata: {
           user_id: userId.toString(),
           type: 'verification',
-          platform: 'beemeeart'
+          platform: 'brakebee'
         },
         payment_behavior: 'default_incomplete',
         payment_settings: { 
@@ -999,7 +999,7 @@ class StripeService {
           user_id: userId.toString(),
           subscription_id: subscriptionId,
           type: 'verification_payment',
-          platform: 'beemeeart'
+          platform: 'brakebee'
         }
       });
 

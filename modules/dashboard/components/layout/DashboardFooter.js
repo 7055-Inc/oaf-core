@@ -30,7 +30,7 @@ export default function DashboardFooter() {
         <hr className={styles.footerDivider} />
         
         <p className={styles.copyright}>
-          © {new Date().getFullYear()} Brakebee & Online Art Festival LLC
+          © {new Date().getFullYear()} Online Art Festival LLC, DBA Brakebee
         </p>
       </div>
     </footer>

@@ -126,7 +126,7 @@ export default function TermsAcceptance() {
     return (
       <div className={styles.container}>
         <Head>
-          <title>Terms and Conditions - Online Art Festival</title>
+          <title>Terms and Conditions | Brakebee</title>
         </Head>
         <div className={styles.loading}>
           <div className={styles.spinner}></div>
@@ -140,7 +140,7 @@ export default function TermsAcceptance() {
     return (
       <div className={styles.container}>
         <Head>
-          <title>Terms and Conditions - Online Art Festival</title>
+          <title>Terms and Conditions | Brakebee</title>
         </Head>
         <div className={styles.error}>
           <h2>Error</h2>
@@ -157,7 +157,7 @@ export default function TermsAcceptance() {
     return (
       <div className={styles.container}>
         <Head>
-          <title>Terms and Conditions - Online Art Festival</title>
+          <title>Terms and Conditions | Brakebee</title>
         </Head>
         <div className={styles.error}>
           <h2>No Terms Available</h2>
@@ -173,7 +173,7 @@ export default function TermsAcceptance() {
   return (
     <div className={styles.container}>
       <Head>
-        <title>Accept Terms and Conditions - Online Art Festival</title>
+        <title>Accept Terms and Conditions | Brakebee</title>
       </Head>
       
       <div className={styles.modal}>
@@ -181,7 +181,7 @@ export default function TermsAcceptance() {
           <div className={styles.termsHeader}>
             <h2>{termsData.title}</h2>
             <p className={styles.subtitle}>
-              Please read and accept our updated terms and conditions to continue using Online Art Festival.
+              Please read and accept our updated terms and conditions to continue using Brakebee.
             </p>
           </div>
 

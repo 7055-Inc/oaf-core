@@ -5,6 +5,7 @@ import WebsiteSuggestion from './onboarding/WebsiteSuggestion';
 import MarketplaceSuggestion from './onboarding/MarketplaceSuggestion';
 import VerifiedSuggestion from './onboarding/VerifiedSuggestion';
 import ShippingSuggestion from './onboarding/ShippingSuggestion';
+import EventsSuggestion from './onboarding/EventsSuggestion';
 import styles from './onboarding/onboarding.module.css';
 
 /**
@@ -53,6 +54,14 @@ const SUGGESTIONS = [
     Component: CompleteProfileSuggestion,
     getData: (user) => ({ missingFields: getMissingFields(user) }),
     needsSlideIn: true
+  },
+  {
+    id: 'events-calendar',
+    // Show to artists and admins - encourage adding events
+    condition: (user) => ['artist', 'admin'].includes(user.user_type),
+    cooldownHours: 168, // 1 week
+    Component: EventsSuggestion,
+    needsSlideIn: false
   },
   {
     id: 'website-subscription',

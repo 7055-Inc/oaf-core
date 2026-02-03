@@ -7,6 +7,11 @@
  * Loaded when entering dashboard via DashboardShell component.
  */
 
+/* Header = logo row (70px) + breadcrumbs (~50px). Content must start below both. */
+:root {
+  --dashboard-header-height: 120px;
+}
+
 /* =============================================================================
    DASHBOARD HEADER
    ============================================================================= */
@@ -41,11 +46,12 @@
   gap: 12px;
 }
 
-/* Breadcrumbs container */
+/* Breadcrumbs container - reserve space so content doesn't sit behind it */
 .dashboard-breadcrumbs {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 2rem;
+  padding: 0.5rem 2rem 1rem;
+  min-height: 2.5rem;
   background-color: rgba(5, 84, 116, 0.02);
 }
 
@@ -55,9 +61,10 @@
 
 .dashboard-shell {
   display: flex;
-  min-height: calc(100vh - 70px); /* Full height minus header */
-  margin-top: 70px; /* Below fixed header */
+  min-height: calc(100vh - var(--dashboard-header-height));
+  margin-top: var(--dashboard-header-height); /* Below fixed header + breadcrumbs */
   background-color: #f5f7fa;
+  overflow: visible; /* Allow sidebar toggle to extend outside */
 }
 
 .dashboard-main {
@@ -65,6 +72,8 @@
   display: flex;
   flex-direction: column;
   min-width: 0; /* Prevents flex child overflow */
+  position: relative;
+  z-index: 1; /* Below sidebar toggle */
 }
 
 /* =============================================================================
@@ -72,6 +81,8 @@
    ============================================================================= */
 
 .dashboard-sidebar {
+  position: relative;
+  z-index: 10; /* Above main content for toggle visibility */
   width: 260px;
   min-width: 260px;
   background: white;
@@ -80,6 +91,7 @@
   flex-direction: column;
   transition: width 0.3s ease, min-width 0.3s ease;
   flex-shrink: 0;
+  overflow: visible; /* Allow toggle tab to extend outside */
   /* Stretch with content - not fixed */
 }
 
@@ -88,25 +100,34 @@
   min-width: 60px;
 }
 
-.dashboard-sidebar-header {
-  padding: 1rem;
-  border-bottom: 1px solid rgba(5, 84, 116, 0.1);
+/* File-tab style toggle button - sticks out from right edge */
+.dashboard-sidebar-toggle {
+  position: absolute;
+  left: 100%; /* Position at the right edge of sidebar */
+  top: 80px; /* Below breadcrumbs area */
+  width: 14px;
+  height: 40px;
+  padding: 0;
+  margin: 0;
+  background: #f8f9fa;
+  border: 1px solid rgba(5, 84, 116, 0.12);
+  border-left: none;
+  border-radius: 0 6px 6px 0;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-}
-
-.dashboard-sidebar-toggle {
-  background: none;
-  border: none;
-  padding: 0.5rem;
-  cursor: pointer;
-  color: var(--primary-color);
-  border-radius: 4px;
+  justify-content: center;
+  z-index: 100;
+  transition: background-color 0.2s ease;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.06);
 }
 
 .dashboard-sidebar-toggle:hover {
-  background: rgba(5, 84, 116, 0.05);
+  background: rgba(5, 84, 116, 0.08);
+}
+
+.dashboard-sidebar-toggle svg {
+  flex-shrink: 0;
 }
 
 /* =============================================================================
@@ -116,6 +137,8 @@
 .sidebar-menu {
   flex: 1;
   padding: 1rem 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .sidebar-menu-list {
@@ -180,21 +203,22 @@
 }
 
 .sidebar-menu-expand {
-  background: none;
-  border: none;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
   padding: 0.5rem;
   margin-right: 0.5rem;
   cursor: pointer;
-  color: rgba(5, 84, 116, 0.5);
-  border-radius: 4px;
+  color: rgba(5, 84, 116, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.2s ease;
+  transition: color 0.2s ease;
 }
 
 .sidebar-menu-expand:hover {
-  background-color: rgba(5, 84, 116, 0.05);
+  background: transparent !important;
   color: var(--primary-color);
 }
 
@@ -230,6 +254,101 @@
   color: var(--primary-color);
   background-color: rgba(5, 84, 116, 0.08);
   font-weight: 600;
+}
+
+/* Notification badge for menu items */
+.sidebar-notification-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #fff;
+  background-color: #dc3545;
+  border-radius: 9px;
+  line-height: 1;
+}
+
+/* Shortcut button for menu items */
+.sidebar-menu-item-wrapper {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.sidebar-menu-item-wrapper .sidebar-menu-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-shortcut-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: #ccc;
+  font-size: 0.65rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+}
+
+.sidebar-menu-item-wrapper:hover .sidebar-shortcut-btn {
+  opacity: 1;
+}
+
+.sidebar-shortcut-btn:hover {
+  background: rgba(5, 84, 116, 0.1);
+  color: var(--primary-color);
+}
+
+.sidebar-shortcut-btn.is-shortcut {
+  color: #f59e0b;
+  opacity: 1;
+}
+
+.sidebar-shortcut-btn.is-shortcut:hover {
+  color: #d97706;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.sidebar-menu-subgroup {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sidebar-menu-subgroup-label {
+  display: block;
+  padding: 0.5rem 1rem 0.25rem 2rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #888;
+}
+
+.sidebar-menu-subgroup-items {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0.25rem 0;
+}
+
+.sidebar-menu-subgroup-items .sidebar-menu-item {
+  padding-left: 2.5rem;
 }
 
 /* Collapsed sidebar - hide text */
@@ -351,6 +470,164 @@
 
 .stat-card-change.negative {
   color: #dc3545;
+}
+
+/* =============================================================================
+   JURY PACKET CARDS (product-card style)
+   ============================================================================= */
+
+.jury-packet-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+.jury-packet-card {
+  background: white;
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-soft);
+  border: 1px solid rgba(5, 84, 116, 0.08);
+  overflow: hidden;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.jury-packet-card:hover {
+  box-shadow: 0 4px 12px rgba(5, 84, 116, 0.12);
+  transform: translateY(-2px);
+}
+
+.jury-packet-card-header {
+  padding: 1.25rem;
+  border-bottom: 1px solid rgba(5, 84, 116, 0.06);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.jury-packet-card-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.jury-packet-card-title i {
+  color: rgba(5, 84, 116, 0.5);
+  flex-shrink: 0;
+}
+
+.jury-packet-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.jury-packet-card-meta {
+  padding: 1rem 1.25rem;
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.jury-packet-card-meta p {
+  margin: 0 0 0.35rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.jury-packet-card-meta p:last-child {
+  margin-bottom: 0;
+}
+
+.jury-packet-card-meta i {
+  opacity: 0.7;
+  width: 1em;
+}
+
+.jury-packet-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.jury-packet-modal {
+  background: white;
+  border-radius: var(--border-radius-md);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.jury-packet-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(5, 84, 116, 0.1);
+}
+
+.jury-packet-modal-title {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--text-color);
+}
+
+.jury-packet-modal-close {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.jury-packet-modal-close:hover {
+  background: rgba(5, 84, 116, 0.06);
+  color: var(--primary-color);
+}
+
+.jury-packet-modal-body {
+  padding: 1.5rem;
+}
+
+.jury-packet-empty {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: white;
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-soft);
+}
+
+.jury-packet-empty-icon {
+  font-size: 2.5rem;
+  color: rgba(5, 84, 116, 0.3);
+  margin-bottom: 1rem;
+}
+
+.jury-packet-empty h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.2rem;
+  color: var(--text-color);
+}
+
+.jury-packet-empty p {
+  margin: 0 0 1.5rem 0;
+  color: #666;
+  font-size: 0.95rem;
 }
 
 /* =============================================================================

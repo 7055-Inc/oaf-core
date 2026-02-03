@@ -2,10 +2,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
-import Breadcrumb from '../../components/Breadcrumb';
-import { AboutTheArtist } from '../../components/users';
-import VariationSelector from '../../components/VariationSelector';
-import ArtistProductCarousel from '../../components/ArtistProductCarousel';
+import { AboutTheArtist, ArtistProductCarousel, Breadcrumb } from '../../modules/shared';
+import { VariationSelector } from '../../modules/catalog';
 import WholesalePricing from '../../components/WholesalePricing';
 import ProductReviews from '../../components/ProductReviews';
 import { getAuthToken } from '../../lib/csrf';
@@ -399,7 +397,7 @@ export default function ProductView({ initialProduct, initialError, initialRevie
         <Head>
           <title>{seoProduct ? `${seoProduct.name} | Brakebee` : 'Loading... | Brakebee'}</title>
           {seoProduct && <meta name="description" content={seoDescription} />}
-          <link rel="canonical" href={`https://brakebee.com/products/${seoProduct?.id || id}`} />
+          <link rel="canonical" href={`https://brakebee.com/products/${id}`} />
         </Head>
         <div className={styles.container}>
           <div className={styles.loading}>Loading...</div>
@@ -414,7 +412,7 @@ export default function ProductView({ initialProduct, initialError, initialRevie
         <Head>
           <title>{seoProduct ? `${seoProduct.name} | Brakebee` : 'Error | Brakebee'}</title>
           {seoProduct && <meta name="description" content={seoDescription} />}
-          <link rel="canonical" href={`https://brakebee.com/products/${seoProduct?.id || id}`} />
+          <link rel="canonical" href={`https://brakebee.com/products/${id}`} />
         </Head>
         <div className={styles.container}>
           <div className={styles.error}>{error}</div>
@@ -429,7 +427,7 @@ export default function ProductView({ initialProduct, initialError, initialRevie
         <Head>
           <title>{seoProduct ? `${seoProduct.name} | Brakebee` : 'Product Not Found | Brakebee'}</title>
           {seoProduct && <meta name="description" content={seoDescription} />}
-          <link rel="canonical" href={`https://brakebee.com/products/${seoProduct?.id || id}`} />
+          <link rel="canonical" href={`https://brakebee.com/products/${id}`} />
         </Head>
         <div className={styles.container}>
           <div className={styles.error}>Product not found</div>
@@ -444,10 +442,13 @@ export default function ProductView({ initialProduct, initialError, initialRevie
   );
 
   // Generate Product Schema for Google Rich Results
+  // Determine if vendor has a business name (Organization) or just personal name (Person)
+  const hasBusinessName = !!product.vendor?.business_name;
   const vendorDisplayName = product.vendor?.business_name || 
     (product.vendor?.first_name && product.vendor?.last_name 
       ? `${product.vendor.first_name} ${product.vendor.last_name}` 
       : 'Artist');
+  const vendorType = hasBusinessName ? "Organization" : "Person";
   
   // Build reviews array for schema
   const schemaReviews = initialReviews.length > 0 ? initialReviews.map(review => ({
@@ -480,17 +481,40 @@ export default function ProductView({ initialProduct, initialError, initialRevie
       "@type": "Brand",
       "name": vendorDisplayName
     },
+    // Manufacturer - the artist who made the product (handmade goods)
+    "manufacturer": {
+      "@type": vendorType,
+      "name": vendorDisplayName,
+      "url": `https://brakebee.com/artists/${product.vendor_id}`
+    },
+    // Item condition - all products are new/original
+    "itemCondition": "https://schema.org/NewCondition",
     "offers": {
       "@type": "Offer",
       "url": `https://brakebee.com/products/${product.id}`,
       "priceCurrency": "USD",
       "price": product.price || product.base_price || 0,
       "availability": product.stock_quantity > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      // Seller - the artist selling the product (dynamic type based on business name)
       "seller": {
-        "@type": "Person",
-        "name": vendorDisplayName
+        "@type": vendorType,
+        "name": vendorDisplayName,
+        "url": `https://brakebee.com/artists/${product.vendor_id}`
       }
     },
+    // Additional properties for marketplace context
+    "additionalProperty": [
+      {
+        "@type": "PropertyValue",
+        "name": "Marketplace",
+        "value": "Brakebee"
+      },
+      {
+        "@type": "PropertyValue",
+        "name": "Handmade",
+        "value": "Yes"
+      }
+    ],
     // Use SSR review summary for aggregate rating, fallback to product data
     ...((initialReviewSummary?.count > 0 || product.average_rating) && {
       "aggregateRating": {
@@ -513,13 +537,13 @@ export default function ProductView({ initialProduct, initialError, initialRevie
         <meta property="og:title" content={product.name} />
         <meta property="og:description" content={seoDescription} />
         <meta property="og:type" content="product" />
-        <meta property="og:url" content={`https://brakebee.com/products/${product.id}`} />
+        <meta property="og:url" content={`https://brakebee.com/products/${id}`} />
         {product.images?.[0] && (
           <meta property="og:image" content={typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url} />
         )}
         <meta property="product:price:amount" content={product.price || product.base_price || 0} />
         <meta property="product:price:currency" content="USD" />
-        <link rel="canonical" href={`https://brakebee.com/products/${product.id}`} />
+        <link rel="canonical" href={`https://brakebee.com/products/${id}`} />
         {/* Product Schema for Google Rich Results */}
         <script
           type="application/ld+json"

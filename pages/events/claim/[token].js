@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { getApiUrl } from '../../../lib/config';
 import { getAuthToken, authenticatedApiRequest } from '../../../lib/csrf';
+import { verifyClaimToken, claimNew, linkExistingClaim, fetchMyEvents } from '../../../lib/events/api';
 import styles from './claim.module.css';
 
 export default function ClaimEvent() {
@@ -43,22 +44,19 @@ export default function ClaimEvent() {
     return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
-  // Verify token and load event data
+  // Verify token and load event data (v2 claim API)
   useEffect(() => {
     if (!token) return;
 
-    const verifyToken = async () => {
+    const doVerify = async () => {
       try {
         setLoading(true);
-        const response = await fetch(getApiUrl(`api/events/verify-claim/${token}`));
-        const data = await response.json();
-
-        if (!response.ok || !data.valid) {
+        const data = await verifyClaimToken(token);
+        if (!data.valid) {
           setError(data.error || 'Invalid or expired claim link');
           setLoading(false);
           return;
         }
-
         setEventData(data.event);
         setLoading(false);
       } catch (err) {
@@ -68,30 +66,19 @@ export default function ClaimEvent() {
       }
     };
 
-    verifyToken();
+    doVerify();
   }, [token]);
 
   const handleClaimNew = async () => {
     if (!user) {
-      // Redirect to login with return URL
       router.push(`/login?redirect=${encodeURIComponent(router.asPath)}`);
       return;
     }
 
     try {
       setProcessing(true);
-      const response = await authenticatedApiRequest(getApiUrl(`api/events/claim-new/${token}`), {
-        method: 'POST'
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to claim event');
-      }
-
-      // Redirect to event editor
-      router.push(data.redirect_url);
+      const { redirect_url } = await claimNew(token);
+      router.push(redirect_url);
     } catch (err) {
       console.error('Error claiming event:', err);
       alert(`Error: ${err.message}`);
@@ -109,16 +96,8 @@ export default function ClaimEvent() {
     try {
       setLoadingEvents(true);
       setShowExistingEventsModal(true);
-
-      // Fetch promoter's events
-      const response = await authenticatedApiRequest(getApiUrl('api/events/mine'));
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error('Failed to load your events');
-      }
-
-      setExistingEvents(data || []);
+      const events = await fetchMyEvents();
+      setExistingEvents(events || []);
       setLoadingEvents(false);
     } catch (err) {
       console.error('Error loading events:', err);
@@ -131,20 +110,8 @@ export default function ClaimEvent() {
   const handleSelectEvent = async (eventId) => {
     try {
       setProcessing(true);
-      const response = await authenticatedApiRequest(getApiUrl(`api/events/link-existing/${token}`), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event_id: eventId })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to link event');
-      }
-
-      // Show success and redirect
-      alert(`Successfully linked to "${data.event_title}"!`);
+      const { event_title } = await linkExistingClaim(token, eventId);
+      alert(`Successfully linked to "${event_title}"!`);
       router.push(`/events/${eventId}`);
     } catch (err) {
       console.error('Error linking event:', err);

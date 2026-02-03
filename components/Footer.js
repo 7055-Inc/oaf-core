@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import styles from './Footer.module.css';
-import { hasFullCookieConsent } from './CookieBanner';
+import { hasFullCookieConsent } from '../modules/shared';
 
 // ActiveCampaign Tracker - Only loads when user has accepted all cookies
 function ActiveCampaignTracker() {
@@ -358,7 +358,7 @@ export default function Footer() {
 
         {/* Copyright - Very Bottom */}
         <div className={styles.bbCopyright}>
-          © Brakebee - operated by Online Art Festival LLC<br/>Powered by Leo Art AI
+          © Online Art Festival LLC, DBA Brakebee<br/>Powered by Leo Art AI
         </div>
 
       </div>

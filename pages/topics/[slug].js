@@ -96,17 +96,17 @@ export default function TopicPage() {
   return (
     <>
       <Head>
-        <title>{topic.meta_title || `${topic.name} - Online Art Festival`}</title>
+        <title>{topic.meta_title || `${topic.name} | Brakebee`}</title>
         <meta name="description" content={topic.meta_description || topic.description} />
         <link rel="canonical" href={getFrontendUrl(`/topics/${topic.slug}`)} />
         
-        <meta property="og:title" content={topic.meta_title || `${topic.name} - Online Art Festival`} />
+        <meta property="og:title" content={topic.meta_title || `${topic.name} | Brakebee`} />
         <meta property="og:description" content={topic.meta_description || topic.description} />
         <meta property="og:type" content="website" />
         <meta property="og:url" content={`/topics/${topic.slug}`} />
         
         <meta name="twitter:card" content="summary" />
-        <meta name="twitter:title" content={topic.meta_title || `${topic.name} - Online Art Festival`} />
+        <meta name="twitter:title" content={topic.meta_title || `${topic.name} | Brakebee`} />
         <meta name="twitter:description" content={topic.meta_description || topic.description} />
       </Head>
 

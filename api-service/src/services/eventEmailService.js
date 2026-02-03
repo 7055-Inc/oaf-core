@@ -1,6 +1,6 @@
 /**
  * Event Email Service
- * Specialized email service for event-related communications in the Beemeeart platform
+ * Specialized email service for event-related communications in the Brakebee platform
  * Handles booth fee invoices, reminders, confirmations, and automated event email workflows
  */
 
@@ -80,7 +80,7 @@ class EventEmailService extends EmailService {
         booth_fee_amount: boothFeeAmount,
         due_date: dueDate,
         payment_url: paymentUrl,
-        contact_email: 'support@beemeeart.com'
+        contact_email: 'support@brakebee.com'
       };
 
       // Send email
@@ -147,7 +147,7 @@ class EventEmailService extends EmailService {
         booth_fee_amount: this.formatCurrency(app.booth_fee_amount),
         due_date: this.formatDate(app.booth_fee_due_date),
         payment_url: `${process.env.FRONTEND_URL}/event-payment/${app.payment_intent_id}`,
-        contact_email: 'support@beemeeart.com'
+        contact_email: 'support@brakebee.com'
       };
 
       if (daysDiff < 0) {
@@ -218,7 +218,7 @@ class EventEmailService extends EmailService {
         amount_paid: this.formatCurrency(app.amount_paid || app.booth_fee_amount),
         transaction_id: app.stripe_payment_intent_id,
         payment_date: this.formatDate(app.payment_date || new Date()),
-        contact_email: 'support@beemeeart.com'
+        contact_email: 'support@brakebee.com'
       };
 
       // Send email

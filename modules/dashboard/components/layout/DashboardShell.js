@@ -5,16 +5,19 @@ import DashboardFooter from './DashboardFooter';
 import Sidebar from './Sidebar';
 import { getCurrentUser } from '../../../../lib/users';
 import { getAuthToken } from '../../../../lib/auth';
+import { authApiRequest } from '../../../../lib/apiUtils';
+import { isAdmin as checkIsAdmin } from '../../../../lib/userUtils';
 
 export default function DashboardShell({ children, userData: propUserData }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [userData, setUserData] = useState(propUserData || null);
+  const [notifications, setNotifications] = useState({});
   
-  // Load saved preference
+  // Load saved preference from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('dashboard-sidebar-collapsed');
-    if (saved !== null) {
-      setSidebarCollapsed(saved === 'true');
+    const saved = localStorage.getItem('dashboard-sidebar-state');
+    if (saved === 'collapsed') {
+      setSidebarCollapsed(true);
     }
   }, []);
 
@@ -40,10 +43,55 @@ export default function DashboardShell({ children, userData: propUserData }) {
     fetchUser();
   }, [propUserData]);
 
+  // Fetch notifications for sidebar badges
+  useEffect(() => {
+    if (!userData) return;
+    
+    const fetchNotifications = async () => {
+      try {
+        // Fetch admin notifications if user has admin access
+        if (checkIsAdmin(userData)) {
+          const adminRes = await authApiRequest('admin/notifications', {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          
+          if (adminRes.ok) {
+            const data = await adminRes.json();
+            if (data.notifications) {
+              setNotifications(prev => ({ ...prev, ...data.notifications }));
+            }
+          }
+        }
+        
+        // Fetch user ticket notifications
+        const ticketRes = await authApiRequest('api/tickets/my/notifications', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (ticketRes.ok) {
+          const data = await ticketRes.json();
+          if (data.notifications) {
+            setNotifications(prev => ({ ...prev, user_tickets: data.notifications.unread || 0 }));
+          }
+        }
+      } catch (err) {
+        // Silently fail - notifications are non-critical
+      }
+    };
+    
+    fetchNotifications();
+    
+    // Refresh notifications every 2 minutes
+    const interval = setInterval(fetchNotifications, 120000);
+    return () => clearInterval(interval);
+  }, [userData]);
+
   const handleToggleSidebar = () => {
     const newState = !sidebarCollapsed;
     setSidebarCollapsed(newState);
-    localStorage.setItem('dashboard-sidebar-collapsed', String(newState));
+    localStorage.setItem('dashboard-sidebar-state', newState ? 'collapsed' : 'open');
   };
 
   return (
@@ -55,7 +103,8 @@ export default function DashboardShell({ children, userData: propUserData }) {
         <Sidebar 
           userData={userData} 
           collapsed={sidebarCollapsed} 
-          onToggle={handleToggleSidebar} 
+          onToggle={handleToggleSidebar}
+          notifications={notifications}
         />
         
         <div className="dashboard-main">

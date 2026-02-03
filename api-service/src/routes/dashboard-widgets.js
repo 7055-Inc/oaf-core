@@ -235,6 +235,7 @@ router.get('/widget-data/:widgetType', verifyToken, async (req, res) => {
  * POST /api/dashboard-widgets/shortcuts/add
  * Add shortcut to user's shortcuts widget with validation
  * Checks for duplicates and enforces maximum shortcuts limit
+ * Supports both legacy slideInType and new href-based shortcuts
  * 
  * @route POST /api/dashboard-widgets/shortcuts/add
  * @middleware verifyToken - Requires user authentication
@@ -242,17 +243,19 @@ router.get('/widget-data/:widgetType', verifyToken, async (req, res) => {
  * @param {string} req.body.shortcut.id - Unique shortcut identifier
  * @param {string} req.body.shortcut.label - Display label for shortcut
  * @param {string} req.body.shortcut.icon - Font Awesome icon class
- * @param {string} req.body.shortcut.slideInType - Slide-in panel type
+ * @param {string} [req.body.shortcut.href] - Direct link URL (new style)
+ * @param {string} [req.body.shortcut.slideInType] - Slide-in panel type (legacy)
  * @returns {Object} Updated shortcuts list and success message
  * @returns {Array} shortcuts - Updated shortcuts array
  */
 router.post('/add', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
-    const { shortcut } = req.body; // {id, label, icon, slideInType}
+    const { shortcut } = req.body; // {id, label, icon, href} or {id, label, icon, slideInType}
 
-    if (!shortcut || !shortcut.id || !shortcut.label || !shortcut.slideInType) {
-      return res.status(400).json({ error: 'Invalid shortcut data' });
+    // Support both href-based (new) and slideInType-based (legacy) shortcuts
+    if (!shortcut || !shortcut.id || !shortcut.label || (!shortcut.href && !shortcut.slideInType)) {
+      return res.status(400).json({ error: 'Invalid shortcut data - requires id, label, and either href or slideInType' });
     }
 
     // Get current shortcuts widget

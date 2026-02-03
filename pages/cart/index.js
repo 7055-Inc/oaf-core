@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import Head from 'next/head';
 import { authApiRequest } from '../../lib/apiUtils';
 import { handleCsrfError } from '../../lib/csrf';
 import { getApiUrl } from '../../lib/config';
-import CouponEntry from '../../components/coupons/CouponEntry';
-import DiscountSummary from '../../components/coupons/DiscountSummary';
+import { CouponEntry, DiscountSummary } from '../../modules/commerce';
 import { useCoupons } from '../../hooks/useCoupons';
 import styles from './styles/Cart.module.css';
 
@@ -258,8 +258,13 @@ export default function Cart() {
   }
 
   return (
-    <div className={styles.container}>
-      <div className={styles.content} style={{marginTop: '120px'}}>
+    <>
+      <Head>
+        <title>Shopping Cart | Brakebee</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Head>
+      <div className={styles.container}>
+        <div className={styles.content} style={{marginTop: '120px'}}>
           {cartItems.length > 0 && (
             <div className="section-box">
               <p style={{color: 'var(--secondary-color)', fontWeight: '600', marginBottom: '1rem'}}>
@@ -400,5 +405,6 @@ export default function Cart() {
         )}
       </div>
     </div>
+    </>
   );
 } 

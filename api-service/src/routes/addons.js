@@ -193,7 +193,7 @@ router.post('/contact/submit', addonRateLimit, async (req, res) => {
           site_name: site.site_name || `${site.first_name} ${site.last_name}'s Site`,
           site_url: site.custom_domain 
             ? `https://${site.custom_domain}` 
-            : `https://${site.subdomain}.${process.env.FRONTEND_URL?.replace('https://', '') || 'beemeeart.com'}`,
+            : `https://${site.subdomain}.${process.env.FRONTEND_URL?.replace('https://', '') || 'brakebee.com'}`,
           siteId: parseInt(siteId) // Pass siteId for artist layout data
         };
 

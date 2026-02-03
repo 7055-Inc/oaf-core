@@ -1,6 +1,6 @@
 /**
  * Shipping Service
- * Comprehensive shipping rate calculation and label generation service for the Beemeeart platform
+ * Comprehensive shipping rate calculation and label generation service for the Brakebee platform
  * Integrates with UPS, FedEx, and USPS APIs for multi-carrier shipping solutions
  */
 
@@ -106,7 +106,7 @@ class ShippingService {
         RateRequest: {
           Request: {
             TransactionReference: {
-              CustomerContext: "Beemeeart Rate Request"
+              CustomerContext: "Brakebee Rate Request"
             }
           },
           Shipment: {
@@ -181,7 +181,7 @@ class ShippingService {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
             'transId': `${Date.now()}`,
-            'transactionSrc': 'Beemeeart'
+            'transactionSrc': 'Brakebee'
           }
         }
       );
@@ -800,7 +800,7 @@ class ShippingService {
     const shipmentRequest = {
       ShipmentRequest: {
         Shipment: {
-          Description: 'Beemeeart Shipment',
+          Description: 'Brakebee Shipment',
           Shipper: {
             Name: shipment.shipper.name,
             ShipperNumber: this.upsAccountNumber,

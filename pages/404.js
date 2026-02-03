@@ -58,7 +58,7 @@ const Custom404 = () => {
   return (
     <>
       <Head>
-        <title>Page Not Found - Online Art Festival</title>
+        <title>Page Not Found | Brakebee</title>
         <meta name="description" content="The page you're looking for doesn't exist. Explore our art collection, events, and artist galleries instead." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />

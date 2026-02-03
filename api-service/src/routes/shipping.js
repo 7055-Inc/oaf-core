@@ -625,7 +625,7 @@ router.post('/process-batch', verifyToken, async (req, res) => {
               order_id: item.order_id.toString(),
               item_ids: itemIds.join(','),
               label_type: 'order',
-              platform: 'beemeeart'
+              platform: 'brakebee'
             }
           });
 

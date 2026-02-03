@@ -24,7 +24,7 @@ const { secureLogger } = require('../middleware/secureLogger');
 
 // Configuration - Update these with your actual media backend details
 const MEDIA_BACKEND_URL = process.env.MEDIA_BACKEND_URL || 'http://10.128.0.29:3001';
-const MEDIA_API_KEY = 'media_20074c47e0d2af1a90b1d9ba1d001648:eb7d555c29ce59c6202f3975b37a45cdc2e7a21eb09c6d684e982ebee5cc9e6a';
+const MEDIA_API_KEY = process.env.MEDIA_API_KEY || '';
 
 /**
  * Media serving proxy endpoint
@@ -294,7 +294,7 @@ router.get('/images/:mediaId', async (req, res) => {
       headers: {
         'Authorization': MEDIA_API_KEY,
         'Accept': req.get('Accept') || 'image/avif,image/webp,image/*,*/*;q=0.8', // Pass Accept header for format negotiation
-        'User-Agent': req.get('User-Agent') || 'Beemeeart-MediaProxy/1.0'
+        'User-Agent': req.get('User-Agent') || 'Brakebee-MediaProxy/1.0'
       },
       responseType: 'stream',
       timeout: 30000,

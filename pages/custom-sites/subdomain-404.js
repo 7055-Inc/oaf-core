@@ -25,7 +25,7 @@ const SubdomainCustom404 = () => {
       setLoading(true);
       
       // Fetch site data to get vendor info and brand colors
-      const siteRes = await fetch(getApiUrl(`api/sites/resolve/${subdomain}`));
+      const siteRes = await fetch(getApiUrl(`api/v2/websites/resolve/${subdomain}`));
       if (!siteRes.ok) {
         throw new Error('Site not found');
       }

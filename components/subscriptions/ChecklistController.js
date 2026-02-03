@@ -17,6 +17,7 @@ export default function ChecklistController({
 }) {
   
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [checkState, setCheckState] = useState({
     tier: false,
     terms: false,
@@ -32,21 +33,20 @@ export default function ChecklistController({
   }, [userData, subscriptionType, reloadTrigger]);
 
   /**
-   * THE LOOP - Run all checks in sequence
+   * Fetch subscription status and set checks. First failed check = step shown (tier → terms → card → application).
    */
   const runChecklist = async () => {
     setLoading(true);
-    
+    setLoadError(false);
     try {
-      // Fetch subscription data from API
-      const apiEndpoint = `api/subscriptions/${subscriptionType}/my`;
+      const apiEndpoint = config?.subscriptionApiBase
+        ? `${config.subscriptionApiBase}/subscription/my`
+        : `api/subscriptions/${subscriptionType}/my`;
       const response = await authApiRequest(apiEndpoint);
-      
+
       if (response.ok) {
         const data = await response.json();
         setSubscriptionData(data);
-        
-        // Run checks based on API response
         setCheckState({
           tier: checkTier(data),
           application: checkApplication(data),
@@ -54,24 +54,11 @@ export default function ChecklistController({
           terms: checkTerms(data)
         });
       } else {
-        // API failed - assume nothing is set up
-        setCheckState({
-          tier: false,
-          application: false,
-          card: false,
-          terms: false
-        });
+        setLoadError(true);
       }
-      
     } catch (error) {
       console.error('Error running checklist:', error);
-      // On error, show tier step (start from beginning)
-      setCheckState({
-        tier: false,
-        application: false,
-        card: false,
-        terms: false
-      });
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -102,8 +89,8 @@ export default function ChecklistController({
    * CHECK 3: Does user have valid card on file?
    */
   const checkCard = (data) => {
-    // Check if subscription has valid payment method
-    return data?.subscription?.cardLast4 !== null && data?.subscription?.cardLast4 !== undefined;
+    const c = data?.subscription?.cardLast4;
+    return c != null && String(c).trim() !== '';
   };
 
   /**
@@ -123,16 +110,16 @@ export default function ChecklistController({
   };
 
   /**
-   * RENDER LOGIC - Show first failed step or dashboard
+   * RENDER LOGIC - Loading, then error (retry), then first failed step (tier → terms → card → application), then dashboard
    */
   if (loading) {
     return (
-      <div style={{ 
-        padding: '40px', 
+      <div style={{
+        padding: '40px',
         textAlign: 'center',
         color: '#6c757d'
       }}>
-        <div style={{ 
+        <div style={{
           display: 'inline-block',
           width: '40px',
           height: '40px',
@@ -152,7 +139,29 @@ export default function ChecklistController({
     );
   }
 
-  // STEP 1: Check Tier
+  if (loadError) {
+    return (
+      <div style={{
+        padding: '40px',
+        textAlign: 'center',
+        maxWidth: '480px',
+        margin: '0 auto'
+      }}>
+        <p style={{ color: '#856404', marginBottom: '16px' }}>
+          Could not load your subscription status. Please try again.
+        </p>
+        <button
+          type="button"
+          className="primary"
+          onClick={() => runChecklist()}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  // STEP 1: Tier – only show when we have data and tier is not done
   if (!checkState.tier) {
     return (
       <TierStep 
@@ -160,9 +169,12 @@ export default function ChecklistController({
         onTierSelect={async (tier) => {
           console.log('Tier selected:', tier);
           
-          // Save tier to database via API
+          // Save tier to database via API (v2 websites use api/v2/websites/subscription/select-tier)
           try {
-            const response = await authApiRequest(`api/subscriptions/${subscriptionType}/select-tier`, {
+            const selectTierUrl = config?.subscriptionApiBase
+              ? `${config.subscriptionApiBase}/subscription/select-tier`
+              : `api/subscriptions/${subscriptionType}/select-tier`;
+            const response = await authApiRequest(selectTierUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({

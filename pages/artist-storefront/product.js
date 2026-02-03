@@ -90,7 +90,7 @@ const ArtistProductDetail = () => {
       
       // Fetch site data and product data in parallel
       const [siteResponse, productResponse] = await Promise.all([
-        fetch(`api/sites/resolve/${subdomain}`),
+        fetch(getApiUrl(`api/v2/websites/resolve/${subdomain}`)),
         fetch(`products/${productId}?include=images,shipping,vendor`)
       ]);
 

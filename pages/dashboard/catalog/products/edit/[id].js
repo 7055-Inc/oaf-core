@@ -10,7 +10,7 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { DashboardShell } from '../../../../../modules/dashboard/components/layout';
-import { ProductForm } from '../../../../../modules/dashboard/components/catalog';
+import { ProductForm } from '../../../../../modules/catalog';
 import { fetchProduct } from '../../../../../lib/catalog';
 import { getCurrentUser } from '../../../../../lib/users';
 

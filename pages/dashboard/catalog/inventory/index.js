@@ -3,7 +3,7 @@
  */
 import Head from 'next/head';
 import DashboardShell from '../../../../modules/dashboard/components/layout/DashboardShell';
-import { InventoryManager } from '../../../../modules/dashboard/components/catalog';
+import { InventoryManager } from '../../../../modules/catalog';
 
 export default function InventoryPage() {
   return (

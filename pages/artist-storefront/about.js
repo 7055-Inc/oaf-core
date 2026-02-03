@@ -26,8 +26,8 @@ const ArtistAbout = () => {
       
       // Fetch site data and about article
       const [siteResponse, articlesResponse] = await Promise.all([
-        fetch(getApiUrl(`api/sites/resolve/${subdomain}`)),
-        fetch(`api/sites/resolve/${subdomain}/articles?type=pages`)
+        fetch(getApiUrl(`api/v2/websites/resolve/${subdomain}`)),
+        fetch(getApiUrl(`api/v2/websites/resolve/${subdomain}/articles?type=pages`))
       ]);
 
       if (siteResponse.ok) {

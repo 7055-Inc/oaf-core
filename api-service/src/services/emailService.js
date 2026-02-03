@@ -1,6 +1,6 @@
 /**
  * Email Service
- * Comprehensive email management system for the Beemeeart platform
+ * Comprehensive email management system for the Brakebee platform
  * Handles template rendering, user preferences, bounce management, and queue processing
  */
 
@@ -282,8 +282,8 @@ class EmailService {
       console.error('Error fetching company data:', error);
       // Return defaults if company data fails
       return {
-        company_name: 'Beemeeart',
-        contact_email: 'hello@beemeeart.com',
+        company_name: 'Brakebee',
+        contact_email: 'hello@brakebee.com',
         address_city: 'Harris',
         address_state: 'Iowa',
         address_postal_code: '51345'
@@ -668,12 +668,12 @@ class EmailService {
       // Generate site URL using environment variables
       const siteUrl = site.custom_domain 
         ? `https://${site.custom_domain}` 
-        : `https://${site.subdomain}.beemeeart.com`;
+        : `https://${site.subdomain}.brakebee.com`;
 
       // Generate logo URL with fallback using environment variables
       const logoUrl = site.logo_path 
         ? `${process.env.SMART_MEDIA_BASE_URL}/${site.logo_path.replace(/^\/temp_images\//, '').replace(/^\//, '')}`
-        : `${process.env.FRONTEND_URL}/static_media/logo.png`; // Fallback to Beemeeart logo
+        : `${process.env.FRONTEND_URL}/static_media/logo.png`; // Fallback to Brakebee logo
 
       return {
         artist_business_name: site.business_name || `${site.first_name} ${site.last_name}` || 'Artist',

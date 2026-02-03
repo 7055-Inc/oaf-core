@@ -4,8 +4,7 @@ import Head from 'next/head';
 import Script from 'next/script';
 import { authenticatedApiRequest, handleCsrfError } from '../lib/csrf';
 import { authApiRequest } from '../lib/apiUtils';
-import CouponEntry from '../components/coupons/CouponEntry';
-import DiscountSummary from '../components/coupons/DiscountSummary';
+import { CouponEntry, DiscountSummary } from '../modules/commerce';
 import { useCoupons } from '../hooks/useCoupons';
 import styles from '../styles/Checkout.module.css';
 
@@ -384,7 +383,8 @@ export default function Checkout() {
   return (
     <>
       <Head>
-        <title>Checkout - Online Art Festival</title>
+        <title>Checkout | Brakebee</title>
+        <meta name="robots" content="noindex, nofollow" />
       </Head>
       
       <Script 

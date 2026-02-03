@@ -122,7 +122,7 @@ router.post('/', async (req, res) => {
         // Send copy to admin
         try {
             await EmailService.sendExternalEmail({
-                to: 'hello@onlineartfestival.com',
+                to: 'hello@brakebee.com',
                 subject: `Artist Contact Form: ${artistName} received a message`,
                 template: 'artist-contact-admin-copy',
                 data: {

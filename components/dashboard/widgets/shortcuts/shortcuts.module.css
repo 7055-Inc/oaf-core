@@ -283,28 +283,55 @@
   pointer-events: none;
 }
 
-/* Empty state (shouldn't be visible since widget hides when empty) */
-.shortcutsEmpty {
+.loadingState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1.5rem;
+  color: #6c757d;
+  font-size: 0.85rem;
+}
+
+.loadingState i {
+  color: var(--primary-color);
+}
+
+/* Empty state with helpful message */
+.emptyState {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  flex: 1;
+  padding: 1rem;
   color: #6c757d;
   text-align: center;
-  padding: 2rem 1rem;
 }
 
-.shortcutsEmpty i {
-  font-size: 2rem;
+.emptyState i {
+  font-size: 1.5rem;
+  color: #f59e0b;
   margin-bottom: 0.5rem;
-  opacity: 0.5;
+  opacity: 0.6;
 }
 
-.shortcutsEmpty p {
-  margin: 0;
-  font-size: 0.9rem;
+.emptyState p {
+  margin: 0 0 0.25rem 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #495057;
+}
+
+.emptyState span {
+  font-size: 0.75rem;
   line-height: 1.4;
+  color: #6c757d;
+}
+
+.emptyState span i {
+  font-size: 0.65rem;
+  color: var(--primary-color);
+  margin: 0 2px;
 }
 
 /* High contrast mode support */

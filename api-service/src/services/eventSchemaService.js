@@ -1,6 +1,6 @@
 /**
  * Event Schema.org JSON-LD Service
- * Generates comprehensive structured data for SEO optimization on the Beemeeart platform
+ * Generates comprehensive structured data for SEO optimization on the Brakebee platform
  * Provides Schema.org compliant JSON-LD for events, venues, organizers, and pricing
  */
 
@@ -22,7 +22,7 @@ class EventSchemaService {
    * @throws {Error} If required event data is missing
    */
   generateEventSchema(event, promoter, images = []) {
-    const baseUrl = process.env.FRONTEND_URL || 'https://beemeeart.com';
+    const baseUrl = process.env.FRONTEND_URL || 'https://brakebee.com';
     
     // Main Event schema
     const eventSchema = {
@@ -240,7 +240,7 @@ class EventSchemaService {
    * @returns {Object} Schema.org BreadcrumbList structured data
    */
   generateBreadcrumbSchema(event) {
-    const baseUrl = process.env.FRONTEND_URL || 'https://beemeeart.com';
+    const baseUrl = process.env.FRONTEND_URL || 'https://brakebee.com';
     
     return {
       "@context": "https://schema.org",

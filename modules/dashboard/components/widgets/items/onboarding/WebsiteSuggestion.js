@@ -1,11 +1,11 @@
 import React from 'react';
+import { useRouter } from 'next/router';
 import styles from './onboarding.module.css';
 
-export default function WebsiteSuggestion({ onSnooze, openSlideIn }) {
+export default function WebsiteSuggestion({ onSnooze }) {
+  const router = useRouter();
   const handleGetStarted = () => {
-    if (openSlideIn) {
-      openSlideIn('website-subscriptions', { title: 'Web Site Subscriptions' });
-    }
+    router.push('/dashboard/websites');
   };
 
   return (

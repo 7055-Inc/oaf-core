@@ -88,7 +88,8 @@ export default function CheckoutSuccess() {
   return (
     <>
       <Head>
-        <title>Payment Success - Online Art Festival</title>
+        <title>Payment Success | Brakebee</title>
+        <meta name="robots" content="noindex, nofollow" />
       </Head>
       
       <div className={styles.container}>

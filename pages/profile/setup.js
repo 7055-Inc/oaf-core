@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Head from 'next/head';
 import { getApiUrl } from '../../lib/config';
 
 export default function ProfileSetup() {
@@ -181,9 +182,14 @@ export default function ProfileSetup() {
   }
 
   return (
-    <div>
-      <div style={{ padding: '2rem', maxWidth: '600px', margin: '0 auto' }}>
-        <h1>Complete Your Profile - Step {step} of 3</h1>
+    <>
+      <Head>
+        <title>Profile Setup | Brakebee</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Head>
+      <div>
+        <div style={{ padding: '2rem', maxWidth: '600px', margin: '0 auto' }}>
+          <h1>Complete Your Profile - Step {step} of 3</h1>
         {error && <p style={{ color: 'red' }}>Error: {error}</p>}
         <form onSubmit={handleSubmit}>
           {step === 1 && (
@@ -512,7 +518,8 @@ export default function ProfileSetup() {
             </>
           )}
         </form>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

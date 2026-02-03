@@ -2,8 +2,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import Link from 'next/link';
 import DashboardShell from '../../../../modules/dashboard/components/layout/DashboardShell';
-import { UserManagement } from '../../../../modules/dashboard/components/users';
+import { UserManagement } from '../../../../modules/users';
 import { getCurrentUser } from '../../../../lib/users';
 
 /**
@@ -63,10 +64,19 @@ export default function UserManagementPage() {
       <DashboardShell>
         <div className="dashboard-page">
           <div className="dashboard-page-header">
-            <h1>User Management</h1>
-            <p className="form-hint">
-              Manage users, permissions, commissions, and account settings across the platform.
-            </p>
+            <div className="header-row">
+              <div>
+                <h1>User Management</h1>
+                <p className="form-hint">
+                  Manage users, permissions, and account settings across the platform.
+                </p>
+              </div>
+              <div className="header-actions">
+                <Link href="/dashboard/users/commissions" className="button secondary">
+                  <i className="fa-solid fa-percent"></i> Manage Commissions
+                </Link>
+              </div>
+            </div>
           </div>
           <div className="dashboard-page-content">
             <UserManagement />

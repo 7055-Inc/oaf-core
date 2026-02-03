@@ -8,4 +8,7 @@ module.exports = {
   categoryService: require('./category'),
   collectionService: require('./collection'),
   importExportService: require('./importExport'),
+  walmartService: require('./walmart'),
+  tiktokService: require('./tiktok'),
+  curationService: require('./curation'),
 };

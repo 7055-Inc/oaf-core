@@ -3,7 +3,7 @@
  */
 import Head from 'next/head';
 import DashboardShell from '../../../../modules/dashboard/components/layout/DashboardShell';
-import { InventoryLog } from '../../../../modules/dashboard/components/catalog';
+import { InventoryLog } from '../../../../modules/catalog';
 
 export default function InventoryLogPage() {
   return (

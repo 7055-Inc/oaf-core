@@ -29,10 +29,15 @@ const {
   getUserWithRolesAndPermissions,
   createUser,
   linkProviderToUser,
+  listKeys,
+  createKey,
+  toggleKey,
+  deleteKey,
 } = require('./services');
 
 // Middleware
 const { requireAuth } = require('./middleware');
+const { apiKeyLimiter } = require('../shared/middleware/rateLimiter');
 
 // Database connection
 const pool = require('../../../config/db');
@@ -314,6 +319,72 @@ router.get('/me', requireAuth, async (req, res) => {
       success: false,
       error: { code: 'SERVER_ERROR', message: 'Failed to get user info' }
     });
+  }
+});
+
+// ============================================================================
+// API KEYS (v2) - Third-party / server-to-server auth
+// ============================================================================
+
+/**
+ * GET /api/v2/auth/keys
+ * List API keys for the authenticated user
+ */
+router.get('/keys', requireAuth, async (req, res) => {
+  try {
+    const keys = await listKeys(req.userId);
+    return res.json(keys);
+  } catch (error) {
+    console.error('List API keys error:', error.message);
+    return res.status(500).json({ error: 'Failed to retrieve API keys' });
+  }
+});
+
+/**
+ * POST /api/v2/auth/keys
+ * Create a new API key pair. Body: { name: string }
+ * Returns { public_key, private_key, name } - private_key shown only once.
+ */
+router.post('/keys', apiKeyLimiter, requireAuth, async (req, res) => {
+  try {
+    const name = (req.body && req.body.name) ? String(req.body.name).trim() : 'API Key';
+    const key = await createKey(req.userId, name || 'API Key');
+    return res.status(201).json(key);
+  } catch (error) {
+    console.error('Create API key error:', error.message);
+    return res.status(500).json({ error: 'Failed to generate API key' });
+  }
+});
+
+/**
+ * PUT /api/v2/auth/keys/:publicKey/toggle
+ * Toggle is_active for an API key owned by the user
+ */
+router.put('/keys/:publicKey/toggle', requireAuth, async (req, res) => {
+  try {
+    const { publicKey } = req.params;
+    const updated = await toggleKey(req.userId, publicKey);
+    if (!updated) return res.status(404).json({ error: 'API key not found' });
+    return res.json({ success: true, message: 'API key status updated' });
+  } catch (error) {
+    console.error('Toggle API key error:', error.message);
+    return res.status(500).json({ error: 'Failed to update API key status' });
+  }
+});
+
+/**
+ * DELETE /api/v2/auth/keys/:publicKey
+ * Delete an API key owned by the user
+ */
+router.delete('/keys/:publicKey', apiKeyLimiter, requireAuth, async (req, res) => {
+  try {
+    const { publicKey } = req.params;
+    const deleted = await deleteKey(req.userId, publicKey);
+    if (!deleted) return res.status(404).json({ error: 'API key not found' });
+    return res.status(204).send();
+  } catch (error) {
+    console.error('Delete API key error:', error.message);
+    return res.status(500).json({ error: 'Failed to delete API key' });
   }
 });
 

@@ -699,7 +699,7 @@ router.post('/signup', verifyToken, async (req, res) => {
         metadata: {
           user_id: userId.toString(),
           subscription_type: 'shipping_labels',
-          platform: 'beemeeart'
+          platform: 'brakebee'
         }
       });
 
@@ -762,6 +762,113 @@ router.post('/accept-terms', verifyToken, async (req, res) => {
     // Check if user has already accepted these terms
     const [existing] = await db.query(`
       SELECT id FROM user_terms_acceptance 
+      WHERE user_id = ? AND subscription_type = 'shipping_labels' AND terms_version_id = ?
+    `, [userId, termsVersionId]);
+
+    if (existing.length > 0) {
+      return res.json({
+        success: true,
+        message: 'Terms already accepted',
+        accepted_at: existing[0].accepted_at
+      });
+    }
+
+    // Record terms acceptance
+    await db.query(`
+      INSERT INTO user_terms_acceptance (
+        user_id, subscription_type, terms_version_id, accepted_at, ip_address, user_agent
+      ) VALUES (?, 'shipping_labels', ?, CURRENT_TIMESTAMP, ?, ?)
+    `, [userId, termsVersionId, ip_address || null, user_agent || null]);
+
+    // Check if user now meets all requirements for activation
+    const [subscriptions] = await db.query(`
+      SELECT id, stripe_customer_id FROM user_subscriptions 
+      WHERE user_id = ? AND subscription_type = 'shipping_labels' AND status = 'incomplete'
+    `, [userId]);
+
+    let activated = false;
+    if (subscriptions.length > 0) {
+      const subscription = subscriptions[0];
+      
+      // Check if user has valid payment method
+      if (subscription.stripe_customer_id) {
+        try {
+          const paymentMethods = await stripeService.stripe.paymentMethods.list({
+            customer: subscription.stripe_customer_id,
+            type: 'card',
+            limit: 1
+          });
+
+          if (paymentMethods.data.length > 0) {
+            // User has both terms and payment method - activate subscription
+            await db.query('START TRANSACTION');
+            
+            try {
+              await db.query(
+                'UPDATE user_subscriptions SET status = "active" WHERE id = ?',
+                [subscription.id]
+              );
+              
+              await db.query(`
+                INSERT INTO user_permissions (user_id, shipping) 
+                VALUES (?, 1) 
+                ON DUPLICATE KEY UPDATE shipping = 1
+              `, [userId]);
+              
+              await db.query('COMMIT');
+              activated = true;
+            } catch (error) {
+              await db.query('ROLLBACK');
+              throw error;
+            }
+          }
+        } catch (stripeError) {
+          console.error('Error checking payment methods during terms acceptance:', stripeError);
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Shipping terms accepted successfully',
+      activated: activated,
+      terms_version_id: termsVersionId
+    });
+
+  } catch (error) {
+    console.error('Error accepting shipping terms:', error);
+    res.status(500).json({ error: 'Failed to accept terms' });
+  }
+});
+
+/**
+ * Accept shipping subscription terms (alias for /accept-terms)
+ * This alias matches the convention used by ChecklistController/TermsStep
+ * @route POST /api/subscriptions/shipping/terms-accept
+ * @route POST /api/subscriptions/shipping_labels/terms-accept
+ * @access Private
+ */
+router.post('/terms-accept', verifyToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { ip_address, user_agent } = req.body;
+
+    // Get current shipping terms version
+    const [currentTerms] = await db.query(`
+      SELECT id FROM terms_versions 
+      WHERE is_current = TRUE AND subscription_type = 'shipping_labels'
+      ORDER BY created_at DESC LIMIT 1
+    `);
+
+    if (currentTerms.length === 0) {
+      return res.status(400).json({ error: 'No current shipping terms found' });
+    }
+
+    const termsVersionId = currentTerms[0].id;
+
+    // Check if user has already accepted these terms
+    const [existing] = await db.query(`
+      SELECT id, accepted_at FROM user_terms_acceptance 
       WHERE user_id = ? AND subscription_type = 'shipping_labels' AND terms_version_id = ?
     `, [userId, termsVersionId]);
 
@@ -914,7 +1021,7 @@ router.post('/update-payment-method', verifyToken, requirePermission('shipping')
         user_id: userId.toString(),
         subscription_type: 'shipping_labels',
         action: 'update_payment_method',
-        platform: 'beemeeart'
+        platform: 'brakebee'
       }
     });
 
@@ -1084,7 +1191,7 @@ router.post('/purchase-label', verifyToken, requirePermission('shipping'), async
         user_id: userId.toString(),
         shipping_label_id: shippingLabelId.toString(),
         subscription_id: subscription.id.toString(),
-        platform: 'beemeeart'
+        platform: 'brakebee'
       }
     });
 
@@ -1541,7 +1648,7 @@ router.post('/create-standalone-label', verifyToken, requirePermission('shipping
           user_id: userId.toString(),
           subscription_id: subscription.id.toString(),
           label_type: 'standalone',
-          platform: 'beemeeart'
+          platform: 'brakebee'
         }
       });
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import DashboardShell from '../../../../../modules/dashboard/components/layout/DashboardShell';
-import { PersonaManagement } from '../../../../../modules/dashboard/components/users';
+import { PersonaManagement } from '../../../../../modules/users';
 import { getCurrentUser } from '../../../../../lib/users';
 
 /**

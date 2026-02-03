@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import Header from '../../../components/Header';
-import Breadcrumb from '../../../components/Breadcrumb';
+import { Breadcrumb } from '../../../modules/shared';
 import { getApiUrl, getSmartMediaUrl } from '../../../lib/config';
 import styles from './ArtistProducts.module.css';
 

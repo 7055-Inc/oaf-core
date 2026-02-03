@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
-import Breadcrumb from '../../components/Breadcrumb';
+import { Breadcrumb, BlockRenderer } from '../../modules/shared';
 import { getApiUrl, getFrontendUrl } from '../../lib/config';
+import { fetchEvent } from '../../lib/events/api';
 import SocialShare from '../../components/SocialShare';
 import styles from './styles/ArticleView.module.css';
 
@@ -110,18 +111,15 @@ export default function ArticlePage() {
             
           case 'event':
             try {
-              const eventResponse = await fetch(`api/events/${connection.connection_id}`);
-              if (eventResponse.ok) {
-                const eventData = await eventResponse.json();
-                details = {
-                  type: 'Event',
-                  name: eventData.title || 'Unknown Event',
-                  url: `/events/${eventData.id}`,
-                  description: eventData.short_description || eventData.description || 'Related event',
-                  icon: 'fas fa-calendar-alt',
-                  meta: eventData.start_date ? `${new Date(eventData.start_date).toLocaleDateString()}` : null
-                };
-              }
+              const eventData = await fetchEvent(connection.connection_id);
+              details = {
+                type: 'Event',
+                name: eventData.title || 'Unknown Event',
+                url: `/events/${eventData.id}`,
+                description: eventData.short_description || eventData.description || 'Related event',
+                icon: 'fas fa-calendar-alt',
+                meta: eventData.start_date ? `${new Date(eventData.start_date).toLocaleDateString()}` : null
+              };
             } catch (err) {
               console.error('Error fetching event details:', err);
             }
@@ -204,11 +202,11 @@ export default function ArticlePage() {
       },
       "publisher": {
         "@type": "Organization",
-        "name": "Online Art Festival",
-        "url": getFrontendUrl('/'),
+        "name": "Brakebee",
+        "url": "https://brakebee.com",
         "logo": {
           "@type": "ImageObject",
-          "url": getFrontendUrl('/logo.png')
+          "url": "https://brakebee.com/static_media/logo.png"
         }
       },
       "datePublished": article.published_at,
@@ -220,13 +218,20 @@ export default function ArticlePage() {
       },
       "isPartOf": {
         "@type": "WebSite",
-        "name": "Online Art Festival",
-        "url": ""
+        "name": "Brakebee",
+        "url": "https://brakebee.com"
       },
       "inLanguage": "en-US",
       "copyrightHolder": {
         "@type": "Organization",
-        "name": "Online Art Festival LLC"
+        "name": "Online Art Festival LLC",
+        "alternateName": "Brakebee",
+        "url": "https://brakebee.com",
+        "parentOrganization": {
+          "@type": "Organization",
+          "name": "7055 Inc",
+          "description": "Parent holding company and IP rights holder"
+        }
       },
       "copyrightYear": new Date(article.published_at).getFullYear(),
       "genre": article.page_type === 'help_article' ? 'Help Documentation' : 'Article',
@@ -455,7 +460,7 @@ export default function ArticlePage() {
             )}
           </article>
 
-          <div className={styles.articleContent} dangerouslySetInnerHTML={{ __html: article.content }} />
+          <BlockRenderer content={article.content} className={styles.articleContent} />
 
           {/* Social Share Section */}
           <SocialShare 

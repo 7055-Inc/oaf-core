@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { DashboardShell } from '../../../../modules/dashboard/components/layout';
-import { CatalogImportExport } from '../../../../modules/dashboard/components/catalog';
+import { CatalogImportExport } from '../../../../modules/catalog';
 import { authApiRequest } from '../../../../lib/apiUtils';
 
 export default function CatalogImportExportPage() {

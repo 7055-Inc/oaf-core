@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { authApiRequest, apiRequest } from '../../../lib/apiUtils';
+import { authApiRequest } from '../../../lib/apiUtils';
 import { getAuthToken } from '../../../lib/csrf';
+import { fetchAllEvents } from '../../../lib/events/api';
 import styles from '../admin/AdminReviews.module.css';
 
 export default function AdminEventReviews() {
@@ -28,9 +29,8 @@ export default function AdminEventReviews() {
 
   const loadEvents = async () => {
     try {
-      const response = await apiRequest('/api/events?status=all&limit=100');
-      const data = await response.json();
-      setEvents(Array.isArray(data) ? data : []);
+      const result = await fetchAllEvents({ status: 'all', limit: 100, offset: 0 });
+      setEvents(Array.isArray(result?.data) ? result.data : []);
     } catch (error) {
       console.error('Error loading events:', error);
     } finally {

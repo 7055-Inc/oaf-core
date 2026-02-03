@@ -311,6 +311,39 @@ async function getByPermissions(permissions) {
   }));
 }
 
+/**
+ * Get public artists for display (carousels, featured sections)
+ * @param {Object} options - Query options
+ * @param {number} options.limit - Max results
+ * @param {boolean} options.random - Randomize order
+ * @returns {Promise<Array>} Array of artist profiles
+ */
+async function getPublicArtists({ limit = 20, random = true } = {}) {
+  const query = `
+    SELECT 
+      u.id, 
+      u.username, 
+      u.created_at,
+      up.profile_image_path,
+      ap.business_name,
+      ap.artist_biography,
+      ap.studio_city,
+      ap.studio_state
+    FROM users u
+    LEFT JOIN user_profiles up ON u.id = up.user_id
+    LEFT JOIN artist_profiles ap ON u.id = ap.user_id
+    WHERE u.user_type = 'artist' 
+      AND u.status = 'active'
+      AND up.user_id IS NOT NULL
+      AND ap.user_id IS NOT NULL
+    ORDER BY ${random ? 'RAND()' : 'u.created_at DESC'}
+    LIMIT ?
+  `;
+  
+  const [artists] = await db.query(query, [limit]);
+  return artists;
+}
+
 module.exports = {
   findById,
   findByUsername,
@@ -322,4 +355,5 @@ module.exports = {
   softDelete,
   list,
   getByPermissions,
+  getPublicArtists,
 };

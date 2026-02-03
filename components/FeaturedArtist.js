@@ -1,19 +1,21 @@
-'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import styles from './FeaturedArtist.module.css';
 import { getApiUrl, getSmartMediaUrl } from '../lib/config';
 
-export default function FeaturedArtist() {
-  const [artist, setArtist] = useState(null);
-  const [products, setProducts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+export default function FeaturedArtist({ initialArtist = null, initialProducts = [] }) {
+  const [artist, setArtist] = useState(initialArtist);
+  const [products, setProducts] = useState(initialProducts);
+  const [isLoading, setIsLoading] = useState(!initialArtist);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    loadFeaturedArtist();
-  }, []);
+    // Only fetch if no initial data provided (client-side navigation)
+    if (!initialArtist) {
+      loadFeaturedArtist();
+    }
+  }, [initialArtist]);
 
   const loadFeaturedArtist = async () => {
     try {

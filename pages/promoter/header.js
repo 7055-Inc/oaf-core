@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { ImpersonationExitButton } from '../../modules/dashboard/components/users';
+import { ImpersonationExitButton } from '../../modules/users';
 import styles from './styles.module.css';
 
 export default function PromoterHeader({ 

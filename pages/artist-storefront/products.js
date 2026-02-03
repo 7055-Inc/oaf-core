@@ -39,7 +39,7 @@ const ArtistProducts = () => {
 
   const resolveCustomDomain = async (domain) => {
     try {
-      const response = await fetch(`${config.API_BASE_URL}/api/sites/resolve-custom-domain/${domain}`);
+      const response = await fetch(`${config.API_BASE_URL}/api/v2/websites/resolve-custom-domain/${domain}`);
       if (response.ok) {
         const data = await response.json();
         if (data.subdomain) {
@@ -64,7 +64,7 @@ const ArtistProducts = () => {
       setLoading(true);
       
       const offset = (currentPage - 1) * productsPerPage;
-      let productsUrl = getApiUrl(`api/sites/resolve/${activeSubdomain}/products?limit=${productsPerPage}&offset=${offset}`);
+      let productsUrl = getApiUrl(`api/v2/websites/resolve/${activeSubdomain}/products?limit=${productsPerPage}&offset=${offset}`);
       
       if (selectedCategory) {
         productsUrl += `&category=${selectedCategory}`;
@@ -82,12 +82,12 @@ const ArtistProducts = () => {
       // Fetch data in parallel
       const fetchPromises = [
         fetch(productsUrl),
-        fetch(getApiUrl(`api/sites/resolve/${activeSubdomain}/categories`))
+        fetch(getApiUrl(`api/v2/websites/resolve/${activeSubdomain}/categories`))
       ];
       
       // Only fetch site data on first load
       if (!siteData) {
-        fetchPromises.push(fetch(getApiUrl(`api/sites/resolve/${activeSubdomain}`)));
+        fetchPromises.push(fetch(getApiUrl(`api/v2/websites/resolve/${activeSubdomain}`)));
       }
       
       const responses = await Promise.all(fetchPromises);

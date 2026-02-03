@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { authApiRequest, API_ENDPOINTS } from '../../../../../lib/apiUtils';
 import styles from './shortcuts/shortcuts.module.css';
 
@@ -7,12 +8,7 @@ export default function ShortcutsWidget({ config, onConfigChange }) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Load initial data when component mounts
-  useEffect(() => {
-    loadShortcutsData();
-  }, []);
-
-  const loadShortcutsData = async () => {
+  const loadShortcutsData = useCallback(async () => {
     try {
       const response = await authApiRequest(
         `${API_ENDPOINTS.DASHBOARD_WIDGETS_DATA}/my_shortcuts`
@@ -23,13 +19,13 @@ export default function ShortcutsWidget({ config, onConfigChange }) {
         const shortcutsData = result.data.shortcuts || [];
         setShortcuts(shortcutsData);
         
-              // Tell the grid to span 6 cells for shortcuts widget
-              if (onConfigChange) {
-                onConfigChange({ 
-                  shortcuts: shortcutsData,
-                  gridSpan: 6
-                });
-              }
+        // Tell the grid to span 6 cells for shortcuts widget
+        if (onConfigChange) {
+          onConfigChange({ 
+            shortcuts: shortcutsData,
+            gridSpan: 6
+          });
+        }
       } else {
         throw new Error('Failed to load shortcuts');
       }
@@ -38,38 +34,28 @@ export default function ShortcutsWidget({ config, onConfigChange }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [onConfigChange]);
 
-  const handleRefresh = async () => {
-    await loadShortcutsData();
-  };
+  // Load initial data when component mounts
+  useEffect(() => {
+    loadShortcutsData();
+  }, [loadShortcutsData]);
 
   // Listen for shortcuts-updated events from menu
   useEffect(() => {
     const handleShortcutsUpdated = () => {
-      handleRefresh();
+      loadShortcutsData();
     };
 
     window.addEventListener('shortcuts-updated', handleShortcutsUpdated);
     return () => {
       window.removeEventListener('shortcuts-updated', handleShortcutsUpdated);
     };
-  }, [handleRefresh]);
-
-  const handleShortcutClick = (shortcut) => {
-    // Trigger the slide-in panel by dispatching a custom event
-    // This integrates with the existing dashboard slide-in system
-    const event = new CustomEvent('dashboard-open-slide-in', {
-      detail: {
-        type: shortcut.slideInType,
-        title: shortcut.label
-      }
-    });
-    window.dispatchEvent(event);
-  };
+  }, [loadShortcutsData]);
 
   const handleRemoveShortcut = async (shortcutId, e) => {
-    e.stopPropagation(); // Prevent shortcut click when removing
+    e.preventDefault();
+    e.stopPropagation();
     
     setError(null);
 
@@ -111,9 +97,20 @@ export default function ShortcutsWidget({ config, onConfigChange }) {
     );
   }
 
-  // Don't render if no shortcuts (widget should be hidden)
+  // Show empty state with helpful message
   if (!shortcuts || shortcuts.length === 0) {
-    return null;
+    return (
+      <div className={styles.shortcutsWidget}>
+        <div className={styles.shortcutsHeader}>
+          <span className={styles.shortcutsTitle}>My Shortcuts</span>
+        </div>
+        <div className={styles.emptyState}>
+          <i className="fas fa-star"></i>
+          <p>No shortcuts yet!</p>
+          <span>Click the <i className="fas fa-plus"></i> icon next to any menu item to add it here for quick access.</span>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -121,13 +118,7 @@ export default function ShortcutsWidget({ config, onConfigChange }) {
       <div className={styles.shortcutsHeader}>
         <span className={styles.shortcutsTitle}>My Shortcuts</span>
         <div className={styles.shortcutsHeaderRight}>
-          <span className={styles.shortcutsCount}>Using {shortcuts.length}/10</span>
-          <i 
-            className="fas fa-sync-alt" 
-            title="Refresh" 
-            onClick={handleRefresh}
-            style={{ cursor: 'pointer' }}
-          ></i>
+          <span className={styles.shortcutsCount}>{shortcuts.length}/10</span>
         </div>
       </div>
       
@@ -139,30 +130,43 @@ export default function ShortcutsWidget({ config, onConfigChange }) {
       )}
 
       <div className={styles.shortcutsGrid}>
-        {shortcuts.map((shortcut) => (
-          <div
-            key={shortcut.id}
-            className={styles.shortcutItem}
-            onClick={() => handleShortcutClick(shortcut)}
-            title={shortcut.label}
-          >
-            <button
-              className={styles.shortcutRemove}
-              onClick={(e) => handleRemoveShortcut(shortcut.id, e)}
-              title="Remove shortcut"
+        {shortcuts.map((shortcut) => {
+          // Support both new href-based and legacy slideInType shortcuts
+          const href = shortcut.href || '#';
+          const isLegacy = !shortcut.href && shortcut.slideInType;
+          
+          return (
+            <Link
+              key={shortcut.id}
+              href={href}
+              className={styles.shortcutItem}
+              title={shortcut.label}
+              onClick={isLegacy ? (e) => {
+                e.preventDefault();
+                // Trigger legacy slide-in for old shortcuts
+                window.dispatchEvent(new CustomEvent('dashboard-open-slide-in', {
+                  detail: { type: shortcut.slideInType, title: shortcut.label }
+                }));
+              } : undefined}
             >
-              <i className="fas fa-times"></i>
-            </button>
-            
-            <div className={styles.shortcutIcon}>
-              <i className={shortcut.icon}></i>
-            </div>
-            
-            <div className={styles.shortcutLabel}>
-              {shortcut.label}
-            </div>
-          </div>
-        ))}
+              <button
+                className={styles.shortcutRemove}
+                onClick={(e) => handleRemoveShortcut(shortcut.id, e)}
+                title="Remove shortcut"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+              
+              <div className={styles.shortcutIcon}>
+                <i className={shortcut.icon || 'fas fa-star'}></i>
+              </div>
+              
+              <div className={styles.shortcutLabel}>
+                {shortcut.label}
+              </div>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

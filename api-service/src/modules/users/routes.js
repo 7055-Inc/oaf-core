@@ -161,6 +161,40 @@ router.get('/me/completion', requireAuth, async (req, res) => {
 });
 
 // =============================================================================
+// PUBLIC ARTISTS ENDPOINT (for carousels, featured sections)
+// =============================================================================
+
+/**
+ * GET /api/v2/users/artists
+ * Get list of active artists for public display (carousels, featured sections)
+ * No authentication required
+ * 
+ * @query {number} limit - Max results (default: 20, max: 100)
+ * @query {boolean} random - Randomize order (default: true)
+ */
+router.get('/artists', async (req, res) => {
+  try {
+    const { limit = 20, random = 'true' } = req.query;
+    const searchLimit = Math.min(parseInt(limit) || 20, 100);
+    const useRandom = random === 'true';
+    
+    const artists = await userService.getPublicArtists({ limit: searchLimit, random: useRandom });
+    
+    res.json({
+      success: true,
+      data: artists,
+      meta: { count: artists.length, limit: searchLimit }
+    });
+  } catch (error) {
+    console.error('Error fetching artists:', error);
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch artists', status: 500 }
+    });
+  }
+});
+
+// =============================================================================
 // PERSONA ENDPOINTS
 // =============================================================================
 

@@ -1,7 +1,7 @@
 import Head from 'next/head';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
-import NewsMagazine from '../../components/news/NewsMagazine';
+import { NewsMagazine } from '../../modules/communications/components';
 import { getApiUrl, getFrontendUrl } from '../../lib/config';
 
 // Page-specific configuration

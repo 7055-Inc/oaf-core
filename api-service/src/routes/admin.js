@@ -7,8 +7,7 @@ const EmailService = require('../services/emailService');
 const discountService = require('../services/discountService');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
-// Import maintenance control routes
-const maintenanceRoutes = require('./admin/maintenance');
+// Maintenance control removed - not needed for staging workflow
 const promoterOnboardingRoutes = require('./admin/promoter-onboarding');
 
 /**
@@ -61,13 +60,19 @@ router.get('/notifications', verifyToken, requirePermission('manage_system'), as
       `SELECT COUNT(*) as count FROM support_tickets WHERE status IN ('open', 'awaiting_support', 'escalated')`
     );
 
+    // Get unsorted marketplace products count (awaiting curation)
+    const [unsortedProducts] = await db.execute(
+      `SELECT COUNT(*) as count FROM products WHERE marketplace_enabled = TRUE AND marketplace_category = 'unsorted' AND status = 'active'`
+    );
+
     res.json({
       success: true,
       notifications: {
         marketplace_applications: marketplaceApps[0]?.count || 0,
         wholesale_applications: wholesaleApps[0]?.count || 0,
         pending_returns: pendingReturns[0]?.count || 0,
-        open_tickets: openTickets[0]?.count || 0
+        open_tickets: openTickets[0]?.count || 0,
+        unsorted_products: unsortedProducts[0]?.count || 0
       }
     });
   } catch (err) {
@@ -3138,8 +3143,7 @@ router.post('/applications/:id/refund', verifyToken, requirePermission('manage_s
   }
 });
 
-// Mount maintenance control routes
-router.use('/maintenance', maintenanceRoutes);
+// Maintenance control removed - not needed for staging workflow
 
 // Mount promoter onboarding routes
 router.use('/promoters', promoterOnboardingRoutes);

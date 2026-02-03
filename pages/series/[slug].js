@@ -52,7 +52,7 @@ export default function SeriesPage() {
 
   // Generate JSON-LD structured data for series
   const generateSeriesSchema = () => {
-    const canonicalUrl = getFrontendUrl(`/series/${series.slug}`);
+    const canonicalUrl = getFrontendUrl(`/series/${slug}`);
     
     const schema = {
       "@context": "https://schema.org",
@@ -62,8 +62,8 @@ export default function SeriesPage() {
       "url": canonicalUrl,
       "publisher": {
         "@type": "Organization",
-        "name": "Online Art Festival",
-        "url": ""
+        "name": "Brakebee",
+        "url": "https://brakebee.com"
       },
       "dateCreated": series.created_at,
       "dateModified": series.updated_at || series.created_at
@@ -114,14 +114,14 @@ export default function SeriesPage() {
   return (
     <>
       <Head>
-        <title>{series.series_name} - Online Art Festival</title>
+        <title>{series.series_name} | Brakebee</title>
         <meta name="description" content={series.description} />
-        <link rel="canonical" href={`/series/${series.slug}`} />
+        <link rel="canonical" href={getFrontendUrl(`/series/${slug}`)} />
         
         <meta property="og:title" content={series.series_name} />
         <meta property="og:description" content={series.description} />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content={`/series/${series.slug}`} />
+        <meta property="og:url" content={getFrontendUrl(`/series/${slug}`)} />
         
         <meta name="twitter:card" content="summary" />
         <meta name="twitter:title" content={series.series_name} />

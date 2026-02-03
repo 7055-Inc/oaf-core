@@ -40,10 +40,12 @@ export default function TermsStep({
     
     try {
       const tierContext = config?.tiers?.[0]?.name || '';
-      const url = tierContext 
-        ? `api/subscriptions/${subscriptionType}/terms-check?tier_context=${encodeURIComponent(tierContext)}`
-        : `api/subscriptions/${subscriptionType}/terms-check`;
-      
+      const base = config?.subscriptionApiBase
+        ? `${config.subscriptionApiBase}/subscription`
+        : `api/subscriptions/${subscriptionType}`;
+      const url = tierContext
+        ? `${base}/terms-check?tier_context=${encodeURIComponent(tierContext)}`
+        : `${base}/terms-check`;
       const response = await authApiRequest(url);
       const data = await response.json();
       
@@ -84,8 +86,11 @@ export default function TermsStep({
     try {
       const termsArray = Array.isArray(terms) ? terms : [terms];
       
+      const acceptBase = config?.subscriptionApiBase
+        ? `${config.subscriptionApiBase}/subscription`
+        : `api/subscriptions/${subscriptionType}`;
       for (const term of termsArray) {
-        const response = await authApiRequest(`api/subscriptions/${subscriptionType}/terms-accept`, {
+        const response = await authApiRequest(`${acceptBase}/terms-accept`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

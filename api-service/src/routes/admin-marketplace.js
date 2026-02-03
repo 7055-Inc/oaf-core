@@ -480,7 +480,7 @@ router.get('/applications', verifyToken, requirePermission('manage_system'), asy
         mediaUrls.forEach(media => {
           if (media.permanent_url) {
             // Use permanent URL if available
-            mediaMapping[media.id] = `${process.env.SMART_MEDIA_BASE_URL || 'https://api.beemeeart.com/api/images'}/${media.permanent_url}`;
+            mediaMapping[media.id] = `${process.env.SMART_MEDIA_BASE_URL || 'https://api.brakebee.com/api/images'}/${media.permanent_url}`;
           } else if (media.image_path) {
             // Fall back to image_path for pending images
             const apiBaseUrl = process.env.API_BASE_URL || 'https://api.brakebee.com';

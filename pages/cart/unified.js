@@ -3,8 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { authApiRequest } from '../../lib/apiUtils';
 import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
-import CouponEntry from '../../components/coupons/CouponEntry';
-import DiscountSummary from '../../components/coupons/DiscountSummary';
+import { CouponEntry, DiscountSummary } from '../../modules/commerce';
 import { useCoupons } from '../../hooks/useCoupons';
 import styles from './styles/UnifiedCart.module.css';
 
@@ -218,7 +217,7 @@ export default function UnifiedCart() {
   return (
     <>
       <Head>
-        <title>My Cart - Digital Art Mall | Online Art Festival</title>
+        <title>My Cart | Brakebee</title>
         <meta name="description" content="Your unified cart from multiple artist galleries" />
       </Head>
       

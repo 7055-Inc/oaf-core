@@ -26,8 +26,8 @@ async function getProcessedMediaUrls(tempImagePath, size = 'detail') {
     
     const { permanent_url, status } = results[0];
     
-    // If processing is complete and we have a media ID
-    if (status === 'complete' && permanent_url) {
+    // If processing is complete and we have a media ID (worker sets 'processed', script may set 'complete')
+    if ((status === 'processed' || status === 'complete') && permanent_url) {
       // All processed images now use media ID format
       return {
         image_url: `${SMART_MEDIA_BASE_URL}/${permanent_url}?size=${size}`,
@@ -92,8 +92,8 @@ async function getBatchProcessedMediaUrls(tempImagePaths, size = 'detail') {
     for (const result of results) {
       const { image_path, permanent_url, status } = result;
       
-      // If processing complete and we have a media ID
-      if (status === 'complete' && permanent_url) {
+      // If processing complete and we have a media ID (worker sets 'processed', script may set 'complete')
+      if ((status === 'processed' || status === 'complete') && permanent_url) {
         // All processed images now use media ID format
         urlMap[image_path] = {
           image_url: `${SMART_MEDIA_BASE_URL}/${permanent_url}?size=${size}`,

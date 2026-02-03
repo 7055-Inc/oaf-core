@@ -1,7 +1,7 @@
 /**
- * User Components - Public-facing
+ * User Components - WRAPPER (Gradual Migration)
+ * Re-exports from modules/shared for backward compatibility
+ * @deprecated Use modules/shared instead
  */
 
-export { default as ProfileDisplay } from './ProfileDisplay';
-export { default as AboutTheArtist } from './AboutTheArtist';
-export { default as SocialLinks, extractSocialLinks } from './SocialLinks';
+export { ProfileDisplay, AboutTheArtist, SocialLinks, extractSocialLinks } from '../../modules/shared';

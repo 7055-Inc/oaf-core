@@ -1,7 +1,7 @@
 'use client';
 import { useRouter } from 'next/router';
 import { clearAuthTokens } from '../../../../lib/auth';
-import Breadcrumb from '../../../../components/Breadcrumb';
+import { Breadcrumb } from '../../../shared';
 
 // Map path segments to display names
 const segmentLabels = {

@@ -40,12 +40,14 @@ const menuConfig = [
     id: 'dashboard-home',
     label: 'Dashboard',
     href: '/dashboard',
+    icon: 'fa-home',
     exact: true, // Only highlight when exactly on /dashboard
   },
   {
     id: 'users',
     label: 'My Account',
     href: '/dashboard/users',
+    icon: 'fa-user',
     items: [
       { 
         label: 'My Profile', 
@@ -73,9 +75,23 @@ const menuConfig = [
         href: '/dashboard/users/shipping' 
       },
       { 
-        label: 'Verification', 
-        href: '/dashboard/users/verification',
-        userTypes: ['artist']
+        href: '/dashboard/users/verified',
+        userTypes: ['admin', 'artist'],
+        // Conditional label based on verified permission
+        labelCondition: {
+          permission: 'verified',
+          hasPermission: 'Verified Status',
+          noPermission: 'Get Verified'
+        }
+      },
+      { 
+        href: '/dashboard/account/wholesale-application',
+        // Conditional label based on wholesale permission
+        labelCondition: {
+          permission: 'wholesale',
+          hasPermission: 'Wholesale Status',
+          noPermission: 'Apply for Wholesale'
+        }
       },
       // Admin-only user management items
       { 
@@ -93,12 +109,23 @@ const menuConfig = [
         href: '/dashboard/users/personas/manage',
         adminOnly: true 
       },
+      { 
+        label: 'Manage Commissions', 
+        href: '/dashboard/users/commissions',
+        adminOnly: true 
+      },
+      { 
+        label: 'API Keys', 
+        href: '/dashboard/users/api-keys',
+        adminOnly: true 
+      },
     ]
   },
   {
     id: 'catalog',
     label: 'Catalog',
     href: '/dashboard/catalog',
+    icon: 'fa-box',
     permissions: ['vendor', 'sites'], // Need either permission
     items: [
       { 
@@ -125,17 +152,32 @@ const menuConfig = [
         label: 'Inventory Log', 
         href: '/dashboard/catalog/inventory/log' 
       },
+      {
+        label: 'Addons',
+        items: [
+          { label: 'Walmart Connector', href: '/dashboard/catalog/addons/walmart', permissions: ['vendor', 'sites'] },
+          { label: 'Walmart Connector Admin', href: '/dashboard/catalog/addons/walmart-admin', adminOnly: true },
+          { label: 'TikTok Connector', href: '/dashboard/catalog/addons/tiktok', permissions: ['vendor', 'sites'] },
+          { label: 'TikTok Connector Admin', href: '/dashboard/catalog/addons/tiktok-admin', adminOnly: true },
+        ]
+      },
       { 
         label: 'All Products', 
         href: '/dashboard/catalog/admin', 
+        adminOnly: true 
+      },
+      { 
+        label: 'Categories', 
+        href: '/dashboard/catalog/categories', 
         adminOnly: true 
       },
     ]
   },
   {
     id: 'commerce',
-    label: 'Commerce',
+    label: 'Business Center',
     href: '/dashboard/commerce',
+    icon: 'fa-briefcase',
     items: [
       { 
         label: 'My Orders', 
@@ -148,7 +190,7 @@ const menuConfig = [
       },
       { 
         label: 'Shipping', 
-        href: '/dashboard/commerce/shipping',
+        href: '/dashboard/commerce/shipping-labels',
         permissions: ['vendor', 'sites']
       },
       { 
@@ -157,25 +199,104 @@ const menuConfig = [
         permissions: ['vendor', 'sites']
       },
       { 
+        href: '/dashboard/commerce/marketplace',
+        userTypes: ['admin', 'artist'],
+        // Conditional label based on marketplace permission
+        labelCondition: {
+          permission: 'marketplace',
+          hasPermission: 'Marketplace Settings',
+          noPermission: 'Join the Marketplace'
+        }
+      },
+      { 
+        label: 'Payouts & Earnings', 
+        href: '/dashboard/commerce/finances',
+        permission: 'stripe_connect'
+      },
+      { 
+        label: 'Transactions', 
+        href: '/dashboard/commerce/finances/transactions',
+        permission: 'stripe_connect'
+      },
+      { 
         label: 'All Orders', 
-        href: '/dashboard/commerce/admin', 
+        href: '/dashboard/commerce/all-orders', 
         adminOnly: true 
+      },
+      { 
+        label: 'Marketplace Applications', 
+        href: '/dashboard/commerce/marketplace-applications', 
+        adminOnly: true 
+      },
+      { 
+        label: 'All Event Applications', 
+        href: '/dashboard/commerce/all-applications', 
+        adminOnly: true 
+      },
+      { 
+        label: 'Returns Admin', 
+        href: '/dashboard/commerce/returns-admin', 
+        adminOnly: true 
+      },
+      { 
+        label: 'My Applicants', 
+        href: '/dashboard/commerce/applicants',
+        userTypes: ['admin', 'promoter']
       },
     ]
   },
   {
-    id: 'finances',
-    label: 'Finances',
-    href: '/dashboard/finances',
-    permission: 'stripe_connect',
+    id: 'communications',
+    label: 'Communications',
+    href: '/dashboard/communications',
+    icon: 'fa-comments',
     items: [
       { 
-        label: 'Transaction History', 
-        href: '/dashboard/finances/transactions' 
+        label: 'Help Center', 
+        href: 'https://staging.brakebee.com/help',
+        external: true
       },
       { 
-        label: 'Payouts & Earnings', 
-        href: '/dashboard/finances/payouts' 
+        label: 'My Tickets', 
+        href: '/dashboard/communications/tickets' 
+      },
+      { 
+        label: 'All Tickets', 
+        href: '/dashboard/communications/admin', 
+        adminOnly: true,
+        notificationKey: 'open_tickets'
+      },
+      { 
+        label: 'Articles & Blogs', 
+        href: '/dashboard/communications/articles',
+        permission: 'sites'
+      },
+    ]
+  },
+  {
+    id: 'marketing',
+    label: 'Marketing',
+    href: '/dashboard/marketing',
+    icon: 'fa-bullhorn',
+    items: [
+      { 
+        label: 'Share Content', 
+        href: '/dashboard/marketing/share-content'
+      },
+      { 
+        label: 'User Media Library', 
+        href: '/dashboard/marketing/media-library',
+        adminOnly: true
+      },
+      { 
+        label: 'Promotions', 
+        href: '/dashboard/marketing/promotions',
+        permissions: ['vendor', 'sites']
+      },
+      { 
+        label: 'Admin Promotions', 
+        href: '/dashboard/marketing/admin-promotions',
+        adminOnly: true
       },
     ]
   },
@@ -183,11 +304,33 @@ const menuConfig = [
     id: 'events',
     label: 'Events',
     href: '/dashboard/events',
+    icon: 'fa-calendar',
     userTypes: ['admin', 'artist', 'promoter'],
     items: [
       { 
         label: 'My Events', 
-        href: '/dashboard/events/mine' 
+        href: '/dashboard/events/mine',
+        userTypes: ['admin', 'promoter']
+      },
+      { 
+        label: 'Events I Own', 
+        href: '/dashboard/events/own',
+        userTypes: ['admin', 'promoter']
+      },
+      { 
+        label: 'My Applications', 
+        href: '/dashboard/events/applications',
+        userTypes: ['admin', 'artist']
+      },
+      { 
+        label: 'Find New', 
+        href: '/dashboard/events/find',
+        userTypes: ['admin', 'artist']
+      },
+      { 
+        label: 'Jury Packets', 
+        href: '/dashboard/events/jury-packets',
+        userTypes: ['admin', 'artist']
       },
       { 
         label: 'Create Event', 
@@ -199,17 +342,51 @@ const menuConfig = [
         href: '/dashboard/events/admin', 
         adminOnly: true 
       },
+      { 
+        label: 'Solicit Promoter', 
+        href: '/dashboard/events/solicit-promoter', 
+        adminOnly: true 
+      },
+      { 
+        label: 'Unclaimed Events', 
+        href: '/dashboard/events/unclaimed', 
+        adminOnly: true 
+      },
+    ]
+  },
+  {
+    id: 'service',
+    label: 'Service',
+    href: '/dashboard/service',
+    icon: 'fa-cog',
+    adminOnly: true,
+    items: [
+      {
+        label: 'Admin Event Review',
+        href: '/dashboard/service/event-reviews',
+        adminOnly: true
+      },
+      {
+        label: 'Refunds',
+        href: '/dashboard/service/refunds',
+        adminOnly: true
+      },
     ]
   },
   {
     id: 'websites',
     label: 'Websites',
     href: '/dashboard/websites',
+    icon: 'fa-globe',
     permission: 'sites',
     items: [
       { 
         label: 'My Sites', 
         href: '/dashboard/websites/mine' 
+      },
+      { 
+        label: 'Payment Settings', 
+        href: '/dashboard/websites/payments' 
       },
       { 
         label: 'Site Settings', 
@@ -226,19 +403,42 @@ const menuConfig = [
     id: 'subscriptions',
     label: 'Subscriptions',
     href: '/dashboard/subscriptions',
+    icon: 'fa-credit-card',
     userTypes: ['admin', 'artist', 'promoter'],
     items: [
       { 
-        label: 'My Plan', 
-        href: '/dashboard/subscriptions/plan' 
+        label: 'Manage', 
+        href: '/dashboard/subscriptions' 
+      },
+    ]
+  },
+  {
+    id: 'system',
+    label: 'System',
+    href: '/dashboard/system',
+    icon: 'fa-cogs',
+    adminOnly: true,
+    items: [
+      { 
+        label: 'Curate', 
+        href: '/dashboard/system/curate',
+        adminOnly: true,
+        notificationKey: 'unsorted_products'
       },
       { 
-        label: 'Add-ons', 
-        href: '/dashboard/subscriptions/addons' 
+        label: 'Homepage', 
+        href: '/dashboard/system/homepage',
+        adminOnly: true
       },
       { 
-        label: 'Billing History', 
-        href: '/dashboard/subscriptions/billing' 
+        label: 'Email Management', 
+        href: '/dashboard/system/email',
+        adminOnly: true
+      },
+      { 
+        label: 'Terms & Policies', 
+        href: '/dashboard/system/terms',
+        adminOnly: true
       },
     ]
   },

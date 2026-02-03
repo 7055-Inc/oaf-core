@@ -1,29 +1,25 @@
-'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import Breadcrumb from '../../components/Breadcrumb';
-import { getApiUrl } from '../../lib/config';
-import ProfileDisplay from '../../components/users/ProfileDisplay';
-import { authenticatedApiRequest } from '../../lib/csrf';
+import Link from 'next/link';
+import { Breadcrumb } from '../../modules/shared';
+import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
+import { ProfileDisplay } from '../../modules/shared';
 import styles from './Profile.module.css';
 
-export default function ProfileView() {
-  const [userProfile, setUserProfile] = useState(null);
+export default function ProfileView({ initialProfile, initialProducts = [], initialError }) {
+  const [userProfile, setUserProfile] = useState(initialProfile);
   const [currentUserId, setCurrentUserId] = useState(null);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(initialError || null);
   const router = useRouter();
   const { id } = router.query;
 
+  // Client-side only: check if current user is viewing their own profile
   useEffect(() => {
-    if (!id) return;
-    
     const fetchCurrentUser = async () => {
       try {
         const token = localStorage.getItem('token');
-        if (!token) {
-          return;
-        }
+        if (!token) return;
         
         const response = await fetch(getApiUrl('users/me'), {
           method: 'GET',
@@ -43,18 +39,19 @@ export default function ProfileView() {
     };
 
     fetchCurrentUser();
+  }, []);
 
+  // Fallback client-side fetch if SSR failed
+  useEffect(() => {
+    if (initialProfile || !id) return;
+    
     const fetchProfile = async () => {
       try {
         const res = await fetch(getApiUrl(`users/profile/by-id/${id}`), {
           method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          }
+          headers: { 'Content-Type': 'application/json' }
         });
-        if (!res.ok) {
-          throw new Error('Failed to fetch user profile');
-        }
+        if (!res.ok) throw new Error('Failed to fetch user profile');
         const data = await res.json();
         setUserProfile(data);
       } catch (err) {
@@ -64,7 +61,7 @@ export default function ProfileView() {
     };
 
     fetchProfile();
-  }, [id]);
+  }, [id, initialProfile]);
 
   if (error) {
     return (
@@ -84,14 +81,16 @@ export default function ProfileView() {
   }
 
   // Build dynamic SEO with fallbacks
-  const artistName = userProfile?.display_name || userProfile?.username || 'Artist';
+  const hasBusinessName = !!userProfile?.business_name;
+  const artistName = userProfile?.business_name || userProfile?.display_name || userProfile?.username || 'Artist';
   const artistBio = userProfile?.artist_biography || userProfile?.bio || `Discover artwork by ${artistName} on Brakebee.`;
   const profileImage = userProfile?.profile_picture_url || null;
+  const profileType = hasBusinessName ? "Organization" : "Person";
 
-  // Generate Person Schema for Google Rich Results
+  // Generate Person/Organization Schema for Google Rich Results
   const personSchema = userProfile ? {
     "@context": "https://schema.org",
-    "@type": "Person",
+    "@type": profileType,
     "name": artistName,
     "description": artistBio.substring(0, 500),
     "url": `https://brakebee.com/profile/${id}`,
@@ -104,17 +103,30 @@ export default function ProfileView() {
       }
     }),
     "sameAs": [
-      userProfile.website_url,
-      userProfile.instagram_url,
-      userProfile.facebook_url,
-      userProfile.twitter_url
+      userProfile.website_url || userProfile.business_website,
+      userProfile.instagram_url || userProfile.business_social_instagram,
+      userProfile.facebook_url || userProfile.business_social_facebook,
+      userProfile.twitter_url || userProfile.business_social_twitter
     ].filter(Boolean),
-    "jobTitle": "Artist",
-    "worksFor": {
+    ...(profileType === "Person" && { "jobTitle": "Artist" }),
+    "memberOf": {
       "@type": "Organization",
-      "name": "Brakebee",
+      "name": "Brakebee Marketplace",
       "url": "https://brakebee.com"
-    }
+    },
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": `https://brakebee.com/profile/${id}`,
+      "isPartOf": {
+        "@type": "WebSite",
+        "name": "Brakebee",
+        "url": "https://brakebee.com"
+      }
+    },
+    "additionalProperty": [
+      { "@type": "PropertyValue", "name": "Marketplace", "value": "Brakebee" },
+      { "@type": "PropertyValue", "name": "Seller Type", "value": "Independent Artist" }
+    ]
   } : null;
 
   return (
@@ -129,7 +141,6 @@ export default function ProfileView() {
         <meta name="twitter:card" content="summary_large_image" />
         <link rel="canonical" href={`https://brakebee.com/profile/${id}`} />
         
-        {/* Person Schema for Google Rich Results */}
         {personSchema && (
           <script
             type="application/ld+json"
@@ -149,9 +160,153 @@ export default function ProfileView() {
       
       <ProfileDisplay 
         userProfile={userProfile}
+        initialProducts={initialProducts}
         showEditButton={true}
         currentUserId={currentUserId}
       />
+      
+      {/* SSR Product Links for SEO - crawlable by search engines */}
+      {initialProducts.length > 0 && (
+        <nav aria-label="Artist products" style={{ 
+          maxWidth: '1200px', 
+          margin: '0 auto', 
+          padding: '2rem 1rem',
+          borderTop: '1px solid #eee'
+        }}>
+          <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>
+            Products by {artistName}
+          </h2>
+          <ul style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+            gap: '1rem',
+            listStyle: 'none',
+            padding: 0,
+            margin: 0
+          }}>
+            {initialProducts.map(product => (
+              <li key={product.id}>
+                <Link 
+                  href={`/products/${product.id}`}
+                  style={{
+                    display: 'block',
+                    padding: '1rem',
+                    border: '1px solid #eee',
+                    borderRadius: '8px',
+                    textDecoration: 'none',
+                    color: 'inherit',
+                    transition: 'box-shadow 0.2s'
+                  }}
+                >
+                  {product.imageUrl && (
+                    <img 
+                      src={product.imageUrl} 
+                      alt={product.name}
+                      loading="lazy"
+                      style={{
+                        width: '100%',
+                        height: '150px',
+                        objectFit: 'cover',
+                        borderRadius: '4px',
+                        marginBottom: '0.5rem'
+                      }}
+                    />
+                  )}
+                  <div style={{ fontWeight: '500' }}>{product.name}</div>
+                  <div style={{ color: '#666', fontSize: '0.9rem' }}>
+                    ${parseFloat(product.price || 0).toFixed(2)}
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
     </>
   );
+}
+
+// Server-side data fetching for SEO - products render in initial HTML
+export async function getServerSideProps(context) {
+  const { id } = context.params;
+  
+  if (!id) {
+    return { props: { initialProfile: null, initialProducts: [], initialError: 'Profile ID not found' } };
+  }
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.brakebee.com';
+  
+  let initialProfile = null;
+  let initialProducts = [];
+  let initialError = null;
+
+  try {
+    // Fetch profile and products in parallel
+    const [profileRes, productsRes] = await Promise.all([
+      fetch(`${apiUrl}/users/profile/by-id/${id}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      }),
+      fetch(`${apiUrl}/products/all?vendor_id=${id}&include=images&limit=24`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      }).catch(() => null)
+    ]);
+
+    if (!profileRes.ok) {
+      return { props: { initialProfile: null, initialProducts: [], initialError: 'Profile not found' } };
+    }
+
+    initialProfile = await profileRes.json();
+
+    // Process products for SSR
+    if (productsRes?.ok) {
+      const productsData = await productsRes.json();
+      const products = productsData.products || productsData || [];
+      
+      // Filter to active parent products only
+      initialProducts = products
+        .filter(p => 
+          p.status === 'active' && 
+          !p.parent_id &&
+          p.name && 
+          p.name.toLowerCase() !== 'new product draft'
+        )
+        .slice(0, 24)
+        .map(product => {
+          let imageUrl = null;
+          if (product.images && product.images.length > 0) {
+            const firstImg = product.images[0];
+            imageUrl = typeof firstImg === 'string' ? firstImg : firstImg.url;
+            
+            // Convert relative URLs to absolute
+            if (imageUrl && !imageUrl.startsWith('http')) {
+              if (imageUrl.startsWith('/temp_images/')) {
+                imageUrl = `${apiUrl}${imageUrl}`;
+              } else {
+                imageUrl = `${apiUrl}/smart-media/${imageUrl}`;
+              }
+            }
+          }
+          
+          return {
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            imageUrl
+          };
+        });
+    }
+  } catch (error) {
+    console.error('SSR fetch error:', error);
+    initialError = 'Error loading profile';
+  }
+
+  return {
+    props: {
+      initialProfile,
+      initialProducts,
+      initialError
+    }
+  };
 }

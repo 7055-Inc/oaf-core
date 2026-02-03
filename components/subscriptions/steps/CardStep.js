@@ -27,13 +27,23 @@ export default function CardStep({
     setError('');
     
     try {
-      const response = await authApiRequest(`api/subscriptions/${subscriptionType}/my`);
+      const myUrl = config?.subscriptionApiBase
+        ? `${config.subscriptionApiBase}/subscription/my`
+        : `api/subscriptions/${subscriptionType}/my`;
+      const response = await authApiRequest(myUrl);
       const data = await handleApiResponse(response);
       
+      // v2 websites API returns cardLast4; legacy returns stripe_customer_id and we fetch payment methods
+      if (data.subscription?.cardLast4) {
+        setCardInfo({ brand: 'card', last4: data.subscription.cardLast4 });
+        setHasCard(true);
+        setTimeout(() => onComplete(), 800);
+        setLoading(false);
+        return;
+      }
       if (data.subscription?.stripe_customer_id) {
         const cardResponse = await authApiRequest('api/users/payment-methods');
         const cardData = await handleApiResponse(cardResponse);
-        
         if (cardData.success && cardData.paymentMethods && cardData.paymentMethods.length > 0) {
           const card = cardData.paymentMethods[0];
           setCardInfo({
@@ -43,16 +53,11 @@ export default function CardStep({
             exp_year: card.exp_year
           });
           setHasCard(true);
-          
-          setTimeout(() => {
-            onComplete();
-          }, 800);
-          
+          setTimeout(() => onComplete(), 800);
           setLoading(false);
           return;
         }
       }
-      
       await createSetupIntent();
       
     } catch (err) {

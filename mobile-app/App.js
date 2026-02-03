@@ -100,7 +100,7 @@ function MainAppScreen({ onLogout }) {
       <View style={styles.mainContent}>
         <Text style={styles.welcomeBackTitle}>Welcome back!</Text>
         <Text style={styles.mainAppDescription}>
-          Your Online Art Festival mobile app is ready to explore.
+          Your Brakebee mobile app is ready to explore.
         </Text>
         
         {/* Main App Navigation Cards */}

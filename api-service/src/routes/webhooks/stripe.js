@@ -367,7 +367,7 @@ async function sendTicketConfirmationEmail(paymentIntent) {
       ticket_list: ticketList,
       ticket_count: tickets.length,
       total_amount: totalAmount.toFixed(2),
-      event_url: `${process.env.FRONTEND_URL || 'https://beemeeart.com'}/events/${eventId}`,
+      event_url: `${process.env.FRONTEND_URL || 'https://brakebee.com'}/events/${eventId}`,
       unique_codes: tickets.map(t => t.unique_code).join(', ')
     };
 

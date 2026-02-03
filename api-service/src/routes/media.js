@@ -256,7 +256,7 @@ router.post('/complete/:id', prefixAuth, async (req, res) => {
       aiEnhanced: ai_enhanced || false,
       processingComplete: processing_complete || false,
       formatsAvailable: formats_available || [],
-      smartUrl: `${process.env.SMART_MEDIA_BASE_URL || 'https://api.beemeeart.com/api/images'}/${media_id}`,
+      smartUrl: `${process.env.SMART_MEDIA_BASE_URL || 'https://api.brakebee.com/api/images'}/${media_id}`,
       requestedBy: req.userId
     });
 
@@ -265,7 +265,7 @@ router.post('/complete/:id', prefixAuth, async (req, res) => {
       imageId,
       media_id,
       status: 'processed',
-      smart_url_preview: `${process.env.SMART_MEDIA_BASE_URL || 'https://api.beemeeart.com/api/images'}/${media_id}`,
+      smart_url_preview: `${process.env.SMART_MEDIA_BASE_URL || 'https://api.brakebee.com/api/images'}/${media_id}`,
       ai_enhanced: ai_enhanced || false,
       processing_complete: processing_complete || false,
       message: 'Image processed successfully with AI enhancement - ready for URL replacement'
@@ -652,7 +652,14 @@ router.get('/analysis/:mediaId', prefixAuth, async (req, res) => {
     // Proxy request to processing VM
     const axios = require('axios');
     const MEDIA_BACKEND_URL = process.env.MEDIA_BACKEND_URL || 'http://10.128.0.29:3001';
-    const MEDIA_API_KEY = 'media_20074c47e0d2af1a90b1d9ba1d001648:eb7d555c29ce59c6202f3975b37a45cdc2e7a21eb09c6d684e982ebee5cc9e6a';
+    const MEDIA_API_KEY = process.env.MEDIA_API_KEY;
+
+    if (!MEDIA_API_KEY) {
+      return res.status(503).json({
+        error: 'Media API not configured',
+        message: 'MEDIA_API_KEY is required for AI analysis'
+      });
+    }
 
     const vmResponse = await axios.get(`${MEDIA_BACKEND_URL}/analysis/${mediaId}`, {
       headers: {

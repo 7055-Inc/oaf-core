@@ -82,7 +82,8 @@ The architecture separates **backend** (API) from **frontend** (Next.js/Mobile),
 │       │   │   ├── firebase.js   # Firebase auth operations
 │       │   │   ├── jwt.js        # JWT creation/validation
 │       │   │   ├── session.js    # Session management
-│       │   │   └── permissions.js # Role/permission checks
+│       │   │   ├── permissions.js # Role/permission checks
+│       │   │   └── keys.js        # API keys (list, create, toggle, delete)
 │       │   ├── middleware/       # Auth-specific middleware
 │       │   │   ├── index.js      # Re-exports all middleware
 │       │   │   ├── requireAuth.js # Require authenticated user
@@ -134,15 +135,39 @@ The architecture separates **backend** (API) from **frontend** (Next.js/Mobile),
 │       │   │   └── reports.js    # Saved reports
 │       │   └── README.md
 │       │
-│       ├── commerce/             # Commerce module
+│       ├── commerce/             # ✅ Commerce module (orders, sales, shipping, returns)
 │       │   ├── index.js
 │       │   ├── routes.js
 │       │   └── services/
+│       │       ├── index.js
+│       │       ├── orders.js     # Customer order history
+│       │       ├── sales.js      # Vendor order management
+│       │       ├── shipping.js   # Rates, labels, tracking
+│       │       └── returns.js    # Customer & vendor returns
+│       │
+│       ├── finances/             # ✅ Finances module (balance, payouts, transactions)
+│       │   ├── index.js
+│       │   ├── routes.js
+│       │   └── services/
+│       │       └── index.js      # Balance, transactions, payouts, earnings
+│       │
+│       ├── communications/       # ✅ Communications module (tickets, support)
+│       │   ├── index.js
+│       │   ├── routes.js
+│       │   └── services/
+│       │       ├── index.js
+│       │       └── tickets.js    # User & admin ticket management
 │       │
 │       ├── events/               # Events module
 │       │   ├── index.js
 │       │   ├── routes.js
 │       │   └── services/
+│       │
+│       ├── applications/        # Event applications (artist); backend done, full rebuild TBD
+│       │   ├── index.js
+│       │   ├── routes.js
+│       │   └── services/
+│       │       └── index.js
 │       │
 │       ├── websites/             # Artist websites module
 │       │   ├── index.js
@@ -204,10 +229,30 @@ The architecture separates **backend** (API) from **frontend** (Next.js/Mobile),
 │   │   ├── index.js
 │   │   └── api.js
 │   │
-│   ├── commerce/                 # Cart/checkout helpers
+│   ├── commerce/                 # ✅ Commerce API helpers
 │   │   ├── index.js
-│   │   ├── api.js
+│   │   ├── api.js                # Orders, sales, shipping, returns
 │   │   └── cart.js               # Cart state management
+│   │
+│   ├── finances/                 # ✅ Finances API helpers
+│   │   ├── index.js
+│   │   └── api.js                # Balance, transactions, payouts
+│   │
+│   ├── communications/           # ✅ Communications API helpers
+│   │   ├── index.js
+│   │   └── api.js                # User & admin ticket functions
+│   │
+│   ├── subscriptions/            # ✅ Subscriptions API helpers
+│   │   ├── index.js
+│   │   └── api.js                # Shipping, verified, marketplace, addons
+│   │
+│   ├── marketing/                # ✅ Marketing API helpers
+│   │   ├── index.js
+│   │   └── api.js                # User submissions, admin management
+│   │
+│   ├── email/                    # ✅ Email API helpers
+│   │   ├── index.js
+│   │   └── api.js                # Templates, logs, send preview, resend
 │   │
 │   └── shared/                   # Shared frontend utilities
 │       ├── index.js
@@ -216,31 +261,24 @@ The architecture separates **backend** (API) from **frontend** (Next.js/Mobile),
 │       └── apiUtils.js           # Base API utilities
 │
 │
-├── components/                   # FRONTEND UI COMPONENTS
+├── components/                   # FRONTEND UI COMPONENTS (legacy + public-facing)
+│   │                             # Domain components moved to modules/; this holds:
+│   │                             # - Public page components (Header, Footer, carousels)
+│   │                             # - Thin wrapper files for backward compatibility
 │   │
-│   ├── auth/                     # Auth components
-│   │   ├── LoginModal.js
-│   │   ├── SignupForm.js
-│   │   └── ImpersonationExitButton.js
-│   │
-│   ├── profiles/                 # Profile components
-│   │   ├── EditProfile.js
-│   │   └── AvatarUpload.js
-│   │
-│   ├── catalog/                  # Catalog components
-│   │   ├── ProductCard.js
-│   │   ├── ProductGrid.js
-│   │   └── ProductForm/
-│   │
-│   ├── commerce/                 # Commerce components
-│   │   ├── CartDrawer.js
-│   │   ├── CheckoutForm.js
-│   │   └── OrderSummary.js
-│   │
-│   └── shared/                   # Reusable UI components
-│       ├── Button/
-│       ├── Modal/
-│       └── Form/
+│   ├── admin/                    # Admin UI (ImpersonationExitButton)
+│   ├── dashboard/                # Dashboard component wrappers → modules/dashboard
+│   ├── layouts/                  # Layout components (MainLayout, DashboardLayout)
+│   ├── profiles/                 # Profile wrappers (CookieBanner)
+│   ├── search/                   # Search UI (SearchModal, SearchBar, SearchResults)
+│   ├── shared/                   # Shared UI (ContactArtistModal)
+│   ├── stripe/                   # Stripe UI (StripeCardSetup)
+│   ├── subscriptions/            # Subscription flow (ChecklistController, dashboards)
+│   ├── users/                    # @deprecated wrapper → modules/shared
+│   │   └── index.js              # Re-exports ProfileDisplay, AboutTheArtist, SocialLinks
+│   ├── Header.js, Footer.js      # Site header/footer
+│   ├── *Carousel.js              # Product carousels (public pages)
+│   └── ...
 │
 │
 ├── mobile-app/
@@ -256,9 +294,79 @@ The architecture separates **backend** (API) from **frontend** (Next.js/Mobile),
 ├── modules/                      # FRONTEND MODULES (ongoing)
 │   │
 │   ├── styles/                   # Global styles module
-│   │   └── global.css            # ✅ Site-wide styles (imported in _app.js)
+│   │   ├── global.css            # ✅ Site-wide styles (imported in _app.js)
+│   │   ├── forms.css             # Form elements, cards, grids
+│   │   ├── buttons.css           # Button variants
+│   │   ├── tables.css            # Data tables, pagination
+│   │   ├── modals.css            # Modal overlays
+│   │   ├── alerts.css            # Alerts, banners, toasts
+│   │   ├── states.css            # Loading, empty, error states
+│   │   ├── tabs.css              # Tab navigation
+│   │   └── carousels.css         # ✅ Artist carousel, skeleton loading
 │   │
-│   └── dashboard/                # Dashboard UI module (page-based)
+│   ├── catalog/                  # ✅ Catalog module
+│   │   ├── index.js              # Module exports
+│   │   └── components/           # Product management components
+│   │
+│   ├── commerce/                 # ✅ Commerce module
+│   │   ├── index.js              # Module exports
+│   │   └── components/           # Orders, sales, shipping, returns
+│   │
+│   ├── communications/           # ✅ Communications module
+│   │   ├── index.js              # Module exports
+│   │   └── components/           # Tickets, support, articles
+│   │
+│   ├── events/                   # ✅ Events module
+│   │   ├── index.js              # Module exports
+│   │   └── components/           # Event management, applications, tickets
+│   │
+│   ├── finances/                 # ✅ Finances module
+│   │   ├── index.js              # Module exports
+│   │   └── components/           # Payouts, earnings, transactions
+│   │
+│   ├── users/                    # ✅ Users module
+│   │   ├── index.js              # Module exports
+│   │   └── components/           # Profiles, personas, settings
+│   │
+│   ├── websites/                 # ✅ Websites module
+│   │   ├── index.js              # Module exports
+│   │   └── components/           # Site management, customization
+│   │
+│   ├── applications/             # ✅ Applications module
+│   │   ├── index.js              # Module exports
+│   │   └── components/           # Event application system
+│   │       ├── application-form/ # Artist application form
+│   │       ├── applications-received/ # Promoter applicant management
+│   │       ├── ApplicationStatus.js
+│   │       ├── MyApplications.js
+│   │       ├── JuryPackets.js
+│   │       ├── MyApplicants.js
+│   │       └── AdminAllApplications.js
+│   │
+│   ├── subscriptions/            # ✅ Subscriptions module
+│   │   ├── index.js              # Module exports
+│   │   └── components/
+│   │       ├── SubscriptionOverview.js    # Main management page
+│   │       ├── SubscriptionCard.js        # Row component
+│   │       └── ConnectBalancePreference.js # Payment preference
+│   │
+│   ├── marketing/                # ✅ Marketing module
+│   │   ├── index.js              # Module exports
+│   │   └── components/
+│   │       ├── ShareContent.js           # User submission form + history
+│   │       ├── AdminMediaLibrary.js      # Admin review interface
+│   │       └── AdminPromotions.js        # Admin promotions, sales, coupons
+│   │
+│   ├── shared/                   # ✅ Shared UI module (cross-module components)
+│   │   ├── index.js              # Module exports
+│   │   ├── AccordionSection.js   # Collapsible form sections
+│   │   ├── ArtistCarousel.js     # Featured artists (homepage, v2 API)
+│   │   ├── AboutTheArtist.js     # Artist info card (product pages, v2 API)
+│   │   ├── ProfileDisplay.js     # Public profile view
+│   │   ├── SocialLinks.js        # Social media icon links
+│   │   └── block-editor/         # Rich content editor (BlockEditor.js)
+│   │
+│   └── dashboard/                # Dashboard UI module (menu shell only)
 │       ├── index.js              # ✅ Module exports
 │       ├── config/
 │       │   └── menuConfig.js     # ✅ Permission-based menu structure
@@ -275,13 +383,8 @@ The architecture separates **backend** (API) from **frontend** (Next.js/Mobile),
 │       │   │   ├── WidgetGrid.js
 │       │   │   ├── WidgetRenderer.js
 │       │   │   └── items/
-│       │   ├── shared/           # ✅ Dashboard-specific reusables
-│       │   ├── users/            # ✅ User management section
-│       │   ├── catalog/          # ✅ Product management section
-│       │   ├── commerce/         # Orders section (TODO)
-│       │   ├── events/           # Events section (TODO)
-│       │   ├── websites/         # Sites section (TODO)
-│       │   └── admin/            # Admin section (TODO)
+│       │   ├── shared/           # Re-exports from modules/shared/
+│       │   └── admin/            # TODO: move to modules/admin/
 │       ├── hooks/
 │       ├── styles/
 │       │   └── dashboard.css     # ✅ Dashboard layout (imported in _app.js)
@@ -365,7 +468,7 @@ users/
 └── types.js              # JSDoc type definitions
 ```
 
-### Dashboard Components: `modules/dashboard/components/users/`
+### Module Components: `modules/users/components/`
 
 ```
 users/
@@ -377,6 +480,11 @@ users/
 ├── ShippingSettings.js   # Shipping addresses (page)
 ├── OrderHistory.js       # Order history (page)
 ├── PersonaManager.js     # Manage personas (page, vendor only)
+├── verified/             # Verified Artist sub-module
+│   ├── index.js          # Re-exports verified components
+│   ├── verifiedConfig.js # ChecklistController config ($50/year)
+│   ├── VerifiedSubscription.js  # Gate component with permission check
+│   └── VerifiedDashboard.js     # Status dashboard for approved users
 └── admin/
     ├── index.js
     ├── UserList.js       # Admin user list (page)
@@ -384,25 +492,41 @@ users/
     └── PermissionManager.js # Permission management (page)
 ```
 
+**Verified Artist Sub-module** ✅
+- [x] `VerifiedSubscription.js` - gate component with permission check:
+  - Has verified permission → shows `VerifiedDashboard` directly
+  - No permission → shows application flow via `ChecklistController`
+- [x] `VerifiedDashboard.js` - verified status dashboard with global styles
+- [x] `verifiedConfig.js` - configuration for ChecklistController ($50/year tier)
+- [x] Page at `/dashboard/users/verified`
+- [x] Conditional menu label: "Get Verified" (no permission) / "Verified Status" (has permission)
+- [x] Uses legacy backend routes: `/api/subscriptions/verified/*` for application
+
 ### Dashboard Menu Structure (Users Section)
 
 ```javascript
 // In modules/dashboard/config/menuConfig.js
 {
   id: 'users',
-  label: 'Users',
+  label: 'My Account',
   href: '/dashboard/users',
   items: [
     { label: 'My Profile', href: '/dashboard/users/profile' },
     { label: 'Edit Profile', href: '/dashboard/users/profile/edit' },
-    { label: 'My Personas', href: '/dashboard/users/personas', permission: 'vendor' },
+    { label: 'Artist Personas', href: '/dashboard/users/personas', userTypes: ['artist'] },
     { label: 'Email Preferences', href: '/dashboard/users/email' },
     { label: 'Payment Settings', href: '/dashboard/users/payments' },
-    { label: 'Shipping Addresses', href: '/dashboard/users/shipping' },
-    { label: 'Order History', href: '/dashboard/users/orders' },
+    { label: 'Shipping Settings', href: '/dashboard/users/shipping' },
+    // Conditional label: "Get Verified" / "Verified Status" based on verified permission
+    { href: '/dashboard/users/verified', userTypes: ['admin', 'artist'], labelCondition: {...} },
+    // Conditional label: "Apply for Wholesale" / "Wholesale Status" based on wholesale permission
+    { href: '/dashboard/account/wholesale-application', labelCondition: {...} },
     // Admin only
-    { label: 'User Management', href: '/dashboard/users/admin', adminOnly: true },
-    { label: 'Permissions', href: '/dashboard/users/admin/permissions', adminOnly: true },
+    { label: 'Manage Users', href: '/dashboard/users/manage', adminOnly: true },
+    { label: 'Act As...', href: '/dashboard/users/manage?action=impersonate', adminOnly: true },
+    { label: 'All Personas', href: '/dashboard/users/personas/manage', adminOnly: true },
+    { label: 'Manage Commissions', href: '/dashboard/users/commissions', adminOnly: true },
+    { label: 'API Keys', href: '/dashboard/users/api-keys', adminOnly: true },
   ]
 }
 ```
@@ -471,13 +595,17 @@ The Catalog module handles product management including products, categories, us
 catalog/
 ├── index.js              # Module entry point
 ├── routes.js             # v2 RESTful endpoints (/api/v2/catalog/*)
+├── routesCuration.js     # ✅ Product curation routes (/api/v2/catalog/curation/*)
+├── routesWalmart.js      # Walmart connector routes
+├── routesTiktok.js       # TikTok connector routes
 ├── README.md             # Module documentation
 └── services/
     ├── index.js          # Re-exports all services
     ├── product.js        # Product CRUD operations
-    ├── category.js       # Category operations
+    ├── category.js       # ✅ Full category management (CRUD, content, SEO, products)
     ├── collection.js     # User/vendor collections
-    └── importExport.js   # CSV/Excel export, templates
+    ├── importExport.js   # CSV/Excel export, templates
+    └── curation.js       # ✅ Marketplace product curation (sorting into art/crafts)
 ```
 
 ### Frontend Structure
@@ -497,22 +625,36 @@ catalog/
 └── ProductGrid.js        # Grid of products
 ```
 
-**Dashboard Components (`modules/dashboard/components/catalog/`):**
+**Module Components (`modules/catalog/components/`):**
 ```
 catalog/
-├── index.js              # Re-exports components
-├── ProductList.js        # Product listing with filters
-├── CollectionsManager.js # Manage user collections
-├── CatalogImportExport.js # Bulk import/export
-└── product-form/         # Product create/edit form
-    ├── index.js
-    ├── ProductFormContext.js
-    ├── ProductStatusHeader.js
-    └── sections/         # Form sections
+├── index.js              # Module exports
+└── components/
+    ├── index.js              # Re-exports components
+    ├── ProductList.js        # Product listing with filters
+    ├── CollectionsManager.js # Manage user collections
+    ├── CatalogImportExport.js # Bulk import/export
+    ├── CategoryManagement.js # ✅ Admin category management (CRUD, content, SEO, products)
+    ├── VariationSelector.js  # Public product page variation picker (global styles)
+    ├── VariationManager.js   # Product form variation types/values (global styles)
+    ├── VariationBulkEditor.js # Product form bulk-edit variations (global styles; forms.css)
+    ├── addons/               # Marketplace connectors
+    │   ├── index.js
+    │   ├── WalmartConnector.js      # Vendor: Walmart listings
+    │   ├── WalmartConnectorAdmin.js # Admin: Walmart feed management
+    │   ├── TikTokConnector.js       # Vendor: TikTok Shop
+    │   └── TikTokConnectorAdmin.js  # Admin: TikTok feed management
+    └── product-form/         # Product create/edit form
+        ├── index.js
+        ├── ProductFormContext.js
+        ├── ProductStatusHeader.js
+        └── sections/         # Form sections (includes connectors/WalmartSection, TikTokSection)
 ```
+**Pages:** Catalog > Addons: `pages/dashboard/catalog/addons/walmart.js`, `walmart-admin.js`, `tiktok.js`, `tiktok-admin.js`. Catalog > Categories: `pages/dashboard/catalog/categories/index.js` (admin-only). **Menu:** `menuConfig.js` Catalog > Addons > Walmart Connector, Walmart Connector Admin, TikTok Connector, TikTok Connector Admin; Catalog > Categories (admin-only, moved from System menu).
 
 ### API Endpoints
 
+**Products:**
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/v2/catalog/products` | List products |
@@ -520,13 +662,94 @@ catalog/
 | POST | `/api/v2/catalog/products` | Create product |
 | PATCH | `/api/v2/catalog/products/:id` | Update product |
 | DELETE | `/api/v2/catalog/products/:id` | Delete product |
-| GET | `/api/v2/catalog/categories` | List categories |
+| GET | `/api/v2/catalog/public/products` | Public product listing |
+| POST | `/api/v2/catalog/export` | Export products |
+
+**Categories (admin-only for write operations):**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v2/catalog/categories` | List categories (public; format=list\|tree\|flat\|all) |
+| GET | `/api/v2/catalog/categories/:id` | Get category (public) |
+| POST | `/api/v2/catalog/categories` | Create category (admin) |
+| PUT | `/api/v2/catalog/categories/:id` | Update category (admin) |
+| DELETE | `/api/v2/catalog/categories/:id` | Delete category (admin) |
+| GET | `/api/v2/catalog/categories/:id/content` | Get category content (public) |
+| PUT | `/api/v2/catalog/categories/:id/content` | Update category content (admin) |
+| GET | `/api/v2/catalog/categories/:id/seo` | Get category SEO (public) |
+| PUT | `/api/v2/catalog/categories/:id/seo` | Update category SEO (admin) |
+| GET | `/api/v2/catalog/categories/:id/products` | Get products in category (public) |
+| POST | `/api/v2/catalog/categories/:id/products` | Add product to category (admin) |
+| DELETE | `/api/v2/catalog/categories/:id/products/:productId` | Remove product from category (admin) |
+| GET | `/api/v2/catalog/categories/search-products` | Search products for category (admin) |
+| GET | `/api/v2/catalog/categories/search-vendors` | Search vendors for featuring (admin) |
+| GET | `/api/v2/catalog/categories/change-log` | Category change log (admin) |
+| POST | `/api/v2/catalog/categories/upload` | Upload category images (admin) |
+
+**Collections:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
 | GET | `/api/v2/catalog/collections` | List user collections |
 | POST | `/api/v2/catalog/collections` | Create collection |
 | PUT | `/api/v2/catalog/collections/:id` | Update collection |
 | DELETE | `/api/v2/catalog/collections/:id` | Delete collection |
-| POST | `/api/v2/catalog/export` | Export products |
-| GET | `/api/v2/catalog/public/products` | Public product listing |
+
+**Product Curation (admin-only):**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v2/catalog/curation/stats` | Get curation statistics (unsorted/art/crafts counts) |
+| GET | `/api/v2/catalog/curation/products` | List products by category (unsorted/art/crafts) |
+| PUT | `/api/v2/catalog/curation/products/:id/categorize` | Move product to category |
+| PUT | `/api/v2/catalog/curation/products/bulk` | Bulk categorize products |
+| GET | `/api/v2/catalog/curation/log` | Get curation history log |
+
+**Curation Page:** System > Curate (`/dashboard/system/curate`) - Admin-only page for sorting marketplace products into Art and Crafts categories. Uses `ProductCuration` component from `modules/catalog/components/`. Menu notification shows `unsorted_products` count.
+
+### Walmart Connector (Catalog Addon, v2)
+
+Walmart marketplace addon lives under catalog: `/api/v2/catalog/walmart/*`.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v2/catalog/walmart/categories` | Walmart taxonomy (cached) |
+| POST | `/api/v2/catalog/walmart/categories/refresh` | Force refresh taxonomy cache |
+| GET | `/api/v2/catalog/walmart/products` | Vendor's products with Walmart data |
+| GET | `/api/v2/catalog/walmart/products/:id` | Single product Walmart data |
+| POST | `/api/v2/catalog/walmart/products/:id` | Create/update Walmart listing |
+| PUT | `/api/v2/catalog/walmart/products/:id` | Update Walmart listing |
+| DELETE | `/api/v2/catalog/walmart/products/:id` | Remove (60-day cooldown) |
+| GET | `/api/v2/catalog/walmart/allocations` | Inventory allocations |
+| GET | `/api/v2/catalog/walmart/admin/products` | Admin: all vendors (manage_system) |
+| POST | `/api/v2/catalog/walmart/admin/products/:id/activate` | Admin: activate for feed |
+| POST | `/api/v2/catalog/walmart/admin/products/:id/pause` | Admin: pause listing |
+| PUT | `/api/v2/catalog/walmart/admin/products/:id` | Admin: edit title/description/price |
+
+- **Backend:** `api-service/src/modules/catalog/services/walmart.js`, `routesWalmart.js`; mounted at `/walmart` on catalog router.
+- **Frontend:** `lib/catalog` exports `fetchWalmartCategories`, `fetchWalmartProducts`, `saveWalmartProduct`, `removeWalmartProduct`, `fetchWalmartAdminProducts`, `activateWalmartProduct`, `pauseWalmartProduct`, `updateWalmartAdminProduct`. Dashboard: Catalog > Addons > Walmart Connector, Walmart Connector Admin; product form WalmartSection uses v2.
+- **Legacy:** `/api/walmart` (routes/walmart.js) can be removed after verification; all consumers use v2.
+
+### TikTok Connector (Catalog Addon, v2)
+
+TikTok Shop addon lives under catalog: `/api/v2/catalog/tiktok/*`. Artist/vendor connector page plus admin feed management (parallel to Walmart).
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v2/catalog/tiktok/oauth/authorize` | Start OAuth (pending approval) |
+| GET | `/api/v2/catalog/tiktok/oauth/callback` | OAuth callback (redirect) |
+| GET | `/api/v2/catalog/tiktok/shops` | User's TikTok shop connections |
+| GET | `/api/v2/catalog/tiktok/products` | Vendor's products with TikTok data |
+| POST | `/api/v2/catalog/tiktok/products/:productId` | Create/update TikTok product data + allocation |
+| GET | `/api/v2/catalog/tiktok/inventory` | Inventory allocations |
+| POST | `/api/v2/catalog/tiktok/inventory/:productId` | Update single allocation |
+| POST | `/api/v2/catalog/tiktok/allocations/bulk` | Bulk update allocations |
+| GET | `/api/v2/catalog/tiktok/logs` | Sync logs |
+| GET | `/api/v2/catalog/tiktok/admin/products` | Admin: all vendors (manage_system) |
+| POST | `/api/v2/catalog/tiktok/admin/products/:productId/activate` | Admin: activate for feed |
+| POST | `/api/v2/catalog/tiktok/admin/products/:productId/pause` | Admin: pause listing |
+| PUT | `/api/v2/catalog/tiktok/admin/products/:productId` | Admin: edit title/description/price |
+
+- **Backend:** `api-service/src/modules/catalog/services/tiktok.js` (includes `adminListProducts`, `adminActivate`, `adminPause`, `adminUpdateProduct`), `routesTiktok.js`; mounted at `/tiktok` on catalog router.
+- **Frontend:** `lib/catalog` exports `fetchTikTokShops`, `fetchTikTokProducts`, `saveTikTokProduct`, `tiktokOAuthAuthorize`, `fetchTikTokAllocations`, `saveTikTokAllocation`, `bulkTikTokAllocations`, `fetchTikTokLogs`, `fetchTikTokAdminProducts`, `activateTikTokProduct`, `pauseTikTokProduct`, `updateTikTokAdminProduct`. Dashboard: Catalog > Addons > TikTok Connector (artist/vendor), TikTok Connector Admin (admin-only); product form TikTokSection (local state only).
+- **Legacy:** `/api/tiktok` (routes/tiktok.js) can be removed after verification; all consumers use v2.
 
 ### Implementation Status
 
@@ -551,10 +774,25 @@ catalog/
 - [x] ProductCard component
 - [x] ProductGrid component
 
-**Phase 5: Cleanup** (Pending)
-- [ ] Delete old components (`components/dashboard/manage-my-store/`)
-- [ ] Remove old menu items pointing to legacy components
+**Phase 5: Cleanup** (Partial) ✅
+- [x] Delete old `MyProducts.js`, `AddProduct.js`, `CatalogManager.js`
+- [x] Delete old `ManageInventory.js`, `InventoryLog.js`
+- [x] Remove old menu items pointing to legacy components
+- [x] Articles & Blogs moved to Communications; Promotions moved to Business Center (v2)
+- [ ] Delete remaining `manage-my-store/` files (TikTok, Walmart)
 - [ ] Delete legacy route files (after migration period)
+
+**Phase 6: Category Management** ✅ Complete
+- [x] Extended `category.js` service with full CRUD, content, SEO, products
+- [x] Added v2 category routes to `routes.js`
+- [x] Added category API functions to `lib/catalog/api.js`
+- [x] Created `CategoryManagement.js` component in `modules/catalog/components/`
+- [x] Created dashboard page at `/dashboard/catalog/categories`
+- [x] Moved "Categories" from System menu to Catalog menu
+- [x] Deleted old `components/dashboard/manage-system/components/CategoryManagement.js`
+- [x] Deleted old `components/dashboard/manage-system/components/ManageCategories.js`
+- [x] Deleted old `components/dashboard/manage-system/components/CategoryChangeLog.js`
+- [x] Deleted legacy `/api/categories` route file and removed from server.js
 
 ---
 
@@ -662,6 +900,954 @@ lib/csv/
 - [ ] Stop old `csv-worker` PM2 process
 - [ ] Delete `csv-workers/` directory
 - [ ] Remove old `/csv/*` routes from server.js
+
+---
+
+## Commerce Module Specification
+
+The Commerce module handles customer orders, vendor sales management, shipping, returns, and **promotions** (vendor coupons and promotion invitations). Promotions were moved from the old **Manage My Store** section to **Business Center > Promotions**; the dashboard uses v2 endpoints (`/api/v2/commerce/coupons/*`, `/api/v2/commerce/promotions/*`). Legacy `vendor/coupons` and `vendor/promotions` routes remain in `api-service/src/routes/vendor.js` for backward compatibility; new dashboard uses v2 only.
+
+### Backend Structure: `api-service/src/modules/commerce/`
+
+```
+commerce/
+├── index.js              # Module entry point
+├── routes.js             # v2 RESTful endpoints (/api/v2/commerce/*)
+├── routesCoupons.js      # Vendor coupons & promotions (/api/v2/commerce/coupons/*, /promotions/*)
+├── routesWholesale.js    # Wholesale applications (/api/v2/commerce/wholesale/*)
+└── services/
+    ├── index.js          # Re-exports all services
+    ├── orders.js         # Customer order history
+    ├── sales.js          # Vendor order management
+    ├── shipping.js       # Rates, labels, tracking, shipping hub
+    ├── returns.js        # Customer & vendor returns
+    └── wholesale.js      # Wholesale application management
+```
+
+### Frontend Structure
+
+**API Client (`lib/commerce/`):**
+```
+commerce/
+├── index.js              # Re-exports all functions
+└── api.js                # All v2 API calls
+```
+
+**Module Components (`modules/commerce/components/`):**
+```
+commerce/
+├── index.js              # Re-exports components
+├── MyOrders.js           # Customer order history
+├── MySales.js            # Vendor order management
+├── MyApplicants.js       # Promoter: manage applications received (re-exported from applications module)
+├── ShippingHub.js        # Unified shipping dashboard
+├── VendorReturns.js      # Vendor return management
+├── ReturnRequestModal.js # Customer return request
+├── AdminAllOrders.js     # Admin all orders view
+├── AdminReturns.js       # Admin return management (assistance cases, all returns)
+├── PromotionsManagement.js # Coupons & promotion invitations (vendor; Business Center > Promotions)
+│
+├── shipping/             # Shipping Labels sub-module (standalone labels)
+│   ├── index.js          # Re-exports shipping components
+│   ├── shippingLabelsConfig.js  # ChecklistController config
+│   ├── ShippingLabelsSubscription.js  # Gate component using ChecklistController
+│   ├── ShippingLabelsDashboard.js     # Main dashboard (creator + library)
+│   ├── StandaloneLabelCreator.js      # Form to create labels
+│   └── StandaloneLabelLibrary.js      # List of purchased labels
+│
+└── marketplace/          # Marketplace Subscription sub-module (TODO)
+    ├── index.js          # Re-exports marketplace components
+    ├── marketplaceConfig.js  # ChecklistController config
+    ├── MarketplaceSubscription.js  # Gate component
+    ├── MarketplaceApplication.js   # Application form for artists
+    └── AdminMarketplace.js         # Admin approval/rejection interface
+```
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v2/commerce/orders` | Customer order history |
+| GET | `/api/v2/commerce/orders/:id` | Single order details |
+| GET | `/api/v2/commerce/sales` | Vendor orders (sales) |
+| PATCH | `/api/v2/commerce/sales/:itemId/ship` | Update tracking info |
+| GET | `/api/v2/commerce/shipping/rates` | Get shipping rates |
+| GET | `/api/v2/commerce/shipping/labels` | Vendor's shipping labels |
+| POST | `/api/v2/commerce/shipping/labels` | Purchase shipping label |
+| POST | `/api/v2/commerce/shipping/labels/:id/cancel` | Cancel label |
+| GET | `/api/v2/commerce/shipping/subscription` | Shipping subscription status |
+| GET | `/api/v2/commerce/shipping/all-labels` | All labels (order + standalone) |
+| GET | `/api/v2/commerce/shipping/stats` | Label statistics |
+| GET | `/api/v2/commerce/returns` | Customer return history |
+| POST | `/api/v2/commerce/returns` | Create return request |
+| GET | `/api/v2/commerce/returns/vendor` | Vendor's returns |
+| POST | `/api/v2/commerce/returns/:id/vendor-message` | Add vendor message |
+| POST | `/api/v2/commerce/returns/:id/receive` | Mark return received |
+| GET | `/api/v2/commerce/coupons/my` | Vendor's coupons |
+| POST | `/api/v2/commerce/coupons` | Create coupon |
+| PUT | `/api/v2/commerce/coupons/:id` | Update coupon (incl. toggle active) |
+| DELETE | `/api/v2/commerce/coupons/:id` | Delete coupon |
+| GET | `/api/v2/commerce/coupons/products` | Vendor's products (for coupon scope) |
+| GET | `/api/v2/commerce/coupons/:id/analytics` | Coupon usage analytics |
+| GET | `/api/v2/commerce/promotions/invitations` | Vendor's promotion invitations |
+| POST | `/api/v2/commerce/promotions/invitations/:id/respond` | Accept/reject invitation |
+| GET | `/api/v2/commerce/wholesale/applications` | Admin: wholesale applications |
+| GET | `/api/v2/commerce/wholesale/applications/:id` | Admin: single application |
+| PUT | `/api/v2/commerce/wholesale/applications/:id/approve` | Admin: approve application |
+| PUT | `/api/v2/commerce/wholesale/applications/:id/deny` | Admin: deny application |
+| GET | `/api/v2/commerce/wholesale/stats` | Admin: application statistics |
+| POST | `/api/v2/commerce/wholesale/apply` | Customer: submit application |
+| GET | `/api/v2/commerce/wholesale/my-status` | Customer: application status |
+
+### Implementation Status
+
+**Phase 1-4: Complete** ✅
+- [x] Backend services and routes
+- [x] Frontend API client
+- [x] Dashboard components
+- [x] Menu integration under "Business Center"
+
+**Phase 5: Cleanup** ✅
+- [x] Delete old `ManageOrders.js`
+- [x] Delete old `MyOrders.js`
+- [x] Update old menu to redirect
+
+**Shipping Labels Sub-module** ✅
+- [x] Migrated from subscriptions to `modules/commerce/components/shipping/`
+- [x] Added v2 API functions to `lib/commerce/api.js`
+- [x] Added backend routes to `api-service/src/modules/commerce/routes.js`
+- [x] Created page at `/dashboard/commerce/shipping-labels`
+- [x] Menu entry under "Business Center > Shipping"
+
+**Marketplace Sub-module** ✅
+- [x] Migrated from subscriptions to `modules/commerce/components/marketplace/`
+- [x] `MarketplaceSubscription.js` - gate component with permission check:
+  - Has marketplace permission → shows `MarketplaceDashboard` directly
+  - No permission → shows application flow via `ChecklistController`
+- [x] `MarketplaceDashboard.js` - approved seller dashboard with global styles
+- [x] `AdminMarketplace.js` - combined admin interface for Marketplace, Verified, AND Wholesale applications:
+  - Top-level tabs: "🏪 Marketplace" | "✓ Verified" | "🏢 Wholesale"
+  - Status filter tabs: Pending | Approved | Denied
+  - Review modal with applicant info, work description, jury media (marketplace/verified) or business details (wholesale)
+  - Approve/Deny actions with permission granting
+  - Revoke access functionality
+- [x] `marketplaceConfig.js` - configuration for ChecklistController
+- [x] Artist page at `/dashboard/commerce/marketplace`
+- [x] Admin page at `/dashboard/commerce/marketplace-applications` (handles both types)
+- [x] Conditional menu label: "Join the Marketplace" (no permission) / "Marketplace Settings" (has permission)
+- [x] Admin menu: "Marketplace Applications" under Business Center
+- [x] Uses legacy backend routes:
+  - Marketplace: `/api/admin/marketplace/applications/*`
+  - Verified: `/api/admin/verified/applications/*`
+
+**Wholesale Applications Sub-module** ✅
+- [x] v2 API at `/api/v2/commerce/wholesale/*` (services/wholesale.js, routesWholesale.js)
+- [x] Wholesale tab added to AdminMarketplace component (admin review interface)
+- [x] Customer application page at `/dashboard/account/wholesale-application`
+  - Shows application status (pending/approved/denied)
+  - Full business application form using global styles
+  - Uses v2 API for submission and status check
+- [x] Menu entry: My Account > "Apply for Wholesale" / "Wholesale Status" (conditional label)
+- [x] Deleted old `components/dashboard/admin/components/WholesaleApplications.js`
+- [x] Old AdminMenu wholesale slide-in removed (redirects to marketplace-applications?type=wholesale)
+
+**Admin all-orders view** ✅
+- [x] `GET /api/v2/commerce/admin/orders` (requireRole('admin'))
+- [x] `orders.getAllOrders()` in commerce services
+- [x] `fetchAdminOrders()` in lib/commerce
+- [x] `AdminAllOrders.js` component; page at `/dashboard/commerce/all-orders`
+- [x] Menu: Business Center → All Orders (adminOnly); `/dashboard/commerce/admin` redirects to all-orders
+
+---
+
+## Subscriptions Module Specification
+
+The Subscriptions module manages subscription plans (Website, Shipping, Verified, Marketplace) and add-ons.
+
+### Backend Structure
+
+Legacy routes at `api-service/src/routes/subscriptions/` (shipping.js, verified.js, marketplace.js, wholesale.js) remain mounted for backward compatibility. Wholesale applications now have a v2 API at `/api/v2/commerce/wholesale/*` used by the admin interface (AdminMarketplace Wholesale tab) and customer application page.
+
+### Frontend Structure
+
+**API Client (`lib/subscriptions/`):**
+```
+subscriptions/
+├── index.js              # Re-exports all functions
+└── api.js                # All subscription API calls:
+                          # - getAllSubscriptions()
+                          # - getShippingSubscription(), cancelShippingSubscription()
+                          # - getVerifiedSubscription(), selectVerifiedTier(), cancelVerifiedSubscription()
+                          # - getAvailableAddons(), activateAddon(), deactivateAddon()
+```
+
+**Module Components (`modules/subscriptions/components/`):**
+```
+subscriptions/
+├── index.js              # Re-exports components
+├── SubscriptionOverview.js  # Main management table (replaces ManageSubscriptions slide-in)
+├── SubscriptionCard.js      # Table row component
+└── ConnectBalancePreference.js # Payment method preference
+```
+
+### Dashboard Pages
+
+| Path | Component | Description |
+|------|-----------|-------------|
+| `/dashboard/subscriptions` | SubscriptionOverview | Main subscription management |
+
+### Menu Structure
+
+```javascript
+{
+  id: 'subscriptions',
+  label: 'Subscriptions',
+  href: '/dashboard/subscriptions',
+  icon: 'fa-credit-card',
+  userTypes: ['admin', 'artist', 'promoter'],
+  items: [
+    { label: 'Manage', href: '/dashboard/subscriptions' },
+  ]
+}
+```
+
+### Implementation Status
+
+**Phase 1: Frontend Module** ✅ Complete
+- [x] Create `lib/subscriptions/api.js` — getShippingSubscription, updateShippingPreferences
+- [x] Create `lib/subscriptions/index.js` — re-exports api.js
+- [x] Create `modules/subscriptions/components/SubscriptionOverview.js` — unified subscriptions + addons table
+- [x] Create `modules/subscriptions/components/SubscriptionCard.js` — table row component
+- [x] Create `modules/subscriptions/components/ConnectBalancePreference.js` — Connect balance toggle
+- [x] Create `/dashboard/subscriptions` page with SubscriptionOverview
+
+**Phase 2: Migrate from Slide-ins** ✅ Complete
+- [x] ManageSubscriptions → `/dashboard/subscriptions` (SubscriptionOverview)
+- [x] Remove MySubscriptionsMenu from old sidebar
+- [x] Shipping Labels → moved to Commerce module (`/dashboard/commerce/shipping-labels`)
+- [x] Marketplace → moved to Commerce module (`/dashboard/commerce/marketplace`)
+- [ ] Verified Artist still uses slide-in (page wrapper at `/dashboard/subscriptions/verified`)
+
+**Phase 3: Cleanup** ✅ Complete
+- [x] Delete `MySubscriptionsMenu.js`
+- [x] Delete `ManageSubscriptions.js` (replaced by SubscriptionOverview)
+- [x] Delete `WebsitesSubscription.js` (websites use v2 gate)
+- [x] Shipping Labels migrated to `modules/commerce/components/shipping/` sub-module
+- [x] Marketplace migrated to `modules/commerce/components/marketplace/` sub-module
+- [ ] Migrate Verified Artist subscription to dedicated page
+
+---
+
+## Finances Module Specification
+
+The Finances module handles vendor financial data including balance, transactions, payouts, earnings metrics, commission management, and admin refund processing.
+
+### Backend Structure: `api-service/src/modules/finances/`
+
+```
+finances/
+├── index.js              # Module entry point
+├── routes.js             # v2 RESTful endpoints (/api/v2/finances/*)
+├── routesRefunds.js      # Admin payment/refund routes (/api/v2/finances/admin/*)
+└── services/
+    ├── index.js          # Balance, transactions, payouts, earnings, commissions
+    └── refunds.js        # Admin payment listing and refund processing
+```
+
+### Frontend Structure
+
+**API Client (`lib/finances/`):**
+```
+finances/
+├── index.js              # Re-exports all functions
+└── api.js                # fetchBalance, fetchTransactions, fetchPayouts, fetchEarnings,
+                          # fetchCommissionRates, createCommissionRate, updateCommissionRate,
+                          # fetchAdminPayments, processAdminRefund, fetchAdminRefunds
+```
+
+**Module Components (`modules/finances/components/`):**
+```
+finances/
+├── index.js              # Re-exports components
+├── PayoutsEarnings.js    # Balance overview, earnings, payout history
+├── TransactionHistory.js # Filterable transaction table
+└── AdminRefunds.js       # Admin payment listing and refund processing (all payment types)
+```
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v2/finances/balance` | Current balance & financial overview |
+| GET | `/api/v2/finances/earnings` | This month's earnings metrics |
+| GET | `/api/v2/finances/transactions` | Transaction history with filters |
+| GET | `/api/v2/finances/payouts` | Payout history |
+| GET | `/api/v2/finances/commission-rates` | Admin: List all commission rates |
+| POST | `/api/v2/finances/commission-rates` | Admin: Create commission rate |
+| PUT | `/api/v2/finances/commission-rates/:id` | Admin: Update commission rate |
+| PUT | `/api/v2/finances/commission-rates/bulk` | Admin: Bulk update commission rates |
+| GET | `/api/v2/finances/admin/payments` | Admin: List all payments (90 days, filterable) |
+| GET | `/api/v2/finances/admin/payments/:type/:id` | Admin: Get payment details |
+| POST | `/api/v2/finances/admin/payments/:type/:id/refund` | Admin: Process refund |
+| GET | `/api/v2/finances/admin/refunds` | Admin: List processed refunds |
+
+### Dashboard Pages
+
+| Page | Path | Description |
+|------|------|-------------|
+| Admin Refunds | `/dashboard/service/refunds` | Unified refund interface for all payment types |
+
+### Admin Refunds Feature
+
+The Admin Refunds system provides a unified interface for processing refunds across all payment types:
+
+**Payment Types Supported:**
+- **Checkout** (orders): Product purchases
+- **App Fee**: Event application fees
+- **Booth Fee**: Event booth payments
+- **Subscription**: Subscription charges
+
+**Features:**
+- Lists all payments from last 90 days (configurable to 30/60/90/180/365 days)
+- Filter by payment type
+- Search by customer name, email, or payment ID
+- Shows original amount, already refunded, and eligible refund balance
+- Partial refunds supported (validates against eligible amount)
+- Two tabs: "Eligible Payments" and "Refunds Processed"
+- Refund history with stats (total refunds, total amount in last 90 days)
+
+**Database:**
+- New `stripe_refunds` table tracks all refunds centrally
+- Migration at `database/migrations/add_stripe_refunds_table.sql`
+
+### Implementation Status
+
+**Phase 1-4: Complete** ✅
+- [x] Backend services and routes
+- [x] Frontend API client
+- [x] Dashboard components
+- [x] Menu integration under "Business Center > Payouts & Earnings / Transactions"
+
+**Phase 5: Cleanup** ✅
+- [x] Delete old `MyFinancesMenu.js`
+- [x] Delete old `PayoutsEarnings.js`
+- [x] Delete old `TransactionHistory.js`
+- [x] Delete `components/dashboard/my-finances/` directory
+
+**Phase 6: Admin Refunds** ✅
+- [x] Backend services for payment listing across all types
+- [x] Backend routes for admin refund processing
+- [x] `stripe_refunds` table migration for centralized refund tracking
+- [x] AdminRefunds component with two tabs
+- [x] Dashboard page at `/dashboard/service/refunds`
+- [x] Menu entry under Service > Refunds
+- [x] Old ApplicationRefunds component deleted
+
+---
+
+## Communications Module Specification
+
+The Communications module handles support tickets for both users and admins.
+
+### Backend Structure: `api-service/src/modules/communications/`
+
+```
+communications/
+├── index.js              # Module entry point
+├── routes.js             # v2 RESTful endpoints (/api/v2/communications/*)
+└── services/
+    ├── index.js          # Re-exports all services
+    └── tickets.js        # User & admin ticket management
+```
+
+### Frontend Structure
+
+**API Client (`lib/communications/`):**
+```
+communications/
+├── index.js              # Re-exports all functions
+└── api.js                # User ticket functions + admin functions
+```
+
+**Module Components (`modules/communications/components/`):**
+```
+communications/
+├── index.js              # Re-exports components
+├── MyTickets.js          # User's ticket list with filters
+├── TicketDetail.js       # Single ticket view with messaging
+└── AdminTickets.js       # Admin ticket management
+```
+
+### API Endpoints
+
+**User Endpoints:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v2/communications/tickets` | User's tickets |
+| GET | `/api/v2/communications/tickets/notifications` | Notification counts |
+| POST | `/api/v2/communications/tickets` | Create ticket |
+| GET | `/api/v2/communications/tickets/:id` | Single ticket with messages |
+| POST | `/api/v2/communications/tickets/:id/messages` | Add message |
+| POST | `/api/v2/communications/tickets/:id/close` | Close ticket |
+
+**Admin Endpoints:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v2/communications/admin/tickets` | All tickets with filters |
+| GET | `/api/v2/communications/admin/tickets/:id` | Ticket with internal notes |
+| POST | `/api/v2/communications/admin/tickets/:id/messages` | Admin reply/note |
+| PATCH | `/api/v2/communications/admin/tickets/:id` | Update status/priority |
+
+### Dashboard Pages
+
+| Path | Component | Description |
+|------|-----------|-------------|
+| `/dashboard/communications/tickets` | MyTickets | User's ticket list |
+| `/dashboard/communications/tickets/[id]` | TicketDetail | Single ticket view |
+| `/dashboard/communications/admin` | AdminTickets | Admin management |
+
+### Menu Structure
+
+```javascript
+{
+  id: 'communications',
+  label: 'Communications',
+  href: '/dashboard/communications',
+  items: [
+    { label: 'Help Center', href: 'https://staging.brakebee.com/help', external: true },
+    { label: 'My Tickets', href: '/dashboard/communications/tickets' },
+    { label: 'All Tickets', href: '/dashboard/communications/admin', adminOnly: true },
+    { label: 'Articles & Blogs', href: '/dashboard/communications/articles', permission: 'sites' },
+  ]
+}
+```
+
+### Implementation Status
+
+**Phase 1-4: Complete** ✅
+- [x] Backend services and routes
+- [x] Frontend API client
+- [x] Dashboard components (MyTickets, TicketDetail, AdminTickets)
+- [x] Dashboard pages
+- [x] Menu integration with external Help Center link
+
+**Phase 5: Cleanup** ✅
+- [x] Delete old `MyAccountMenu.js`
+- [x] Delete `components/dashboard/my-account/` directory
+- [x] Update old admin SupportTickets slidein to redirect
+
+---
+
+## System Module Specification
+
+The System module handles site-wide administrative functions including homepage management and system settings.
+
+### Backend Structure: `api-service/src/modules/system/`
+
+```
+system/
+├── index.js              # Module entry point
+├── routes.js             # v2 RESTful endpoints (/api/v2/system/*)
+└── services/
+    ├── index.js          # Re-exports all services
+    ├── hero.js           # Hero settings (text, videos, CTA)
+    └── announcements.js  # Site announcements management
+```
+
+### Frontend Structure
+
+**API Client (`lib/system/`):**
+```
+system/
+├── index.js              # Re-exports all functions
+└── api.js                # Hero + Announcements API functions
+```
+
+**Module Components (`modules/system/components/`):**
+```
+system/
+├── index.js                    # Re-exports all components
+└── components/
+    ├── index.js                # Re-exports components
+    └── homepage/
+        ├── index.js            # Re-exports homepage components
+        ├── Homepage.js         # Combined tabbed interface
+        ├── HeroSettings.js     # Homepage hero management
+        └── Announcements.js    # Site announcements management
+```
+
+### API Endpoints (v2)
+
+**Hero Settings:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v2/system/hero` | Get hero configuration |
+| PUT | `/api/v2/system/hero` | Save hero text and video config |
+| POST | `/api/v2/system/hero/videos` | Upload hero videos |
+| DELETE | `/api/v2/system/hero/videos/:videoId` | Delete a hero video |
+
+**Announcements:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v2/system/announcements` | List all announcements (admin) |
+| POST | `/api/v2/system/announcements` | Create announcement |
+| PUT | `/api/v2/system/announcements/:id` | Update announcement |
+| DELETE | `/api/v2/system/announcements/:id` | Delete announcement |
+| GET | `/api/v2/system/announcements/:id/stats` | Announcement statistics |
+| GET | `/api/v2/system/announcements/pending` | User's pending announcements |
+| GET | `/api/v2/system/announcements/check-pending` | Check pending status |
+| POST | `/api/v2/system/announcements/:id/acknowledge` | Acknowledge announcement |
+| POST | `/api/v2/system/announcements/:id/remind-later` | Set reminder |
+| GET | `/api/v2/system/terms` | List all terms versions |
+| GET | `/api/v2/system/terms/stats` | Terms statistics |
+| GET | `/api/v2/system/terms/:id` | Get single terms version |
+| POST | `/api/v2/system/terms` | Create terms version |
+| PUT | `/api/v2/system/terms/:id` | Update terms version |
+| PUT | `/api/v2/system/terms/:id/set-current` | Set terms as current |
+| DELETE | `/api/v2/system/terms/:id` | Delete terms version |
+
+### Dashboard Pages
+
+| Path | Component | Description |
+|------|-----------|-------------|
+| `/dashboard/system/homepage` | Homepage | Combined hero & announcements management |
+| `/dashboard/system/email` | EmailCore | Email templates, logs, queue, bounces |
+| `/dashboard/system/terms` | TermsCore | Terms & conditions version management |
+
+### Menu Structure
+
+```javascript
+{
+  id: 'service',
+  label: 'Service',
+  href: '/dashboard/service',
+  icon: 'fa-cog',
+  adminOnly: true,
+  items: [
+    { label: 'Homepage', href: '/dashboard/service/homepage', adminOnly: true },
+    { label: 'Admin Event Review', href: '/dashboard/service/event-reviews', adminOnly: true },
+  ]
+}
+```
+
+### Implementation Status
+
+**Phase 1: Backend v2 Module** ✅
+- [x] Backend module structure (`api-service/src/modules/system/`)
+- [x] Hero service with file-based storage
+- [x] Announcements service with database operations
+- [x] v2 routes registered at `/api/v2/system/*`
+- [x] CSRF protection applied
+
+**Phase 2: Frontend v2 Integration** ✅
+- [x] Frontend API client (`lib/system/api.js`)
+- [x] HeroSettings component using v2 API
+- [x] Announcements component using v2 API
+- [x] Combined Homepage tabbed interface
+- [x] Service > Homepage menu entry
+- [x] Removed duplicate Announcements entry from System menu
+
+**Phase 3: Terms & Conditions** ✅
+- [x] Backend service (`api-service/src/modules/system/services/terms.js`)
+- [x] v2 routes at `/api/v2/system/terms/*`
+- [x] Frontend API client (`lib/system/api.js`)
+- [x] TermsCore component (`modules/system/components/terms/`)
+- [x] Dashboard page at `/dashboard/system/terms`
+- [x] Menu integration under "System"
+- [x] Old ManageTermsCore deleted
+
+**Phase 4: Future System Components** ⏳
+- [ ] Categories management (move from manage-system)
+
+*Note: Maintenance Mode was removed from staging (not needed for staging workflow).*
+
+---
+
+## Email Module Specification
+
+The Email module provides admin-only email system management including template editing, email history/logs, send previews, resend capability, queue management, and bounce tracking.
+
+### Backend Structure: `api-service/src/modules/email/`
+
+```
+email/
+├── index.js              # Module entry point
+├── routes.js             # v2 RESTful endpoints (/api/v2/email/*)
+└── services/
+    ├── index.js          # Re-exports all services
+    ├── templates.js      # Template CRUD, stats
+    └── logs.js           # Email logs, stats, recent activity
+```
+
+### Frontend Structure
+
+**API Client (`lib/email/`):**
+```
+email/
+├── index.js              # Re-exports all functions
+└── api.js                # Templates, logs, send preview, resend, queue, bounces
+```
+
+**Module Components (`modules/system/components/email/`):**
+```
+email/
+├── index.js              # Module exports
+├── EmailCore.js          # Main tabbed interface
+├── OverviewTab.js        # Stats, queue status, recent activity
+├── TemplatesTab.js       # Template list, edit (HTML), send preview
+├── LogsTab.js            # Searchable history, filter, pagination, resend
+├── QueueTab.js           # Queue stats, manual processing
+└── BouncesTab.js         # Bounce data, unblacklist domains
+```
+
+### Database Tables
+
+**`email_templates`:**
+- `id`, `template_key`, `name`, `priority_level`, `can_compile`
+- `is_transactional`, `subject_template`, `body_template`, `layout_key`, `created_at`
+
+**`email_log`:**
+- `id`, `user_id`, `email_address`, `template_id`, `subject`
+- `sent_at`, `status` (sent/failed/bounced), `attempt_count`, `error_message`, `smtp_response`
+
+**`email_queue`:**
+- Queue entries for scheduled/delayed email sending
+
+**`email_tracking`:**
+- Bounce tracking, hard/soft bounces, blacklist status
+
+### v2 API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v2/email/stats` | System statistics |
+| GET | `/api/v2/email/recent` | Recent email activity |
+| GET | `/api/v2/email/templates` | List all templates |
+| GET | `/api/v2/email/templates/:id` | Get template with stats |
+| PUT | `/api/v2/email/templates/:id` | Update template |
+| POST | `/api/v2/email/templates` | Create template |
+| DELETE | `/api/v2/email/templates/:id` | Delete template |
+| GET | `/api/v2/email/layouts` | Available layouts |
+| GET | `/api/v2/email/logs` | Searchable logs (paginated) |
+| GET | `/api/v2/email/logs/:id` | Single log entry |
+| POST | `/api/v2/email/send-preview` | Send preview email |
+| POST | `/api/v2/email/resend/:id` | Resend logged email |
+| POST | `/api/v2/email/test` | Send test with template key |
+| GET | `/api/v2/email/queue` | Queue status |
+| POST | `/api/v2/email/queue/process` | Process queue manually |
+| GET | `/api/v2/email/bounces` | Bounce data |
+| POST | `/api/v2/email/bounces/unblacklist` | Remove domain from blacklist |
+
+### Dashboard Integration
+
+**Menu Location:** System > Email Management
+
+**Page Route:** `/dashboard/system/email`
+
+### Legacy Routes
+
+- `/emails/preferences` - User email preferences (stays - different concern)
+- Old `ManageEmailCore` slide-in redirects to new page
+
+### Implementation Status
+
+**Phase 1: Backend v2 Module** ✅
+- [x] Backend module structure (`api-service/src/modules/email/`)
+- [x] Templates service (CRUD, stats)
+- [x] Logs service (paginated, search, filters)
+- [x] v2 routes registered at `/api/v2/email/*`
+- [x] CSRF protection applied
+
+**Phase 2: Frontend v2 Integration** ✅
+- [x] Frontend API client (`lib/email/api.js`)
+- [x] EmailCore tabbed interface
+- [x] OverviewTab with stats
+- [x] TemplatesTab with editing and preview
+- [x] LogsTab with search, filter, pagination, resend
+- [x] QueueTab and BouncesTab
+
+**Phase 3: Menu & Cleanup** ✅
+- [x] Menu integration under "System"
+- [x] Dashboard page at `/dashboard/system/email`
+- [x] Old slide-in redirects to new page
+
+---
+
+## Marketing Module Specification
+
+The Marketing module handles user-submitted promotional content. Users can upload images and videos that may be used for marketing purposes, and admins can review and manage all submissions.
+
+### Backend Structure: `api-service/src/modules/marketing/`
+
+```
+marketing/
+├── routes.js             # v2 RESTful endpoints (/api/v2/marketing/*)
+└── services/
+    └── content.js        # Submission management, media handling
+```
+
+### Frontend Structure
+
+**API Client (`lib/marketing/`):**
+```
+marketing/
+├── index.js              # Re-exports all functions
+└── api.js                # All v2 API calls
+```
+
+**Module Components (`modules/marketing/components/`):**
+```
+marketing/
+├── index.js              # Module exports
+├── ShareContent.js       # User submission form + history
+├── AdminMediaLibrary.js  # Admin review interface
+└── AdminPromotions.js    # Admin promotions, site-wide sales, coupons (admin only)
+```
+
+### Database Tables
+
+**`marketing_content_submissions`:**
+- `id`, `user_id`, `email`, `first_name`, `last_name`, `business_name`
+- `ip_address`, `description`, `consent_given`, `admin_notes`
+- `status` (pending/reviewed/approved/rejected), `created_at`, `updated_at`
+
+**`marketing_content_media`:**
+- `id`, `submission_id`, `image_path`, `original_filename`
+- `media_type` (image/video), `mime_type`, `file_size`, `created_at`
+
+### v2 API Endpoints
+
+**User Endpoints:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v2/marketing/user-info` | Get user info for form prefill |
+| POST | `/api/v2/marketing/submit` | Submit content (up to 5 files) |
+| GET | `/api/v2/marketing/my-submissions` | User's submission history |
+
+**Admin Endpoints:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v2/marketing/admin/submissions` | All submissions with filters |
+| GET | `/api/v2/marketing/admin/submissions/:id` | Single submission details |
+| PUT | `/api/v2/marketing/admin/submissions/:id/notes` | Update in-house notes |
+| PUT | `/api/v2/marketing/admin/submissions/:id/status` | Update status |
+| DELETE | `/api/v2/marketing/admin/submissions/:id` | Delete submission |
+
+### Dashboard Pages
+
+- **Marketing > Share Content** (`/dashboard/marketing/share-content`) - All users
+  - Read-only user info (email, name, business name if artist/promoter)
+  - File upload (up to 5 images/videos per submission)
+  - Description textarea
+  - Required consent checkbox (pre-checked)
+  - User's previous submissions displayed below
+
+- **Marketing > User Media Library** (`/dashboard/marketing/media-library`) - Admin only
+  - All submissions with thumbnails
+  - Preview and download buttons
+  - Editable in-house notes per submission
+  - Status management (pending → reviewed → approved/rejected)
+  - Delete functionality
+
+### Menu Configuration
+
+```javascript
+{
+  id: 'marketing',
+  label: 'Marketing',
+  href: '/dashboard/marketing',
+  icon: 'fa-bullhorn',
+  items: [
+    { label: 'Share Content', href: '/dashboard/marketing/share-content' },
+    { label: 'User Media Library', href: '/dashboard/marketing/media-library', adminOnly: true },
+    { label: 'Promotions', href: '/dashboard/marketing/promotions', permissions: ['vendor', 'sites'] },
+    { label: 'Admin Promotions', href: '/dashboard/marketing/admin-promotions', adminOnly: true },
+  ]
+}
+```
+
+### Implementation Status
+
+**Phase 1: Database** ✅
+- [x] Migration file (`database/migrations/002_marketing_content.sql`)
+- [x] Tables created: `marketing_content_submissions`, `marketing_content_media`
+
+**Phase 2: Backend v2 Module** ✅
+- [x] Routes registered at `/api/v2/marketing/*`
+- [x] Content service with CRUD operations
+- [x] Multer config updated for marketing uploads (`/temp_images/marketing/`)
+- [x] Images registered in `pending_images` for processing
+- [x] CSRF protection applied
+
+**Phase 3: Frontend v2 Integration** ✅
+- [x] Frontend API client (`lib/marketing/api.js`)
+- [x] ShareContent component (user submission form)
+- [x] AdminMediaLibrary component (admin review)
+- [x] Dashboard pages created
+- [x] Menu entries added
+
+**Phase 4: Promotions Migration** ✅
+- [x] Migrated Admin Promotions from old AdminMenu slide-in to Marketing module
+- [x] Created `AdminPromotions.js` component (collaborative promotions, site-wide sales, admin coupons)
+- [x] Created dashboard page at `/dashboard/marketing/admin-promotions` (admin-only)
+- [x] Migrated vendor Promotions (coupons, promotion invitations) from Business Center to Marketing
+- [x] Created dashboard page at `/dashboard/marketing/promotions`
+- [x] Deleted old `components/dashboard/admin/components/AdminPromotions.js`
+- [x] Menu entries: Marketing > Promotions (vendors), Marketing > Admin Promotions (admin)
+- [x] Admin Promotions uses legacy `/api/admin/*` endpoints (backend v2 migration TBD)
+
+---
+
+## Content Module (Articles & Blogs)
+
+Articles and help content are served by the **content** module. The dashboard entry is **Communications > Articles & Blogs** (sites permission).
+
+### Backend
+
+- **Module:** `api-service/src/modules/content/` — mounts legacy `routes/articles.js` at `/api/v2/content/articles/*`.
+- **List behavior:** Authenticated non-admin users see only their own articles (scope=mine). Admins see all articles by default; optional `?scope=mine` to filter to own. Unauthenticated list returns published only.
+
+### Frontend
+
+- **API client:** `lib/content/api.js` — fetchArticles, createArticle, updateArticle, deleteArticle, fetchTopics, fetchTags, fetchSeries, uploadArticleImages (all v2).
+- **Dashboard:** `pages/dashboard/communications/articles/index.js` → `modules/communications/components/articles/ArticlesManagement.js` (global styles, v2 API).
+- **Removed:** Old Manage My Store > Articles & Pages and Admin > Articles & Pages slide-ins; `MyArticles.js`, `ManageArticles.js`, `pages/articles/components/ArticleManagement.js` deleted. The entire **Manage My Store** sidebar section has been removed from the old dashboard; `ManageMyStoreMenu.js` deleted. All former items live in the new sidebar: Articles & Blogs (Communications), Promotions (Business Center), My Sales (Business Center).
+
+### Websites Dashboard (New Menu)
+
+Website management is available under **Dashboard > Websites** (sites permission). The list from the old subscription flow is now a card-based **My Sites** at `/dashboard/websites/mine` with **Visit**, **Manage**, **Deactivate**; **Activate** is on the manage page only. **Payment Settings** at `/dashboard/websites/payments` uses `StripeCardSetup` (stays in `components/stripe/`). **Add Site** at `/dashboard/websites/new`. Manage page tabs: Site Settings, Custom Domain, Customize, Templates, Addons — implemented by **CustomDomainSection** and **SiteCustomizer**, which were **moved** from `components/dashboard/my-subscriptions/components/website-components/` into `modules/websites/components/`. **Old sections removed:** the large `WebsitesDashboard.js` (subscriptions/dashboards) was deleted; post-checklist success now uses thin `WebsitesDashboardSuccess.js` (link to My Sites). Old `CustomDomainSection.js` and `SiteCustomizer.js` under website-components were deleted.
+
+**Subscription gate (tier/terms/card):** All website menu pages (My Sites, Payment Settings, Add Site, Manage site) are wrapped in **WebsitesSubscriptionGate**. If the user has not completed the website subscription (tier selected, terms accepted, card on file), the gate shows the same tier/terms/card flow in place (ChecklistController with shared config from `websitesSubscriptionConfig.js`). If complete, the requested page is shown. Built once: shared config (`getWebsitesSubscriptionConfig`, `websitesSubscriptionTiers`) is used by the slide-in **WebsitesSubscription** and by **WebsitesSubscriptionGate** on every website page. Gate and ChecklistController use v2 subscription endpoints when `config.subscriptionApiBase` is set (`api/v2/websites/subscription/my`, select-tier, terms-check, terms-accept). **Tiers UI:** **PricingTiers** lives in `modules/websites/components/PricingTiers.js`; uses `websitesSubscriptionTiers` and v2 selectWebsitesTier; optional addon selection; "Continue" saves tier and triggers parent/onSubscriptionSuccess so the gate shows terms and card steps.
+
+### Websites Implementation Status
+
+**Phase 5: Complete** ✅ — Legacy routes disabled, all consumers use v2.
+
+**Backend v2 module** (`api-service/src/modules/websites/`) at `/api/v2/websites`:
+- **Sites:** CRUD, customizations, templates, addons, user categories, discounts, enforce-limits
+- **Subscription:** status, select-tier, terms-check, terms-accept, change-tier, cancel
+- **Domains:** status, check-availability, start-validation, retry, cancel, remove, admin-list
+- **Public resolve:** subdomain, custom-domain, products, articles, categories (no auth)
+
+**Frontend API client** (`lib/websites/api.js`) — All functions use v2:
+- Sites: fetchMySites, createSite, updateSite, deleteSite, fetchSiteCustomizations, updateSiteCustomizations
+- Templates: fetchTemplates, fetchTemplate, applyTemplate, createTemplate
+- Addons: fetchAddons, fetchMySiteAddons, enableSiteAddon, disableSiteAddon, enableUserAddon, disableUserAddon
+- Categories: fetchUserCategories, createUserCategory, updateUserCategory, deleteUserCategory
+- Discounts: calculateDiscounts, createDiscount, deleteDiscount
+- Domains: fetchDomainStatus, checkDomainAvailability, startDomainValidation, retryDomainValidation, cancelDomainValidation, removeCustomDomain, fetchAllDomains
+- Subscription: fetchWebsitesSubscription, fetchWebsitesSubscriptionStatus, selectWebsitesTier, fetchWebsitesTermsCheck, acceptWebsitesTerms, changeWebsitesTier, cancelWebsitesSubscription
+- Public: resolveSubdomain, resolveSubdomainProducts, resolveSubdomainArticles, resolveSubdomainCategories, checkSubdomainAvailability, resolveCustomDomain, fetchSiteAddonsPublic
+
+**Legacy routes disabled** (commented out in `server.js`):
+- `/api/sites` — use `/api/v2/websites/sites/*`
+- `/api/domains` — use `/api/v2/websites/domains/*`
+- `/api/subscriptions/websites` — deleted, use `/api/v2/websites/subscription/*`
+
+**Files safe to delete:**
+- `api-service/src/routes/sites.js`
+- `api-service/src/routes/domains.js`
+- `api-service/src/routes/subscriptions/websites.js` (already deleted)
+
+---
+
+## Events Dashboard (Current State)
+
+Events dashboard is migrated to the new sidebar and page-based layout. Backend uses v2 where available; some pages still call legacy APIs (e.g. custom events, applications list for "Events I Own").
+
+### Menu and pages
+
+| Menu item | Path | Audience | Component / behavior |
+|-----------|------|----------|----------------------|
+| My Events | `/dashboard/events/mine` | All (events-capable) | **MyEvents**: promoters = events they created; artists = calendar (applied + custom events). Replaces old My Calendar. |
+| Events I Own | `/dashboard/events/own` | Promoters, admin | Legacy **EventsIOwn**: current (draft+active) vs archived tabs, review links, edit/view/delete. |
+| My Applications | `/dashboard/events/applications` | Artists, admin | **MyApplications** (module). |
+| Find New | `/dashboard/events/find` | Artists, admin | **FindEvents**: browse/search/sort future events, application status. |
+| Jury Packets | `/dashboard/events/jury-packets` | Artists, admin | **JuryPackets** (module): card-based CRUD, v2 API. |
+| Create Event | `/dashboard/events/new` | Promoters, admin | Event form (module event-form). |
+| All Events | `/dashboard/events/admin` | Admin only | **AdminEvents**. |
+| Solicit Promoter | `/dashboard/events/solicit-promoter` | Admin only | Create draft promoter + event, send claim email; promoter claims via `/promoters/claim/[token]`. Uses **AddPromoter** and `POST /api/admin/promoters/create`. (Previously under Manage System > Add Promoter; moved to Events.) |
+
+### Application components (migrated)
+
+Event-application UI has been moved from `components/applications/` into the Events module:
+
+| Component | Location | API |
+|-----------|----------|-----|
+| **ApplicationPaymentModal** | `modules/events/components/application-form/ApplicationPaymentModal.js` | `lib/applications/api.js`: createApplicationPaymentIntent, confirmApplicationPayment (legacy). |
+| **ApplicationStatus** | `modules/events/components/ApplicationStatus.js` + `ApplicationStatus.module.css` | `lib/applications/api.js`: fetchMyApplications (v2), filter by eventId/persona_id client-side. |
+
+- **EventReviews** (public event page) and **EventsCarousel** (homepage) are in the events module; see Frontend layout below.
+- `components/applications/` has been removed.
+
+### Frontend layout
+
+- **Pages:** `pages/dashboard/events/` — `index.js` (redirect), `mine/`, `own/`, `applications/`, `find/`, `jury-packets/`, `new.js`, `admin/`.
+- **Module components:** `modules/events/components/` — MyEvents, FindEvents, MyApplications, JuryPackets, AdminEvents, event-form (create/edit), **application-form** (accordion + ApplicationPaymentModal), **ApplicationStatus**, **EventReviews**, **EventsCarousel**.
+- **Public event page** (`pages/events/[id].js`): Uses ApplicationForm, ApplicationStatus, EventReviews from the events module; lib fetchMyApplications, getEventApplicationStats, updateApplication. Event data still from legacy `api/events/:id` (and images/categories/artists).
+- **Homepage** (`pages/index.js`): Uses **EventsCarousel** from the events module; upcoming events from v2 `api/v2/events/upcoming`.
+- **Events I Own:** Page at `/dashboard/events/own` uses `EventsIOwn.js`; now v2 (fetchMyEvents, archiveEvent). Create/edit uses module EventForm at `/dashboard/events/new`.
+- **Lib:** `lib/events/api.js` — fetchMyEvents (v2 mine), fetchJuryPackets / fetchJuryPacket / createJuryPacket / updateJuryPacket / deleteJuryPacket / uploadJuryPacketFiles (v2 jury-packets + legacy upload), fetchApplicationFields / fetchAvailableAddons (v2), fetchCustomEvents / createCustomEvent / updateCustomEvent / deleteCustomEvent (v2 custom), fetchBrowseEvents (upcoming, legacy). `lib/applications/api.js` — fetchMyApplications (v2), getEventApplicationStats / applyToEvent / applyWithPacket / addAddonRequest / createApplicationPaymentIntent / confirmApplicationPayment / updateApplication (legacy apply/payment/update).
+- **Event application form:** Used on `pages/events/[id].js`. Accordion + ApplicationPaymentModal; ApplicationStatus on same page. Uses v2 for jury packets, application fields, available add-ons; legacy for apply/apply-with-packet and jury-packets/upload.
+
+### Redirects (old dashboard slide-ins)
+
+- `my-calendar` → `/dashboard/events/mine`
+- `find-new` → `/dashboard/events/find`
+- `events-i-own` → `/dashboard/events/own`
+- `manage-jury-packets` → `/dashboard/events/jury-packets`
+- `applications-received` → `/dashboard/commerce/applicants` (Business Center > My Applicants)
+
+### Frontend shared module (UI)
+
+- **`modules/shared/`** — Reusable UI used across dashboard and public pages.
+- **BlockEditor** — `modules/shared/block-editor/` (BlockEditor.js, BlockEditor.module.css). Editor.js-based rich content editor; used by ArticlesManagement (communications/articles), ManageAnnouncements, ManageTermsCore.
+- **AccordionSection** — `modules/shared/AccordionSection.js`. Collapsible form sections; used by ProductForm, EventForm, ApplicationForm, ProfileForm.
+- **Artist display components** — Used on homepage, product pages, profile pages:
+  - `ArtistCarousel.js` — Infinite scroll carousel of featured artists (homepage). Uses v2 API (`getPublicArtists` from `lib/users`), styles from `carousels.css`.
+  - `AboutTheArtist.js` — Artist info card on product pages. Uses v2 API (`getPublicProfile` from `lib/users`).
+  - `ProfileDisplay.js` — Public profile view (profile pages).
+  - `SocialLinks.js` — Social media icon links (used by AboutTheArtist, ProfileDisplay).
+
+### Events API: legacy vs v2 (removal track)
+
+**We have not yet done the full RESTful v2 coverage needed to remove the old events routes.** Current state:
+
+| Capability | Legacy route | v2 route | Frontend / consumers |
+|------------|-------------|----------|----------------------|
+| Event types | `GET /api/events/types` | `GET /api/v2/events/types` ✅ | Module EventForm (dashboard/events/new) uses v2. |
+| Promoter's events (all) | `GET /api/events/mine` | `GET /api/v2/events/mine` ✅ | fetchMyEvents uses v2. |
+| Promoter's events (filtered) | `GET /api/events?promoter_id=&event_status=...` | Client filter on v2 `/mine` ✅ | EventsIOwn uses fetchMyEvents + client filter; archiveEvent for delete. |
+| Upcoming (public list) | `GET /api/events/upcoming` | `GET /api/v2/events/upcoming` ✅ | FindEvents, homepage, EventsCarousel, events index, sitemap use v2. |
+| Single event | `GET /api/events/:id` | `GET /api/v2/events/:id` ✅ | events/[id] uses fetchEvent; ManageEvents still legacy. |
+| Event categories/artists | `GET /api/events/:id/categories`, `/:id/artists` | `GET /api/v2/events/:id/categories`, `/:id/artists` ✅ | Public event page uses fetchEventCategories, fetchEventArtists. |
+| Create/update/archive | POST/PATCH/PUT/DELETE | v2 has POST, PATCH, DELETE ✅ | /dashboard/events/new uses module EventForm (v2); EventsIOwn uses archiveEvent (v2). |
+| Artist custom events | `GET /api/events/my-events`, POST/PUT/DELETE `/custom` | `GET /api/v2/events/custom`, POST/PUT/DELETE `/api/v2/events/custom/:id` ✅ | lib/events fetchCustomEvents, createCustomEvent, updateCustomEvent, deleteCustomEvent use v2. Claim flow (verify, claim/new, claim/link) uses v2. |
+| Application fields, add-ons, images, upload | Legacy paths | v2 has application-fields, available-addons, images, upload ✅ | Event application form (module) uses v2. Many other consumers still call legacy. |
+| Jury packets (list/create/get/update/delete) | `GET/POST/PUT/DELETE /api/jury-packets` | `GET/POST /api/v2/events/jury-packets`, `GET/PUT/DELETE /api/v2/events/jury-packets/:id` ✅ | JuryPackets dashboard + application form use v2. |
+| Jury packet file upload | `POST /api/jury-packets/upload` | **Missing** (legacy only) | application-form uses legacy upload for application field images/videos. |
+| Tickets (list + purchase) | `GET /api/events/:id/tickets`, `POST .../tickets/:ticketId/purchase` | `GET /api/v2/events/:id/tickets`, `POST .../tickets/:ticketId/purchase` ✅ | TicketPurchaseModal uses fetchEventTickets, purchaseEventTicket (v2). |
+| Artist applications (public) | `GET /api/events/artist/:id/applications` | `GET /api/v2/events/artist/:id/applications` ✅ | ProfileDisplay uses fetchArtistEventApplications (v2). |
+
+**To remove old routes, add in v2 and migrate consumers:**
+
+1. **List with filters** — e.g. `GET /api/v2/events?promoter_id=&event_status=` (or extend `/mine` with `?status=`) and switch EventsIOwn, MyApplicants (Business Center), ManageEvents to v2.
+2. **Upcoming** — e.g. `GET /api/v2/events/upcoming` and switch lib/events fetchBrowseEvents and all other callers to v2.
+3. **Artist custom events** — e.g. `GET /api/v2/events/custom`, `POST/PUT/DELETE /api/v2/events/custom` (or `/my-custom`) and switch lib/events to v2.
+4. **Single event / types / CRUD / sub-resources** — Migrate remaining callers (events/[id], events/new, EventFormContext, ManageEvents) to v2 so legacy GET/POST/PATCH/DELETE and related paths can be removed.
+5. **Tickets and claim flow** — Add v2 endpoints and migrate, or leave on legacy until a dedicated pass.
+
+**Legacy events API:** **Removed.** The legacy `api/events` route and `api-service/src/routes/events.js` have been deleted. All consumers use v2 (`/api/v2/events`) or the applications API where appropriate.
+
+**Migrated (no longer use legacy events):**
+
+| Consumer | Now uses |
+|----------|----------|
+| **articles/[slug].js** | `fetchEvent(connection_id)` (v2) for event cross-references |
+| **PaymentDashboard** | `api/applications/payment-dashboard/:eventId` (applications API; payment summary is per-event but lives under applications) |
+| **TicketPurchaseModal** | `fetchEventTickets`, `purchaseEventTicket` (v2) |
+
+**All event consumers use v2 or applications:** Public event page, EventsIOwn, create/edit (EventForm), upcoming/carousel/sitemap, claim flow, custom events CRUD, My Applicants, ProfileDisplay, AdminEvents, Admin Event Review, TicketPurchaseModal, articles/[slug], SearchResults, SearchModal (fetchEvent). PaymentDashboard uses applications API. Legacy `ManageEvents.js` and `api-service/src/routes/events.js` deleted.
 
 ---
 
@@ -1141,6 +2327,40 @@ app.use('/api/v2/catalog', require('./modules/catalog').router);
 // ... etc
 ```
 
+### Rate Limiting (Shared, RESTful)
+
+Rate limiting uses the **shared** middleware in `api-service/src/modules/shared/middleware/rateLimiter.js`. One general limit applies to all routes; special-case limiters only where needed. Legacy `api-service/src/middleware/rateLimiter.js` is a thin wrapper that re-exports from shared.
+
+| Limiter | Use | Applied |
+|--------|-----|--------|
+| `apiLimiter` | General API (500 req / 15 min per IP) | **Once globally** in `server.js`; all `/api/v2/*` and legacy routes inherit it |
+| `smartAuthLimiter` | Auth: login, refresh, token validation | Auth routes only |
+| `paymentLimiter` | Checkout/payment endpoints | Checkout router (except order history) |
+| `adminLimiter` | Admin operations | `/admin`, `/api/admin/*`, etc. |
+| `apiKeyLimiter` | API key management (20 req / hour per IP) | `/api/v2/auth/keys` (list, create, toggle, delete) |
+| `uploadLimiter` | File uploads (role-based) | Legacy product upload routes |
+| `orderHistoryLimiter` | Read-only order list | Legacy checkout order-history path |
+
+**Rules:**
+- **v2 modules** get the global `apiLimiter` only; no per-module limiter. Stays RESTful and efficient.
+- For a route that needs a **stricter** limit (e.g. payment-like), require shared and apply it: `const { paymentLimiter } = require('../modules/shared/middleware/rateLimiter');` then use on that route.
+- New code should require from `./modules/shared/middleware/rateLimiter` (or `../shared/middleware` from within a module).
+
+### API Keys (auth module, v2)
+
+API keys are part of the **auth** module (login/security). Third-party and server-to-server access (e.g. media worker, CSV, Leo) use key pairs from the `api_keys` table; JWT is for browser/mobile sessions.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v2/auth/keys` | List API keys for the authenticated user |
+| POST | `/api/v2/auth/keys` | Create key pair (body: `{ name }`); returns `{ public_key, private_key, name }` once |
+| PUT | `/api/v2/auth/keys/:publicKey/toggle` | Toggle `is_active` |
+| DELETE | `/api/v2/auth/keys/:publicKey` | Delete key |
+
+- **Backend:** `api-service/src/modules/auth/services/keys.js` (listKeys, createKey, toggleKey, deleteKey); routes in `auth/routes.js`.
+- **Frontend:** My Account → API Keys (`/dashboard/users/api-keys`) uses `getApiUrl('api/v2/auth/keys')`; UI in `components/dashboard/developers/components/APIKeys.js` and `api-keys/` (ViewAPIKeys, GenerateAPIKey). Page: `pages/dashboard/users/api-keys.js` (admin-only).
+- **Rate limiting:** `apiKeyLimiter` (20 req/hour per IP) is applied to all four keys routes in `auth/routes.js` to prevent abuse. Legacy `/api-keys` mount removed.
+
 ---
 
 ## Migration Strategy
@@ -1295,6 +2515,10 @@ components/
 - Layout uses `dashboard.css` classes (`.dashboard-header`, `.sidebar-menu`, etc.)
 - Only create `.module.css` if a component has truly unique, non-reusable styles
 
+**When converting a component to a module:** Delete the component's style file (e.g. `Component.module.css`) and put the wrapper in place—the new module page uses global/dashboard styles instead.
+
+**Example:** **VariationBulkEditor** (catalog module) uses global classes only (e.g. `bulk-editor`, `variation-card`, `form-group`) defined in `modules/styles/forms.css` (Variation bulk editor section); its `VariationBulkEditor.module.css` was removed.
+
 **CSS Variables (in global.css):**
 
 ```css
@@ -1399,6 +2623,31 @@ During the refactor, some modules export **both old and new names** for the same
 2. **Existing code** can keep using old name (wrappers handle it)
 3. **Update to new names when you touch a file** during other module refactors
 4. **After ALL modules refactored**, remove old aliases in final cleanup pass
+
+### Old AdminMenu Cleanup Status
+
+The old AdminMenu (`components/dashboard/admin/AdminMenu.js`) has been progressively cleaned up. Items are migrated to the new sidebar menu or dedicated pages.
+
+**Migrated Items (removed from old AdminMenu):**
+- [x] Manage Users → Users > Manage Users (`/dashboard/users/manage`)
+- [x] Manage Permissions → Users > Manage Users (permissions in UserManagement)
+- [x] All Events → Events > All Events (`/dashboard/events/admin`)
+- [x] Articles & Pages → Communications > Articles & Blogs (`/dashboard/communications/articles`)
+- [x] Promotions → Marketing > Admin Promotions (`/dashboard/marketing/admin-promotions`)
+- [x] Marketplace Applications → Business Center > Marketplace Applications (`/dashboard/commerce/marketplace-applications`)
+- [x] Verified Applications → Business Center > Marketplace Applications (Verified tab)
+- [x] Wholesale Applications → Business Center > Marketplace Applications (Wholesale tab)
+- [x] Manage Commissions → Users > Manage Commissions (`/dashboard/users/commissions`)
+- [x] Admin Event Review → Service > Admin Event Review (`/dashboard/service/event-reviews`)
+- [x] Support Tickets → Communications > Admin Tickets (`/dashboard/communications/admin`)
+- [x] Marketplace Products → System > Curate (`/dashboard/system/curate`)
+
+**Remaining Slide-in Items (still using old pattern):**
+- [x] Refunds → Service > Refunds (`/dashboard/service/refunds`)
+- [x] Returns Management → Business Center > Returns Admin (`/dashboard/commerce/returns-admin`)
+
+**AdminMenu Removal Complete** ✅
+The old AdminMenu component has been fully removed. All admin functionality is now accessible through the new sidebar menu structure.
 
 ### Post-Refactor Cleanup Checklist
 

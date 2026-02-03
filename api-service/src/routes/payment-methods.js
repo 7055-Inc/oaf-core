@@ -127,7 +127,7 @@ router.post('/payment-methods/create-setup-intent', verifyToken, async (req, res
       metadata: {
         user_id: userId.toString(),
         subscription_type: subscription_type || 'general',
-        platform: 'beemeeart'
+        platform: 'brakebee'
       }
     });
     

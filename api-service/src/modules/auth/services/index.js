@@ -7,6 +7,7 @@ const jwtService = require('./jwt');
 const sessionService = require('./session');
 const permissionsService = require('./permissions');
 const userService = require('./user');
+const keysService = require('./keys');
 
 module.exports = {
   // JWT operations
@@ -41,4 +42,11 @@ module.exports = {
   findUserByEmail: userService.findUserByEmail,
   getUserWithRolesAndPermissions: userService.getUserWithRolesAndPermissions,
   createUser: userService.createUser,
+
+  // API keys (third-party / server-to-server auth)
+  keysService,
+  listKeys: keysService.listKeys,
+  createKey: keysService.createKey,
+  toggleKey: keysService.toggleKey,
+  deleteKey: keysService.deleteKey,
 };

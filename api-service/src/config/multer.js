@@ -11,7 +11,8 @@ const sitesDir = path.join(uploadDir, 'sites');
 const juryDir = path.join(uploadDir, 'jury');
 const categoriesDir = path.join(uploadDir, 'categories');
 const articlesDir = path.join(uploadDir, 'articles');
-[productsDir, profilesDir, eventsDir, sitesDir, juryDir, categoriesDir, articlesDir].forEach(dir => {
+const marketingDir = path.join(uploadDir, 'marketing');
+[productsDir, profilesDir, eventsDir, sitesDir, juryDir, categoriesDir, articlesDir, marketingDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -30,12 +31,15 @@ const storage = multer.diskStorage({
     } else if (file.fieldname === 'images' && req.originalUrl && req.originalUrl.includes('/api/jury-packets/upload')) {
       // Jury packet images
       cb(null, juryDir);
-    } else if (file.fieldname === 'images' && req.originalUrl && req.originalUrl.includes('/api/events/upload')) {
+    } else if (file.fieldname === 'images' && req.originalUrl && (req.originalUrl.includes('/api/events/upload') || req.originalUrl.includes('/api/v2/events/upload'))) {
       cb(null, eventsDir);
     } else if (file.fieldname === 'images' && req.originalUrl && req.originalUrl.includes('/api/categories/upload')) {
       cb(null, categoriesDir);
     } else if (file.fieldname === 'images' && req.originalUrl && req.originalUrl.includes('/api/articles/upload')) {
       cb(null, articlesDir);
+    } else if (file.fieldname === 'marketing_media' || (req.originalUrl && req.originalUrl.includes('/api/v2/marketing/'))) {
+      // Marketing content uploads
+      cb(null, marketingDir);
     } else {
       cb(null, productsDir);
     }
@@ -63,7 +67,7 @@ const storage = multer.diskStorage({
     } else if (file.fieldname === 'images' && req.originalUrl && req.originalUrl.includes('/api/jury-packets/upload')) {
       // For jury packet application images
       filename = `${req.userId}-packet-${uniqueSuffix}${path.extname(file.originalname).toLowerCase()}`;
-    } else if (file.fieldname === 'images' && req.originalUrl && req.originalUrl.includes('/api/events/upload')) {
+    } else if (file.fieldname === 'images' && req.originalUrl && (req.originalUrl.includes('/api/events/upload') || req.originalUrl.includes('/api/v2/events/upload'))) {
       // For event images
       const eventId = req.query.event_id || 'new';
       filename = `${req.userId}-${eventId}-${uniqueSuffix}${path.extname(file.originalname).toLowerCase()}`;
@@ -75,6 +79,9 @@ const storage = multer.diskStorage({
       // For article images
       const articleId = req.query.article_id || 'new';
       filename = `${req.userId}-article-${articleId}-${uniqueSuffix}${path.extname(file.originalname).toLowerCase()}`;
+    } else if (file.fieldname === 'marketing_media' || (req.originalUrl && req.originalUrl.includes('/api/v2/marketing/'))) {
+      // For marketing content uploads
+      filename = `${req.userId}-marketing-${uniqueSuffix}${path.extname(file.originalname).toLowerCase()}`;
     } else {
       // For product images
       filename = `${req.userId}-${req.query.product_id}-${uniqueSuffix}${path.extname(file.originalname).toLowerCase()}`;
@@ -101,6 +108,12 @@ const upload = multer({
     else if (req.originalUrl && req.originalUrl.includes('/api/jury-packets/upload')) {
       if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp|heic|heif|mp4|mov|avi|wmv|webm)$/i)) {
         return cb(new Error(`Only image or video files are allowed! Got: ${file.originalname}`), false);
+      }
+    }
+    // Allow images AND videos for marketing content uploads
+    else if (file.fieldname === 'marketing_media' || (req.originalUrl && req.originalUrl.includes('/api/v2/marketing/'))) {
+      if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp|heic|heif|mp4|mov|avi|wmv|webm)$/i)) {
+        return cb(new Error(`Only image or video files are allowed for marketing content! Got: ${file.originalname}`), false);
       }
     }
     else {

@@ -154,7 +154,7 @@ export async function checklist(req) {
     if (!path.startsWith('/cart') && !path.startsWith('/checkout')) {
       // Check if user has pending announcements to acknowledge with proper error handling
       try {
-      const announcementsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/announcements/check-pending`, {
+      const announcementsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v2/system/announcements/check-pending`, {
         method: 'GET',
         headers: {
             'Authorization': `Bearer ${token}`,

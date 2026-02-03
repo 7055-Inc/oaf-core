@@ -162,19 +162,28 @@ router.get('/', async (req, res) => {
         a.featured_image_id,
         a.created_at,
         a.updated_at,
-        u.username as author_username
+        u.username as author_username,
+        COALESCE(up.display_name, u.username) as author_display_name
       FROM articles a
       LEFT JOIN users u ON a.author_id = u.id
+      LEFT JOIN user_profiles up ON u.id = up.user_id
     `;
     
     const params = [];
     const conditions = [];
     
-    // If user is not admin, only show published articles
-    if (!roles.includes('admin')) {
+    // Scope: non-admin sees only their articles; admin sees all unless scope=mine
+    const scopeMine = req.query.scope === 'mine' || (!roles.includes('admin') && userId);
+    if (userId && scopeMine) {
+      conditions.push('a.author_id = ?');
+      params.push(userId);
+    }
+    
+    // Status: unauthenticated = published only; authenticated = optional status filter
+    if (!userId) {
       conditions.push('a.status = ?');
-      params.push(req.query.status || 'published');
-    } else if (req.query.status) {
+      params.push('published');
+    } else if (req.query.status && req.query.status !== 'all') {
       conditions.push('a.status = ?');
       params.push(req.query.status);
     }

@@ -15,5 +15,5 @@ export * from './shared';
 // Users section components
 export * from './users';
 
-// Catalog section components
-export * from './catalog';
+// Websites section components
+export * from './websites';

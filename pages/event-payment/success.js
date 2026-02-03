@@ -238,7 +238,7 @@ export default function EventPaymentSuccess() {
             <div className={styles.supportInfo}>
               <p>
                 Need help? Contact support at 
-                <a href="mailto:support@beemeeart.com"> support@beemeeart.com</a>
+                <a href="mailto:support@brakebee.com"> support@brakebee.com</a>
               </p>
             </div>
           </div>

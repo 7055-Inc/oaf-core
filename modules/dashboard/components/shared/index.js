@@ -1,17 +1,10 @@
 /**
  * Dashboard Shared Components
- * Reusable components specific to the dashboard
+ * Dashboard-specific reusables (layout uses dashboard.css)
  * 
- * These use global.css styles for forms, buttons, tables, etc.
- * Dashboard-specific layout uses dashboard.css
+ * Note: Cross-module shared components (AccordionSection, BlockEditor)
+ * live in modules/shared/
  */
 
-// Accordion form section (used by Product Form, Event Form, Profile Form)
-export { default as AccordionSection } from './AccordionSection';
-
-// TODO: Add as created
-// export { default as PageHeader } from './PageHeader';
-// export { default as FormPanel } from './FormPanel';
-// export { default as StatCard } from './StatCard';
-// export { default as DataTable } from './DataTable';
-// export { default as ActionBar } from './ActionBar';
+// Re-export from modules/shared for backward compatibility
+export { AccordionSection } from '../../../shared';

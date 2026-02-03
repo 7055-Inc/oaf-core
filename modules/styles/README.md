@@ -2,9 +2,9 @@
 
 ## Overview
 
-The Styles module is the central location for all global CSS and design system tokens for the Brakebee platform.
+The Styles module is the central location for all global CSS and design system tokens for the Brakebee platform. **Use these classes in new and converted components** instead of component-level `.module.css` where possible (see MODULE_ARCHITECTURE.md "CSS Architecture (Global-First)").
 
-**Status:** 🔄 In Progress
+**Status:** ✅ Phase 1 complete (split); Phase 2–3 in progress
 
 ---
 
@@ -12,26 +12,32 @@ The Styles module is the central location for all global CSS and design system t
 
 ```
 modules/styles/
-├── global.css       ← Master stylesheet (imported by _app.js)
+├── global.css       ← Single entry (imported by _app.js). @imports sub-sheets below, then defines variables + base + typography + links + product + policy + a11y
+├── forms.css        ← @import'd by global.css — form elements (inputs, selects, labels, form-card, form-grid, etc.)
+├── buttons.css      ← @import'd by global.css — button variants (.secondary, .outline, .danger, .warning, .success, .small, .large)
+├── tables.css       ← @import'd by global.css — .data-table, cell utilities
+├── modals.css       ← @import'd by global.css — .modal-overlay, .modal-content, .modal-sm, .modal-lg
+├── alerts.css       ← @import'd by global.css — .error-alert, .success-alert, .warning-alert, .info-alert, .info-banner, .toast-notification
+├── states.css       ← @import'd by global.css — .loading-state, .empty-state, .spinner, .status-badge, .stat-grid, .expansion-section, etc.
+├── tabs.css         ← @import'd by global.css — .tab-container, .tab, .tab.active, .tab-content, .tab-panel
 └── README.md        ← This file
 ```
 
-## Planned Structure
+**Import chain (in `global.css`):**
 
+```css
+@import './forms.css';
+@import './buttons.css';
+@import './tables.css';
+@import './modals.css';
+@import './alerts.css';
+@import './states.css';
+@import './tabs.css';
 ```
-modules/styles/
-├── index.css           ← Master file (imports all below)
-├── variables.css       ← CSS custom properties (colors, spacing, fonts)
-├── reset.css           ← CSS reset/normalize
-├── typography.css      ← Headings, body text, links
-├── buttons.css         ← Button styles
-├── forms.css           ← Form elements (inputs, selects, labels)
-├── modals.css          ← Modal/dialog styles
-├── tables.css          ← Data table styles
-├── alerts.css          ← Error, success, warning alerts
-├── utilities.css       ← Utility classes (.sr-only, etc.)
-└── README.md
-```
+
+Only `global.css` is imported in the app (`_app.js`). All sub-sheets are pulled in via these `@import`s; do not import `forms.css`, `buttons.css`, etc. directly from pages or components.
+
+**Still defined inline in global.css (after the @imports):** CSS variables (`:root`), base (html/body/header), typography (h1–h3), links, product-card/publish-section, policy-content, accessibility (.sr-only, .skip-link).
 
 ---
 
@@ -84,27 +90,40 @@ import '../modules/styles/global.css';
 }
 ```
 
-### Global Classes
-- `.section-box` - Standard bordered container
-- `.form-grid-1`, `.form-grid-2`, `.form-grid-3` - Form layouts
-- `.error-alert`, `.success-alert`, `.warning-alert` - Alert boxes
-- `.modal-overlay`, `.modal-content` - Modal structure
-- `.data-table` - Data table styling
-- `.status-badge` - Status indicators
+### Global Classes (use these when converting components to module parts)
+
+**Buttons** (`buttons.css`): `button`, `.secondary`, `.outline`, `.danger`, `.warning`, `.success`, `.small`/`.btn-sm`, `.large`/`.btn-lg`
+
+**Forms** (`forms.css`): `input`, `select`, `textarea`, `label`, `.required`, `.form-card`, `.form-grid-1` / `.form-grid-2` / `.form-grid-3`, plus field groups and validation styles
+
+**Tables** (`tables.css`): `.data-table`, thead/th/td, `.selected`, cell utilities
+
+**Modals** (`modals.css`): `.modal-overlay`, `.modal-content`, `.modal-sm`, `.modal-lg`, header/footer/body classes
+
+**Alerts** (`alerts.css`): `.error-alert`, `.success-alert`, `.warning-alert`, `.info-alert`, `.info-banner`, `.toast-notification`, `.toast-row`, `.status-completed` / `.status-failed` / `.status-processing`
+
+**States** (`states.css`): `.loading-state`, `.empty-state`, `.error-state`, `.spinner` (`.small`, `.large`), `.status-badge` (`.active`, `.pending`, `.error`, `.inactive`, `.info`, etc.), `.status-indicator`, `.stat-grid`, `.stat-item`, `.stat-label`, `.stat-value`, `.expansion-section` / `.expansion-section-header` / `.expansion-section-content`, `.loading-inline`, `.quick-links`
+
+**Tabs** (`tabs.css`): `.tab-container`, `.tab`, `.tab.active`, `.tab-content`, `.tab-panel`, `.tab-panel.active`
+
+**Base** (in `global.css`): `.product-card`, `.publish-section`, `.publish-button`, `.policy-content`, `.sr-only`, `.skip-link`
+
+**When adding new patterns:** Prefer adding to the appropriate file above (or a new file in `modules/styles/` and `@import` in `global.css`) so they are available site-wide.
 
 ---
 
 ## Migration Checklist
 
 ### Phase 1: Split global.css
-- [ ] Extract variables to `variables.css`
-- [ ] Extract typography to `typography.css`
-- [ ] Extract button styles to `buttons.css`
-- [ ] Extract form styles to `forms.css`
-- [ ] Extract modal styles to `modals.css`
-- [ ] Extract table styles to `tables.css`
-- [ ] Extract alert styles to `alerts.css`
-- [ ] Create `index.css` that imports all
+- [x] Extract button styles to `buttons.css`
+- [x] Extract form styles to `forms.css`
+- [x] Extract modal styles to `modals.css`
+- [x] Extract table styles to `tables.css`
+- [x] Extract alert styles to `alerts.css`
+- [x] Add `states.css`, `tabs.css`; import all in `global.css`
+- [ ] Extract variables to `variables.css` (optional; currently in `global.css`)
+- [ ] Extract typography/links to `typography.css` (optional)
+- [ ] Create `index.css` that imports all (optional; `global.css` is current entry)
 
 ### Phase 2: Audit Components
 - [ ] Find inline styles that should use global classes
@@ -119,7 +138,7 @@ import '../modules/styles/global.css';
 
 ## Notes
 
-- Keep `global.css` as single file until split is complete
-- All new styles should use CSS variables
-- Component-specific styles stay in component `.module.css` files
-- Global styles are for truly reusable patterns only
+- **Entry point:** `_app.js` imports `modules/styles/global.css` (and `modules/dashboard/styles/dashboard.css` for dashboard layout). The old `styles/global.css` is no longer the app entry.
+- All new styles should use CSS variables from `:root` in `global.css`.
+- **Global-first:** New and converted components use global class names (e.g. `className="secondary"`, `className="data-table"`). Only add `.module.css` for styles truly unique to one component.
+- When converting a component to a module part, remove its `.module.css` and use global/dashboard classes; add new reusable patterns to `modules/styles/` if needed.

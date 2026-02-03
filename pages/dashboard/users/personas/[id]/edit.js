@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import DashboardShell from '../../../../../modules/dashboard/components/layout/DashboardShell';
-import PersonaForm from '../../../../../modules/dashboard/components/users/PersonaForm';
+import { PersonaForm } from '../../../../../modules/users';
 import { getCurrentUser } from '../../../../../lib/users';
 
 export default function EditPersonaPage() {

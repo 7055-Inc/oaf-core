@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Head from 'next/head';
 import styles from './Edit.module.css';
 import { authApiRequest } from '../../lib/apiUtils';
 import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
@@ -490,12 +491,17 @@ export default function ProfileEdit() {
   }
 
   return (
-    <div>
-      <div className={styles.container}>
-        <div className={styles.header}>
-          <h1 className={styles.title}>Edit Profile</h1>
-          <p className={styles.subtitle}>Update your profile information and preferences</p>
-        </div>
+    <>
+      <Head>
+        <title>Edit Profile | Brakebee</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Head>
+      <div>
+        <div className={styles.container}>
+          <div className={styles.header}>
+            <h1 className={styles.title}>Edit Profile</h1>
+            <p className={styles.subtitle}>Update your profile information and preferences</p>
+          </div>
 
         {error && (
           <div className={styles.errorAlert}>
@@ -1471,6 +1477,7 @@ export default function ProfileEdit() {
           </div>
         </form>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

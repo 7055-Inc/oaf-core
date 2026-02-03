@@ -10,7 +10,7 @@ class MyDocument extends Document {
           <link rel="apple-touch-icon" href="/static_media/brakebee-logo.png" />
           <link rel="manifest" href="/manifest.json" />
           <meta name="theme-color" content="#055474" />
-          <meta name="apple-mobile-web-app-capable" content="yes" />
+          <meta name="mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-status-bar-style" content="default" />
           <meta name="apple-mobile-web-app-title" content="Brakebee" />
           

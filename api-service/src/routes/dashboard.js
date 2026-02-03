@@ -241,7 +241,7 @@ router.get('/sites/my', verifyToken, requirePermission('manage_sites'), async (r
     const sitesWithStats = sites.map(site => ({
       ...site,
       dashboardUrl: `/dashboard/sites/${site.id}`,
-      publicUrl: site.custom_domain || `${site.subdomain}.${process.env.FRONTEND_URL?.replace('https://', '') || 'beemeeart.com'}`
+      publicUrl: site.custom_domain || `${site.subdomain}.${process.env.FRONTEND_URL?.replace('https://', '') || 'brakebee.com'}`
     }));
     
     res.json(sitesWithStats);

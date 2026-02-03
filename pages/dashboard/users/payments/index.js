@@ -10,7 +10,7 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import DashboardShell from '../../../../modules/dashboard/components/layout/DashboardShell';
-import PaymentSettings from '../../../../modules/dashboard/components/users/PaymentSettings';
+import { PaymentSettings } from '../../../../modules/users';
 import { getAuthToken } from '../../../../lib/auth';
 
 export default function PaymentSettingsPage() {

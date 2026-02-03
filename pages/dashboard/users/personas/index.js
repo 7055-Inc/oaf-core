@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import DashboardShell from '../../../../modules/dashboard/components/layout/DashboardShell';
-import PersonaList from '../../../../modules/dashboard/components/users/PersonaList';
+import { PersonaList } from '../../../../modules/users';
 import { getCurrentUser } from '../../../../lib/users';
 
 export default function PersonasPage() {

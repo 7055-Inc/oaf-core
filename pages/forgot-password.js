@@ -56,6 +56,7 @@ export default function ForgotPassword() {
       <Head>
         <title>Reset Password | Brakebee</title>
         <meta name="description" content="Reset your Brakebee account password. Enter your email to receive a password reset link." />
+        <meta name="robots" content="noindex, nofollow" />
       </Head>
       
       <div className="section-box" style={{ maxWidth: '500px', margin: '2rem auto' }}>

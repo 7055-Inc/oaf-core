@@ -201,7 +201,7 @@ const SiteUnavailable = () => {
         </main>
 
         <footer className={styles.footer}>
-          <p>&copy; 2024 Online Art Festival. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Brakebee. All rights reserved.</p>
         </footer>
       </div>
     </>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import PaintbrushLoader from './PaintbrushLoader';
 import { getApiUrl } from '../../lib/config';
+import { fetchEvent } from '../../lib/events/api';
 
 const CATEGORY_OPTIONS = [
   { label: 'All', value: 'all' },
@@ -137,25 +138,22 @@ export default function SearchModal({
         enriched.products = products.filter(p => p !== null);
       }
 
-      // Fetch events data
+      // Fetch events data (v2)
       if (leoResults.results?.events?.length > 0) {
         const eventIds = leoResults.results.events.map(e => e.id);
         const eventPromises = eventIds.map(async (id) => {
           try {
-            const response = await fetch(getApiUrl(`events/${id}`));
-            if (response.ok) {
-              const eventData = await response.json();
-              return { 
-                ...eventData, 
-                leoRelevance: leoResults.results.events.find(e => e.id === id)?.relevance 
-              };
-            }
+            const eventData = await fetchEvent(id);
+            return {
+              ...eventData,
+              leoRelevance: leoResults.results.events.find(e => e.id === id)?.relevance
+            };
           } catch (error) {
             console.warn(`Failed to fetch event ${id}:`, error);
           }
           return null;
         });
-        
+
         const events = await Promise.all(eventPromises);
         enriched.events = events.filter(e => e !== null);
       }

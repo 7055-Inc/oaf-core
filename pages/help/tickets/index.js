@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import Breadcrumb from '../../../components/Breadcrumb';
+import { Breadcrumb } from '../../../modules/shared';
 import { authApiRequest } from '../../../lib/apiUtils';
 import { getAuthToken } from '../../../lib/csrf';
 import styles from '../Help.module.css';

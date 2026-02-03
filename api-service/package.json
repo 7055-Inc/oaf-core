@@ -1,7 +1,7 @@
 {
   "name": "oaf-api-service",
   "version": "1.0.0",
-  "description": "Online Art Festival API Service",
+  "description": "Brakebee API Service",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",

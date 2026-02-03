@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { DashboardShell } from '../../../../modules/dashboard/components/layout';
-import { CollectionsManager } from '../../../../modules/dashboard/components/catalog';
+import { CollectionsManager } from '../../../../modules/catalog';
 import { authApiRequest } from '../../../../lib/apiUtils';
 
 export default function CollectionsPage() {

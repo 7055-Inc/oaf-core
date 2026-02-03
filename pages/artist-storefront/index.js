@@ -59,7 +59,7 @@ const ArtistStorefront = () => {
   // Resolve custom domain to subdomain
   const resolveCustomDomain = async (domain) => {
     try {
-      const response = await fetch(`${config.API_BASE_URL}/api/sites/resolve-custom-domain/${domain}`);
+      const response = await fetch(`${config.API_BASE_URL}/api/v2/websites/resolve-custom-domain/${domain}`);
       if (response.ok) {
         const data = await response.json();
         if (data.subdomain) {
@@ -83,7 +83,7 @@ const ArtistStorefront = () => {
       setLoading(true);
       
       // First fetch site data to get user_id
-      const siteResponse = await fetch(`${config.API_BASE_URL}/api/sites/resolve/${subdomainToUse}`);
+      const siteResponse = await fetch(`${config.API_BASE_URL}/api/v2/websites/resolve/${subdomainToUse}`);
       let siteData = null;
       
       if (siteResponse.ok) {
@@ -98,19 +98,20 @@ const ArtistStorefront = () => {
       const [profileResponse, productsResponse, articlesResponse, pagesResponse, categoriesResponse] = await Promise.all([
         fetch(`${config.API_BASE_URL}/users/profile/by-id/${siteData.user_id}`),
         fetch(`${config.API_BASE_URL}/products/all?vendor_id=${siteData.user_id}&include=images&limit=12`),
-        fetch(`${config.API_BASE_URL}/api/sites/resolve/${subdomainToUse}/articles?type=menu`),
-        fetch(`${config.API_BASE_URL}/api/sites/resolve/${subdomainToUse}/articles?type=pages`),
-        fetch(`${config.API_BASE_URL}/api/sites/resolve/${subdomainToUse}/categories`)
+        fetch(`${config.API_BASE_URL}/api/v2/websites/resolve/${subdomainToUse}/articles?type=menu`),
+        fetch(`${config.API_BASE_URL}/api/v2/websites/resolve/${subdomainToUse}/articles?type=pages`),
+        fetch(`${config.API_BASE_URL}/api/v2/websites/resolve/${subdomainToUse}/categories`)
       ]);
 
-      // Merge site data with full profile data
+      // Merge site data with full profile data; keep customization fields from resolve
       if (profileResponse.ok) {
         const profileData = await profileResponse.json();
-        // Combine site settings with complete profile data
-        const combinedData = { ...siteData, ...profileData };
+        const customizationKeys = ['primary_color', 'secondary_color', 'text_color', 'accent_color', 'background_color'];
+        const fromResolve = {};
+        customizationKeys.forEach(k => { if (siteData[k] != null) fromResolve[k] = siteData[k]; });
+        const combinedData = { ...siteData, ...profileData, ...fromResolve };
         setSiteData(combinedData);
       } else {
-        // Fallback to just site data if profile fetch fails
         setSiteData(siteData);
       }
 
@@ -153,7 +154,7 @@ const ArtistStorefront = () => {
   // Simple addon trigger - loads and initializes active addons
   const loadSiteAddons = async (siteId) => {
     try {
-      const response = await fetch(`${config.API_BASE_URL}/api/sites/${siteId}/addons`);
+      const response = await fetch(`${config.API_BASE_URL}/api/v2/websites/sites/${siteId}/addons`);
       if (response.ok) {
         const data = await response.json();
         const addons = data.addons || [];
@@ -675,7 +676,7 @@ const ArtistStorefront = () => {
                 <span className={styles.poweredByText}>Powered by</span>
                 <img 
                   src="/static_media/logo.png" 
-                  alt="Online Art Festival" 
+                  alt="Brakebee" 
                   className={styles.brandLogo}
                 />
                 <a 
@@ -684,7 +685,7 @@ const ArtistStorefront = () => {
                   rel="noopener noreferrer"
                   className={styles.brandLink}
                 >
-                  OnlineArtFestival.com
+                  Brakebee.com
                 </a>
               </div>
             </div>
