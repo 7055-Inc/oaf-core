@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { authApiRequest } from '../../../lib/apiUtils';
 import { getAuthToken } from '../../../lib/csrf';
 import { fetchAllEvents } from '../../../lib/events/api';
-import styles from '../admin/AdminReviews.module.css';
+import styles from './AdminReviews.module.css';
 
 export default function AdminEventReviews() {
   const [events, setEvents] = useState([]);

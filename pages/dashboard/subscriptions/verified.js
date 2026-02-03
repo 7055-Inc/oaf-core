@@ -9,7 +9,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import DashboardShell from '../../../modules/dashboard/components/layout/DashboardShell';
-import VerifiedArtistSubscription from '../../../components/dashboard/my-subscriptions/components/VerifiedArtistSubscription';
+import { VerifiedSubscription } from '../../../modules/users/components/verified';
 import { authApiRequest } from '../../../lib/apiUtils';
 
 export default function VerifiedSubscriptionsPage() {
@@ -79,7 +79,7 @@ export default function VerifiedSubscriptionsPage() {
         </div>
 
         <div className="card">
-          <VerifiedArtistSubscription userData={userData} />
+          <VerifiedSubscription userData={userData} />
         </div>
       </div>
     </DashboardShell>

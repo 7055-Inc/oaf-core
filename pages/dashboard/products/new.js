@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '../../../components/Header';
 import { authApiRequest } from '../../../lib/apiUtils';
-import ProductForm from '../../../components/dashboard/manage-my-store/product-form';
+import { ProductForm } from '../../../modules/catalog';
 
 /**
  * Create New Product Page

@@ -298,6 +298,11 @@ const menuConfig = [
         href: '/dashboard/marketing/admin-promotions',
         adminOnly: true
       },
+      { 
+        label: 'Cold-Call Promoters', 
+        href: '/dashboard/marketing/cold-call-promoters',
+        adminOnly: true
+      },
     ]
   },
   {

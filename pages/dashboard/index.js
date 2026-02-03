@@ -25,7 +25,7 @@ import DashboardShell from '../../modules/dashboard/components/layout/DashboardS
 // ManageCustomPolicies migrated to /dashboard/system/terms (Policies tab)
 // UnclaimedEvents migrated to /dashboard/events/unclaimed (modules/events)
 // ManageCategories migrated to /dashboard/catalog/categories (modules/catalog)
-import AddPromoter from '../../components/dashboard/manage-system/components/AddPromoter';
+import { AddPromoter } from '../../modules/marketing';
 import DashboardGrid from '../../components/dashboard/DashboardGrid';
 import OnboardingBanner from '../../components/dashboard/widgets/OnboardingWidget';
 import { MagazineLink } from '../../modules/communications/components';
@@ -50,9 +50,9 @@ import { MyApplications } from '../../modules/events';
 // Now available at /dashboard/commerce/finances/*
 // Migrated: MySubscriptionsMenu, ManageSubscriptions → /dashboard/subscriptions
 // Individual subscription flows still use slide-ins until full page migration
-import MarketplaceSellerSubscription from '../../components/dashboard/my-subscriptions/components/MarketplaceSellerSubscription';
-import VerifiedArtistSubscription from '../../components/dashboard/my-subscriptions/components/VerifiedArtistSubscription';
-import ShippingLabelsSubscription from '../../components/dashboard/my-subscriptions/components/ShippingLabelsSubscription';
+import { MarketplaceSubscription } from '../../modules/commerce/components/marketplace';
+import { VerifiedSubscription } from '../../modules/users/components/verified';
+import { ShippingLabelsSubscription } from '../../modules/commerce/components/shipping';
 // AdminMenu removed - All items migrated to new module pages
 // ManageSystemMenu removed - Categories migrated to /dashboard/catalog/categories
 // MarketplaceProducts migrated to /dashboard/system/curate (modules/catalog/ProductCuration)
@@ -430,7 +430,7 @@ export default function Dashboard() {
     
     if (slideInContent.type === 'marketplace-subscriptions') {
       return (
-        <MarketplaceSellerSubscription
+        <MarketplaceSubscription
           userData={userData}
         />
       );
@@ -438,7 +438,7 @@ export default function Dashboard() {
     
     if (slideInContent.type === 'verified-subscriptions') {
       return (
-        <VerifiedArtistSubscription
+        <VerifiedSubscription
           userData={userData}
         />
       );

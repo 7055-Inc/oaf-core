@@ -10,7 +10,7 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { DashboardShell } from '../../../../modules/dashboard/components/layout';
-import AdminEventReviews from '../../../../components/dashboard/admin/AdminEventReviews';
+import { AdminEventReviews } from '../../../../modules/events';
 import { authApiRequest } from '../../../../lib/apiUtils';
 
 export default function AdminEventReviewsPage() {

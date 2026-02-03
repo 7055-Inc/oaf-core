@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { DashboardShell } from '../../../modules/dashboard/components/layout';
-import AddPromoter from '../../../components/dashboard/manage-system/components/AddPromoter';
+import { AddPromoter } from '../../../modules/marketing';
 import { authApiRequest } from '../../../lib/apiUtils';
 
 export default function SolicitPromoterPage() {

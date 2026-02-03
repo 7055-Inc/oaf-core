@@ -9,7 +9,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import DashboardShell from '../../../modules/dashboard/components/layout/DashboardShell';
-import MarketplaceSellerSubscription from '../../../components/dashboard/my-subscriptions/components/MarketplaceSellerSubscription';
+import { MarketplaceSubscription } from '../../../modules/commerce/components/marketplace';
 import { authApiRequest } from '../../../lib/apiUtils';
 
 export default function MarketplaceSubscriptionsPage() {
@@ -79,7 +79,7 @@ export default function MarketplaceSubscriptionsPage() {
         </div>
 
         <div className="card">
-          <MarketplaceSellerSubscription userData={userData} />
+          <MarketplaceSubscription userData={userData} />
         </div>
       </div>
     </DashboardShell>
