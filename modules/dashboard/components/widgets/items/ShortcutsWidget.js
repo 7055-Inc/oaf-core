@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { authApiRequest, API_ENDPOINTS } from '../../../../../lib/apiUtils';
 import styles from './shortcuts/shortcuts.module.css';
@@ -7,6 +7,10 @@ export default function ShortcutsWidget({ config, onConfigChange }) {
   const [shortcuts, setShortcuts] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  // Use ref to avoid re-creating loadShortcutsData when onConfigChange changes
+  const onConfigChangeRef = useRef(onConfigChange);
+  onConfigChangeRef.current = onConfigChange;
 
   const loadShortcutsData = useCallback(async () => {
     try {
@@ -20,8 +24,8 @@ export default function ShortcutsWidget({ config, onConfigChange }) {
         setShortcuts(shortcutsData);
         
         // Tell the grid to span 6 cells for shortcuts widget
-        if (onConfigChange) {
-          onConfigChange({ 
+        if (onConfigChangeRef.current) {
+          onConfigChangeRef.current({ 
             shortcuts: shortcutsData,
             gridSpan: 6
           });
@@ -34,7 +38,7 @@ export default function ShortcutsWidget({ config, onConfigChange }) {
     } finally {
       setLoading(false);
     }
-  }, [onConfigChange]);
+  }, []); // No dependencies - stable function reference
 
   // Load initial data when component mounts
   useEffect(() => {
@@ -71,8 +75,8 @@ export default function ShortcutsWidget({ config, onConfigChange }) {
         setShortcuts(result.shortcuts);
         
         // Update parent widget config
-        if (onConfigChange) {
-          onConfigChange({ shortcuts: result.shortcuts });
+        if (onConfigChangeRef.current) {
+          onConfigChangeRef.current({ shortcuts: result.shortcuts });
         }
         
         // Notify menu components to refresh their state

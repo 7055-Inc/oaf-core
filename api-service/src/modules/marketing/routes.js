@@ -7,7 +7,7 @@ const express = require('express');
 const router = express.Router();
 const verifyToken = require('../../middleware/jwt');
 const { requirePermission } = require('../../middleware/permissions');
-const { generalRateLimiter } = require('../../middleware/rateLimiter');
+const { apiLimiter } = require('../../middleware/rateLimiter');
 const upload = require('../../config/multer');
 const contentService = require('./services/content');
 const db = require('../../../config/db');
@@ -21,7 +21,7 @@ const db = require('../../../config/db');
  * POST /api/v2/marketing/newsletter/subscribe
  * @public - No auth required
  */
-router.post('/newsletter/subscribe', generalRateLimiter, async (req, res) => {
+router.post('/newsletter/subscribe', apiLimiter, async (req, res) => {
   const { email } = req.body;
 
   // Validate email

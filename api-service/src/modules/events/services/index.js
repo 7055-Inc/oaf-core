@@ -522,7 +522,7 @@ async function getPromoterEvents(promoterId) {
 async function getUpcomingEvents(limit = 20, offset = 0) {
   const safeLimit = Math.min(parseInt(limit, 10) || 20, 100);
   const safeOffset = Math.max(parseInt(offset, 10) || 0, 0);
-  const [events] = await db.execute(`
+  const [events] = await db.query(`
     SELECT 
       e.*,
       et.name as event_type_name,

@@ -1,9 +1,45 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import styles from './Footer.module.css';
 import { hasFullCookieConsent } from '../modules/shared';
+
+// TrustPilot Widget - Client-only to prevent hydration mismatch
+function TrustPilotWidget() {
+  const [mounted, setMounted] = useState(false);
+  const widgetRef = useRef(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Load TrustPilot widget after element is in DOM
+  useEffect(() => {
+    if (mounted && widgetRef.current && typeof window !== 'undefined' && window.Trustpilot) {
+      window.Trustpilot.loadFromElement(widgetRef.current);
+    }
+  }, [mounted]);
+
+  if (!mounted) return null;
+
+  return (
+    <div className={styles.bbTrustpilot}>
+      <div 
+        ref={widgetRef}
+        className="trustpilot-widget" 
+        data-locale="en-US" 
+        data-template-id="56278e9abfbbba0bdcd568bc" 
+        data-businessunit-id="6982e91aabb8a0a264524113" 
+        data-style-height="52px" 
+        data-style-width="100%" 
+        data-token="5cc092a6-9924-4e63-bae6-5f266e499b4b"
+      >
+        <a href="https://www.trustpilot.com/review/brakebee.com" target="_blank" rel="noopener noreferrer">Trustpilot</a>
+      </div>
+    </div>
+  );
+}
 
 // ActiveCampaign Tracker - Only loads when user has accepted all cookies
 function ActiveCampaignTracker() {
@@ -44,12 +80,12 @@ vgo('process');
 
 // Transform API response to flat items array
 const transformApiResponse = (apiData) => {
-  if (!apiData || !apiData.flat_categories || !Array.isArray(apiData.flat_categories)) {
+  if (!apiData || !apiData.data || !Array.isArray(apiData.data)) {
     return null;
   }
   
-  // Convert flat categories to items format, limit to 15 (more space now)
-  const items = apiData.flat_categories
+  // Convert categories to items format, limit to 15 (more space now)
+  const items = apiData.data
     .filter(cat => cat.name && cat.id)
     .slice(0, 15)
     .map(cat => ({
@@ -89,7 +125,7 @@ const validateSchema = (data) => {
 const validateApiSchema = (data) => {
   if (!data || typeof data !== 'object') return false;
   if (!data.success) return false;
-  if (!Array.isArray(data.flat_categories)) return false;
+  if (!Array.isArray(data.data)) return false;
   return true;
 };
 
@@ -97,7 +133,7 @@ const CACHE_KEY = 'bb.footer.categories.v2';
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
 // Dynamic Categories Chips Component
-function CategoryChips({ endpoint = `${process.env.NEXT_PUBLIC_API_BASE_URL}/categories` }) {
+function CategoryChips({ endpoint = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v2/catalog/categories` }) {
   const [categories, setCategories] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -276,6 +312,9 @@ export default function Footer() {
           </div>
 
         </div>
+
+        {/* TrustPilot Widget */}
+        <TrustPilotWidget />
 
         {/* Disclaimer */}
         <div className={styles.bbFooterDisclaimer}>

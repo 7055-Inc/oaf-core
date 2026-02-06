@@ -32,6 +32,14 @@ class MyDocument extends Document {
           {/* Third-party services */}
           <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
           <link rel="dns-prefetch" href="https://diffuser-cdn.app-us1.com" />
+          <link rel="dns-prefetch" href="https://widget.trustpilot.com" />
+          
+          {/* TrustPilot Widget Bootstrap */}
+          <script 
+            type="text/javascript" 
+            src="//widget.trustpilot.com/bootstrap/v5/tp.widget.bootstrap.min.js" 
+            async 
+          />
           
           {/* 
             OPTIMIZED FONT LOADING

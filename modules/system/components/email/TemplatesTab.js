@@ -1,10 +1,106 @@
 /**
  * Templates Tab Component
- * Manage email templates with editing and preview functionality
+ * Manage email templates with WYSIWYG block editing and preview functionality
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { getTemplates, getTemplate, updateTemplate, sendPreview } from '../../../../lib/email/api';
+
+// Dynamically import BlockEditor to avoid SSR issues
+const BlockEditor = dynamic(
+  () => import('../../../shared/block-editor/BlockEditor'),
+  { ssr: false, loading: () => <div className="loading-state"><span>Loading editor...</span></div> }
+);
+
+// Convert Editor.js blocks to email-safe HTML
+const blocksToEmailHtml = (blocksData) => {
+  if (!blocksData) return '';
+  
+  // If it's already HTML string (legacy), return as-is
+  if (typeof blocksData === 'string' && !blocksData.startsWith('{')) {
+    return blocksData;
+  }
+  
+  // Parse if JSON string
+  let data = blocksData;
+  if (typeof blocksData === 'string') {
+    try {
+      data = JSON.parse(blocksData);
+    } catch (e) {
+      return blocksData;
+    }
+  }
+  
+  if (!data.blocks || !Array.isArray(data.blocks)) {
+    return '';
+  }
+  
+  return data.blocks.map(block => {
+    const { type, data: blockData } = block;
+    
+    switch (type) {
+      case 'paragraph':
+        return `<p style="margin: 0 0 16px 0; line-height: 1.6; color: #333;">${blockData.text || ''}</p>`;
+      
+      case 'header':
+        const level = blockData.level || 2;
+        const sizes = { 2: '24px', 3: '20px', 4: '18px' };
+        return `<h${level} style="margin: 24px 0 12px 0; font-size: ${sizes[level]}; color: #1a1a1a;">${blockData.text || ''}</h${level}>`;
+      
+      case 'list':
+        const tag = blockData.style === 'ordered' ? 'ol' : 'ul';
+        const items = (blockData.items || []).map(item => {
+          const text = typeof item === 'string' ? item : item.content || '';
+          return `<li style="margin: 8px 0;">${text}</li>`;
+        }).join('');
+        return `<${tag} style="margin: 16px 0; padding-left: 24px;">${items}</${tag}>`;
+      
+      case 'image':
+        const imgUrl = blockData.file?.url || blockData.url || '';
+        const caption = blockData.caption || '';
+        return `<div style="margin: 24px 0; text-align: center;">
+          <img src="${imgUrl}" alt="${caption}" style="max-width: 100%; height: auto; border-radius: 8px;" />
+          ${caption ? `<p style="font-size: 14px; color: #666; margin-top: 8px;">${caption}</p>` : ''}
+        </div>`;
+      
+      case 'quote':
+        return `<blockquote style="margin: 24px 0; padding: 16px 24px; border-left: 4px solid #055474; background: #f8f9fa;">
+          <p style="font-style: italic; color: #444; margin: 0;">${blockData.text || ''}</p>
+          ${blockData.caption ? `<cite style="display: block; margin-top: 8px; font-size: 14px; color: #666;">— ${blockData.caption}</cite>` : ''}
+        </blockquote>`;
+      
+      case 'delimiter':
+        return `<hr style="border: none; border-top: 1px solid #e0e0e0; margin: 32px 0;" />`;
+      
+      case 'warning':
+        return `<div style="margin: 24px 0; padding: 16px; background: #fff8e1; border-left: 4px solid #ff9800;">
+          ${blockData.title ? `<strong style="color: #e65100;">${blockData.title}</strong><br />` : ''}
+          <span style="color: #333;">${blockData.message || ''}</span>
+        </div>`;
+      
+      case 'table':
+        if (!blockData.content) return '';
+        const rows = blockData.content.map((row, idx) => {
+          const cells = row.map((cell, cidx) => {
+            const cellTag = idx === 0 && blockData.withHeadings ? 'th' : 'td';
+            const style = idx === 0 && blockData.withHeadings 
+              ? 'padding: 12px; border: 1px solid #e0e0e0; background: #f5f5f5; font-weight: 600;'
+              : 'padding: 12px; border: 1px solid #e0e0e0;';
+            return `<${cellTag} style="${style}">${cell}</${cellTag}>`;
+          }).join('');
+          return `<tr>${cells}</tr>`;
+        }).join('');
+        return `<table style="width: 100%; border-collapse: collapse; margin: 24px 0;"><tbody>${rows}</tbody></table>`;
+      
+      default:
+        if (blockData?.text) {
+          return `<p style="margin: 0 0 16px 0; line-height: 1.6;">${blockData.text}</p>`;
+        }
+        return '';
+    }
+  }).join('\n');
+};
 
 export default function TemplatesTab() {
   const [templates, setTemplates] = useState([]);
@@ -16,6 +112,8 @@ export default function TemplatesTab() {
   const [saving, setSaving] = useState(false);
   const [previewEmail, setPreviewEmail] = useState('');
   const [sendingPreview, setSendingPreview] = useState(false);
+  const [editorMode, setEditorMode] = useState('visual'); // 'visual' or 'html'
+  const [bodyBlocks, setBodyBlocks] = useState(null);
 
   useEffect(() => {
     loadTemplates();
@@ -40,6 +138,8 @@ export default function TemplatesTab() {
     if (expandedId === templateId) {
       setExpandedId(null);
       setEditData({});
+      setBodyBlocks(null);
+      setEditorMode('visual');
       return;
     }
     
@@ -48,6 +148,28 @@ export default function TemplatesTab() {
       if (result.success) {
         setEditData(result.data);
         setExpandedId(templateId);
+        // Try to parse body as blocks, otherwise treat as legacy HTML
+        if (result.data.body_template) {
+          try {
+            const parsed = JSON.parse(result.data.body_template);
+            if (parsed.blocks) {
+              setBodyBlocks(parsed);
+            } else {
+              setBodyBlocks(null);
+            }
+          } catch (e) {
+            // Legacy HTML content - convert to single paragraph block
+            setBodyBlocks({
+              blocks: [{
+                type: 'paragraph',
+                data: { text: result.data.body_template }
+              }]
+            });
+          }
+        } else {
+          setBodyBlocks({ blocks: [] });
+        }
+        setEditorMode('visual');
       }
     } catch (err) {
       setError(err.message);
@@ -58,16 +180,33 @@ export default function TemplatesTab() {
     setEditData(prev => ({ ...prev, [field]: value }));
   };
 
+  // Handle block editor content change
+  const handleBlockEditorChange = useCallback((outputData) => {
+    setBodyBlocks(outputData);
+    // Store both JSON (for editing) and HTML (for sending)
+    const htmlContent = blocksToEmailHtml(outputData);
+    setEditData(prev => ({
+      ...prev,
+      body_template: JSON.stringify(outputData), // Store JSON for re-editing
+      body_html: htmlContent // HTML version for actual emails
+    }));
+  }, []);
+
   const handleSave = async () => {
     try {
       setSaving(true);
       setError(null);
       setSuccess('');
       
+      // Generate HTML from blocks for email sending
+      const bodyHtml = bodyBlocks ? blocksToEmailHtml(bodyBlocks) : editData.body_template;
+      const bodyJson = bodyBlocks ? JSON.stringify(bodyBlocks) : editData.body_template;
+      
       const result = await updateTemplate(editData.id, {
         name: editData.name,
         subject_template: editData.subject_template,
-        body_template: editData.body_template,
+        body_template: bodyJson, // Store JSON blocks for editing
+        body_html: bodyHtml, // Store HTML for actual email sending
         priority_level: editData.priority_level,
         is_transactional: editData.is_transactional
       });
@@ -98,11 +237,14 @@ export default function TemplatesTab() {
       setError(null);
       setSuccess('');
       
+      // Use HTML version for preview
+      const bodyHtml = bodyBlocks ? blocksToEmailHtml(bodyBlocks) : editData.body_template;
+      
       const result = await sendPreview({
         email: previewEmail,
         template_id: editData.id,
         subject: editData.subject_template,
-        body: editData.body_template
+        body: bodyHtml
       });
       
       if (result.success) {
@@ -196,14 +338,45 @@ export default function TemplatesTab() {
                 
                 {/* Body */}
                 <div className="form-group">
-                  <label>Body Template (HTML)</label>
-                  <textarea
-                    className="form-textarea code-editor"
-                    rows={15}
-                    value={editData.body_template || ''}
-                    onChange={(e) => handleInputChange('body_template', e.target.value)}
-                    placeholder="HTML content with {{variable}} placeholders"
-                  />
+                  <div className="body-editor-header">
+                    <label>Body Template</label>
+                    <div className="editor-mode-toggle">
+                      <button
+                        type="button"
+                        className={`mode-btn ${editorMode === 'visual' ? 'active' : ''}`}
+                        onClick={() => setEditorMode('visual')}
+                      >
+                        Visual Editor
+                      </button>
+                      <button
+                        type="button"
+                        className={`mode-btn ${editorMode === 'html' ? 'active' : ''}`}
+                        onClick={() => setEditorMode('html')}
+                      >
+                        HTML Preview
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {editorMode === 'visual' ? (
+                    <div className="block-editor-container">
+                      <BlockEditor
+                        value={bodyBlocks}
+                        onChange={handleBlockEditorChange}
+                        placeholder="Start writing your email content..."
+                        minHeight={300}
+                        imageUploadEndpoint="/api/v2/upload/image"
+                      />
+                    </div>
+                  ) : (
+                    <div className="html-preview-container">
+                      <div className="html-preview-label">Generated HTML (read-only):</div>
+                      <pre className="html-preview-code">
+                        {bodyBlocks ? blocksToEmailHtml(bodyBlocks) : editData.body_template || ''}
+                      </pre>
+                    </div>
+                  )}
+                  
                   <small className="help-text">
                     Use {'{{variable}}'} syntax for dynamic content. Available: {'{{firstName}}'}, {'{{lastName}}'}, {'{{email}}'}, etc.
                   </small>
@@ -443,6 +616,83 @@ export default function TemplatesTab() {
         .badge-light {
           background: #f8f9fa;
           color: #666;
+        }
+        
+        .body-editor-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 0.75rem;
+        }
+        
+        .body-editor-header label {
+          margin: 0;
+        }
+        
+        .editor-mode-toggle {
+          display: flex;
+          gap: 0;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          overflow: hidden;
+        }
+        
+        .mode-btn {
+          padding: 0.4rem 0.75rem;
+          border: none;
+          background: #fff;
+          color: #666;
+          font-size: 0.85rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        
+        .mode-btn:not(:last-child) {
+          border-right: 1px solid #ddd;
+        }
+        
+        .mode-btn:hover {
+          background: #f5f5f5;
+        }
+        
+        .mode-btn.active {
+          background: #055474;
+          color: #fff;
+        }
+        
+        .block-editor-container {
+          border: 1px solid #ddd;
+          border-radius: 6px;
+          overflow: hidden;
+          background: #fff;
+        }
+        
+        .html-preview-container {
+          border: 1px solid #ddd;
+          border-radius: 6px;
+          background: #1e1e1e;
+          overflow: hidden;
+        }
+        
+        .html-preview-label {
+          padding: 0.5rem 1rem;
+          background: #2d2d2d;
+          color: #888;
+          font-size: 0.8rem;
+          border-bottom: 1px solid #3d3d3d;
+        }
+        
+        .html-preview-code {
+          margin: 0;
+          padding: 1rem;
+          color: #d4d4d4;
+          font-family: 'Monaco', 'Consolas', monospace;
+          font-size: 0.85rem;
+          line-height: 1.5;
+          white-space: pre-wrap;
+          word-break: break-word;
+          max-height: 400px;
+          overflow-y: auto;
         }
       `}</style>
     </div>

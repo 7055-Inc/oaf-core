@@ -131,11 +131,11 @@ export default function Header() {
         }
 
         // Fetch fresh data
-        const endpoint = `${process.env.NEXT_PUBLIC_API_BASE_URL}/categories`;
+        const endpoint = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v2/catalog/categories`;
         const response = await fetch(endpoint);
         if (response.ok) {
           const data = await response.json();
-          const allCategories = data.categories || [];
+          const allCategories = data.data || [];
           
           // Find Shop category and use its children as the dropdown categories
           const shopCategory = allCategories.find(cat => cat.name === 'Shop' || cat.id === 7);

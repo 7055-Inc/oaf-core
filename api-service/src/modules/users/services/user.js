@@ -130,7 +130,7 @@ async function updateUserType(userId, userType) {
  * @returns {Promise<boolean>} Success
  */
 async function updateStatus(userId, status) {
-  const validStatuses = ['draft', 'active', 'suspended', 'deleted'];
+  const validStatuses = ['draft', 'active', 'suspended', 'deleted', 'hidden'];
   if (!validStatuses.includes(status)) {
     throw new Error(`Invalid status: ${status}`);
   }
@@ -182,6 +182,11 @@ async function list({
   if (status) {
     whereConditions.push('u.status = ?');
     params.push(status);
+  }
+  
+  // Always exclude hidden users from list unless explicitly requesting them
+  if (status !== 'hidden') {
+    whereConditions.push("u.status != 'hidden'");
   }
   
   // User type filter

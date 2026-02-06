@@ -61,10 +61,62 @@
   var currentFolderId = null;
   var currentSopId = null;
 
+  // URL routing helpers
+  function updateUrl(view, id) {
+    var path = '/';
+    if (view === 'catalog') path = '/catalog' + (currentFolderId ? '/folder/' + currentFolderId : '');
+    else if (view === 'sop-view' && id) path = '/sop/' + id;
+    else if (view === 'sop-form' && id) path = '/sop/' + id + '/edit';
+    else if (view === 'sop-form') path = '/sop/new';
+    else if (view === 'manage-users') path = '/users';
+    else if (view === 'dashboard') path = '/';
+    if (window.location.pathname !== path) {
+      history.pushState({ view: view, id: id, folderId: currentFolderId }, '', path);
+    }
+  }
+
+  function parseUrl() {
+    var path = window.location.pathname;
+    if (path.match(/^\/sop\/(\d+)\/edit$/)) {
+      var id = parseInt(path.match(/^\/sop\/(\d+)\/edit$/)[1], 10);
+      return { view: 'sop-form', id: id };
+    }
+    if (path.match(/^\/sop\/new$/)) {
+      return { view: 'sop-form', id: null };
+    }
+    if (path.match(/^\/sop\/(\d+)$/)) {
+      var id = parseInt(path.match(/^\/sop\/(\d+)$/)[1], 10);
+      return { view: 'sop-view', id: id };
+    }
+    if (path.match(/^\/catalog\/folder\/(\d+)$/)) {
+      var fid = parseInt(path.match(/^\/catalog\/folder\/(\d+)$/)[1], 10);
+      currentFolderId = fid;
+      return { view: 'catalog', id: null };
+    }
+    if (path.match(/^\/catalog$/)) {
+      return { view: 'catalog', id: null };
+    }
+    if (path.match(/^\/users$/)) {
+      return { view: 'manage-users', id: null };
+    }
+    return { view: 'dashboard', id: null };
+  }
+
+  // Handle browser back/forward
+  window.addEventListener('popstate', function (e) {
+    if (e.state) {
+      currentFolderId = e.state.folderId || null;
+      showViewInternal(e.state.view, e.state.id);
+    } else {
+      var parsed = parseUrl();
+      showViewInternal(parsed.view, parsed.id);
+    }
+  });
+
   function renderNav() {
-    var html = '<a href="#" data-view="dashboard">Dashboard</a>';
-    html += ' <a href="#" data-view="catalog">Catalog</a>';
-    if (isTop()) html += ' <a href="#" data-view="manage-users">Manage users</a>';
+    var html = '<a href="/" data-view="dashboard">Dashboard</a>';
+    html += ' <a href="/catalog" data-view="catalog">Catalog</a>';
+    if (isTop()) html += ' <a href="/users" data-view="manage-users">Manage users</a>';
     html += ' <a href="#" id="sop-logout">Sign out</a>';
     sopNav.innerHTML = html;
     sopNav.querySelectorAll('[data-view]').forEach(function (a) {
@@ -76,16 +128,22 @@
     document.getElementById('sop-logout').addEventListener('click', function (e) {
       e.preventDefault();
       clearSession();
+      history.pushState({}, '', '/');
       checkAuth();
     });
   }
 
-  function showView(view, id) {
+  function showViewInternal(view, id) {
     if (view === 'dashboard') renderDashboard();
     else if (view === 'manage-users') renderManageUsers();
     else if (view === 'catalog') renderCatalog();
     else if (view === 'sop-view' && id) renderSopView(id);
     else if (view === 'sop-form') renderSopForm(id || null);
+  }
+
+  function showView(view, id) {
+    updateUrl(view, id);
+    showViewInternal(view, id);
   }
 
   function renderDashboard() {
@@ -173,9 +231,31 @@
       rootLink.addEventListener('click', function (e) {
         e.preventDefault();
         currentFolderId = null;
+        updateUrl('catalog', null);
         loadSopList(null);
         rootLink.classList.add('sop-tree-active');
         mainContent.querySelectorAll('.sop-tree-folder:not(.sop-tree-root)').forEach(function (a) { a.classList.remove('sop-tree-active'); });
+      });
+    }
+
+    // Bind the root "Add folder" button in the sidebar (outside tree container)
+    var sidebarAddBtn = mainContent.querySelector('.sop-catalog-sidebar > p > .sop-add-folder');
+    if (sidebarAddBtn) {
+      sidebarAddBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        var title = prompt('Folder title:');
+        if (!title) return;
+        fetch('/api/folders', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: title.trim(), parent_id: null })
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.success) renderCatalog();
+            else alert(data.error || 'Failed');
+          });
       });
     }
 
@@ -224,12 +304,14 @@
       if (!container) return;
       var selectFolder = function (folderId) {
         currentFolderId = folderId;
+        updateUrl('catalog', null);
         renderCatalog();
       };
       container.querySelectorAll('.sop-tree-folder').forEach(function (a) {
         a.addEventListener('click', function (e) {
           e.preventDefault();
-          selectFolder(parseInt(a.getAttribute('data-folder-id'), 10));
+          var fid = a.getAttribute('data-folder-id');
+          selectFolder(fid ? parseInt(fid, 10) : null);
         });
       });
       container.querySelectorAll('.sop-add-folder').forEach(function (btn) {
@@ -369,7 +451,7 @@
             var fid = a.getAttribute('data-id');
             var folderId = a.getAttribute('data-folder-id');
             if (view === 'catalog' && folderId !== null && folderId !== '') {
-              currentFolderId = parseInt(folderId, 10);
+              currentFolderId = folderId ? parseInt(folderId, 10) : null;
               showView('catalog');
             } else {
               showView(view, fid ? parseInt(fid, 10) : null);
@@ -640,13 +722,18 @@
       });
   }
 
+  function navigateFromUrl() {
+    var parsed = parseUrl();
+    showViewInternal(parsed.view, parsed.id);
+  }
+
   function checkAuth() {
     fetch('/api/auth/me', { credentials: 'include' })
       .then(function (res) {
         return res.json().then(function (data) {
           if (res.ok && data.success && data.data) {
             setSession(data.data);
-            renderDashboard();
+            navigateFromUrl();
           } else {
             clearSession();
             renderLoginGate();
@@ -666,7 +753,7 @@
           return res.json().then(function (data) {
             if (res.ok && data.success && data.data) {
               setSession(data.data);
-              renderDashboard();
+              navigateFromUrl();
             } else {
               clearSession();
               checkAuth();

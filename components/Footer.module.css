@@ -253,6 +253,15 @@
   color: var(--bb-white-92, rgba(255,255,255,0.92));
 }
 
+/* TrustPilot Widget */
+.bbTrustpilot {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0;
+  max-width: 280px;
+  margin: 0 auto;
+}
+
 /* Copyright - Bottom */
 .bbCopyright {
   text-align: center;

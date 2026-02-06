@@ -12,7 +12,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   listUsers, 
   adminGetUser, 
-  adminUpdatePermissions 
+  adminUpdatePermissions,
+  adminUpdateUser 
 } from '../../../lib/users/api';
 import { startImpersonation } from '../../../lib/auth';
 
@@ -30,7 +31,7 @@ const PERMISSIONS = [
 
 // User type options
 const USER_TYPES = ['artist', 'promoter', 'community', 'admin'];
-const USER_STATUSES = ['active', 'inactive', 'suspended', 'draft'];
+const USER_STATUSES = ['active', 'inactive', 'suspended', 'draft', 'hidden'];
 
 const UserManagement = () => {
   // State
@@ -194,6 +195,33 @@ const UserManagement = () => {
     }
   };
 
+  // Update user status
+  const updateUserStatus = async (userId, newStatus) => {
+    setSavingPermissions(prev => new Set(prev).add(`${userId}-status`));
+    
+    try {
+      await adminUpdateUser(userId, { status: newStatus });
+
+      // Update local state
+      setUsers(prev => prev.map(user => 
+        user.id === userId 
+          ? { ...user, status: newStatus }
+          : user
+      ));
+      
+      setMessage({ text: 'Status updated', type: 'success' });
+      setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingPermissions(prev => {
+        const next = new Set(prev);
+        next.delete(`${userId}-status`);
+        return next;
+      });
+    }
+  };
+
   // Status styling
   const getStatusClass = (status) => {
     switch (status) {
@@ -201,6 +229,7 @@ const UserManagement = () => {
       case 'inactive': return 'muted';
       case 'suspended': return 'danger';
       case 'draft': return 'muted';
+      case 'hidden': return 'warning';
       default: return 'muted';
     }
   };
@@ -461,6 +490,46 @@ const UserManagement = () => {
                               User has not connected a Stripe account.
                             </p>
                           )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Account Settings Section */}
+                    <div className="expansion-section">
+                      <div 
+                        className="expansion-section-header"
+                        onClick={() => toggleSection(user.id, 'account')}
+                      >
+                        <i className={`fa-solid fa-chevron-${isSectionExpanded(user.id, 'account') ? 'down' : 'right'}`}></i>
+                        <i className="fa-solid fa-user-gear expansion-section-icon"></i>
+                        <span>Account Settings</span>
+                      </div>
+                      
+                      {isSectionExpanded(user.id, 'account') && (
+                        <div className="expansion-section-content">
+                          <div className="form-group" style={{ maxWidth: '300px' }}>
+                            <label className="form-label">User Status</label>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <select
+                                value={user.status}
+                                onChange={(e) => updateUserStatus(user.id, e.target.value)}
+                                disabled={savingPermissions.has(`${user.id}-status`)}
+                                style={{ flex: 1 }}
+                              >
+                                {USER_STATUSES.map(status => (
+                                  <option key={status} value={status}>{status}</option>
+                                ))}
+                              </select>
+                              {savingPermissions.has(`${user.id}-status`) && (
+                                <i className="fa-solid fa-spinner fa-spin"></i>
+                              )}
+                            </div>
+                            <p className="form-hint" style={{ marginTop: '4px' }}>
+                              {user.status === 'hidden' 
+                                ? 'Hidden users are excluded from all public API responses and search results.'
+                                : 'Change this user\'s account status.'}
+                            </p>
+                          </div>
                         </div>
                       )}
                     </div>

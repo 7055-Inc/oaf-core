@@ -17,9 +17,9 @@ async function list(filters = {}) {
     const term = `%${search}%`;
     params.push(term, term);
   }
-  sql += ' ORDER BY updated_at DESC LIMIT ? OFFSET ?';
-  params.push(limit, offset);
-  const [rows] = await pool.execute(sql, params);
+  // Use query() instead of execute() for LIMIT/OFFSET to avoid prepared statement issues
+  sql += ` ORDER BY updated_at DESC LIMIT ${parseInt(limit, 10) || 50} OFFSET ${parseInt(offset, 10) || 0}`;
+  const [rows] = await pool.query(sql, params);
   return rows;
 }
 
