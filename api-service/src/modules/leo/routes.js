@@ -7,8 +7,9 @@
 
 const express = require('express');
 const router = express.Router();
-const { getVectorDB, SearchService, getUserIngestion, getBehaviorIngestion, getProductIngestion, getOrderIngestion, getEventIngestion, getReviewIngestion, getArticleIngestion, getTruthOrchestrator, getTruthStore } = require('./services');
+const { getVectorDB, SearchService, getUserIngestion, getBehaviorIngestion, getProductIngestion, getOrderIngestion, getEventIngestion, getReviewIngestion, getArticleIngestion, getTruthOrchestrator, getTruthStore, getBrain } = require('./services');
 const { verifyToken, requireAdmin } = require('../auth/middleware');
+const { getUserPreferences, getCacheStats } = require('./services/utils/userPreferences');
 
 // Initialize services (lazy loading)
 let searchService = null;
@@ -61,6 +62,188 @@ router.get('/health', async (req, res) => {
     });
   }
 });
+
+// ============================================
+// BRAIN ENDPOINTS (Leo Brain - Llama-powered)
+// ============================================
+
+/**
+ * POST /api/v2/leo/query
+ * Main brain entry point - Llama-powered intelligent query processing
+ * 
+ * Body: { query: string, userId?: string, requestType?: string, limit?: number }
+ */
+router.post('/query', async (req, res) => {
+  try {
+    const { query, userId, requestType, limit, page, displayMode } = req.body;
+
+    if (!query) {
+      return res.status(400).json({
+        success: false,
+        error: 'Query parameter is required'
+      });
+    }
+
+    const brain = getBrain();
+    const vdb = getVectorDB();
+    const truthStore = getTruthStore();
+    
+    if (!brain.isInitialized) {
+      await brain.initialize(vdb, truthStore);
+    }
+
+    const result = await brain.processQuery(query, {
+      userId: userId || req.user?.id || 'anonymous',
+      requestType: requestType || 'search',
+      page: page || 'unknown',
+      limit: limit || 20,
+      displayMode: displayMode || 'standard'
+    });
+
+    res.json(result);
+
+  } catch (error) {
+    console.error('[LEO-BRAIN] Query processing error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Query processing failed',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/v2/leo/analyze
+ * Query analysis only - no execution
+ * 
+ * Body: { query: string, userId?: string }
+ */
+router.post('/analyze', async (req, res) => {
+  try {
+    const { query, userId, requestType, limit } = req.body;
+
+    if (!query) {
+      return res.status(400).json({
+        success: false,
+        error: 'Query parameter is required'
+      });
+    }
+
+    const brain = getBrain();
+    const vdb = getVectorDB();
+    
+    if (!brain.isInitialized) {
+      await brain.initialize(vdb);
+    }
+
+    const result = await brain.analyzeOnly(query, {
+      userId: userId || req.user?.id || 'anonymous',
+      requestType: requestType || 'search',
+      limit: limit || 20
+    });
+
+    res.json(result);
+
+  } catch (error) {
+    console.error('[LEO-BRAIN] Analysis error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Query analysis failed',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/v2/leo/user/:id/prefs
+ * Get user preferences (classification 141)
+ */
+router.get('/user/:id/prefs', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const vdb = getVectorDB();
+    
+    if (!vdb.isInitialized) {
+      await vdb.initialize();
+    }
+
+    const prefs = await getUserPreferences(id, vdb);
+
+    res.json({
+      success: true,
+      user_id: id,
+      preferences: prefs,
+      cached: prefs.cached || false
+    });
+
+  } catch (error) {
+    console.error('[LEO-BRAIN] Get preferences error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get user preferences',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/v2/leo/brain/health
+ * Brain system health check
+ */
+router.get('/brain/health', async (req, res) => {
+  try {
+    const brain = getBrain();
+    const vdb = getVectorDB();
+    
+    if (!brain.isInitialized) {
+      await brain.initialize(vdb);
+    }
+
+    const health = await brain.healthCheck();
+
+    res.json({
+      status: health.healthy ? 'healthy' : 'unhealthy',
+      service: 'leo-brain',
+      ...health
+    });
+
+  } catch (error) {
+    res.status(503).json({
+      status: 'error',
+      service: 'leo-brain',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/v2/leo/brain/stats
+ * Brain system statistics
+ */
+router.get('/brain/stats', async (req, res) => {
+  try {
+    const brain = getBrain();
+    const stats = brain.getStats();
+    const cacheStats = getCacheStats();
+
+    res.json({
+      success: true,
+      brain: stats,
+      user_pref_cache: cacheStats,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// ============================================
+// LEGACY SEARCH ENDPOINTS (preserved for compatibility)
+// ============================================
 
 /**
  * POST /api/v2/leo/search
