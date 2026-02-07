@@ -274,6 +274,15 @@ try {
   secureLogger.error('Error loading System module', err);
 }
 
+// Load Leo AI module (search, recommendations, ingestion - v2 at /api/v2/leo)
+secureLogger.info('Loading Leo AI module');
+try {
+  app.use('/api/v2/leo', require('./modules/leo').router);
+  secureLogger.info('Loaded v2 Leo AI module at /api/v2/leo');
+} catch (err) {
+  secureLogger.error('Error loading Leo AI module', err);
+}
+
 // Load Marketing module (user content submissions - v2 at /api/v2/marketing)
 secureLogger.info('Loading Marketing module');
 try {

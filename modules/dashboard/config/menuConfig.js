@@ -447,6 +447,20 @@ const menuConfig = [
       },
     ]
   },
+  {
+    id: 'leo',
+    label: 'Leo AI',
+    href: '/dashboard/leo',
+    icon: 'fa-brain',
+    adminOnly: true,
+    items: [
+      { 
+        label: 'Manual Sync', 
+        href: '/dashboard/leo/sync',
+        adminOnly: true
+      },
+    ]
+  },
 ];
 
 export default menuConfig;

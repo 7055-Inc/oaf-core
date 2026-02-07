@@ -5,7 +5,7 @@
  * Creates behavioral profiles for personalization and recommendations.
  * 
  * Data Flow:
- * - ClickHouse (behavior.events) -> Aggregation -> ChromaDB (user_behavior)
+ * - ClickHouse (behavior.events) -> Aggregation -> ChromaDB (user_interactions)
  * 
  * Two modes:
  * 1. User behavior profiles - Per-user aggregated patterns
@@ -471,6 +471,21 @@ class BehaviorIngestion {
     try {
       logger.info(`Starting behavior ingestion (${dayRange} day lookback)...`);
       const startTime = Date.now();
+
+      // Initialize if not already done
+      if (!this.clickhouse || !this.vectorDB) {
+        try {
+          await this.initialize();
+        } catch (initError) {
+          logger.error('Failed to initialize behavior ingestion - ClickHouse may not be running:', initError.message);
+          return { 
+            success: false, 
+            error: 'ClickHouse connection failed. Is ClickHouse running on port 8123?',
+            stats: this.stats, 
+            duration: 0 
+          };
+        }
+      }
 
       // Reset stats
       this.stats = {

@@ -45,9 +45,11 @@ class VectorDatabase {
     const collectionConfigs = [
       { name: 'art_metadata', description: 'Art and product metadata' },
       { name: 'user_profiles', description: 'User profiles and preferences' },
-      { name: 'user_interactions', description: 'User behavior and preferences' },
+      { name: 'user_behavior', description: 'User behavioral patterns from ClickHouse analytics' },
+      { name: 'user_interactions', description: 'User purchase history and order data' },
       { name: 'site_content', description: 'Website content and pages' },
       { name: 'event_data', description: 'Event and activity data' },
+      { name: 'reviews', description: 'Reviews for events, products, artists, and promoters' },
       { name: 'learning_feedback', description: 'AI learning and feedback data' }
     ];
 

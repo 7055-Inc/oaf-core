@@ -54,10 +54,23 @@ class ProductIngestion {
   }
 
   /**
-   * Get all products with joined related data
-   * @param {string} lastRun - ISO timestamp, only get products updated after this
+   * Get count of products to process
    */
-  async getProductsWithRelatedData(lastRun = '1970-01-01 00:00:00') {
+  async getProductCount(lastRun = '1970-01-01 00:00:00') {
+    const [[{ count }]] = await pool.execute(
+      'SELECT COUNT(*) as count FROM products WHERE updated_at > ?',
+      [lastRun]
+    );
+    return count;
+  }
+
+  /**
+   * Get a batch of products with joined related data
+   * @param {string} lastRun - ISO timestamp, only get products updated after this
+   * @param {number} limit - Batch size
+   * @param {number} offset - Offset for pagination
+   */
+  async getProductBatch(lastRun = '1970-01-01 00:00:00', limit = 1, offset = 0) {
     try {
       const [products] = await pool.execute(`
         SELECT 
@@ -135,14 +148,21 @@ class ProductIngestion {
         LEFT JOIN product_inventory inv ON inv.product_id = p.id
         WHERE p.updated_at > ?
         ORDER BY p.id
+        LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}
       `, [lastRun]);
 
-      logger.info(`Found ${products.length} products to ingest`);
       return products;
     } catch (error) {
-      logger.error('Failed to fetch products:', error);
+      logger.error('Failed to fetch product batch:', error);
       throw error;
     }
+  }
+
+  /**
+   * Small delay between batches to prevent overwhelming the system
+   */
+  async delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**
@@ -397,12 +417,19 @@ class ProductIngestion {
   }
 
   /**
-   * Run the complete product ingestion
+   * Run the complete product ingestion - ONE AT A TIME
    * @param {string} lastRun - ISO timestamp, only ingest products updated after this
+   * @param {number} batchSize - Products per batch (default 1 - one at a time!)
+   * @param {number} delayMs - Delay between products in ms (default 200)
    */
-  async run(lastRun = '1970-01-01 00:00:00') {
+  async run(lastRun = '1970-01-01 00:00:00', batchSize = 1, delayMs = 200) {
     try {
-      logger.info('Starting product ingestion...');
+      // Initialize if needed
+      if (!this.vectorDB) {
+        await this.initialize();
+      }
+
+      logger.info(`Starting product ingestion (batch size: ${batchSize})...`);
       const startTime = Date.now();
 
       // Reset stats
@@ -414,23 +441,48 @@ class ProductIngestion {
         with_images: 0,
         with_inventory: 0,
         with_variations: 0,
-        marketplace_enabled: 0
+        marketplace_enabled: 0,
+        batches_processed: 0
       };
 
-      // Get all products with related data
-      const products = await this.getProductsWithRelatedData(lastRun);
-
-      if (products.length === 0) {
+      // Get total count first
+      const totalCount = await this.getProductCount(lastRun);
+      
+      if (totalCount === 0) {
         logger.info('No products to ingest');
         return { success: true, stats: this.stats, duration: 0 };
       }
 
-      // Ingest each product
-      for (const product of products) {
-        await this.ingestProduct(product);
+      logger.info(`Found ${totalCount} products to ingest in batches of ${batchSize}`);
+      const totalBatches = Math.ceil(totalCount / batchSize);
+
+      // Process in streaming batches
+      let offset = 0;
+      while (offset < totalCount) {
+        // Fetch one batch
+        const batch = await this.getProductBatch(lastRun, batchSize, offset);
         
-        if (this.stats.total % 100 === 0) {
-          logger.info(`Progress: ${this.stats.total}/${products.length} products ingested`);
+        if (batch.length === 0) break;
+
+        // Process each product in the batch
+        for (const product of batch) {
+          try {
+            await this.ingestProduct(product);
+          } catch (err) {
+            logger.warn(`Skipping product ${product.id} due to error:`, err.message);
+          }
+        }
+
+        this.stats.batches_processed++;
+        offset += batchSize;
+
+        // Progress logging
+        const progress = Math.round((offset / totalCount) * 100);
+        logger.info(`Progress: ${Math.min(offset, totalCount)}/${totalCount} (${progress}%) - Batch ${this.stats.batches_processed}/${totalBatches}`);
+
+        // Small delay between batches to prevent overwhelming
+        if (offset < totalCount) {
+          await this.delay(delayMs);
         }
       }
 
