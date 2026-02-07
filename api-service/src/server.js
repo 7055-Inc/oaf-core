@@ -283,13 +283,13 @@ try {
   secureLogger.error('Error loading Leo AI module', err);
 }
 
-// Load Marketing module (user content submissions - v2 at /api/v2/marketing)
-secureLogger.info('Loading Marketing module');
+// Load Marketing Core module (Leo marketing automation - v2 at /api/v2/marketing)
+secureLogger.info('Loading Marketing Core module');
 try {
-  app.use('/api/v2/marketing', uploadLimiter, require('./modules/marketing/routes'));
-  secureLogger.info('Loaded v2 Marketing module at /api/v2/marketing');
+  app.use('/api/v2/marketing', uploadLimiter, require('./modules/marketing').router);
+  secureLogger.info('Loaded v2 Marketing Core module at /api/v2/marketing');
 } catch (err) {
-  secureLogger.error('Error loading Marketing module', err);
+  secureLogger.error('Error loading Marketing Core module', err);
 }
 
 // Load Email module (admin email management - v2 at /api/v2/email)
