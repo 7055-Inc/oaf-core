@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { getTemplates, getTemplate, updateTemplate, sendPreview } from '../../../../lib/email/api';
+import { getTemplates, getTemplate, updateTemplate, sendPreview, getTemplateDefault, resetTemplateToDefault } from '../../../../lib/email/api';
 
 // Dynamically import BlockEditor to avoid SSR issues
 const BlockEditor = dynamic(
@@ -114,6 +114,9 @@ export default function TemplatesTab() {
   const [sendingPreview, setSendingPreview] = useState(false);
   const [editorMode, setEditorMode] = useState('visual'); // 'visual' or 'html'
   const [bodyBlocks, setBodyBlocks] = useState(null);
+  const [usingDefault, setUsingDefault] = useState(false);
+  const [hasDefaultConfig, setHasDefaultConfig] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     loadTemplates();
@@ -140,18 +143,46 @@ export default function TemplatesTab() {
       setEditData({});
       setBodyBlocks(null);
       setEditorMode('visual');
+      setUsingDefault(false);
+      setHasDefaultConfig(false);
       return;
     }
     
     try {
       const result = await getTemplate(templateId);
       if (result.success) {
-        setEditData(result.data);
+        const templateData = result.data;
+        
+        // Check if config default exists
+        let defaultConfig = null;
+        try {
+          const defaultResult = await getTemplateDefault(templateId);
+          if (defaultResult.success) {
+            defaultConfig = defaultResult.data;
+            setHasDefaultConfig(true);
+          }
+        } catch (err) {
+          // No default config available
+          setHasDefaultConfig(false);
+        }
+        
+        // If body_template is null and we have a default, load the default
+        const isUsingDefault = !templateData.body_template && defaultConfig;
+        setUsingDefault(isUsingDefault);
+        
+        const bodyToUse = templateData.body_template || 
+                         (defaultConfig ? JSON.stringify(defaultConfig.body_template) : null);
+        
+        setEditData({
+          ...templateData,
+          body_template: bodyToUse
+        });
         setExpandedId(templateId);
+        
         // Try to parse body as blocks, otherwise treat as legacy HTML
-        if (result.data.body_template) {
+        if (bodyToUse) {
           try {
-            const parsed = JSON.parse(result.data.body_template);
+            const parsed = JSON.parse(bodyToUse);
             if (parsed.blocks) {
               setBodyBlocks(parsed);
             } else {
@@ -162,7 +193,7 @@ export default function TemplatesTab() {
             setBodyBlocks({
               blocks: [{
                 type: 'paragraph',
-                data: { text: result.data.body_template }
+                data: { text: bodyToUse }
               }]
             });
           }
@@ -223,6 +254,32 @@ export default function TemplatesTab() {
       setError(err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleResetToDefault = async () => {
+    if (!confirm('Are you sure you want to reset this template to the system default? Any customizations will be lost.')) {
+      return;
+    }
+    
+    try {
+      setResetting(true);
+      setError(null);
+      setSuccess('');
+      
+      const result = await resetTemplateToDefault(editData.id);
+      
+      if (result.success) {
+        setSuccess('Template reset to default successfully');
+        // Reload the template to show default content
+        await handleExpand(editData.id);
+        await loadTemplates();
+        setTimeout(() => setSuccess(''), 3000);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -310,6 +367,16 @@ export default function TemplatesTab() {
                     <span className="text-success">Sent: {editData.stats.successful || 0}</span>
                     <span className="text-danger">Failed: {editData.stats.failed || 0}</span>
                     <span className="text-warning">Bounced: {editData.stats.bounced || 0}</span>
+                  </div>
+                )}
+                
+                {/* Default Indicator */}
+                {usingDefault && (
+                  <div className="default-indicator">
+                    <span className="badge badge-info">
+                      📄 Using System Default
+                    </span>
+                    <small>This template is using the default configuration. Any changes you make will create a customized version.</small>
                   </div>
                 )}
                 
@@ -433,22 +500,34 @@ export default function TemplatesTab() {
                 
                 {/* Actions */}
                 <div className="form-actions">
-                  <button
-                    className="btn btn-primary"
-                    onClick={handleSave}
-                    disabled={saving}
-                  >
-                    {saving ? 'Saving...' : 'Save Template'}
-                  </button>
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => {
-                      setExpandedId(null);
-                      setEditData({});
-                    }}
-                  >
-                    Cancel
-                  </button>
+                  <div>
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleSave}
+                      disabled={saving}
+                    >
+                      {saving ? 'Saving...' : 'Save Template'}
+                    </button>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => {
+                        setExpandedId(null);
+                        setEditData({});
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  {hasDefaultConfig && !usingDefault && (
+                    <button
+                      className="btn btn-warning"
+                      onClick={handleResetToDefault}
+                      disabled={resetting}
+                      title="Reset to system default template"
+                    >
+                      {resetting ? 'Resetting...' : 'Reset to Default'}
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -693,6 +772,53 @@ export default function TemplatesTab() {
           word-break: break-word;
           max-height: 400px;
           overflow-y: auto;
+        }
+        
+        .default-indicator {
+          padding: 1rem;
+          background: #e7f5ff;
+          border: 1px solid #74c0fc;
+          border-radius: 6px;
+          margin-bottom: 1.5rem;
+        }
+        
+        .default-indicator .badge {
+          margin-bottom: 0.5rem;
+        }
+        
+        .default-indicator small {
+          display: block;
+          color: #495057;
+          line-height: 1.5;
+        }
+        
+        .form-actions {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 1rem;
+          flex-wrap: wrap;
+        }
+        
+        .form-actions > div {
+          display: flex;
+          gap: 0.75rem;
+        }
+        
+        .btn-warning {
+          background-color: #fff3cd;
+          color: #856404;
+          border: 1px solid #ffc107;
+        }
+        
+        .btn-warning:hover:not(:disabled) {
+          background-color: #ffc107;
+          color: #000;
+        }
+        
+        .btn-warning:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
         }
       `}</style>
     </div>

@@ -6,6 +6,7 @@
 
 const nodemailer = require('nodemailer');
 const db = require('../../config/db');
+const emailTemplateConfig = require('../../../config/email-templates');
 
 /**
  * EmailService Class
@@ -168,7 +169,8 @@ class EmailService {
   // ===== TEMPLATE MANAGEMENT =====
 
   /**
-   * Get email template by key from database
+   * Get email template by key from database with config defaults
+   * If body_template or subject_template is null in DB, loads from config file
    * 
    * @param {string} templateKey - Template identifier
    * @returns {Promise<Object|null>} Template object or null if not found
@@ -180,11 +182,66 @@ class EmailService {
         'SELECT * FROM email_templates WHERE template_key = ?',
         [templateKey]
       );
-      return rows[0] || null;
+      
+      const dbTemplate = rows[0];
+      const configTemplate = emailTemplateConfig.getTemplate(templateKey);
+      
+      // If no DB template and no config, return null
+      if (!dbTemplate && !configTemplate) {
+        return null;
+      }
+      
+      // If no DB template but config exists, return config as base
+      if (!dbTemplate && configTemplate) {
+        return {
+          id: null,
+          template_key: configTemplate.template_key,
+          name: configTemplate.name,
+          subject_template: configTemplate.subject_template,
+          body_template: typeof configTemplate.body_template === 'object' 
+            ? JSON.stringify(configTemplate.body_template) 
+            : configTemplate.body_template,
+          is_transactional: configTemplate.is_transactional ? 1 : 0,
+          priority_level: configTemplate.priority_level,
+          layout_key: configTemplate.layout_key,
+          can_compile: 0,
+          using_default: true
+        };
+      }
+      
+      // Merge DB template with config defaults for null fields
+      const template = { ...dbTemplate };
+      
+      if (configTemplate) {
+        // Use config defaults for null/empty fields
+        if (!template.body_template) {
+          template.body_template = typeof configTemplate.body_template === 'object'
+            ? JSON.stringify(configTemplate.body_template)
+            : configTemplate.body_template;
+          template.using_default_body = true;
+        }
+        
+        if (!template.subject_template && configTemplate.subject_template) {
+          template.subject_template = configTemplate.subject_template;
+          template.using_default_subject = true;
+        }
+      }
+      
+      return template;
     } catch (error) {
       console.error('Template fetch error:', error);
       throw error;
     }
+  }
+  
+  /**
+   * Get template config default (for UI to show what the default is)
+   * 
+   * @param {string} templateKey - Template identifier
+   * @returns {Object|null} Config template or null
+   */
+  getTemplateDefault(templateKey) {
+    return emailTemplateConfig.getTemplate(templateKey);
   }
 
   /**

@@ -1,0 +1,151 @@
+{
+  "template_slug": "avant-garde-studio",
+  "template_name": "Avant-Garde Studio",
+  "description": "Unconventional layout with side navigation, full-page hero slideshow, and fluid asymmetric design. Perfect for high-fashion and avant-garde brands.",
+  "version": "1.0.0",
+  "author": "Artist Sites",
+  "custom_fields": [
+    {
+      "key": "hero_slide_1_image",
+      "label": "Hero Slide 1 - Image",
+      "type": "image_url",
+      "placeholder": "https://example.com/slide1.jpg",
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "First slide background (image or video via addon)"
+    },
+    {
+      "key": "hero_slide_1_title",
+      "label": "Hero Slide 1 - Title",
+      "type": "text",
+      "placeholder": "THE NEXT SHOW STARTS IN 45 DAYS",
+      "max_length": 100,
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "Main text for first slide"
+    },
+    {
+      "key": "hero_slide_1_cta",
+      "label": "Hero Slide 1 - Button Text",
+      "type": "text",
+      "placeholder": "FIND OUT MORE",
+      "max_length": 30,
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "Button text for first slide"
+    },
+    {
+      "key": "hero_slide_2_image",
+      "label": "Hero Slide 2 - Image",
+      "type": "image_url",
+      "placeholder": "https://example.com/slide2.jpg",
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "Second slide background"
+    },
+    {
+      "key": "hero_slide_2_title",
+      "label": "Hero Slide 2 - Title",
+      "type": "text",
+      "placeholder": "AVANT-GARDE CLOTHING",
+      "max_length": 100,
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "Main text for second slide"
+    },
+    {
+      "key": "hero_slide_2_subtitle",
+      "label": "Hero Slide 2 - Subtitle",
+      "type": "text",
+      "placeholder": "BY IRINA DZHUS",
+      "max_length": 50,
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "Subtitle for second slide"
+    },
+    {
+      "key": "hero_slide_2_cta_primary",
+      "label": "Hero Slide 2 - Primary Button",
+      "type": "text",
+      "placeholder": "SCROLL DOWN",
+      "max_length": 30,
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "First button text"
+    },
+    {
+      "key": "hero_slide_2_cta_secondary",
+      "label": "Hero Slide 2 - Secondary Button",
+      "type": "text",
+      "placeholder": "VIEW ALL COLLECTIONS",
+      "max_length": 30,
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "Second button text"
+    },
+    {
+      "key": "menu_hover_color",
+      "label": "Menu Hover Background",
+      "type": "color",
+      "required": false,
+      "default_value": "#ffffff",
+      "tier_required": "pro",
+      "help_text": "Background color when hovering over side menu"
+    },
+    {
+      "key": "side_note_text",
+      "label": "Side Clipped Note Text",
+      "type": "text",
+      "placeholder": "THE NEXT SHOW",
+      "max_length": 50,
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "Text for side-clipped floating tab (optional)"
+    },
+    {
+      "key": "side_note_color",
+      "label": "Side Note Background Color",
+      "type": "color",
+      "required": false,
+      "default_value": "#f4e04d",
+      "tier_required": "pro",
+      "help_text": "Background color for side note tab"
+    },
+    {
+      "key": "show_category_circles",
+      "label": "Show Category Circles",
+      "type": "select",
+      "description": "Display circular category buttons (New in, Sale, Featured)",
+      "required": false,
+      "default_value": "yes",
+      "tier_required": "pro",
+      "options": [
+        { "value": "yes", "label": "Show Circles" },
+        { "value": "no", "label": "Hide Circles" }
+      ]
+    },
+    {
+      "key": "footer_position",
+      "label": "Footer Position",
+      "type": "select",
+      "description": "Place footer on side instead of bottom",
+      "required": false,
+      "default_value": "right",
+      "tier_required": "pro",
+      "options": [
+        { "value": "right", "label": "Right Side" },
+        { "value": "bottom", "label": "Bottom (Traditional)" }
+      ]
+    },
+    {
+      "key": "content_tagline",
+      "label": "Content Section Tagline",
+      "type": "textarea",
+      "placeholder": "AVANT-GARDE YET UTILITARIAN, DZHUS DESIGNS ARE INTERNATIONALLY RECOGNIZED...",
+      "max_length": 300,
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "Main tagline/description for content area"
+    }
+  ]
+}

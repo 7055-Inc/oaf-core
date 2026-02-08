@@ -1,0 +1,317 @@
+/* Minimalist Luxe Template
+ * Version: 1.0.0
+ * Description: Maximum whitespace with ultra-refined presentation
+ * Target: Ultra high-end artists, luxury brands, editorial galleries
+ * Tier: Professional (JavaScript-Enhanced)
+ */
+
+/* ========================================
+   BASE - PURE MINIMALISM
+   ======================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.storefront {
+  min-height: 100vh;
+  font-family: var(--body-font, 'Helvetica Neue', 'Helvetica', Arial, sans-serif);
+  color: #1a1a1a;
+  background-color: #fefefe;
+  line-height: 1.9;
+  font-weight: 300;
+}
+
+/* ========================================
+   SPACING SCALES
+   ======================================== */
+
+.storefront[data-spacing-intensity="generous"] {
+  --base-spacing: 4rem;
+}
+
+.storefront[data-spacing-intensity="extreme"] {
+  --base-spacing: 8rem;
+}
+
+.storefront[data-spacing-intensity="maximum"] {
+  --base-spacing: 12rem;
+}
+
+/* ========================================
+   HEADER - MINIMAL PRESENCE
+   ======================================== */
+
+.header {
+  padding: calc(var(--base-spacing, 8rem) * var(--spacing-scale, 1));
+  text-align: center;
+}
+
+.artistName {
+  font-size: 0.75rem;
+  font-weight: 300;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: #1a1a1a;
+  margin-bottom: calc(1rem * var(--spacing-scale, 1));
+}
+
+.storefront[data-typography-size="small"] .artistName {
+  font-size: 0.9rem;
+  letter-spacing: 0.25em;
+}
+
+.storefront[data-luxury-accent="gold"] .artistName {
+  color: #d4af37;
+}
+
+.storefront[data-luxury-accent="rose-gold"] .artistName {
+  color: #b76e79;
+}
+
+.navigation {
+  display: flex;
+  gap: calc(4rem * var(--spacing-scale, 1));
+  justify-content: center;
+  margin-top: calc(4rem * var(--spacing-scale, 1));
+}
+
+.navLink {
+  color: rgba(26, 26, 26, 0.5);
+  text-decoration: none;
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-weight: 300;
+  transition: color 0.6s ease;
+}
+
+.navLink:hover {
+  color: #1a1a1a;
+}
+
+/* ========================================
+   PRODUCT GRID - MASSIVE SPACING
+   ======================================== */
+
+.productsGrid,
+.addon-products-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: calc(var(--base-spacing, 8rem) * var(--spacing-scale, 1));
+  max-width: 900px;
+  margin: calc(var(--base-spacing, 8rem) * var(--spacing-scale, 1)) auto;
+  padding: calc(4rem * var(--spacing-scale, 1));
+}
+
+/* ========================================
+   PRODUCT CARDS - ULTRA REFINED
+   ======================================== */
+
+.productCard,
+.addon-product-card {
+  background: transparent;
+  transition: all 1s cubic-bezier(0.23, 1, 0.32, 1);
+  cursor: pointer;
+  text-align: center;
+}
+
+.productCard:hover,
+.addon-product-card:hover {
+  transform: scale(0.98);
+}
+
+.productImage,
+.addon-product-image-wrapper {
+  width: 100%;
+  max-width: 600px;
+  aspect-ratio: 3/4;
+  background: #f8f8f8;
+  margin: 0 auto calc(3rem * var(--spacing-scale, 1));
+  overflow: hidden;
+}
+
+.productImage img,
+.addon-product-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(0.9) contrast(0.95);
+  transition: all 1s ease;
+}
+
+.productCard:hover .productImage img,
+.addon-product-card:hover .addon-product-image {
+  filter: saturate(1) contrast(1);
+}
+
+.productInfo,
+.addon-product-info {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.productName,
+.addon-product-name {
+  font-size: 0.7rem;
+  font-weight: 300;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-bottom: calc(1rem * var(--spacing-scale, 1));
+  color: #1a1a1a;
+}
+
+.storefront[data-typography-size="small"] .productName,
+.storefront[data-typography-size="small"] .addon-product-name {
+  font-size: 0.85rem;
+  letter-spacing: 0.15em;
+}
+
+.productPrice,
+.addon-product-price {
+  font-size: 0.65rem;
+  font-weight: 300;
+  letter-spacing: 0.15em;
+  color: rgba(26, 26, 26, 0.6);
+}
+
+.storefront[data-luxury-accent="gold"] .productPrice,
+.storefront[data-luxury-accent="rose-gold"] .productPrice {
+  color: var(--luxury-accent, #d4af37);
+}
+
+/* ========================================
+   ADDON SECTIONS
+   ======================================== */
+
+.addon-blog-cards {
+  max-width: 900px;
+  margin: calc(var(--base-spacing, 8rem) * var(--spacing-scale, 1)) auto;
+  padding: calc(4rem * var(--spacing-scale, 1));
+}
+
+.addon-blog-grid-small {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: calc(var(--base-spacing, 8rem) * var(--spacing-scale, 1));
+}
+
+.addon-blog-card-small {
+  text-align: center;
+  transition: all 1s ease;
+}
+
+.addon-blog-card-small:hover {
+  transform: scale(0.98);
+}
+
+.addon-blog-image-wrapper-small {
+  width: 100%;
+  max-width: 600px;
+  height: 400px;
+  background: #f8f8f8;
+  margin: 0 auto calc(2rem * var(--spacing-scale, 1));
+  overflow: hidden;
+}
+
+.addon-blog-image-small {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(0.9);
+}
+
+.addon-blog-title-small {
+  font-size: 0.8rem;
+  font-weight: 300;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #1a1a1a;
+}
+
+/* ========================================
+   FOOTER
+   ======================================== */
+
+.footer {
+  margin-top: calc(var(--base-spacing, 8rem) * var(--spacing-scale, 1));
+  padding: calc(6rem * var(--spacing-scale, 1));
+  text-align: center;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.footerContent {
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(26, 26, 26, 0.4);
+}
+
+.socialLinks {
+  display: flex;
+  gap: calc(3rem * var(--spacing-scale, 1));
+  justify-content: center;
+  margin-top: calc(3rem * var(--spacing-scale, 1));
+}
+
+.socialLinks a {
+  color: rgba(26, 26, 26, 0.4);
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: color 0.6s ease;
+}
+
+.socialLinks a:hover {
+  color: #1a1a1a;
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 768px) {
+  :root {
+    --base-spacing: 4rem;
+  }
+  
+  .navigation {
+    flex-direction: column;
+    gap: calc(2rem * var(--spacing-scale, 1));
+  }
+}
+
+/* ========================================
+   LOADING/ERROR
+   ======================================== */
+
+.loading, .error {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fefefe;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-top: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 50%;
+  animation: spin-minimal 2s ease-in-out infinite;
+}
+
+@keyframes spin-minimal {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@media print {
+  .productCard, .addon-product-card {
+    page-break-inside: avoid;
+  }
+}

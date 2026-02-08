@@ -1,0 +1,65 @@
+{
+  "template_slug": "gallery-noir",
+  "template_name": "Gallery Noir",
+  "description": "Dark, luxurious museum aesthetic with spotlight effects and gold accents. Like a private gallery opening at night.",
+  "version": "1.0.0",
+  "author": "Artist Sites",
+  "custom_fields": [
+    {
+      "key": "accent_metal",
+      "label": "Accent Metal",
+      "type": "select",
+      "description": "Metallic accent color",
+      "required": false,
+      "default_value": "gold",
+      "tier_required": "pro",
+      "options": [
+        { "value": "gold", "label": "Gold" },
+        { "value": "rose-gold", "label": "Rose Gold" },
+        { "value": "silver", "label": "Silver" },
+        { "value": "platinum", "label": "Platinum" }
+      ]
+    },
+    {
+      "key": "spotlight_intensity",
+      "label": "Spotlight Intensity",
+      "type": "select",
+      "description": "How dramatic the lighting effects are",
+      "required": false,
+      "default_value": "medium",
+      "tier_required": "pro",
+      "options": [
+        { "value": "subtle", "label": "Subtle" },
+        { "value": "medium", "label": "Medium" },
+        { "value": "dramatic", "label": "Dramatic" }
+      ]
+    },
+    {
+      "key": "card_frame_style",
+      "label": "Card Frame Style",
+      "type": "select",
+      "description": "Frame style around artwork",
+      "required": false,
+      "default_value": "thin",
+      "tier_required": "pro",
+      "options": [
+        { "value": "none", "label": "No Frame" },
+        { "value": "thin", "label": "Thin Gold Line" },
+        { "value": "ornate", "label": "Ornate Frame" }
+      ]
+    },
+    {
+      "key": "typography_style",
+      "label": "Typography Style",
+      "type": "select",
+      "description": "Font style for titles",
+      "required": false,
+      "default_value": "serif",
+      "tier_required": "pro",
+      "options": [
+        { "value": "serif", "label": "Classic Serif" },
+        { "value": "modern", "label": "Modern Sans" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "template_slug": "art-deco-revival",
+  "template_name": "Art Deco Revival",
+  "description": "1920s geometric luxury with bold patterns, metallic accents, and symmetrical layouts. Gatsby vibes meets modern design.",
+  "version": "1.0.0",
+  "author": "Artist Sites",
+  "custom_fields": [
+    {
+      "key": "deco_palette",
+      "label": "Art Deco Palette",
+      "type": "select",
+      "description": "Color scheme",
+      "required": false,
+      "default_value": "gold-black",
+      "tier_required": "pro",
+      "options": [
+        { "value": "gold-black", "label": "Gold & Black" },
+        { "value": "emerald-gold", "label": "Emerald & Gold" },
+        { "value": "navy-gold", "label": "Navy & Gold" }
+      ]
+    },
+    {
+      "key": "geometric_style",
+      "label": "Geometric Pattern Style",
+      "type": "select",
+      "description": "Decorative pattern intensity",
+      "required": false,
+      "default_value": "moderate",
+      "tier_required": "pro",
+      "options": [
+        { "value": "subtle", "label": "Subtle" },
+        { "value": "moderate", "label": "Moderate" },
+        { "value": "bold", "label": "Bold" }
+      ]
+    },
+    {
+      "key": "show_ornaments",
+      "label": "Show Ornamental Borders",
+      "type": "select",
+      "description": "Display decorative borders",
+      "required": false,
+      "default_value": "yes",
+      "tier_required": "pro",
+      "options": [
+        { "value": "yes", "label": "Show Ornaments" },
+        { "value": "no", "label": "Clean Lines Only" }
+      ]
+    }
+  ]
+}

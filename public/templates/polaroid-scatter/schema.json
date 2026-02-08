@@ -1,0 +1,64 @@
+{
+  "template_slug": "polaroid-scatter",
+  "template_name": "Polaroid Scatter",
+  "description": "Products styled as scattered polaroid photos on a surface. Nostalgic, personal, and charming.",
+  "version": "1.0.0",
+  "author": "Artist Sites",
+  "custom_fields": [
+    {
+      "key": "surface_texture",
+      "label": "Surface Texture",
+      "type": "select",
+      "description": "Background surface appearance",
+      "required": false,
+      "default_value": "cork",
+      "tier_required": "basic",
+      "options": [
+        { "value": "cork", "label": "Cork Board" },
+        { "value": "wood", "label": "Wood Table" },
+        { "value": "fabric", "label": "Fabric" }
+      ]
+    },
+    {
+      "key": "show_tape",
+      "label": "Show Tape",
+      "type": "select",
+      "description": "Display tape holding polaroids",
+      "required": false,
+      "default_value": "yes",
+      "tier_required": "basic",
+      "options": [
+        { "value": "yes", "label": "Show Tape" },
+        { "value": "no", "label": "No Tape" }
+      ]
+    },
+    {
+      "key": "scatter_density",
+      "label": "Scatter Density",
+      "type": "select",
+      "description": "How tightly packed the polaroids are",
+      "required": false,
+      "default_value": "medium",
+      "tier_required": "basic",
+      "options": [
+        { "value": "tight", "label": "Tight (Less space)" },
+        { "value": "medium", "label": "Medium" },
+        { "value": "loose", "label": "Loose (More space)" }
+      ]
+    },
+    {
+      "key": "handwriting_style",
+      "label": "Handwriting Style",
+      "type": "select",
+      "description": "Font style for captions",
+      "required": false,
+      "default_value": "cursive",
+      "tier_required": "basic",
+      "options": [
+        { "value": "cursive", "label": "Cursive" },
+        { "value": "print", "label": "Print" },
+        { "value": "none", "label": "No Captions" }
+      ]
+    }
+  ]
+}

@@ -15,4 +15,4 @@ export { default as CategoryManagement } from './CategoryManagement';
 export { default as ProductCuration } from './ProductCuration';
 export { default as ProductForm } from './product-form';
 export * from './product-form';
-export { WalmartConnector, WalmartConnectorAdmin, TikTokConnector, TikTokConnectorAdmin } from './addons';
+export { WalmartConnector, WalmartConnectorAdmin, TikTokConnector, TikTokConnectorAdmin, WayfairConnector, WayfairConnectorAdmin, EtsyConnector } from './addons';

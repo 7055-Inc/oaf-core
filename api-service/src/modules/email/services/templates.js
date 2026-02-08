@@ -129,6 +129,20 @@ async function getTemplateStats(templateId) {
   return stats[0];
 }
 
+/**
+ * Reset template to config defaults
+ * Sets body_template and subject_template to NULL to use config defaults
+ */
+async function resetTemplateToDefault(id) {
+  await db.execute(
+    `UPDATE email_templates 
+     SET body_template = NULL, subject_template = NULL 
+     WHERE id = ?`,
+    [id]
+  );
+  return getTemplateById(id);
+}
+
 module.exports = {
   getAllTemplates,
   getTemplateById,
@@ -137,5 +151,6 @@ module.exports = {
   createTemplate,
   deleteTemplate,
   getLayouts,
-  getTemplateStats
+  getTemplateStats,
+  resetTemplateToDefault
 };

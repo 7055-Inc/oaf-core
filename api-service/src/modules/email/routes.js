@@ -145,6 +145,57 @@ router.delete('/templates/:id', verifyToken, requirePermission('manage_system'),
 });
 
 /**
+ * Get template config default
+ * GET /api/v2/email/templates/:id/default
+ */
+router.get('/templates/:id/default', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const template = await templates.getTemplateById(req.params.id);
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+    
+    const defaultTemplate = emailService.getTemplateDefault(template.template_key);
+    if (!defaultTemplate) {
+      return res.status(404).json({ error: 'No default config found for this template' });
+    }
+    
+    res.json({ success: true, data: defaultTemplate });
+  } catch (error) {
+    console.error('Error fetching template default:', error);
+    res.status(500).json({ error: 'Failed to fetch template default' });
+  }
+});
+
+/**
+ * Reset template to config default
+ * POST /api/v2/email/templates/:id/reset
+ * Sets body_template and subject_template to NULL to use config defaults
+ */
+router.post('/templates/:id/reset', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const template = await templates.getTemplateById(req.params.id);
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+    
+    // Check if config default exists
+    const defaultTemplate = emailService.getTemplateDefault(template.template_key);
+    if (!defaultTemplate) {
+      return res.status(400).json({ error: 'No default config found for this template. Cannot reset.' });
+    }
+    
+    // Reset to default by nulling out customizations
+    await templates.resetTemplateToDefault(req.params.id);
+    
+    res.json({ success: true, message: 'Template reset to default' });
+  } catch (error) {
+    console.error('Error resetting template:', error);
+    res.status(500).json({ error: 'Failed to reset template' });
+  }
+});
+
+/**
  * Get available layouts
  * GET /api/v2/email/layouts
  */

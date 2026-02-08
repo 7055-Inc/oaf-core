@@ -1,0 +1,63 @@
+{
+  "template_slug": "broken-grid",
+  "template_name": "Broken Grid",
+  "description": "Intentionally misaligned grid with random rotations and overlapping elements. Perfect for experimental and contemporary artists.",
+  "version": "1.0.0",
+  "author": "Artist Sites",
+  "custom_fields": [
+    {
+      "key": "chaos_level",
+      "label": "Chaos Level",
+      "type": "select",
+      "description": "How chaotic the layout appears",
+      "required": false,
+      "default_value": "medium",
+      "tier_required": "pro",
+      "options": [
+        { "value": "subtle", "label": "Subtle (Slight misalignment)" },
+        { "value": "medium", "label": "Medium (Noticeable chaos)" },
+        { "value": "wild", "label": "Wild (Maximum chaos)" }
+      ]
+    },
+    {
+      "key": "rotation_range",
+      "label": "Rotation Range",
+      "type": "select",
+      "description": "Maximum rotation angle for elements",
+      "required": false,
+      "default_value": "5deg",
+      "tier_required": "pro",
+      "options": [
+        { "value": "3deg", "label": "Minimal (±3°)" },
+        { "value": "5deg", "label": "Moderate (±5°)" },
+        { "value": "8deg", "label": "Dramatic (±8°)" }
+      ]
+    },
+    {
+      "key": "overlap_style",
+      "label": "Overlap Style",
+      "type": "select",
+      "description": "How cards overlap each other",
+      "required": false,
+      "default_value": "yes",
+      "tier_required": "pro",
+      "options": [
+        { "value": "yes", "label": "Allow Overlap" },
+        { "value": "no", "label": "No Overlap" }
+      ]
+    },
+    {
+      "key": "show_tape_effect",
+      "label": "Show Tape Effect",
+      "type": "select",
+      "description": "Add masking tape visual details",
+      "required": false,
+      "default_value": "yes",
+      "tier_required": "pro",
+      "options": [
+        { "value": "yes", "label": "Show Tape" },
+        { "value": "no", "label": "No Tape" }
+      ]
+    }
+  ]
+}

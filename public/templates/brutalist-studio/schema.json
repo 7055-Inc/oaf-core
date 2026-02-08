@@ -1,0 +1,58 @@
+{
+  "template_slug": "brutalist-studio",
+  "template_name": "Brutalist Studio",
+  "description": "Raw, unpolished design with giant typography and minimal styling. Inspired by brutalist web design.",
+  "version": "1.0.0",
+  "author": "Artist Sites",
+  "custom_fields": [
+    {
+      "key": "accent_color",
+      "label": "Accent Color",
+      "type": "color",
+      "required": false,
+      "default_value": "#0000ff",
+      "tier_required": "basic",
+      "help_text": "Single accent color for highlights (brutalist style uses minimal color)"
+    },
+    {
+      "key": "show_borders",
+      "label": "Show Element Borders",
+      "type": "select",
+      "description": "Display raw borders around sections",
+      "required": false,
+      "default_value": "yes",
+      "tier_required": "basic",
+      "options": [
+        { "value": "yes", "label": "Show Borders" },
+        { "value": "no", "label": "Hide Borders" }
+      ]
+    },
+    {
+      "key": "typography_weight",
+      "label": "Typography Weight",
+      "type": "select",
+      "description": "How bold the giant text appears",
+      "required": false,
+      "default_value": "black",
+      "tier_required": "basic",
+      "options": [
+        { "value": "bold", "label": "Bold (700)" },
+        { "value": "black", "label": "Black (900)" }
+      ]
+    },
+    {
+      "key": "link_style",
+      "label": "Link Underline Style",
+      "type": "select",
+      "description": "How links are underlined",
+      "required": false,
+      "default_value": "thick",
+      "tier_required": "basic",
+      "options": [
+        { "value": "thick", "label": "Thick Underline" },
+        { "value": "double", "label": "Double Underline" },
+        { "value": "none", "label": "No Underline" }
+      ]
+    }
+  ]
+}
