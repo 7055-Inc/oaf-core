@@ -7,7 +7,9 @@
 import React, { useState } from 'react';
 import { refreshAuthToken } from '../../../lib/csrf';
 import { fetchAddons, selectWebsitesTier } from '../../../lib/websites/api';
-import { websitesSubscriptionTiers } from './websitesSubscriptionConfig';
+
+const { getAllTiersForDisplay } = require('../../../lib/websites/tierConfig');
+const tiers = getAllTiersForDisplay();
 
 export default function PricingTiers({ userData, onSubscriptionSuccess }) {
   const [selectedTier, setSelectedTier] = useState(null);
@@ -21,7 +23,7 @@ export default function PricingTiers({ userData, onSubscriptionSuccess }) {
     setSelectedTier(tierName);
     setSelectedAddons([]);
     setError('');
-    if (['Business Plan', 'Promoter Plan', 'Promoter Business Plan'].includes(tierName)) {
+    if (['professional'].includes(tierName)) {
       fetchAddons().then((addons) => setAvailableAddons(addons || [])).catch(() => setAvailableAddons([]));
     } else {
       setAvailableAddons([]);
@@ -37,8 +39,8 @@ export default function PricingTiers({ userData, onSubscriptionSuccess }) {
     });
   };
 
-  const getTierPrice = (name) => {
-    const t = websitesSubscriptionTiers.find((x) => x.name === name);
+  const getTierPrice = (id) => {
+    const t = tiers.find((x) => x.id === id);
     return t ? (typeof t.price === 'number' ? t.price : 0) : 0;
   };
 
@@ -48,7 +50,7 @@ export default function PricingTiers({ userData, onSubscriptionSuccess }) {
     let discount = 0;
     if (
       selectedTier &&
-      ['Business Plan', 'Promoter Plan', 'Promoter Business Plan'].includes(selectedTier) &&
+      ['professional'].includes(selectedTier) &&
       selectedAddons.length > 0
     ) {
       if (selectedAddons.length === 1) discount = 5;
@@ -87,11 +89,14 @@ export default function PricingTiers({ userData, onSubscriptionSuccess }) {
     setError('');
   };
 
-  // Display format: support both shared config (priceDisplay, price) and legacy (price string)
-  const displayTiers = websitesSubscriptionTiers.map((t) => ({
+  // Display format: format price from shared config
+  const displayTiers = tiers.map((t) => ({
     ...t,
-    price: t.priceDisplay || (typeof t.price === 'number' ? `$${t.price.toFixed(2)}` : t.price),
-    period: t.period || '/month'
+    name: t.displayName,
+    priceDisplay: typeof t.price === 'number' ? `$${t.price.toFixed(2)}` : '$0.00',
+    period: '/month',
+    buttonText: `Get ${t.displayName}`,
+    popular: t.id === 'basic' // Mark basic as most popular
   }));
 
   return (
@@ -146,7 +151,7 @@ export default function PricingTiers({ userData, onSubscriptionSuccess }) {
               <h3 style={{ color: '#2c3e50', marginBottom: '10px', fontSize: '24px' }}>{tier.name}</h3>
               <p style={{ color: '#6c757d', fontSize: '16px', marginBottom: '20px', lineHeight: '1.4' }}>{tier.description}</p>
               <div style={{ marginBottom: '20px' }}>
-                <span style={{ fontSize: '36px', fontWeight: 'bold', color: '#2c3e50' }}>{tier.price}</span>
+                <span style={{ fontSize: '36px', fontWeight: 'bold', color: '#2c3e50' }}>{tier.priceDisplay}</span>
                 <span style={{ color: '#6c757d' }}>{tier.period}</span>
               </div>
             </div>
@@ -188,7 +193,7 @@ export default function PricingTiers({ userData, onSubscriptionSuccess }) {
               </p>
             </div>
 
-            {['Business Plan', 'Promoter Plan', 'Promoter Business Plan'].includes(selectedTier) && availableAddons.length > 0 && (
+            {['professional'].includes(selectedTier) && availableAddons.length > 0 && (
               <div style={{ marginBottom: '30px' }}>
                 <h4 style={{ color: '#2c3e50', marginBottom: '15px' }}>Select Add-ons (optional)</h4>
                 <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '2px', border: '1px solid #dee2e6' }}>

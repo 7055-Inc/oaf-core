@@ -4,6 +4,7 @@
 
 const db = require('../../../../config/db');
 const stripeService = require('../../../services/stripeService');
+const { enforceAllLimits } = require('../utils/tierEnforcement');
 
 async function getMySubscription(userId) {
   const [subscriptions] = await db.query(`
@@ -146,7 +147,7 @@ async function acceptTerms(userId, termsVersionId) {
 const VALID_TIERS = ['Starter Plan', 'Professional Plan', 'Business Plan', 'Promoter Plan', 'Promoter Business Plan'];
 
 async function changeTier(userId, body) {
-  const { new_tier_name, new_tier_price } = body;
+  const { new_tier_name, new_tier_price, preview } = body;
   if (!new_tier_name || new_tier_price === undefined) {
     const err = new Error('new_tier_name and new_tier_price are required');
     err.statusCode = 400;
@@ -173,6 +174,130 @@ async function changeTier(userId, body) {
     err.statusCode = 400;
     throw err;
   }
+
+  // Map tier names to standard tier keys for enforcement
+  const tierMap = {
+    'Starter Plan': 'free',
+    'Professional Plan': 'basic',
+    'Business Plan': 'professional',
+    'Promoter Plan': 'basic',
+    'Promoter Business Plan': 'professional'
+  };
+  const currentStandardTier = tierMap[current.tier] || 'free';
+  const newStandardTier = tierMap[new_tier_name] || 'free';
+
+  // Check if this is a downgrade by comparing tier limits
+  const { getMaxSites, getTierLevel } = require('../utils/tierEnforcement');
+  const currentMaxSites = getMaxSites(currentStandardTier);
+  const newMaxSites = getMaxSites(newStandardTier);
+  const currentTierLevel = getTierLevel(currentStandardTier);
+  const newTierLevel = getTierLevel(newStandardTier);
+
+  const isDowngrade = newMaxSites < currentMaxSites || newTierLevel < currentTierLevel;
+
+  // If this is a downgrade, check what will be affected
+  if (isDowngrade && !preview) {
+    // Get active sites that will be deactivated
+    const [activeSites] = await db.query(
+      'SELECT id, site_name, created_at FROM sites WHERE user_id = ? AND status = "active" ORDER BY created_at ASC',
+      [userId]
+    );
+    
+    const sitesToDeactivate = activeSites.length > newMaxSites ? activeSites.slice(0, activeSites.length - newMaxSites) : [];
+
+    // Get active addons that will be disabled (those requiring higher tier)
+    const [activeAddons] = await db.query(`
+      SELECT 
+        sa.id as site_addon_id,
+        sa.site_id,
+        wa.addon_name,
+        wa.tier_required,
+        s.site_name
+      FROM site_addons sa
+      JOIN website_addons wa ON sa.addon_id = wa.id
+      JOIN sites s ON sa.site_id = s.id
+      WHERE s.user_id = ? AND sa.is_active = 1
+    `, [userId]);
+
+    const addonsToDisable = activeAddons.filter(addon => {
+      const requiredTierLevel = getTierLevel(addon.tier_required);
+      return newTierLevel < requiredTierLevel;
+    });
+
+    // If anything will be affected, require confirmation
+    if (sitesToDeactivate.length > 0 || addonsToDisable.length > 0) {
+      return {
+        success: false,
+        requires_confirmation: true,
+        message: 'This downgrade will affect your active sites and/or addons.',
+        current_tier: current.tier,
+        new_tier: new_tier_name,
+        current_price: parseFloat(current.tier_price),
+        new_price: parseFloat(new_tier_price),
+        sites_to_deactivate: sitesToDeactivate.map(s => ({
+          id: s.id,
+          name: s.site_name,
+          created_at: s.created_at
+        })),
+        addons_to_disable: addonsToDisable.map(a => ({
+          addon_name: a.addon_name,
+          site_name: a.site_name,
+          tier_required: a.tier_required
+        })),
+        new_site_limit: newMaxSites
+      };
+    }
+  }
+
+  // If preview mode, just return the impact without making changes
+  if (preview) {
+    const [activeSites] = await db.query(
+      'SELECT id, site_name, created_at FROM sites WHERE user_id = ? AND status = "active" ORDER BY created_at ASC',
+      [userId]
+    );
+    
+    const sitesToDeactivate = activeSites.length > newMaxSites ? activeSites.slice(0, activeSites.length - newMaxSites) : [];
+
+    const [activeAddons] = await db.query(`
+      SELECT 
+        sa.id as site_addon_id,
+        sa.site_id,
+        wa.addon_name,
+        wa.tier_required,
+        s.site_name
+      FROM site_addons sa
+      JOIN website_addons wa ON sa.addon_id = wa.id
+      JOIN sites s ON sa.site_id = s.id
+      WHERE s.user_id = ? AND sa.is_active = 1
+    `, [userId]);
+
+    const addonsToDisable = activeAddons.filter(addon => {
+      const requiredTierLevel = getTierLevel(addon.tier_required);
+      return newTierLevel < requiredTierLevel;
+    });
+
+    return {
+      success: true,
+      preview: true,
+      current_tier: current.tier,
+      new_tier: new_tier_name,
+      current_price: parseFloat(current.tier_price),
+      new_price: parseFloat(new_tier_price),
+      sites_to_deactivate: sitesToDeactivate.map(s => ({
+        id: s.id,
+        name: s.site_name,
+        created_at: s.created_at
+      })),
+      addons_to_disable: addonsToDisable.map(a => ({
+        addon_name: a.addon_name,
+        site_name: a.site_name,
+        tier_required: a.tier_required
+      })),
+      new_site_limit: newMaxSites
+    };
+  }
+
+  // Proceed with actual tier change
   const now = new Date();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const daysRemaining = daysInMonth - now.getDate();
@@ -183,7 +308,17 @@ async function changeTier(userId, body) {
     'UPDATE user_subscriptions SET tier = ?, tier_price = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
     [new_tier_name, new_tier_price, current.id]
   );
-  return {
+
+  // Immediately enforce tier limits (sites + addons)
+  let enforcement = null;
+  try {
+    enforcement = await enforceAllLimits(userId, newStandardTier);
+  } catch (enforcementError) {
+    console.error('Tier enforcement error:', enforcementError);
+    // Don't fail the tier change if enforcement fails
+  }
+
+  const response = {
     success: true,
     message: 'Tier changed successfully',
     old_tier: current.tier,
@@ -193,11 +328,39 @@ async function changeTier(userId, body) {
     prorated_amount: parseFloat(proratedAmount.toFixed(2)),
     billing_note: 'Your new tier is now active. The prorated difference will be reflected in your next monthly billing cycle on the 20th.'
   };
+
+  // Add enforcement details if any sites or addons were affected
+  if (enforcement) {
+    if (enforcement.totalSitesDeactivated > 0) {
+      response.sites_deactivated = enforcement.totalSitesDeactivated;
+      response.deactivated_site_names = enforcement.sites.deactivatedSites.map(s => s.name);
+    }
+    if (enforcement.totalAddonsDisabled > 0) {
+      response.addons_disabled = enforcement.totalAddonsDisabled;
+      response.disabled_addon_names = enforcement.addons.disabledAddons.map(a => a.addon_name);
+    }
+  }
+
+  return response;
 }
 
-async function cancelSubscription(userId) {
+async function confirmTierChange(userId, body) {
+  const { new_tier_name, new_tier_price, confirmed } = body;
+  
+  if (!confirmed) {
+    const err = new Error('Tier change must be confirmed');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Execute the tier change without preview
+  return await changeTier(userId, { new_tier_name, new_tier_price, preview: false });
+}
+
+async function cancelSubscription(userId, body = {}) {
+  const { preview } = body;
   const [subscription] = await db.query(
-    'SELECT id, status FROM user_subscriptions WHERE user_id = ? AND subscription_type = ? LIMIT 1',
+    'SELECT id, status, tier FROM user_subscriptions WHERE user_id = ? AND subscription_type = ? LIMIT 1',
     [userId, 'websites']
   );
   if (subscription.length === 0) {
@@ -211,16 +374,110 @@ async function cancelSubscription(userId) {
     err.statusCode = 400;
     throw err;
   }
+
+  // Get details of what will be affected
+  const [activeSites] = await db.query(
+    'SELECT id, site_name, created_at FROM sites WHERE user_id = ? AND status = "active"',
+    [userId]
+  );
+  
+  const [activeAddons] = await db.query(`
+    SELECT 
+      sa.id as site_addon_id,
+      wa.addon_name,
+      s.site_name
+    FROM site_addons sa
+    JOIN website_addons wa ON sa.addon_id = wa.id
+    JOIN sites s ON sa.site_id = s.id
+    WHERE s.user_id = ? AND sa.is_active = 1
+  `, [userId]);
+
+  // If preview mode or requires confirmation, return preview data
+  if (preview || (!body.confirmed && (activeSites.length > 0 || activeAddons.length > 0))) {
+    return {
+      success: false,
+      requires_confirmation: true,
+      message: 'Cancelling will deactivate all your sites and disable all addons.',
+      current_tier: subscription[0].tier,
+      sites_to_deactivate: activeSites.map(s => ({
+        id: s.id,
+        name: s.site_name,
+        created_at: s.created_at
+      })),
+      addons_to_disable: activeAddons.map(a => ({
+        addon_name: a.addon_name,
+        site_name: a.site_name
+      })),
+      total_sites: activeSites.length,
+      total_addons: activeAddons.length
+    };
+  }
+
+  // Proceed with actual cancellation
   await db.query('UPDATE user_permissions SET sites = 0 WHERE user_id = ?', [userId]);
   await db.query(
     'UPDATE user_subscriptions SET status = ? WHERE id = ?',
     ['canceled', subscription[0].id]
   );
-  return {
+
+  // Immediately enforce cancellation: deactivate ALL sites and addons
+  let sitesDeactivated = 0;
+  let addonsDisabled = 0;
+  try {
+    sitesDeactivated = activeSites.length;
+    
+    if (sitesDeactivated > 0) {
+      await db.query(
+        'UPDATE sites SET status = "draft" WHERE user_id = ? AND status = "active"',
+        [userId]
+      );
+    }
+
+    addonsDisabled = activeAddons.length;
+
+    if (addonsDisabled > 0) {
+      await db.query(`
+        UPDATE site_addons sa
+        JOIN sites s ON sa.site_id = s.id
+        SET sa.is_active = 0, sa.deactivated_at = CURRENT_TIMESTAMP
+        WHERE s.user_id = ? AND sa.is_active = 1
+      `, [userId]);
+    }
+  } catch (enforcementError) {
+    console.error('Cancellation enforcement error:', enforcementError);
+    // Don't fail the cancellation if enforcement fails
+  }
+
+  const response = {
     success: true,
     message: 'Website subscription cancelled successfully',
     note: 'You will retain access until the end of your current billing period.'
   };
+
+  // Add enforcement details
+  if (sitesDeactivated > 0) {
+    response.sites_deactivated = sitesDeactivated;
+    response.deactivated_site_names = activeSites.map(s => s.site_name);
+  }
+  if (addonsDisabled > 0) {
+    response.addons_disabled = addonsDisabled;
+    response.disabled_addon_names = activeAddons.map(a => a.addon_name);
+  }
+
+  return response;
+}
+
+async function confirmCancellation(userId, body) {
+  const { confirmed } = body;
+  
+  if (!confirmed) {
+    const err = new Error('Cancellation must be confirmed');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Execute the cancellation without preview
+  return await cancelSubscription(userId, { confirmed: true });
 }
 
 // ============================================================================
@@ -252,6 +509,8 @@ module.exports = {
   getTermsCheck,
   acceptTerms,
   changeTier,
+  confirmTierChange,
   cancelSubscription,
+  confirmCancellation,
   getSubscriptionStatus
 };

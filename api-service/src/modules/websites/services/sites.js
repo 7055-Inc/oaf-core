@@ -4,14 +4,9 @@
  */
 
 const db = require('../../../../config/db');
-
-const TIER_LIMITS = {
-  'Starter Plan': 1,
-  'Professional Plan': 1,
-  'Business Plan': 999,
-  'Promoter Plan': 1,
-  'Promoter Business Plan': 999
-};
+const { getTierLimits } = require('../../../../../lib/websites/tierConfig');
+const { sanitizeCSS } = require('../utils/cssSanitizer');
+const { getCached, setCache, deleteCache, deleteCachePattern } = require('../../../../config/redis');
 
 async function getMySites(userId) {
   const [user] = await db.query('SELECT user_type FROM users WHERE id = ?', [userId]);
@@ -57,11 +52,12 @@ async function createSite(userId, body) {
       'SELECT tier FROM user_subscriptions WHERE user_id = ? AND subscription_type = "websites" AND status = "active" LIMIT 1',
       [userId]
     );
-    const userTier = subscription[0]?.tier || 'Starter Plan';
-    const siteLimit = TIER_LIMITS[userTier] || 1;
+    const userTier = subscription[0]?.tier || 'free';
+    const limits = getTierLimits(userTier);
+    const siteLimit = limits.max_sites;
     const [existingSites] = await db.query('SELECT COUNT(*) as count FROM sites WHERE user_id = ?', [userId]);
     if (existingSites[0].count >= siteLimit) {
-      const err = new Error(siteLimit === 1 ? 'Your current plan allows 1 site. Upgrade to Business Plan or Promoter Business Plan for multiple sites.' : `You've reached your site limit of ${siteLimit} sites.`);
+      const err = new Error(siteLimit === 1 ? 'Your current plan allows 1 site. Upgrade to professional plan for unlimited sites.' : `You've reached your site limit of ${siteLimit} sites.`);
       err.statusCode = 400;
       err.current_tier = userTier;
       err.site_limit = siteLimit;
@@ -105,14 +101,15 @@ async function updateSite(userId, siteId, body) {
         'SELECT tier FROM user_subscriptions WHERE user_id = ? AND subscription_type = "websites" AND status = "active" LIMIT 1',
         [userId]
       );
-      const userTier = subscription[0]?.tier || 'Starter Plan';
-      const siteLimit = TIER_LIMITS[userTier] || 1;
+      const userTier = subscription[0]?.tier || 'free';
+      const limits = getTierLimits(userTier);
+      const siteLimit = limits.max_sites;
       const [activeSites] = await db.query(
         'SELECT COUNT(*) as count FROM sites WHERE user_id = ? AND status = "active"',
         [userId]
       );
       if (activeSites[0].count >= siteLimit) {
-        const err = new Error(`Your ${userTier} allows ${siteLimit} active site${siteLimit === 1 ? '' : 's'}. Please deactivate another site first, or upgrade your plan.`);
+        const err = new Error(`Your ${userTier} plan allows ${siteLimit} active site${siteLimit === 1 ? '' : 's'}. Please deactivate another site first, or upgrade your plan.`);
         err.statusCode = 400;
         throw err;
       }
@@ -135,10 +132,20 @@ async function updateSite(userId, siteId, body) {
   updateValues.push(siteId);
   await db.query(`UPDATE sites SET ${updateFields.join(', ')} WHERE id = ?`, updateValues);
   const [updatedSite] = await db.query('SELECT * FROM sites WHERE id = ?', [siteId]);
+  
+  // Invalidate cache for this site
+  if (updatedSite[0].subdomain) {
+    await deleteCache(`site:resolve:${updatedSite[0].subdomain}`);
+  }
+  if (updatedSite[0].custom_domain) {
+    await deleteCache(`site:domain:${updatedSite[0].custom_domain}`);
+  }
+  
   return updatedSite[0];
 }
 
 async function getSiteCustomizations(userId, siteId) {
+  // Authorization checks must happen before cache lookup
   const [site] = await db.query('SELECT user_id FROM sites WHERE id = ?', [siteId]);
   if (!site[0]) {
     const err = new Error('Site not found');
@@ -151,6 +158,15 @@ async function getSiteCustomizations(userId, siteId) {
     err.statusCode = 403;
     throw err;
   }
+  
+  // Try cache after authorization (30 min TTL)
+  const cacheKey = `site:customizations:${siteId}`;
+  const cached = await getCached(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  // Cache miss - query database
   const [customizations] = await db.execute('SELECT * FROM site_customizations WHERE site_id = ?', [siteId]);
   const settings = customizations[0] || {
     text_color: '#374151',
@@ -161,6 +177,25 @@ async function getSiteCustomizations(userId, siteId) {
     body_font: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif',
     header_font: 'Georgia, "Times New Roman", Times, serif'
   };
+  
+  // Get template-specific data for the site's current template
+  const [siteTemplate] = await db.query('SELECT template_id FROM sites WHERE id = ?', [siteId]);
+  if (siteTemplate[0] && siteTemplate[0].template_id) {
+    try {
+      const templateData = await getTemplateDataForSite(siteId, siteTemplate[0].template_id);
+      settings.template_data = templateData;
+    } catch (err) {
+      // If template data fails to load, just continue without it
+      console.error('Failed to load template data:', err);
+      settings.template_data = {};
+    }
+  } else {
+    settings.template_data = {};
+  }
+  
+  // Cache result for 30 minutes (1800 seconds)
+  await setCache(cacheKey, settings, 1800);
+  
   return settings;
 }
 
@@ -177,17 +212,20 @@ async function updateSiteCustomizations(userId, siteId, body) {
     err.statusCode = 403;
     throw err;
   }
-  const [permissions] = await db.execute(
-    'SELECT sites, manage_sites, professional_sites FROM user_permissions WHERE user_id = ?',
+  const [subscription] = await db.query(
+    'SELECT tier FROM user_subscriptions WHERE user_id = ? AND subscription_type = "websites" AND status = "active" LIMIT 1',
     [userId]
   );
-  const userPerms = permissions[0] || {};
+  const userTier = subscription[0]?.tier || 'free';
+  const limits = getTierLimits(userTier);
   const isAdmin = user[0]?.user_type === 'admin';
-  const canCustomizeBasic = isAdmin || userPerms.sites;
-  const canCustomizeAdvanced = isAdmin || userPerms.manage_sites;
-  const canCustomizeProfessional = isAdmin || userPerms.professional_sites;
-  if (!canCustomizeBasic) {
-    const err = new Error('Sites permission required for customization');
+  
+  const canCustomizeBasic = isAdmin || limits.allow_basic_customization;
+  const canCustomizeAdvanced = isAdmin || limits.allow_advanced_customization;
+  const canCustomizeProfessional = isAdmin || limits.allow_custom_css;
+  
+  if (!canCustomizeBasic && !isAdmin) {
+    const err = new Error('Your plan does not allow customization. Please upgrade to basic or professional plan.');
     err.statusCode = 403;
     throw err;
   }
@@ -195,13 +233,32 @@ async function updateSiteCustomizations(userId, siteId, body) {
   const updateValues = [];
   const allowed = [
     'text_color', 'main_color', 'secondary_color',
-    ...(canCustomizeAdvanced ? ['accent_color', 'background_color', 'body_font', 'header_font'] : []),
-    ...(canCustomizeProfessional ? ['h1_font', 'h2_font', 'h3_font', 'h4_font', 'custom_css'] : [])
+    ...(canCustomizeAdvanced ? [
+      'accent_color', 'background_color', 'body_font', 'header_font',
+      'button_style', 'button_color', 'border_radius', 'spacing_scale'
+    ] : []),
+    ...(canCustomizeProfessional ? [
+      'h1_font', 'h2_font', 'h3_font', 'h4_font',
+      'hero_style', 'navigation_style', 'footer_text', 'google_fonts_loaded'
+    ] : [])
   ];
   for (const key of allowed) {
     if (body[key] !== undefined) {
       updateFields.push(`${key} = ?`);
       updateValues.push(body[key]);
+    }
+  }
+  
+  // Handle custom_css separately with sanitization
+  if (body.custom_css !== undefined && canCustomizeProfessional) {
+    try {
+      const sanitizedCSS = await sanitizeCSS(body.custom_css);
+      updateFields.push('custom_css = ?');
+      updateValues.push(sanitizedCSS);
+    } catch (error) {
+      const err = new Error('Invalid CSS: ' + error.message);
+      err.statusCode = 400;
+      throw err;
     }
   }
   if (updateFields.length === 0) {
@@ -225,6 +282,19 @@ async function updateSiteCustomizations(userId, siteId, body) {
     }
   }
   const [updated] = await db.execute('SELECT * FROM site_customizations WHERE site_id = ?', [siteId]);
+  
+  // Invalidate customizations cache
+  await deleteCache(`site:customizations:${siteId}`);
+  
+  // Also invalidate site resolution cache since it includes customization colors
+  const [siteInfo] = await db.query('SELECT subdomain, custom_domain FROM sites WHERE id = ?', [siteId]);
+  if (siteInfo[0]) {
+    await deleteCache(`site:resolve:${siteInfo[0].subdomain}`);
+    if (siteInfo[0].custom_domain) {
+      await deleteCache(`site:domain:${siteInfo[0].custom_domain}`);
+    }
+  }
+  
   return updated[0];
 }
 
@@ -268,6 +338,38 @@ async function enableSiteAddon(userId, siteId, addonId) {
     err.statusCode = 404;
     throw err;
   }
+
+  // Tier enforcement: Check if user's subscription tier allows this addon
+  const [userInfo] = await db.execute(
+    'SELECT user_type FROM users WHERE id = ?',
+    [userId]
+  );
+  
+  const isAdmin = userInfo[0] && userInfo[0].user_type === 'admin';
+  
+  if (!isAdmin) {
+    // Get user's current subscription tier
+    const [subscription] = await db.execute(
+      'SELECT tier FROM user_subscriptions WHERE user_id = ? AND subscription_type = ? AND status = ? LIMIT 1',
+      [userId, 'websites', 'active']
+    );
+    
+    const userTier = subscription[0]?.tier || 'free';
+    const requiredTier = addon[0].tier_required;
+    
+    // Define tier hierarchy
+    const tierHierarchy = { free: 0, basic: 1, professional: 2 };
+    
+    const userTierLevel = tierHierarchy[userTier] || 0;
+    const requiredTierLevel = tierHierarchy[requiredTier] || 0;
+    
+    if (userTierLevel < requiredTierLevel) {
+      const err = new Error(`This addon requires a ${requiredTier} subscription or higher. Your current tier: ${userTier}`);
+      err.statusCode = 403;
+      throw err;
+    }
+  }
+
   const [existing] = await db.execute(
     'SELECT id FROM site_addons WHERE site_id = ? AND addon_id = ? AND is_active = 1',
     [siteId, addonId]
@@ -385,8 +487,9 @@ async function enforceLimits(userId) {
     'SELECT tier FROM user_subscriptions WHERE user_id = ? AND subscription_type = "websites" AND status = "active" LIMIT 1',
     [userId]
   );
-  const userTier = subscription[0]?.tier || 'Starter Plan';
-  const siteLimit = TIER_LIMITS[userTier] || 1;
+  const userTier = subscription[0]?.tier || 'free';
+  const limits = getTierLimits(userTier);
+  const siteLimit = limits.max_sites;
   const [activeSites] = await db.query(
     'SELECT COUNT(*) as count FROM sites WHERE user_id = ? AND status = "active"',
     [userId]
@@ -428,14 +531,23 @@ async function deleteSite(userId, siteId) {
     err.statusCode = 403;
     throw err;
   }
-  const [site] = await db.query('SELECT user_id FROM sites WHERE id = ?', [siteId]);
+  const [site] = await db.query('SELECT user_id, subdomain, custom_domain FROM sites WHERE id = ?', [siteId]);
   if (!site[0] || (site[0].user_id !== userId && user[0].user_type !== 'admin')) {
     const err = new Error('Site not found');
     err.statusCode = 404;
     throw err;
   }
+  
   // Soft delete by setting status to 'deleted'
   await db.query('UPDATE sites SET status = ?, updated_at = NOW() WHERE id = ?', ['deleted', siteId]);
+  
+  // Invalidate all caches related to this site
+  await deleteCache(`site:resolve:${site[0].subdomain}`);
+  await deleteCache(`site:customizations:${siteId}`);
+  if (site[0].custom_domain) {
+    await deleteCache(`site:domain:${site[0].custom_domain}`);
+  }
+  
   return { success: true, message: 'Site deleted successfully' };
 }
 
@@ -467,20 +579,42 @@ async function getMySiteAddons(userId) {
 // ============================================================================
 
 async function getSiteAddonsPublic(siteId) {
-  const [site] = await db.execute('SELECT id FROM sites WHERE id = ? AND status = ?', [siteId, 'active']);
+  const [site] = await db.execute('SELECT id, user_id FROM sites WHERE id = ? AND status = ?', [siteId, 'active']);
   if (site.length === 0) {
     const err = new Error('Site not found or not active');
     err.statusCode = 404;
     throw err;
   }
+  
+  // Get user's subscription tier for filtering
+  const [subscription] = await db.execute(
+    'SELECT tier FROM user_subscriptions WHERE user_id = ? AND subscription_type = ? AND status = ? LIMIT 1',
+    [site[0].user_id, 'websites', 'active']
+  );
+  
+  const userTier = subscription[0]?.tier || 'free';
+  
+  // Define tier hierarchy for filtering
+  const tierHierarchy = { free: 0, basic: 1, professional: 2 };
+  const userTierLevel = tierHierarchy[userTier] || 0;
+  
+  // Only show addons that the user's tier qualifies for
   const [addons] = await db.execute(`
     SELECT wa.id, wa.addon_name, wa.addon_slug, wa.addon_script_path, 
-           wa.monthly_price, sa.activated_at, sa.addon_id, sa.is_active
+           wa.monthly_price, wa.tier_required, sa.activated_at, sa.addon_id, sa.is_active
     FROM site_addons sa
     JOIN website_addons wa ON sa.addon_id = wa.id
-    WHERE sa.site_id = ? AND sa.is_active = 1 AND wa.is_active = 1
+    WHERE sa.site_id = ? 
+      AND sa.is_active = 1 
+      AND wa.is_active = 1
+      AND (
+        (wa.tier_required = 'free' AND ? >= 0) OR
+        (wa.tier_required = 'basic' AND ? >= 1) OR
+        (wa.tier_required = 'professional' AND ? >= 2)
+      )
     ORDER BY wa.display_order ASC
-  `, [siteId]);
+  `, [siteId, userTierLevel, userTierLevel, userTierLevel]);
+  
   return { addons };
 }
 
@@ -501,13 +635,23 @@ function getStatusMessage(status) {
 }
 
 async function resolveSubdomain(subdomain) {
+  // Try cache first (15 min TTL)
+  const cacheKey = `site:resolve:${subdomain}`;
+  const cached = await getCached(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  // Cache miss - query database
   const [site] = await db.query(`
     SELECT s.*, u.username, u.user_type, up.first_name, up.last_name, up.bio, up.profile_image_path, up.header_image_path,
-           sc.main_color as primary_color, sc.secondary_color, sc.text_color, sc.accent_color, sc.background_color
+           sc.main_color as primary_color, sc.secondary_color, sc.text_color, sc.accent_color, sc.background_color,
+           wt.template_slug, wt.template_name
     FROM sites s 
     JOIN users u ON s.user_id = u.id 
     LEFT JOIN user_profiles up ON u.id = up.user_id 
     LEFT JOIN site_customizations sc ON s.id = sc.site_id
+    LEFT JOIN website_templates wt ON s.template_id = wt.id
     WHERE s.subdomain = ?
   `, [subdomain]);
   if (!site[0]) {
@@ -516,18 +660,39 @@ async function resolveSubdomain(subdomain) {
     throw err;
   }
   const siteData = site[0];
+  
+  // Get template-specific data if template is assigned
+  let templateData = {};
+  if (siteData.template_id) {
+    try {
+      templateData = await getTemplateDataForSite(siteData.id, siteData.template_id);
+    } catch (err) {
+      // If template data fails to load, just continue without it
+      console.error('Failed to load template data for subdomain:', err);
+    }
+  }
+  
+  let result;
   if (siteData.status !== 'active') {
-    return {
+    result = {
       ...siteData,
+      template_data: templateData,
       available: false,
       statusMessage: getStatusMessage(siteData.status)
     };
+  } else {
+    result = {
+      ...siteData,
+      template_data: templateData,
+      available: true,
+      is_promoter_site: siteData.user_type === 'promoter'
+    };
   }
-  return {
-    ...siteData,
-    available: true,
-    is_promoter_site: siteData.user_type === 'promoter'
-  };
+  
+  // Cache result for 15 minutes (900 seconds)
+  await setCache(cacheKey, result, 900);
+  
+  return result;
 }
 
 async function resolveSubdomainProducts(subdomain, query = {}) {
@@ -588,16 +753,15 @@ async function resolveSubdomainArticles(subdomain, query = {}) {
 }
 
 async function resolveSubdomainCategories(subdomain) {
-  const [site] = await db.query('SELECT user_id FROM sites WHERE subdomain = ? AND status = ?', [subdomain, 'active']);
+  const [site] = await db.query('SELECT id, user_id FROM sites WHERE subdomain = ? AND status = ?', [subdomain, 'active']);
   if (!site[0]) {
     const err = new Error('Site not found');
     err.statusCode = 404;
     throw err;
   }
-  const [categories] = await db.query(
-    'SELECT * FROM user_categories WHERE user_id = ? ORDER BY display_order ASC, name ASC',
-    [site[0].user_id]
-  );
+  
+  // Use getSiteCategories to respect visibility settings
+  const categories = await getSiteCategories(site[0].id);
   return categories;
 }
 
@@ -623,6 +787,14 @@ async function checkSubdomainAvailability(subdomain) {
 // ============================================================================
 
 async function resolveCustomDomain(domain) {
+  // Try cache first (1 hour TTL)
+  const cacheKey = `site:domain:${domain}`;
+  const cached = await getCached(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  // Cache miss - query database
   const [sites] = await db.execute(`
     SELECT s.subdomain, s.user_id, s.site_name, s.theme_name 
     FROM sites s 
@@ -636,17 +808,46 @@ async function resolveCustomDomain(domain) {
     throw err;
   }
   const site = sites[0];
-  return {
+  const result = {
     subdomain: site.subdomain,
     user_id: site.user_id,
     site_name: site.site_name,
     theme_name: site.theme_name
   };
+  
+  // Cache result for 1 hour (3600 seconds)
+  await setCache(cacheKey, result, 3600);
+  
+  return result;
 }
 
 // ============================================================================
 // USER CATEGORIES CRUD
 // ============================================================================
+
+/**
+ * Check for circular reference in category hierarchy
+ * Recursively walks up the parent chain to detect cycles
+ * @param {number} userId - User ID for verification
+ * @param {number} categoryId - The category being updated
+ * @param {number} parentId - The proposed parent ID
+ * @returns {Promise<boolean>} - True if circular reference detected
+ */
+async function checkCircularReference(userId, categoryId, parentId) {
+  if (!parentId) return false;
+  if (parentId == categoryId) return true;
+  
+  const [parent] = await db.query(
+    'SELECT parent_id FROM user_categories WHERE id = ? AND user_id = ?',
+    [parentId, userId]
+  );
+  
+  if (!parent[0]) return false;
+  if (!parent[0].parent_id) return false;
+  
+  // Recursively check up the parent chain
+  return await checkCircularReference(userId, categoryId, parent[0].parent_id);
+}
 
 async function getUserCategories(userId) {
   const [categories] = await db.query(
@@ -657,12 +858,25 @@ async function getUserCategories(userId) {
 }
 
 async function createUserCategory(userId, body) {
-  const { name, description, parent_id, display_order = 0 } = body;
+  const { 
+    name, 
+    description, 
+    parent_id, 
+    display_order = 0,
+    image_url,
+    page_title,
+    meta_description,
+    slug,
+    is_visible = true,
+    sort_order = 0
+  } = body;
+  
   if (!name) {
     const err = new Error('Category name is required');
     err.statusCode = 400;
     throw err;
   }
+  
   const [existing] = await db.query(
     'SELECT id FROM user_categories WHERE user_id = ? AND name = ?',
     [userId, name]
@@ -672,6 +886,29 @@ async function createUserCategory(userId, body) {
     err.statusCode = 400;
     throw err;
   }
+  
+  // Auto-generate slug from name if not provided
+  let finalSlug = slug;
+  if (!finalSlug) {
+    finalSlug = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+  
+  // Check slug uniqueness per user
+  if (finalSlug) {
+    const [existingSlug] = await db.query(
+      'SELECT id FROM user_categories WHERE user_id = ? AND slug = ?',
+      [userId, finalSlug]
+    );
+    if (existingSlug.length > 0) {
+      const err = new Error('Category slug already exists. Please use a different slug.');
+      err.statusCode = 400;
+      throw err;
+    }
+  }
+  
   if (parent_id) {
     const [parent] = await db.query('SELECT user_id FROM user_categories WHERE id = ?', [parent_id]);
     if (!parent[0] || parent[0].user_id !== userId) {
@@ -680,31 +917,128 @@ async function createUserCategory(userId, body) {
       throw err;
     }
   }
+  
   const [result] = await db.query(
-    'INSERT INTO user_categories (user_id, name, description, parent_id, display_order) VALUES (?, ?, ?, ?, ?)',
-    [userId, name, description, parent_id, display_order]
+    `INSERT INTO user_categories (
+      user_id, name, description, parent_id, display_order,
+      image_url, page_title, meta_description, slug, is_visible, sort_order
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      userId, name, description, parent_id, display_order,
+      image_url, page_title, meta_description, finalSlug, is_visible, sort_order
+    ]
   );
+  
   const [newCategory] = await db.query('SELECT * FROM user_categories WHERE id = ?', [result.insertId]);
   return newCategory[0];
 }
 
 async function updateUserCategory(userId, categoryId, body) {
-  const { name, description, parent_id, display_order } = body;
+  const { 
+    name, 
+    description, 
+    parent_id, 
+    display_order,
+    image_url,
+    page_title,
+    meta_description,
+    slug,
+    is_visible,
+    sort_order
+  } = body;
+  
   const [category] = await db.query('SELECT user_id FROM user_categories WHERE id = ?', [categoryId]);
   if (!category[0] || category[0].user_id !== userId) {
     const err = new Error('Category not found');
     err.statusCode = 404;
     throw err;
   }
-  if (parent_id && parent_id == categoryId) {
-    const err = new Error('Category cannot be its own parent');
-    err.statusCode = 400;
-    throw err;
+  
+  // Check for circular reference recursively
+  if (parent_id) {
+    const hasCircular = await checkCircularReference(userId, categoryId, parent_id);
+    if (hasCircular) {
+      const err = new Error('Cannot create circular category reference. This would create an infinite loop in the category hierarchy.');
+      err.statusCode = 400;
+      throw err;
+    }
   }
+  
+  // Auto-generate slug from name if slug is empty and name is provided
+  let finalSlug = slug;
+  if (name && !slug && slug !== null) {
+    finalSlug = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+  
+  // Check slug uniqueness per user (excluding current category)
+  if (finalSlug) {
+    const [existingSlug] = await db.query(
+      'SELECT id FROM user_categories WHERE user_id = ? AND slug = ? AND id != ?',
+      [userId, finalSlug, categoryId]
+    );
+    if (existingSlug.length > 0) {
+      const err = new Error('Category slug already exists. Please use a different slug.');
+      err.statusCode = 400;
+      throw err;
+    }
+  }
+  
+  // Build dynamic update query based on provided fields
+  const updates = [];
+  const values = [];
+  
+  if (name !== undefined) {
+    updates.push('name = ?');
+    values.push(name);
+  }
+  if (description !== undefined) {
+    updates.push('description = ?');
+    values.push(description);
+  }
+  if (parent_id !== undefined) {
+    updates.push('parent_id = ?');
+    values.push(parent_id);
+  }
+  if (display_order !== undefined) {
+    updates.push('display_order = ?');
+    values.push(display_order);
+  }
+  if (image_url !== undefined) {
+    updates.push('image_url = ?');
+    values.push(image_url);
+  }
+  if (page_title !== undefined) {
+    updates.push('page_title = ?');
+    values.push(page_title);
+  }
+  if (meta_description !== undefined) {
+    updates.push('meta_description = ?');
+    values.push(meta_description);
+  }
+  if (finalSlug !== undefined) {
+    updates.push('slug = ?');
+    values.push(finalSlug);
+  }
+  if (is_visible !== undefined) {
+    updates.push('is_visible = ?');
+    values.push(is_visible);
+  }
+  if (sort_order !== undefined) {
+    updates.push('sort_order = ?');
+    values.push(sort_order);
+  }
+  
+  updates.push('updated_at = NOW()');
+  values.push(categoryId);
+  
   await db.query(
-    'UPDATE user_categories SET name = ?, description = ?, parent_id = ?, display_order = ?, updated_at = NOW() WHERE id = ?',
-    [name, description, parent_id, display_order, categoryId]
+    `UPDATE user_categories SET ${updates.join(', ')} WHERE id = ?`,
+    values
   );
+  
   const [updatedCategory] = await db.query('SELECT * FROM user_categories WHERE id = ?', [categoryId]);
   return updatedCategory[0];
 }
@@ -724,6 +1058,161 @@ async function deleteUserCategory(userId, categoryId) {
   }
   await db.query('DELETE FROM user_categories WHERE id = ?', [categoryId]);
   return { success: true, message: 'Category deleted successfully' };
+}
+
+/**
+ * Get user categories as a hierarchical tree structure
+ * @param {number} userId - User ID
+ * @returns {Promise<Array>} - Array of root categories with nested children
+ */
+async function getUserCategoriesTree(userId) {
+  const [categories] = await db.query(
+    'SELECT * FROM user_categories WHERE user_id = ? ORDER BY sort_order ASC, display_order ASC, name ASC',
+    [userId]
+  );
+  
+  // Build tree structure
+  const categoryMap = {};
+  const rootCategories = [];
+  
+  // First pass: create map of all categories with empty children arrays
+  categories.forEach(cat => {
+    categoryMap[cat.id] = { ...cat, children: [] };
+  });
+  
+  // Second pass: build parent-child relationships
+  categories.forEach(cat => {
+    if (cat.parent_id && categoryMap[cat.parent_id]) {
+      categoryMap[cat.parent_id].children.push(categoryMap[cat.id]);
+    } else {
+      rootCategories.push(categoryMap[cat.id]);
+    }
+  });
+  
+  return rootCategories;
+}
+
+/**
+ * Reorder categories by updating display_order
+ * @param {number} userId - User ID
+ * @param {Array} categoryOrders - Array of {id, display_order} objects
+ * @returns {Promise<Object>} - Success response
+ */
+async function reorderCategories(userId, categoryOrders) {
+  if (!Array.isArray(categoryOrders) || categoryOrders.length === 0) {
+    const err = new Error('categoryOrders must be a non-empty array');
+    err.statusCode = 400;
+    throw err;
+  }
+  
+  for (const cat of categoryOrders) {
+    if (!cat.id || cat.display_order === undefined) {
+      const err = new Error('Each category must have id and display_order');
+      err.statusCode = 400;
+      throw err;
+    }
+    
+    // Verify ownership
+    const [category] = await db.query(
+      'SELECT id FROM user_categories WHERE id = ? AND user_id = ?',
+      [cat.id, userId]
+    );
+    
+    if (category[0]) {
+      await db.query(
+        'UPDATE user_categories SET display_order = ?, updated_at = NOW() WHERE id = ?',
+        [cat.display_order, cat.id]
+      );
+    }
+  }
+  
+  return { success: true, message: 'Categories reordered successfully' };
+}
+
+/**
+ * Update which categories are visible on a specific site
+ * @param {number} userId - User ID (for verification)
+ * @param {number} siteId - Site ID
+ * @param {Array} visibilityArray - Array of {category_id, is_visible} objects
+ * @returns {Promise<Object>} - Success response
+ */
+async function updateSiteCategoryVisibility(userId, siteId, visibilityArray) {
+  // Verify site ownership
+  const [site] = await db.query('SELECT user_id FROM sites WHERE id = ?', [siteId]);
+  if (!site[0] || site[0].user_id !== userId) {
+    const err = new Error('Site not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  
+  if (!Array.isArray(visibilityArray)) {
+    const err = new Error('visibilityArray must be an array');
+    err.statusCode = 400;
+    throw err;
+  }
+  
+  for (const item of visibilityArray) {
+    const { category_id, is_visible } = item;
+    
+    if (!category_id || is_visible === undefined) {
+      const err = new Error('Each item must have category_id and is_visible');
+      err.statusCode = 400;
+      throw err;
+    }
+    
+    // Verify category belongs to user
+    const [category] = await db.query(
+      'SELECT id FROM user_categories WHERE id = ? AND user_id = ?',
+      [category_id, userId]
+    );
+    
+    if (!category[0]) {
+      continue; // Skip categories that don't belong to user
+    }
+    
+    // Insert or update visibility record
+    await db.query(
+      `INSERT INTO site_categories_visible (site_id, category_id, is_visible) 
+       VALUES (?, ?, ?) 
+       ON DUPLICATE KEY UPDATE is_visible = ?, updated_at = NOW()`,
+      [siteId, category_id, is_visible, is_visible]
+    );
+  }
+  
+  // Clear cache for this site
+  await deleteCachePattern(`site:${siteId}:*`);
+  
+  return { success: true, message: 'Category visibility updated successfully' };
+}
+
+/**
+ * Get categories for a specific site (filtered by visibility)
+ * @param {number} siteId - Site ID
+ * @returns {Promise<Array>} - Array of visible categories for this site
+ */
+async function getSiteCategories(siteId) {
+  const [site] = await db.query('SELECT user_id FROM sites WHERE id = ?', [siteId]);
+  if (!site[0]) {
+    const err = new Error('Site not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  
+  // Get all user categories that are:
+  // 1. Marked as visible (is_visible = TRUE)
+  // 2. Either have no visibility rule for this site, or are marked visible for this site
+  const [categories] = await db.query(
+    `SELECT uc.* 
+     FROM user_categories uc
+     LEFT JOIN site_categories_visible scv ON uc.id = scv.category_id AND scv.site_id = ?
+     WHERE uc.user_id = ? 
+       AND uc.is_visible = TRUE
+       AND (scv.id IS NULL OR scv.is_visible = TRUE)
+     ORDER BY uc.sort_order ASC, uc.display_order ASC, uc.name ASC`,
+    [siteId, site[0].user_id]
+  );
+  
+  return categories;
 }
 
 // ============================================================================
@@ -784,6 +1273,268 @@ async function createTemplate(userId, body) {
       throw err;
     }
     throw error;
+  }
+}
+
+// ============================================================================
+// TEMPLATE-SPECIFIC DATA FUNCTIONS
+// ============================================================================
+
+/**
+ * Load and parse template schema.json file
+ * @param {number} templateId - Template ID
+ * @returns {object} Parsed schema or default empty schema
+ */
+async function getTemplateSchema(templateId) {
+  const fs = require('fs').promises;
+  const path = require('path');
+  
+  try {
+    // Get template slug from database
+    const [template] = await db.query(
+      'SELECT template_slug FROM website_templates WHERE id = ?',
+      [templateId]
+    );
+    
+    if (!template[0]) {
+      const err = new Error('Template not found');
+      err.statusCode = 404;
+      throw err;
+    }
+    
+    const templateSlug = template[0].template_slug;
+    const schemaPath = path.join(__dirname, '../../../../../public/templates', templateSlug, 'schema.json');
+    
+    // Try to read schema file
+    try {
+      const schemaContent = await fs.readFile(schemaPath, 'utf8');
+      const schema = JSON.parse(schemaContent);
+      return schema;
+    } catch (fileError) {
+      // File doesn't exist or invalid JSON - return default empty schema
+      return {
+        template_slug: templateSlug,
+        template_name: template[0].template_name || templateSlug,
+        description: '',
+        version: '1.0.0',
+        custom_fields: []
+      };
+    }
+  } catch (error) {
+    throw error;
+  }
+}
+
+/**
+ * Get template-specific data for a site and template
+ * @param {number} siteId - Site ID
+ * @param {number} templateId - Template ID
+ * @returns {object} Field key/value pairs
+ */
+async function getTemplateDataForSite(siteId, templateId) {
+  const [rows] = await db.query(
+    'SELECT field_key, field_value FROM site_template_data WHERE site_id = ? AND template_id = ?',
+    [siteId, templateId]
+  );
+  
+  // Convert array of rows to key-value object
+  const data = {};
+  rows.forEach(row => {
+    data[row.field_key] = row.field_value;
+  });
+  
+  return data;
+}
+
+/**
+ * Update template-specific data for a site
+ * @param {number} siteId - Site ID
+ * @param {number} templateId - Template ID
+ * @param {object} fieldData - Object with field_key: field_value pairs
+ * @returns {object} Success response
+ */
+async function updateTemplateDataForSite(siteId, templateId, fieldData) {
+  // Validate that site exists and get user_id for tier checking
+  const [site] = await db.query('SELECT user_id FROM sites WHERE id = ?', [siteId]);
+  if (!site[0]) {
+    const err = new Error('Site not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  
+  // Get user's tier
+  const userId = site[0].user_id;
+  const [user] = await db.query('SELECT user_type FROM users WHERE id = ?', [userId]);
+  const isAdmin = user[0]?.user_type === 'admin';
+  
+  const [subscription] = await db.query(
+    'SELECT tier FROM user_subscriptions WHERE user_id = ? AND subscription_type = "websites" AND status = "active" LIMIT 1',
+    [userId]
+  );
+  const userTier = subscription[0]?.tier || 'free';
+  
+  // Get template schema for validation
+  const schema = await getTemplateSchema(templateId);
+  
+  // Validate field data against schema
+  await validateTemplateData(templateId, fieldData, userTier, isAdmin);
+  
+  // Perform batch upsert for all fields
+  if (Object.keys(fieldData).length === 0) {
+    return { success: true, message: 'No fields to update' };
+  }
+  
+  // Use INSERT ... ON DUPLICATE KEY UPDATE for efficient upsert
+  for (const [fieldKey, fieldValue] of Object.entries(fieldData)) {
+    await db.query(
+      `INSERT INTO site_template_data (site_id, template_id, field_key, field_value) 
+       VALUES (?, ?, ?, ?) 
+       ON DUPLICATE KEY UPDATE field_value = ?, updated_at = CURRENT_TIMESTAMP`,
+      [siteId, templateId, fieldKey, fieldValue, fieldValue]
+    );
+  }
+  
+  // Invalidate cache
+  await deleteCache(`site:${siteId}:template-data:${templateId}`);
+  await deleteCachePattern(`site:resolve:*`);
+  
+  return { success: true, message: 'Template data updated successfully' };
+}
+
+/**
+ * Validate template data against schema
+ * @param {number} templateId - Template ID
+ * @param {object} fieldData - Field data to validate
+ * @param {string} userTier - User's subscription tier
+ * @param {boolean} isAdmin - Whether user is admin
+ * @throws {Error} If validation fails
+ */
+async function validateTemplateData(templateId, fieldData, userTier, isAdmin) {
+  const schema = await getTemplateSchema(templateId);
+  
+  if (!schema.custom_fields || schema.custom_fields.length === 0) {
+    // No custom fields defined - allow empty updates but reject non-empty ones
+    if (Object.keys(fieldData).length > 0) {
+      const err = new Error('This template does not support custom fields');
+      err.statusCode = 400;
+      throw err;
+    }
+    return;
+  }
+  
+  // Build field map for quick lookup
+  const fieldMap = {};
+  schema.custom_fields.forEach(field => {
+    fieldMap[field.key] = field;
+  });
+  
+  // Define tier hierarchy for enforcement
+  const tierHierarchy = { free: 0, basic: 1, professional: 2 };
+  const userTierLevel = tierHierarchy[userTier] || 0;
+  
+  // Validate each field in fieldData
+  for (const [fieldKey, fieldValue] of Object.entries(fieldData)) {
+    const fieldDef = fieldMap[fieldKey];
+    
+    // Check if field exists in schema
+    if (!fieldDef) {
+      const err = new Error(`Unknown field: ${fieldKey}`);
+      err.statusCode = 400;
+      throw err;
+    }
+    
+    // Check tier requirement (skip for admins)
+    if (!isAdmin && fieldDef.tier_required) {
+      const requiredTierLevel = tierHierarchy[fieldDef.tier_required] || 0;
+      if (userTierLevel < requiredTierLevel) {
+        const err = new Error(`Field "${fieldDef.label}" requires ${fieldDef.tier_required} tier or higher`);
+        err.statusCode = 403;
+        throw err;
+      }
+    }
+    
+    // Check required fields
+    if (fieldDef.required && (!fieldValue || fieldValue.trim() === '')) {
+      const err = new Error(`Field "${fieldDef.label}" is required`);
+      err.statusCode = 400;
+      throw err;
+    }
+    
+    // Type-specific validation
+    if (fieldValue && fieldValue.trim() !== '') {
+      switch (fieldDef.type) {
+        case 'url':
+        case 'video_url':
+        case 'image_url':
+          // Basic URL validation
+          try {
+            new URL(fieldValue);
+          } catch (e) {
+            const err = new Error(`Field "${fieldDef.label}" must be a valid URL`);
+            err.statusCode = 400;
+            throw err;
+          }
+          break;
+        
+        case 'number':
+          if (isNaN(fieldValue)) {
+            const err = new Error(`Field "${fieldDef.label}" must be a number`);
+            err.statusCode = 400;
+            throw err;
+          }
+          if (fieldDef.min !== undefined && parseFloat(fieldValue) < fieldDef.min) {
+            const err = new Error(`Field "${fieldDef.label}" must be at least ${fieldDef.min}`);
+            err.statusCode = 400;
+            throw err;
+          }
+          if (fieldDef.max !== undefined && parseFloat(fieldValue) > fieldDef.max) {
+            const err = new Error(`Field "${fieldDef.label}" must be at most ${fieldDef.max}`);
+            err.statusCode = 400;
+            throw err;
+          }
+          break;
+        
+        case 'color':
+          // Validate hex color format
+          if (!/^#[0-9A-Fa-f]{6}$/.test(fieldValue)) {
+            const err = new Error(`Field "${fieldDef.label}" must be a valid hex color (e.g., #FF0000)`);
+            err.statusCode = 400;
+            throw err;
+          }
+          break;
+        
+        case 'select':
+          // Validate that value matches one of the options
+          if (fieldDef.options && Array.isArray(fieldDef.options)) {
+            const validValues = fieldDef.options.map(opt => opt.value);
+            if (!validValues.includes(fieldValue)) {
+              const err = new Error(`Field "${fieldDef.label}" must be one of: ${validValues.join(', ')}`);
+              err.statusCode = 400;
+              throw err;
+            }
+          }
+          break;
+        
+        case 'text':
+        case 'textarea':
+          // Check max length
+          if (fieldDef.max_length && fieldValue.length > fieldDef.max_length) {
+            const err = new Error(`Field "${fieldDef.label}" must be ${fieldDef.max_length} characters or less`);
+            err.statusCode = 400;
+            throw err;
+          }
+          break;
+      }
+    }
+  }
+  
+  // Check for missing required fields
+  for (const fieldDef of schema.custom_fields) {
+    if (fieldDef.required && !fieldData.hasOwnProperty(fieldDef.key)) {
+      const err = new Error(`Required field "${fieldDef.label}" is missing`);
+      err.statusCode = 400;
+      throw err;
+    }
   }
 }
 
@@ -902,6 +1653,11 @@ module.exports = {
   getTemplate,
   applyTemplate,
   createTemplate,
+  // Template-specific data
+  getTemplateSchema,
+  getTemplateDataForSite,
+  updateTemplateDataForSite,
+  validateTemplateData,
   getAddons,
   getMySiteAddons,
   getSiteAddonsPublic,
@@ -923,6 +1679,11 @@ module.exports = {
   createUserCategory,
   updateUserCategory,
   deleteUserCategory,
+  getUserCategoriesTree,
+  reorderCategories,
+  updateSiteCategoryVisibility,
+  getSiteCategories,
+  checkCircularReference,
   // Discounts
   calculateDiscounts,
   createDiscount,

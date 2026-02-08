@@ -6,7 +6,7 @@ import WholesalePricing from '../../components/WholesalePricing';
 import { isWholesaleCustomer } from '../../lib/userUtils';
 import { getAuthToken } from '../../lib/csrf';
 import { getFrontendUrl, getApiUrl, getSubdomainBase, config } from '../../lib/config';
-import styles from './ArtistStorefront.module.css';
+import TemplateLoader from '../../components/sites-modules/TemplateLoader';
 
 const ArtistStorefront = () => {
   const router = useRouter();
@@ -317,8 +317,8 @@ const ArtistStorefront = () => {
 
   if (loading) {
     return (
-      <div className={styles.loading}>
-        <div className={styles.spinner}></div>
+      <div className="loading">
+        <div className="spinner"></div>
         <p>Loading {siteName || 'artist'} gallery...</p>
       </div>
     );
@@ -326,11 +326,11 @@ const ArtistStorefront = () => {
 
   if (error || !siteData) {
     return (
-      <div className={styles.error}>
+      <div className="error">
         <h1>Gallery Not Found</h1>
         <p>Sorry, this artist gallery is not available.</p>
         <Link href={getFrontendUrl()}>
-          <a className={styles.homeLink}>← Back to Main Site</a>
+          <a className="homeLink">← Back to Main Site</a>
         </Link>
       </div>
     );
@@ -338,6 +338,20 @@ const ArtistStorefront = () => {
 
   const pageTitle = siteData.site_title || `${siteData.first_name} ${siteData.last_name} - Artist Gallery`;
   const pageDescription = siteData.site_description || siteData.bio || `Discover the artistic works of ${siteData.first_name} ${siteData.last_name}`;
+
+  // Prepare template customizations for TemplateLoader
+  const templateCustomizations = {
+    primary_color: siteData.primary_color,
+    secondary_color: siteData.secondary_color,
+    text_color: siteData.text_color,
+    accent_color: siteData.accent_color,
+    background_color: siteData.background_color,
+    body_font: siteData.body_font,
+    header_font: siteData.header_font
+  };
+  
+  // Get template-specific data (if any)
+  const templateData = siteData.template_data || {};
 
   return (
     <>
@@ -357,53 +371,61 @@ const ArtistStorefront = () => {
         )}
       </Head>
 
-      <div className={styles.storefront} style={getCustomStyles()}>
+      {/* Dynamic Template CSS Loader */}
+      <TemplateLoader 
+        templateSlug={siteData.template_slug || 'classic-gallery'}
+        customizations={templateCustomizations}
+        templateData={templateData}
+        customCSS={siteData.custom_css}
+      />
+
+      <div className="storefront" style={getCustomStyles()}>
         {/* Header */}
-        <header className={styles.header}>
-          <div className={styles.headerContent}>
-            <div className={styles.artistInfo}>
+        <header className="header">
+          <div className="headerContent">
+            <div className="artistInfo">
               {siteData.logo_path && (
                 <img 
                   src={siteData.logo_path}
                   alt={`${siteData.business_name || siteData.display_name || `${siteData.first_name} ${siteData.last_name}`} Logo`}
-                  className={styles.artistAvatar}
+                  className="artistAvatar"
                 />
               )}
-              <div className={styles.artistDetails}>
-                <h1 className={styles.artistName}>
+              <div className="artistDetails">
+                <h1 className="artistName">
                   {siteData.display_name || `${siteData.first_name} ${siteData.last_name}`}
                 </h1>
-                <div className={styles.artistMeta}>
-                  <p className={styles.artistTitle}>
+                <div className="artistMeta">
+                  <p className="artistTitle">
                     {siteData.job_title || (siteData.business_name ? `${siteData.business_name} - Artist` : 'Artist')}
                   </p>
                   {(siteData.city || siteData.state || siteData.country) && (
-                    <p className={styles.artistLocation}>
+                    <p className="artistLocation">
                       {[siteData.city, siteData.state, siteData.country].filter(Boolean).join(', ')}
                     </p>
                   )}
                 </div>
               </div>
               {/* Business name for header display */}
-              <div className={styles.businessName}>
+              <div className="businessName">
                 {siteData.business_name && (
-                  <h2 className={styles.businessNameText}>{siteData.business_name}</h2>
+                  <h2 className="businessNameText">{siteData.business_name}</h2>
                 )}
               </div>
             </div>
 
-            <nav className={styles.navigation}>
+            <nav className="navigation">
               <Link href={siteData.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.${getSubdomainBase()}`}>
-                <a className={styles.navLink}>Home</a>
+                <a className="navLink">Home</a>
               </Link>
               {articles.map(article => (
                 <Link key={article.id} href={`${siteData.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.${getSubdomainBase()}`}/${article.slug}`}>
-                  <a className={styles.navLink}>{article.title}</a>
+                  <a className="navLink">{article.title}</a>
                 </Link>
               ))}
               {pages.find(page => page.page_type === 'contact') && (
                 <Link href={`${siteData.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.${getSubdomainBase()}`}/${pages.find(page => page.page_type === 'contact').slug}`}>
-                  <a className={styles.navLink}>{pages.find(page => page.page_type === 'contact').title}</a>
+                  <a className="navLink">{pages.find(page => page.page_type === 'contact').title}</a>
                 </Link>
               )}
             </nav>
@@ -412,16 +434,16 @@ const ArtistStorefront = () => {
 
         {/* Hero Section */}
         {siteData.header_image_path && (
-          <section className={styles.hero}>
+          <section className="hero">
             <img 
               src={siteData.header_image_path}
               alt="Artist Header"
-              className={styles.heroImage}
+              className="heroImage"
             />
-            <div className={styles.heroOverlay}>
-              <h2 className={styles.heroTitle}>{siteData.site_title || 'Welcome to My Gallery'}</h2>
+            <div className="heroOverlay">
+              <h2 className="heroTitle">{siteData.site_title || 'Welcome to My Gallery'}</h2>
               {siteData.site_description && (
-                <p className={styles.heroDescription}>{siteData.site_description}</p>
+                <p className="heroDescription">{siteData.site_description}</p>
               )}
             </div>
           </section>
@@ -429,22 +451,22 @@ const ArtistStorefront = () => {
 
         {/* About Section */}
         {(siteData.bio || siteData.artist_biography) && (
-          <section className={styles.about}>
-            <div className={styles.container}>
+          <section className="about">
+            <div className="container">
               <h2>About the Artist</h2>
               
               {/* Artist profile layout with image and bio */}
-              <div className={styles.artistProfile}>
+              <div className="artistProfile">
                 {/* Profile image on the left */}
-                <div className={styles.profileImageContainer}>
+                <div className="profileImageContainer">
                   <img 
                     src={siteData.profile_image_path || '/images/default-avatar.png'} 
                     alt={`${siteData.first_name} ${siteData.last_name}`}
-                    className={styles.profileImage}
+                    className="profileImage"
                   />
                   {/* Studio Location below image */}
                   {(siteData.studio_city || siteData.studio_state) && (
-                    <div className={styles.studioLocation}>
+                    <div className="studioLocation">
                       {siteData.studio_city && siteData.studio_state 
                         ? `${siteData.studio_city}, ${siteData.studio_state}`
                         : siteData.studio_city || siteData.studio_state
@@ -454,21 +476,21 @@ const ArtistStorefront = () => {
                 </div>
                 
                 {/* Bio and details on the right */}
-                <div className={styles.profileContent}>
+                <div className="profileContent">
                   {/* Primary bio/artist biography */}
-                  <div className={styles.bioContent}>
-                    <p className={styles.bio}>{siteData.artist_biography || siteData.bio}</p>
+                  <div className="bioContent">
+                    <p className="bio">{siteData.artist_biography || siteData.bio}</p>
                   </div>
                   
                   {/* Artist details grid */}
-                  <div className={styles.artistDetails}>
+                  <div className="artistDetails">
                     {/* Art Categories */}
                     {siteData.art_categories && siteData.art_categories.length > 0 && (
-                      <div className={styles.detailItem}>
+                      <div className="detailItem">
                         <h4>Art Categories</h4>
-                        <div className={styles.tagList}>
+                        <div className="tagList">
                           {siteData.art_categories.map((category, index) => (
-                            <span key={index} className={styles.tag}>{category}</span>
+                            <span key={index} className="tag">{category}</span>
                           ))}
                         </div>
                       </div>
@@ -476,11 +498,11 @@ const ArtistStorefront = () => {
                     
                     {/* Art Mediums */}
                     {siteData.art_mediums && siteData.art_mediums.length > 0 && (
-                      <div className={styles.detailItem}>
+                      <div className="detailItem">
                         <h4>Mediums</h4>
-                        <div className={styles.tagList}>
+                        <div className="tagList">
                           {siteData.art_mediums.map((medium, index) => (
-                            <span key={index} className={styles.tag}>{medium}</span>
+                            <span key={index} className="tag">{medium}</span>
                           ))}
                         </div>
                       </div>
@@ -489,7 +511,7 @@ const ArtistStorefront = () => {
 
                     {/* Founding Date */}
                     {siteData.founding_date && (
-                      <div className={styles.detailItem}>
+                      <div className="detailItem">
                         <h4>Artistic Journey Started</h4>
                         <p>{new Date(siteData.founding_date).getFullYear()}</p>
                       </div>
@@ -497,7 +519,7 @@ const ArtistStorefront = () => {
                     
                     {/* Custom Work */}
                     {siteData.does_custom === 'yes' && (
-                      <div className={styles.detailItem}>
+                      <div className="detailItem">
                         <h4>Custom Commissions</h4>
                         <p>{siteData.custom_details || 'Available for custom work'}</p>
                       </div>
@@ -505,7 +527,7 @@ const ArtistStorefront = () => {
                     
                     {/* Awards */}
                     {siteData.awards && (
-                      <div className={styles.detailItem}>
+                      <div className="detailItem">
                         <h4>Awards & Recognition</h4>
                         <p>{siteData.awards}</p>
                       </div>
@@ -513,7 +535,7 @@ const ArtistStorefront = () => {
                     
                     {/* Memberships */}
                     {siteData.memberships && (
-                      <div className={styles.detailItem}>
+                      <div className="detailItem">
                         <h4>Professional Memberships</h4>
                         <p>{siteData.memberships}</p>
                       </div>
@@ -527,13 +549,13 @@ const ArtistStorefront = () => {
 
         {/* Categories Filter */}
         {categories.length > 0 && (
-          <section className={styles.categories}>
-            <div className={styles.container}>
+          <section className="categories">
+            <div className="container">
               <h3>Browse by Category</h3>
-              <div className={styles.categoryTags}>
-                <button className={styles.categoryTag}>All</button>
+              <div className="categoryTags">
+                <button className="categoryTag">All</button>
                 {categories.map(category => (
-                  <button key={category.id} className={styles.categoryTag}>
+                  <button key={category.id} className="categoryTag">
                     {category.name}
                   </button>
                 ))}
@@ -543,59 +565,59 @@ const ArtistStorefront = () => {
         )}
 
         {/* Products Gallery */}
-        <section className={styles.gallery}>
-          <div className={styles.container}>
+        <section className="gallery">
+          <div className="container">
             <h2>Gallery</h2>
             
             {products.length === 0 ? (
-              <div className={styles.emptyGallery}>
+              <div className="emptyGallery">
                 <p>No artworks available at the moment.</p>
                 <p>Please check back soon for new pieces!</p>
               </div>
             ) : (
-              <div className={styles.productsGrid}>
+              <div className="productsGrid">
                 {products.map(product => (
-                  <div key={product.id} className={styles.productCard}>
-                    <div className={styles.productImage}>
+                  <div key={product.id} className="productCard">
+                    <div className="productImage">
                       {getImageUrl(product) ? (
                         <img 
                           src={getImageUrl(product)}
                           alt={product.alt_text || product.name}
                         />
                       ) : (
-                        <div className={styles.placeholderImage}>
+                        <div className="placeholderImage">
                           <span>No Image</span>
                         </div>
                       )}
                     </div>
                     
-                    <div className={styles.productInfo}>
-                      <h3 className={styles.productName}>{product.name}</h3>
+                    <div className="productInfo">
+                      <h3 className="productName">{product.name}</h3>
                       <WholesalePricing
                         price={product.price}
                         wholesalePrice={product.wholesale_price}
                         isWholesaleCustomer={isWholesaleCustomer(userData)}
                         size="medium"
                         layout="inline"
-                        className={styles.productPrice}
+                        className="productPrice"
                       />
                       
                       {product.description && (
-                        <p className={styles.productDescription}>
+                        <p className="productDescription">
                           {product.description.substring(0, 100)}
                           {product.description.length > 100 && '...'}
                         </p>
                       )}
                       
-                      <div className={styles.productActions}>
+                      <div className="productActions">
                         <button 
-                          className={styles.addToCartBtn}
+                          className="addToCartBtn"
                           onClick={() => addToCart(product.id)}
                         >
                           Add to Cart
                         </button>
                         <Link href={`/product/${product.id}`}>
-                          <a className={styles.viewProductBtn}>View Details</a>
+                          <a className="viewProductBtn">View Details</a>
                         </Link>
                       </div>
                     </div>
@@ -605,9 +627,9 @@ const ArtistStorefront = () => {
             )}
             
             {products.length >= 12 && (
-              <div className={styles.viewMore}>
+              <div className="viewMore">
                 <Link href={`/products`}>
-                  <a className={styles.viewMoreBtn}>View All Artworks</a>
+                  <a className="viewMoreBtn">View All Artworks</a>
                 </Link>
               </div>
             )}
@@ -615,12 +637,12 @@ const ArtistStorefront = () => {
         </section>
 
         {/* Footer */}
-        <footer className={styles.footer}>
-          <div className={styles.container}>
-            <div className={styles.footerContent}>
-              <div className={styles.footerSection}>
+        <footer className="footer">
+          <div className="container">
+            <div className="footerContent">
+              <div className="footerSection">
                 <h4>Connect</h4>
-                <div className={styles.socialLinks}>
+                <div className="socialLinks">
                   {siteData.social_instagram && (
                     <a href={siteData.social_instagram} target="_blank" rel="noopener noreferrer">
                       Instagram
@@ -650,9 +672,9 @@ const ArtistStorefront = () => {
                 
                 {/* Contact info */}
                 {(siteData.phone || siteData.business_website) && (
-                  <div className={styles.contactInfo}>
+                  <div className="contactInfo">
                     {siteData.phone && (
-                      <p className={styles.phone}>{siteData.phone}</p>
+                      <p className="phone">{siteData.phone}</p>
                     )}
                     {siteData.business_website && (
                       <p>
@@ -666,24 +688,24 @@ const ArtistStorefront = () => {
               </div>
             </div>
             
-            <div className={styles.footerBottom}>
+            <div className="footerBottom">
               <p>&copy; 2025 {siteData.display_name || `${siteData.first_name} ${siteData.last_name}`}. All rights reserved.</p>
             </div>
             
             {/* Branded Footer - Hidden on higher tier plans */}
-            <div className={styles.brandedFooter}>
-              <div className={styles.brandedContent}>
-                <span className={styles.poweredByText}>Powered by</span>
+            <div className="brandedFooter">
+              <div className="brandedContent">
+                <span className="poweredByText">Powered by</span>
                 <img 
                   src="/static_media/logo.png" 
                   alt="Brakebee" 
-                  className={styles.brandLogo}
+                  className="brandLogo"
                 />
                 <a 
                   href={getFrontendUrl('/')} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className={styles.brandLink}
+                  className="brandLink"
                 >
                   Brakebee.com
                 </a>

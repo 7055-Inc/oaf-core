@@ -1,0 +1,55 @@
+<svg width="1200" height="800" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1200" height="800" fill="#ffffff"/>
+  
+  <!-- Header -->
+  <rect width="1200" height="60" fill="#ffffff"/>
+  <rect y="60" width="1200" height="1" fill="#e5e5e5"/>
+  <text x="40" y="40" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#1a1a1a">xclusive</text>
+  <text x="600" y="40" font-family="Arial, sans-serif" font-size="12" fill="#1a1a1a" text-anchor="middle">HOME    LOOKS    NEW ARRIVALS    SHOP    SALE</text>
+  
+  <!-- Circular Categories -->
+  <rect y="61" width="1200" height="140" fill="#f9f9f9"/>
+  <!-- Circles -->
+  <circle cx="150" cy="110" r="40" fill="#d0d0d0" stroke="#e0c896" stroke-width="3"/>
+  <circle cx="260" cy="110" r="40" fill="#c8c8c8" stroke="#e0c896" stroke-width="3"/>
+  <circle cx="370" cy="110" r="40" fill="#d5d5d5" stroke="#e0c896" stroke-width="3"/>
+  <circle cx="480" cy="110" r="40" fill="#c0c0c0" stroke="#e0c896" stroke-width="3"/>
+  <circle cx="590" cy="110" r="40" fill="#d8d8d8" stroke="#e0c896" stroke-width="3"/>
+  <circle cx="700" cy="110" r="40" fill="#c5c5c5" stroke="#e0c896" stroke-width="3"/>
+  <circle cx="810" cy="110" r="40" fill="#d2d2d2" stroke="#e0c896" stroke-width="3"/>
+  <circle cx="920" cy="110" r="40" fill="#c3c3c3" stroke="#e0c896" stroke-width="3"/>
+  
+  <!-- Split Hero -->
+  <!-- Left - Video with text -->
+  <rect y="201" width="600" height="300" fill="#e8e8e8"/>
+  <text x="40" y="450" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#1a1a1a">Shop the look</text>
+  <text x="40" y="480" font-family="Arial, sans-serif" font-size="22" font-weight="600" fill="#1a1a1a">50% off</text>
+  
+  <!-- Right - Images -->
+  <rect x="600" y="201" width="600" height="200" fill="#d5d5d5"/>
+  <rect x="600" y="401" width="600" height="100" fill="#c8c8c8"/>
+  
+  <!-- Products Section -->
+  <rect y="501" width="1200" height="30" fill="#ffffff"/>
+  <text x="40" y="520" font-family="Arial, sans-serif" font-size="18" font-weight="600" fill="#1a1a1a">Last ones!</text>
+  <text x="1160" y="520" font-family="Arial, sans-serif" font-size="11" fill="#666" text-anchor="end">VIEW ALL ’</text>
+  
+  <!-- Product Cards -->
+  <rect x="40" y="540" width="260" height="220" rx="4" fill="#f5f5f5"/>
+  <rect x="40" y="540" width="260" height="165" fill="#d8d8d8"/>
+  <rect x="320" y="540" width="260" height="220" rx="4" fill="#f5f5f5"/>
+  <rect x="320" y="540" width="260" height="165" fill="#d0d0d0"/>
+  <rect x="600" y="540" width="260" height="220" rx="4" fill="#f5f5f5"/>
+  <rect x="600" y="540" width="260" height="165" fill="#d5d5d5"/>
+  <rect x="880" y="540" width="260" height="220" rx="4" fill="#f5f5f5"/>
+  <rect x="880" y="540" width="260" height="165" fill="#d2d2d2"/>
+  
+  <!-- Sale badge -->
+  <rect x="50" y="550" width="40" height="18" fill="#ff0000"/>
+  <text x="70" y="562" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="#ffffff" text-anchor="middle">SALE</text>
+  
+  <!-- Template label -->
+  <rect x="980" y="15" width="200" height="30" rx="6" fill="#f9f9f9" stroke="#e0c896" stroke-width="2"/>
+  <text x="1080" y="35" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#997700" text-anchor="middle">BASIC TIER " MODULAR</text>
+</svg>

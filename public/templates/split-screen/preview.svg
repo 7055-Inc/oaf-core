@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<svg width='1200' height='800' xmlns='http://www.w3.org/2000/svg'>
+  <rect width='600' height='800' fill='#ffffff'/>
+  <rect x='600' y='0' width='600' height='800' fill='#f5f5f5'/>
+  <rect x='596' y='0' width='8' height='800' fill='#667eea'/>
+  <circle cx='600' cy='400' r='24' fill='#ffffff' stroke='#667eea' stroke-width='2'/>
+  <path d='M 590 400 L 596 400 M 604 400 L 610 400' stroke='#667eea' stroke-width='2'/>
+  <text x='300' y='200' text-anchor='middle' font-family='Arial, sans-serif' font-size='36' font-weight='700' fill='#333'>SPLIT</text>
+  <text x='900' y='200' text-anchor='middle' font-family='Arial, sans-serif' font-size='36' font-weight='700' fill='#333'>SCREEN</text>
+  <text x='600' y='750' text-anchor='middle' font-family='Arial, sans-serif' font-size='14' fill='#667eea'>← Drag to Resize →</text>
+</svg>

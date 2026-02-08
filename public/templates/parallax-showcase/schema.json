@@ -1,0 +1,45 @@
+{
+  "template_slug": "parallax-showcase",
+  "template_name": "Parallax Showcase",
+  "description": "Dynamic scrolling template with parallax effects and depth",
+  "version": "1.0.0",
+  "author": "Artist Sites",
+  "custom_fields": [
+    {
+      "key": "parallax_intensity",
+      "label": "Parallax Effect Intensity",
+      "type": "select",
+      "description": "Strength of the parallax scrolling effect",
+      "required": false,
+      "default_value": "medium",
+      "tier_required": "pro",
+      "options": [
+        { "value": "subtle", "label": "Subtle (Gentle Movement)" },
+        { "value": "medium", "label": "Medium (Balanced)" },
+        { "value": "dramatic", "label": "Dramatic (Strong Effect)" }
+      ]
+    },
+    {
+      "key": "scroll_animation",
+      "label": "Scroll Animations",
+      "type": "select",
+      "description": "Fade-in animations as elements enter viewport",
+      "required": false,
+      "default_value": "yes",
+      "tier_required": "pro",
+      "options": [
+        { "value": "yes", "label": "Enable Animations" },
+        { "value": "no", "label": "Disable Animations" }
+      ]
+    },
+    {
+      "key": "hero_parallax_image",
+      "label": "Hero Parallax Background",
+      "type": "image_url",
+      "placeholder": "https://example.com/hero-bg.jpg",
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "Background image for parallax hero section (recommended: 1920x1080px)"
+    }
+  ]
+}

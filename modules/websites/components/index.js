@@ -12,3 +12,4 @@ export { default as SiteCustomizer } from './SiteCustomizer';
 export { default as WebsitesSubscriptionGate } from './WebsitesSubscriptionGate';
 export { default as PricingTiers } from './PricingTiers';
 export { default as AllSites } from './AllSites';
+export { default as SubscriptionManager } from './SubscriptionManager';

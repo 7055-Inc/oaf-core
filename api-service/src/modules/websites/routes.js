@@ -212,6 +212,106 @@ router.post('/templates', requireAuth, requireRole('admin'), async (req, res) =>
 });
 
 // ============================================================================
+// TEMPLATE-SPECIFIC DATA
+// ============================================================================
+
+// Get template schema (PUBLIC - no auth required)
+// Returns schema.json for a template
+router.get('/templates/:templateId/schema', async (req, res) => {
+  try {
+    const schema = await sitesService.getTemplateSchema(parseInt(req.params.templateId));
+    res.json({ success: true, data: schema });
+  } catch (err) {
+    handleError(res, err);
+  }
+});
+
+// Get template-specific data for a site
+// Returns template-specific field values for site's current template
+router.get('/sites/:siteId/template-data', requireAuth, async (req, res) => {
+  try {
+    const siteId = parseInt(req.params.siteId);
+    
+    // Verify site ownership
+    const [site] = await require('../../../config/db').query(
+      'SELECT user_id, template_id FROM sites WHERE id = ?',
+      [siteId]
+    );
+    
+    if (!site[0]) {
+      return res.status(404).json({ success: false, error: 'Site not found' });
+    }
+    
+    // Check authorization
+    const [user] = await require('../../../config/db').query(
+      'SELECT user_type FROM users WHERE id = ?',
+      [req.userId]
+    );
+    
+    if (site[0].user_id !== req.userId && user[0]?.user_type !== 'admin') {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+    
+    // Get template data for site's current template
+    if (!site[0].template_id) {
+      return res.json({ success: true, data: {} });
+    }
+    
+    const templateData = await sitesService.getTemplateDataForSite(siteId, site[0].template_id);
+    res.json({ success: true, data: templateData });
+  } catch (err) {
+    handleError(res, err);
+  }
+});
+
+// Update template-specific data for a site
+// Saves template-specific field values (validates against schema)
+router.put('/sites/:siteId/template-data', requireAuth, async (req, res) => {
+  try {
+    const siteId = parseInt(req.params.siteId);
+    
+    // Verify site ownership and get template_id
+    const [site] = await require('../../../config/db').query(
+      'SELECT user_id, template_id FROM sites WHERE id = ?',
+      [siteId]
+    );
+    
+    if (!site[0]) {
+      return res.status(404).json({ success: false, error: 'Site not found' });
+    }
+    
+    // Check authorization
+    const [user] = await require('../../../config/db').query(
+      'SELECT user_type FROM users WHERE id = ?',
+      [req.userId]
+    );
+    
+    if (site[0].user_id !== req.userId && user[0]?.user_type !== 'admin') {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+    
+    // Site must have a template assigned
+    if (!site[0].template_id) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Site does not have a template assigned' 
+      });
+    }
+    
+    // Update template data (validates against schema, checks tier requirements)
+    const result = await sitesService.updateTemplateDataForSite(
+      siteId, 
+      site[0].template_id, 
+      req.body
+    );
+    
+    res.json(result);
+  } catch (err) {
+    handleError(res, err);
+  }
+});
+
+// ============================================================================
 // ADDONS
 // ============================================================================
 
@@ -348,6 +448,50 @@ router.delete('/categories/:id', requireAuth, async (req, res) => {
   }
 });
 
+// Get categories as hierarchical tree
+router.get('/categories/tree', requireAuth, async (req, res) => {
+  try {
+    const tree = await sitesService.getUserCategoriesTree(req.userId);
+    res.json({ success: true, categories: tree });
+  } catch (err) {
+    handleError(res, err);
+  }
+});
+
+// Reorder categories
+router.put('/categories/reorder', requireAuth, async (req, res) => {
+  try {
+    const result = await sitesService.reorderCategories(req.userId, req.body.categories);
+    res.json(result);
+  } catch (err) {
+    handleError(res, err);
+  }
+});
+
+// Get categories for a specific site (filtered by visibility)
+router.get('/sites/:siteId/categories', requireAuth, async (req, res) => {
+  try {
+    const categories = await sitesService.getSiteCategories(req.params.siteId);
+    res.json({ success: true, categories });
+  } catch (err) {
+    handleError(res, err);
+  }
+});
+
+// Update category visibility for a specific site
+router.put('/sites/:siteId/categories/visibility', requireAuth, async (req, res) => {
+  try {
+    const result = await sitesService.updateSiteCategoryVisibility(
+      req.userId, 
+      req.params.siteId, 
+      req.body.visibility
+    );
+    res.json(result);
+  } catch (err) {
+    handleError(res, err);
+  }
+});
+
 // ============================================================================
 // DISCOUNTS
 // ============================================================================
@@ -437,9 +581,27 @@ router.post('/subscription/change-tier', requireAuth, async (req, res) => {
   }
 });
 
+router.post('/subscription/confirm-tier-change', requireAuth, async (req, res) => {
+  try {
+    const result = await subscriptionService.confirmTierChange(req.userId, req.body);
+    res.json(result);
+  } catch (err) {
+    handleError(res, err);
+  }
+});
+
 router.post('/subscription/cancel', requireAuth, async (req, res) => {
   try {
-    const result = await subscriptionService.cancelSubscription(req.userId);
+    const result = await subscriptionService.cancelSubscription(req.userId, req.body);
+    res.json(result);
+  } catch (err) {
+    handleError(res, err);
+  }
+});
+
+router.post('/subscription/confirm-cancellation', requireAuth, async (req, res) => {
+  try {
+    const result = await subscriptionService.confirmCancellation(req.userId, req.body);
     res.json(result);
   } catch (err) {
     handleError(res, err);

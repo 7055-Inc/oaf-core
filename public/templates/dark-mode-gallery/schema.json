@@ -1,0 +1,46 @@
+{
+  "template_slug": "dark-mode-gallery",
+  "template_name": "Dark Mode Gallery",
+  "description": "Dark theme optimized for artwork with automatic or manual theme toggle",
+  "version": "1.0.0",
+  "author": "Artist Sites",
+  "custom_fields": [
+    {
+      "key": "default_theme",
+      "label": "Default Theme",
+      "type": "select",
+      "description": "Theme shown when visitors first arrive",
+      "required": false,
+      "default_value": "dark",
+      "tier_required": "pro",
+      "options": [
+        { "value": "dark", "label": "Dark (Default)" },
+        { "value": "light", "label": "Light" },
+        { "value": "auto", "label": "Auto (System Preference)" }
+      ]
+    },
+    {
+      "key": "dark_primary",
+      "label": "Dark Mode Primary Color",
+      "type": "color",
+      "required": false,
+      "default_value": "#64ffda",
+      "tier_required": "pro",
+      "help_text": "Accent color for dark mode"
+    },
+    {
+      "key": "contrast_level",
+      "label": "Contrast Level",
+      "type": "select",
+      "description": "Contrast intensity for dark mode",
+      "required": false,
+      "default_value": "high",
+      "tier_required": "pro",
+      "options": [
+        { "value": "normal", "label": "Normal Contrast" },
+        { "value": "high", "label": "High Contrast" },
+        { "value": "maximum", "label": "Maximum Contrast" }
+      ]
+    }
+  ]
+}
