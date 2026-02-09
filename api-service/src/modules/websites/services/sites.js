@@ -753,7 +753,7 @@ async function resolveSubdomainArticles(subdomain, query = {}) {
 }
 
 async function resolveSubdomainCategories(subdomain) {
-  const [site] = await db.query('SELECT id, user_id FROM sites WHERE subdomain = ? AND status = ?', [subdomain, 'active']);
+  const [site] = await db.query('SELECT id, user_id FROM sites WHERE subdomain = ? AND STATUS = ?', [subdomain, 'active']);
   if (!site[0]) {
     const err = new Error('Site not found');
     err.statusCode = 404;
@@ -763,6 +763,183 @@ async function resolveSubdomainCategories(subdomain) {
   // Use getSiteCategories to respect visibility settings
   const categories = await getSiteCategories(site[0].id);
   return categories;
+}
+
+// ============================================================================
+// PUBLIC: Get social media links for a site
+// ============================================================================
+
+async function resolveSubdomainSocials(subdomain) {
+  const [site] = await db.query('SELECT id, user_id FROM sites WHERE subdomain = ? AND status = ?', [subdomain, 'active']);
+  if (!site[0]) {
+    const err = new Error('Site not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  
+  const userId = site[0].user_id;
+  
+  // Try to get business socials from artist_profiles
+  const [artistProfiles] = await db.query(
+    `SELECT 
+      business_social_facebook, 
+      business_social_instagram, 
+      business_social_tiktok, 
+      business_social_twitter, 
+      business_social_pinterest
+    FROM artist_profiles 
+    WHERE user_id = ?`,
+    [userId]
+  );
+  
+  // Try to get business socials from promoter_profiles if not found in artist
+  const [promoterProfiles] = await db.query(
+    `SELECT 
+      business_social_facebook, 
+      business_social_instagram, 
+      business_social_tiktok, 
+      business_social_twitter, 
+      business_social_pinterest
+    FROM promoter_profiles 
+    WHERE user_id = ?`,
+    [userId]
+  );
+  
+  // Get personal socials from user_profiles as fallback
+  const [userProfiles] = await db.query(
+    `SELECT 
+      social_facebook, 
+      social_instagram, 
+      social_tiktok, 
+      social_twitter, 
+      social_pinterest, 
+      social_whatsapp
+    FROM user_profiles 
+    WHERE user_id = ?`,
+    [userId]
+  );
+  
+  // Determine which business profile to use (artist takes priority)
+  const businessProfile = artistProfiles[0] || promoterProfiles[0];
+  const personalProfile = userProfiles[0];
+  
+  // Build socials object - business first, fallback to personal
+  const socials = {
+    facebook: (businessProfile?.business_social_facebook || personalProfile?.social_facebook || null),
+    instagram: (businessProfile?.business_social_instagram || personalProfile?.social_instagram || null),
+    tiktok: (businessProfile?.business_social_tiktok || personalProfile?.social_tiktok || null),
+    twitter: (businessProfile?.business_social_twitter || personalProfile?.social_twitter || null),
+    pinterest: (businessProfile?.business_social_pinterest || personalProfile?.social_pinterest || null),
+    whatsapp: (personalProfile?.social_whatsapp || null) // Only in personal
+  };
+  
+  return { success: true, socials };
+}
+
+// ============================================================================
+// PUBLIC: Get clipped note for a site
+// ============================================================================
+
+async function resolveSubdomainClippedNote(subdomain) {
+  const [site] = await db.query('SELECT id FROM sites WHERE subdomain = ? AND status = ?', [subdomain, 'active']);
+  if (!site[0]) {
+    const err = new Error('Site not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  
+  const [notes] = await db.query(
+    'SELECT title, message, position, background_color, text_color, action_type, action_value FROM site_clipped_notes WHERE site_id = ? AND is_active = 1',
+    [site[0].id]
+  );
+  
+  if (!notes[0]) {
+    return { success: true, note: null };
+  }
+  
+  return { success: true, note: notes[0] };
+}
+
+// ============================================================================
+// AUTHENTICATED: Get clipped note for a site
+// ============================================================================
+
+async function getSiteClippedNote(userId, siteId) {
+  // Verify site ownership
+  const [site] = await db.query('SELECT user_id FROM sites WHERE id = ?', [siteId]);
+  if (!site[0]) {
+    const err = new Error('Site not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  
+  // Check authorization
+  const [user] = await db.query('SELECT user_type FROM users WHERE id = ?', [userId]);
+  if (site[0].user_id !== userId && user[0]?.user_type !== 'admin') {
+    const err = new Error('Access denied');
+    err.statusCode = 403;
+    throw err;
+  }
+  
+  const [notes] = await db.query(
+    'SELECT * FROM site_clipped_notes WHERE site_id = ?',
+    [siteId]
+  );
+  
+  return notes[0] || null;
+}
+
+// ============================================================================
+// AUTHENTICATED: Create or update clipped note for a site
+// ============================================================================
+
+async function updateSiteClippedNote(userId, siteId, data) {
+  // Verify site ownership
+  const [site] = await db.query('SELECT user_id FROM sites WHERE id = ?', [siteId]);
+  if (!site[0]) {
+    const err = new Error('Site not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  
+  // Check authorization
+  const [user] = await db.query('SELECT user_type FROM users WHERE id = ?', [userId]);
+  if (site[0].user_id !== userId && user[0]?.user_type !== 'admin') {
+    const err = new Error('Access denied');
+    err.statusCode = 403;
+    throw err;
+  }
+  
+  const { title, message, position, background_color, text_color, action_type, action_value, is_active } = data;
+  
+  // Check if note exists
+  const [existing] = await db.query('SELECT id FROM site_clipped_notes WHERE site_id = ?', [siteId]);
+  
+  if (existing[0]) {
+    // Update existing note
+    await db.query(
+      `UPDATE site_clipped_notes 
+       SET title = ?, message = ?, position = ?, background_color = ?, text_color = ?, 
+           action_type = ?, action_value = ?, is_active = ?, updated_at = NOW()
+       WHERE site_id = ?`,
+      [title || 'Note', message, position || 'left', background_color || '#055474', 
+       text_color || '#ffffff', action_type || 'none', action_value, 
+       is_active !== undefined ? is_active : 1, siteId]
+    );
+  } else {
+    // Insert new note
+    await db.query(
+      `INSERT INTO site_clipped_notes 
+       (site_id, title, message, position, background_color, text_color, action_type, action_value, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [siteId, title || 'Note', message, position || 'left', background_color || '#055474',
+       text_color || '#ffffff', action_type || 'none', action_value, 
+       is_active !== undefined ? is_active : 1]
+    );
+  }
+  
+  // Return updated note
+  return getSiteClippedNote(userId, siteId);
 }
 
 // ============================================================================
@@ -1672,8 +1849,13 @@ module.exports = {
   resolveSubdomainProducts,
   resolveSubdomainArticles,
   resolveSubdomainCategories,
+  resolveSubdomainSocials,
+  resolveSubdomainClippedNote,
   checkSubdomainAvailability,
   resolveCustomDomain,
+  // Clipped notes
+  getSiteClippedNote,
+  updateSiteClippedNote,
   // User categories
   getUserCategories,
   createUserCategory,

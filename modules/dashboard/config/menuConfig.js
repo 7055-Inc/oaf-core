@@ -306,6 +306,30 @@ const menuConfig = [
     ]
   },
   {
+    id: 'crm',
+    label: 'CRM',
+    href: '/dashboard/crm',
+    icon: 'fa-envelope',
+    items: [
+      { 
+        label: 'Subscribers', 
+        href: '/dashboard/crm' 
+      },
+      { 
+        label: 'Forms', 
+        href: '/dashboard/crm/forms' 
+      },
+      { 
+        label: 'Send Campaign', 
+        href: '/dashboard/crm/send-campaign' 
+      },
+      { 
+        label: 'Analytics', 
+        href: '/dashboard/crm/analytics' 
+      },
+    ]
+  },
+  {
     id: 'events',
     label: 'Events',
     href: '/dashboard/events',

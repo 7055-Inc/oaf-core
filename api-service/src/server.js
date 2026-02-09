@@ -310,6 +310,15 @@ try {
   secureLogger.error('Error loading Drip Campaigns module', err);
 }
 
+// Load Email Marketing module (subscriber lists, forms, campaigns - v2 at /api/v2/email-marketing)
+secureLogger.info('Loading Email Marketing module');
+try {
+  app.use('/api/v2/email-marketing', require('./modules/email-marketing').router);
+  secureLogger.info('Loaded v2 Email Marketing module at /api/v2/email-marketing');
+} catch (err) {
+  secureLogger.error('Error loading Email Marketing module', err);
+}
+
 // Apply CSRF token provider for all requests
 secureLogger.info('Applying CSRF protection');
 app.use(csrfTokenProvider);
@@ -329,6 +338,7 @@ app.use('/api/v2/system', csrfProtection());
 app.use('/api/v2/marketing', csrfProtection());
 app.use('/api/v2/email', csrfProtection());
 app.use('/api/v2/drip-campaigns', csrfProtection());
+app.use('/api/v2/email-marketing', csrfProtection());
     // Series and tags routes consolidated into articles.js
 // LEGACY DISABLED - now using /api/v2/websites
 // app.use('/api/sites', csrfProtection());

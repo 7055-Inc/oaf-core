@@ -1511,7 +1511,7 @@ Avant-Garde Studio template introduces **6 new addon concepts**:
 #### Sprint 12: Build Out Addons (Expanded Set)
 **Priority:** HIGH - Feature Expansion + System Requirements  
 **Assignee:** Coordinating via subagents  
-**Status:** IN PROGRESS (1/15 complete)
+**Status:** IN PROGRESS (8/15 complete - 53%)
 
 **Goal:** Build functional addons for common features using standardized addon architecture.
 
@@ -1522,14 +1522,66 @@ Avant-Garde Studio template introduces **6 new addon concepts**:
 
 ---
 
-**COMPLETED ADDONS:**
+**COMPLETED ADDONS (8/15 - 53%):**
 
-✅ **Image Protection** - FULLY IMPLEMENTED
+✅ **Image Protection** - ID 11, Tier: Basic ($9.99/month)
    - **Location:** `/lib/imageProtection.js` (core), `/components/sites-modules/image-protection.js` (addon wrapper)
-   - **Database:** ID 11, Tier: Basic ($9.99/month)
    - **Features:** Invisible overlays, right-click blocking, screenshot detection, keyboard protection, drag prevention
    - **Status:** Working, tested, deployed
    - **Integration:** Activates via addon system, SEO-friendly (skips bots)
+
+✅ **Back-to-Top Button** - ID 15, Tier: Free ($0.00/month)
+   - **Location:** `/public/addons/back-to-top/`
+   - **Features:** Floating scroll button, smooth animation, auto-show/hide, customizable positioning, accessibility support
+   - **Migration:** `016_add_back_to_top_addon.sql`
+   - **Status:** Complete, ready for deployment
+
+✅ **Menu Icons** - ID 16, Tier: Basic ($9.99/month)
+   - **Location:** `/public/addons/menu-icons/`
+   - **Features:** Emoji/FA/SVG/image icons, flexible positioning, hover animations, JSON/data-attr config, auto-detection
+   - **Migration:** `017_add_menu_icons_addon.sql`
+   - **Status:** Complete, ready for deployment
+
+✅ **Social Media Sidebar** - ID 17, Tier: Basic ($9.99/month)
+   - **Location:** `/public/addons/social-sidebar/`
+   - **API:** `/api/v2/websites/resolve/:subdomain/socials` (business first, personal fallback)
+   - **Features:** 6 platforms (FB/IG/TT/X/Pinterest/WhatsApp), auto-fetch from profiles, 3 positions, 4 icon styles, responsive
+   - **Migration:** `018_add_social_sidebar_addon.sql`
+   - **Status:** Complete, API deployed, ready for deployment
+
+✅ **Announcement Bar** - ID 18, Tier: Basic ($9.99/month)
+   - **Location:** `/public/addons/announcement-bar/`
+   - **Features:** Top/bottom message strip, countdown timer (format: `22D | 22H | 55M | 45S`), dismissible w/ localStorage, custom CTA, custom colors, sticky/static positioning
+   - **Migration:** `019_add_announcement_bar_addon.sql`
+   - **Status:** Complete, ready for deployment
+
+✅ **Product Slider** - ID 19, Tier: Basic ($9.99/month)
+   - **Location:** `/public/addons/product-slider/`
+   - **Features:** Horizontal carousel, prev/next arrows, touch/swipe, auto-play, keyboard nav, responsive (4/3/2 slides), loop mode, opt-in activation
+   - **Migration:** `020_add_product_slider_addon.sql`
+   - **Status:** Complete, ready for deployment
+
+✅ **Side Clipped Note** - ID 20, Tier: Professional ($19.99/month)
+   - **Location:** `/public/addons/side-clipped-note/`
+   - **API:** GET/PUT `/api/v2/websites/sites/:siteId/clipped-note`, Public: `/resolve/:subdomain/clipped-note`
+   - **Database:** `site_clipped_notes` table
+   - **Features:** Floating edge tab, hover slide-in, rotated title, custom colors, actions (link/scroll/modal), responsive
+   - **Migrations:** `021_add_site_clipped_notes_table.sql`, `022_add_side_clipped_note_addon.sql`
+   - **Status:** Complete, API deployed, ready for deployment
+
+✅ **Email Collection / Email Marketing Module** - ID 1, Tier: Basic ($5.00/month)
+   - **Location:** `/api-service/src/modules/email-marketing/` (API), `/pages/dashboard/crm/` (UI), `/public/addons/email-collection/` (addon)
+   - **API:** 33 endpoints at `/api/v2/email-marketing` (subscribers, tags, forms, campaigns, analytics, webhooks)
+   - **Database:** 4 new tables (`email_subscribers`, `user_email_lists`, `email_campaign_analytics`, `email_collection_forms`) + extended `drip_campaigns`
+   - **Features:** 
+     - CRM list management (filter, tag, import/export CSV)
+     - Signup forms (inline/popup/exit-intent/embedded)
+     - Single blast campaigns (extends drip system)
+     - Analytics (opens, clicks, bounces, list growth)
+     - Auto-tagging, double opt-in, engagement tracking
+   - **Frontend:** 4 CRM pages (2,558 lines), React component, vanilla addon
+   - **Migration:** `013_email_marketing_subscribers.sql`
+   - **Status:** Complete, API deployed, frontend complete, ready for deployment
 
 ---
 
@@ -1765,4 +1817,4 @@ WHERE addon_slug = '[slug]';
 ---
 
 **Last Updated:** 2026-02-08 by AI Coordinator  
-**Status:** Marketplace connectors complete (4/4), Sprint 12 addons in progress (1/15 complete)
+**Status:** Marketplace connectors complete (4/4), Sprint 12 addons in progress (8/15 complete - 53%)

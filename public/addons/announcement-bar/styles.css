@@ -1,0 +1,306 @@
+/* Announcement Bar Addon Styles */
+
+/* Container base styles */
+.announcement-bar {
+  width: 100%;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+}
+
+/* Position variants */
+.announcement-top {
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+.announcement-bottom {
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+/* Sticky positioning */
+.announcement-sticky {
+  position: fixed;
+}
+
+/* Content container */
+.announcement-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  max-width: 1200px;
+  flex: 1;
+}
+
+/* Message text */
+.announcement-message {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Countdown timer */
+.announcement-countdown {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 4px 12px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* Link/Button */
+.announcement-button {
+  padding: 8px 20px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  border: none;
+  cursor: pointer;
+  display: inline-block;
+}
+
+.announcement-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  opacity: 0.95;
+}
+
+.announcement-button:active {
+  transform: translateY(0);
+}
+
+/* Close button */
+.announcement-close {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  opacity: 0.8;
+}
+
+.announcement-close:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.announcement-close:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+}
+
+/* Animations */
+@keyframes slideInTop {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInBottom {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.announcement-animate-in.announcement-top {
+  animation: slideInTop 0.5s ease;
+}
+
+.announcement-animate-in.announcement-bottom {
+  animation: slideInBottom 0.5s ease;
+}
+
+/* Dismiss animation */
+.announcement-dismiss.announcement-top {
+  transform: translateY(-100%);
+}
+
+.announcement-dismiss.announcement-bottom {
+  transform: translateY(100%);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .announcement-bar {
+    padding: 10px 50px 10px 16px; /* More padding on right for close button */
+  }
+  
+  .announcement-content {
+    gap: 12px;
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .announcement-message {
+    font-size: 14px;
+  }
+  
+  .announcement-countdown {
+    font-size: 13px;
+    padding: 3px 10px;
+  }
+  
+  .announcement-button {
+    padding: 6px 16px;
+    font-size: 13px;
+  }
+  
+  .announcement-close {
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .announcement-bar {
+    padding: 8px 45px 8px 12px;
+  }
+  
+  .announcement-message {
+    font-size: 13px;
+  }
+  
+  .announcement-countdown {
+    font-size: 12px;
+    padding: 2px 8px;
+  }
+  
+  .announcement-button {
+    padding: 5px 14px;
+    font-size: 12px;
+  }
+}
+
+/* Reduced motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .announcement-bar,
+  .announcement-button,
+  .announcement-close {
+    transition: none;
+    animation: none;
+  }
+  
+  .announcement-animate-in {
+    animation: none;
+  }
+  
+  .announcement-dismiss {
+    transition: opacity 0.3s ease;
+    opacity: 0;
+  }
+}
+
+/* Print styles - hide announcement bar */
+@media print {
+  .announcement-bar {
+    display: none !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .announcement-bar {
+    border-bottom: 2px solid currentColor;
+  }
+  
+  .announcement-button {
+    border: 2px solid currentColor;
+  }
+  
+  .announcement-close {
+    border: 1px solid currentColor;
+  }
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .announcement-bar {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Ensure bar stays above other content */
+.announcement-bar {
+  isolation: isolate;
+}
+
+/* Countdown number emphasis */
+.announcement-countdown {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Smooth transition for message updates */
+.announcement-message {
+  transition: opacity 0.3s ease;
+}
+
+/* Link focus states */
+.announcement-button:focus {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+/* Prevent text selection on close button */
+.announcement-close {
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Loading state (if message is being fetched) */
+.announcement-bar.loading .announcement-content {
+  opacity: 0.6;
+}
+
+/* Emergency/urgent styling variant (can be added via class) */
+.announcement-bar.urgent {
+  animation: urgent-pulse 2s ease-in-out infinite;
+}
+
+@keyframes urgent-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.9; }
+}
+
+/* Sale/promotion styling variant */
+.announcement-bar.sale .announcement-countdown {
+  animation: countdown-pulse 1s ease-in-out infinite;
+}
+
+@keyframes countdown-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}

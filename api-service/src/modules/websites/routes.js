@@ -65,6 +65,26 @@ router.get('/resolve/:subdomain/categories', async (req, res) => {
   }
 });
 
+// Get social media links for a site (public storefront)
+router.get('/resolve/:subdomain/socials', async (req, res) => {
+  try {
+    const socials = await sitesService.resolveSubdomainSocials(req.params.subdomain);
+    res.json(socials);
+  } catch (err) {
+    handleError(res, err);
+  }
+});
+
+// Get clipped note for a site (public storefront)
+router.get('/resolve/:subdomain/clipped-note', async (req, res) => {
+  try {
+    const note = await sitesService.resolveSubdomainClippedNote(req.params.subdomain);
+    res.json(note);
+  } catch (err) {
+    handleError(res, err);
+  }
+});
+
 // Check subdomain availability (public)
 router.get('/check-subdomain/:subdomain', async (req, res) => {
   try {
@@ -259,6 +279,26 @@ router.get('/sites/:siteId/template-data', requireAuth, async (req, res) => {
     
     const templateData = await sitesService.getTemplateDataForSite(siteId, site[0].template_id);
     res.json({ success: true, data: templateData });
+  } catch (err) {
+    handleError(res, err);
+  }
+});
+
+// Get clipped note for a site (authenticated)
+router.get('/sites/:siteId/clipped-note', requireAuth, async (req, res) => {
+  try {
+    const note = await sitesService.getSiteClippedNote(req.userId, req.params.siteId);
+    res.json({ success: true, data: note });
+  } catch (err) {
+    handleError(res, err);
+  }
+});
+
+// Create or update clipped note for a site
+router.put('/sites/:siteId/clipped-note', requireAuth, async (req, res) => {
+  try {
+    const note = await sitesService.updateSiteClippedNote(req.userId, req.params.siteId, req.body);
+    res.json({ success: true, data: note });
   } catch (err) {
     handleError(res, err);
   }

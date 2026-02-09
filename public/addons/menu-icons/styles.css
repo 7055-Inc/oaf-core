@@ -1,0 +1,215 @@
+/* Menu Icons Addon Styles */
+
+/* Link with icon */
+.has-menu-icon {
+  display: inline-flex !important;
+  align-items: center;
+  gap: var(--menu-icon-spacing, 8px);
+  transition: all 0.3s ease;
+}
+
+/* Icon positioning */
+.has-menu-icon.icon-left {
+  flex-direction: row;
+}
+
+.has-menu-icon.icon-right {
+  flex-direction: row-reverse;
+}
+
+/* Base icon styles */
+.menu-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--menu-icon-size, 18px);
+  line-height: 1;
+  transition: transform 0.3s ease;
+  flex-shrink: 0;
+}
+
+/* Emoji icons */
+.menu-icon-emoji {
+  font-style: normal;
+}
+
+/* Font Awesome icons */
+.menu-icon-fa {
+  font-size: var(--menu-icon-size, 18px);
+}
+
+/* SVG icons */
+.menu-icon-svg {
+  width: var(--menu-icon-size, 18px);
+  height: var(--menu-icon-size, 18px);
+}
+
+.menu-icon-svg svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Image icons */
+.menu-icon-image {
+  width: var(--menu-icon-size, 18px);
+  height: var(--menu-icon-size, 18px);
+  object-fit: contain;
+  vertical-align: middle;
+}
+
+/* Hover animations */
+.has-menu-icon:hover .menu-icon {
+  transform: scale(1.1);
+}
+
+/* Alternative hover effect - bounce */
+.has-menu-icon.icon-animate-bounce:hover .menu-icon {
+  animation: icon-bounce 0.5s ease;
+}
+
+@keyframes icon-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+/* Alternative hover effect - rotate */
+.has-menu-icon.icon-animate-rotate:hover .menu-icon {
+  transform: rotate(360deg);
+}
+
+/* Alternative hover effect - pulse */
+.has-menu-icon.icon-animate-pulse:hover .menu-icon {
+  animation: icon-pulse 0.6s ease;
+}
+
+@keyframes icon-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+/* Active/current page indicator */
+.has-menu-icon.active .menu-icon,
+.has-menu-icon[aria-current="page"] .menu-icon {
+  transform: scale(1.15);
+  opacity: 1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .menu-icon {
+    font-size: var(--menu-icon-size-mobile, 16px);
+  }
+  
+  .menu-icon-svg {
+    width: var(--menu-icon-size-mobile, 16px);
+    height: var(--menu-icon-size-mobile, 16px);
+  }
+  
+  .menu-icon-image {
+    width: var(--menu-icon-size-mobile, 16px);
+    height: var(--menu-icon-size-mobile, 16px);
+  }
+  
+  .has-menu-icon {
+    gap: var(--menu-icon-spacing-mobile, 6px);
+  }
+}
+
+/* Reduced motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .menu-icon,
+  .has-menu-icon {
+    transition: none;
+  }
+  
+  .has-menu-icon:hover .menu-icon {
+    transform: none;
+    animation: none;
+  }
+  
+  .has-menu-icon.icon-animate-bounce:hover .menu-icon,
+  .has-menu-icon.icon-animate-rotate:hover .menu-icon,
+  .has-menu-icon.icon-animate-pulse:hover .menu-icon {
+    animation: none;
+    transform: none;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .menu-icon-svg svg {
+    filter: brightness(1.2);
+  }
+  
+  .menu-icon-image {
+    filter: brightness(0.9);
+  }
+}
+
+/* Print styles - simplify for print */
+@media print {
+  .menu-icon {
+    font-size: 12px;
+  }
+  
+  .menu-icon-svg,
+  .menu-icon-image {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+/* Custom spacing variations */
+.has-menu-icon.icon-spacing-tight {
+  gap: 4px;
+}
+
+.has-menu-icon.icon-spacing-normal {
+  gap: 8px;
+}
+
+.has-menu-icon.icon-spacing-loose {
+  gap: 12px;
+}
+
+/* Size variations */
+.menu-icon.icon-size-small {
+  font-size: 14px;
+}
+
+.menu-icon-svg.icon-size-small {
+  width: 14px;
+  height: 14px;
+}
+
+.menu-icon-image.icon-size-small {
+  width: 14px;
+  height: 14px;
+}
+
+.menu-icon.icon-size-large {
+  font-size: 24px;
+}
+
+.menu-icon-svg.icon-size-large {
+  width: 24px;
+  height: 24px;
+}
+
+.menu-icon-image.icon-size-large {
+  width: 24px;
+  height: 24px;
+}
+
+/* Vertical navigation support */
+.navigation.vertical .has-menu-icon,
+nav.vertical .has-menu-icon {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+/* Ensure icons don't break layout */
+.has-menu-icon * {
+  pointer-events: none;
+}

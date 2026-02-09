@@ -1,0 +1,341 @@
+/* Social Media Sidebar Addon Styles */
+
+/* Container base styles */
+.social-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--social-gap, 12px);
+  padding: var(--social-padding, 20px);
+  background: var(--social-background, transparent);
+}
+
+/* Title */
+.social-sidebar-title {
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-color, #333);
+  margin-bottom: 8px;
+}
+
+/* Icons container */
+.social-icons-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* Position variants */
+.social-sidebar-footer .social-icons-container {
+  justify-content: center;
+}
+
+.social-sidebar-sidebar .social-icons-container {
+  justify-content: flex-start;
+}
+
+.social-sidebar-floating {
+  position: fixed;
+  z-index: 9998;
+  bottom: 80px;
+  background: var(--background-color, #fff);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15),
+              0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 16px;
+}
+
+.social-floating-left {
+  left: 20px;
+}
+
+.social-floating-right {
+  right: 20px;
+}
+
+/* Social icon base */
+.social-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+/* Icon wrapper */
+.social-icon-svg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--social-color, #333);
+  transition: all 0.3s ease;
+}
+
+.social-icon-svg svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Icon label */
+.social-icon-label {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-color, #666);
+  text-align: center;
+}
+
+/* Size variants */
+.social-size-small .social-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.social-size-small .social-icon-svg {
+  width: 20px;
+  height: 20px;
+}
+
+.social-size-medium .social-icon {
+  width: 44px;
+  height: 44px;
+}
+
+.social-size-medium .social-icon-svg {
+  width: 24px;
+  height: 24px;
+}
+
+.social-size-large .social-icon {
+  width: 56px;
+  height: 56px;
+}
+
+.social-size-large .social-icon-svg {
+  width: 32px;
+  height: 32px;
+}
+
+/* Style variants - Circle */
+.social-icons-circle .social-icon {
+  border-radius: 50%;
+  background: var(--social-icon-bg, #f0f0f0);
+}
+
+.social-icons-circle .social-icon:hover {
+  transform: scale(1.1);
+  background: var(--social-color, #333);
+}
+
+.social-icons-circle .social-icon:hover .social-icon-svg {
+  color: white;
+}
+
+/* Style variants - Square */
+.social-icons-square .social-icon {
+  border-radius: 0;
+  background: var(--social-icon-bg, #f0f0f0);
+}
+
+.social-icons-square .social-icon:hover {
+  transform: translateY(-2px);
+  background: var(--social-color, #333);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.social-icons-square .social-icon:hover .social-icon-svg {
+  color: white;
+}
+
+/* Style variants - Rounded */
+.social-icons-rounded .social-icon {
+  border-radius: 12px;
+  background: var(--social-icon-bg, #f0f0f0);
+}
+
+.social-icons-rounded .social-icon:hover {
+  transform: translateY(-2px);
+  background: var(--social-color, #333);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.social-icons-rounded .social-icon:hover .social-icon-svg {
+  color: white;
+}
+
+/* Style variants - Plain (no background) */
+.social-icons-plain .social-icon {
+  background: transparent;
+}
+
+.social-icons-plain .social-icon:hover {
+  transform: scale(1.2);
+}
+
+.social-icons-plain .social-icon-svg {
+  color: var(--social-color, #333);
+}
+
+.social-icons-plain .social-icon:hover .social-icon-svg {
+  color: var(--social-color, #333);
+  filter: brightness(1.2);
+}
+
+/* Platform-specific colors */
+.social-icon-facebook .social-icon-svg {
+  --social-color: #1877F2;
+}
+
+.social-icon-instagram .social-icon-svg {
+  --social-color: #E4405F;
+}
+
+.social-icon-tiktok .social-icon-svg {
+  --social-color: #000000;
+}
+
+.social-icon-twitter .social-icon-svg {
+  --social-color: #000000;
+}
+
+.social-icon-pinterest .social-icon-svg {
+  --social-color: #E60023;
+}
+
+.social-icon-whatsapp .social-icon-svg {
+  --social-color: #25D366;
+}
+
+/* Hover effects with animations */
+.social-icon {
+  cursor: pointer;
+}
+
+.social-icon:active {
+  transform: scale(0.95);
+}
+
+/* Focus states for accessibility */
+.social-icon:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(5, 84, 116, 0.3);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .social-sidebar-floating {
+    bottom: 60px;
+    padding: 12px;
+  }
+  
+  .social-floating-left {
+    left: 12px;
+  }
+  
+  .social-floating-right {
+    right: 12px;
+  }
+  
+  .social-size-medium .social-icon {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .social-size-medium .social-icon-svg {
+    width: 22px;
+    height: 22px;
+  }
+  
+  .social-size-large .social-icon {
+    width: 48px;
+    height: 48px;
+  }
+  
+  .social-size-large .social-icon-svg {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+/* Reduced motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .social-icon,
+  .social-icon-svg {
+    transition: none;
+  }
+  
+  .social-icon:hover {
+    transform: none;
+  }
+  
+  .social-icons-plain .social-icon:hover {
+    transform: none;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .social-sidebar-floating {
+    background: #1a1a1a;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3),
+                0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+  
+  .social-sidebar-title {
+    color: #f0f0f0;
+  }
+  
+  .social-icons-circle .social-icon,
+  .social-icons-square .social-icon,
+  .social-icons-rounded .social-icon {
+    background: #2a2a2a;
+  }
+  
+  .social-icon-label {
+    color: #ccc;
+  }
+}
+
+/* Print styles - hide floating sidebar */
+@media print {
+  .social-sidebar-floating {
+    display: none !important;
+  }
+}
+
+/* Vertical layout for sidebar position */
+.social-sidebar-sidebar .social-icons-container {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* Horizontal layout for footer position */
+.social-sidebar-footer .social-icons-container {
+  flex-direction: row;
+  align-items: center;
+}
+
+/* With labels layout */
+.social-sidebar .social-icon-label {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+/* Animation for appearance */
+@keyframes socialFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.social-sidebar {
+  animation: socialFadeIn 0.3s ease;
+}
