@@ -33,12 +33,10 @@ export default function WalmartSection() {
   const [saved, setSaved] = useState(false);
   const [existingId, setExistingId] = useState(null);
 
-  // Fetch Walmart categories
   useEffect(() => {
-    const fetchCategories = async () => {
+    const loadCategories = async () => {
       try {
-        const res = await authApiRequest('api/walmart/categories');
-        const data = await res.json();
+        const data = await fetchWalmartCategories();
         if (data.success) {
           setCategories(data.categories || []);
         }
@@ -46,7 +44,7 @@ export default function WalmartSection() {
         console.error('Error fetching Walmart categories:', err);
       }
     };
-    fetchCategories();
+    loadCategories();
   }, []);
 
   // Load existing Walmart data when editing a product

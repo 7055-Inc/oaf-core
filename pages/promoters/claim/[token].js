@@ -23,11 +23,12 @@ export default function ClaimPromoter() {
     const verifyToken = async () => {
       try {
         setLoading(true);
-        const response = await fetch(getApiUrl(`api/promoters/verify-claim/${token}`));
-        const data = await response.json();
+        const response = await fetch(getApiUrl(`api/v2/events/promoter-claim/verify/${token}`));
+        const json = await response.json();
+        const data = json.data || json;
 
         if (!response.ok || !data.valid) {
-          setError(data.error || 'Invalid or expired claim link');
+          setError(json.error?.message || data.error || 'Invalid or expired claim link');
           setLoading(false);
           return;
         }
@@ -91,7 +92,7 @@ export default function ClaimPromoter() {
       const firebaseToken = await firebaseUser.getIdToken();
 
       // Step 3: Activate account in backend
-      const response = await fetch(getApiUrl(`api/promoters/claim/${token}`), {
+      const response = await fetch(getApiUrl(`api/v2/events/promoter-claim/activate/${token}`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -99,10 +100,11 @@ export default function ClaimPromoter() {
         body: JSON.stringify({ firebase_uid: firebaseUser.uid })
       });
 
-      const data = await response.json();
+      const json = await response.json();
+      const data = json.data || json;
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to claim account');
+        throw new Error(json.error?.message || 'Failed to claim account');
       }
 
       // Step 4: Exchange Firebase token for backend JWT

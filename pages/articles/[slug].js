@@ -26,8 +26,9 @@ export default function ArticlePage() {
   const fetchArticle = async () => {
     try {
       setLoading(true);
-      const response = await fetch(getApiUrl(`api/articles/${slug}`));
-      const data = await response.json();
+      const response = await fetch(getApiUrl(`api/v2/content/articles/${slug}`));
+      const envelope = await response.json();
+      const data = envelope.data || envelope;
       
       if (data.article) {
         // Redirect help articles to their proper template
@@ -57,7 +58,7 @@ export default function ArticlePage() {
 
   const updateViewCount = async (articleId) => {
     try {
-      await fetch(`api/articles/${articleId}/view`, {
+      await fetch(getApiUrl(`api/v2/content/articles/${articleId}/view`), {
         method: 'POST'
       });
     } catch (err) {
@@ -70,8 +71,9 @@ export default function ArticlePage() {
     
     try {
       const topicSlugs = topics.map(topic => topic.slug).join(',');
-      const response = await fetch(`api/articles?topic=${topicSlugs}&limit=3&status=published`);
-      const data = await response.json();
+      const response = await fetch(getApiUrl(`api/v2/content/articles?topic=${topicSlugs}&limit=3&status=published`));
+      const envelope = await response.json();
+      const data = envelope.data || envelope;
       
       if (data.articles) {
         const filtered = data.articles.filter(a => a.slug !== slug);

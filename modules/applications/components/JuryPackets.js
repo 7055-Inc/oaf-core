@@ -328,11 +328,11 @@ export default function JuryPackets() {
                 <label htmlFor="jury-packets-portfolio">Portfolio URL</label>
                 <input
                   id="jury-packets-portfolio"
-                  type="url"
+                  type="text"
                   name="packet_data.portfolio_url"
                   value={form.packet_data.portfolio_url}
                   onChange={handleInput}
-                  placeholder="https://..."
+                  placeholder="myportfolio.com or https://myportfolio.com"
                   className="form-control"
                 />
               </div>

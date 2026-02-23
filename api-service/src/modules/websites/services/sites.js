@@ -708,7 +708,7 @@ async function resolveSubdomainProducts(subdomain, query = {}) {
     SELECT p.*, pi.image_path, pi.alt_text, pi.is_primary
     FROM products p
     LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_primary = 1
-    WHERE p.user_id = ? AND p.status = 'active' AND p.parent_id IS NULL
+    WHERE p.vendor_id = ? AND p.status = 'active' AND p.website_catalog_enabled = 1 AND p.parent_id IS NULL
   `;
   const params = [userId];
   if (category) {

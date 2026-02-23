@@ -188,8 +188,9 @@ class SeriesAutomationService {
   async sendAutomationEmail(rule, userId) {
     // Get series and user data for template variables
     const [seriesData] = await db.execute(`
-      SELECT es.*, u.first_name, u.last_name, u.username as email
+      SELECT es.*, up.first_name, up.last_name, u.username as email
       FROM event_series es, users u
+      LEFT JOIN user_profiles up ON u.id = up.user_id
       WHERE es.id = ? AND u.id = ?
     `, [rule.series_id, userId]);
 
@@ -197,7 +198,7 @@ class SeriesAutomationService {
 
     const data = seriesData[0];
     const templateData = {
-      user_name: `${data.first_name} ${data.last_name}`,
+      user_name: data.first_name ? `${data.first_name} ${data.last_name}` : data.email,
       series_name: data.series_name,
       series_description: data.series_description,
       trigger_type: rule.trigger_type,

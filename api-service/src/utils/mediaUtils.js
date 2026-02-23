@@ -129,10 +129,11 @@ async function getBatchProcessedMediaUrls(tempImagePaths, size = 'detail') {
     console.error('Error getting batch media URLs:', error);
     
     // Fallback: serve all as temp images directly
+    const API_BASE_URL = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || '';
     const fallbackMap = {};
     for (const tempPath of tempImagePaths) {
       fallbackMap[tempPath] = {
-        image_url: `https://api.brakebee.comth}`,
+        image_url: `${API_BASE_URL}${tempPath}`,
         thumbnail_url: null,
         source: 'fallback'
       };

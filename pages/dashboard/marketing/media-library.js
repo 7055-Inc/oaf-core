@@ -5,15 +5,16 @@
  * Route: /dashboard/marketing/media-library
  */
 
+export async function getServerSideProps() { return { props: {} }; }
+
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
 import Head from 'next/head';
-import { authApiRequest } from '../../../lib/apiUtils';
 import DashboardShell from '../../../modules/dashboard/components/layout/DashboardShell';
 import { AdminMediaLibrary } from '../../../modules/marketing';
+import { getCurrentUser } from '../../../lib/users/api';
+import { isAdmin as checkIsAdmin } from '../../../lib/userUtils';
 
 export default function MediaLibraryPage() {
-  const router = useRouter();
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -24,22 +25,10 @@ export default function MediaLibraryPage() {
 
   const loadUserData = async () => {
     try {
-      const response = await authApiRequest('api/v2/auth/me');
-      if (!response.ok) {
-        router.push('/login?redirect=/dashboard/marketing/media-library');
-        return;
-      }
-      const result = await response.json();
-      if (result.success && result.data) {
-        // Check if user has admin role
-        const isAdmin = result.data.roles?.includes('admin') || result.data.user_type === 'admin';
-        setUserData({ ...result.data, isAdmin });
-        
-        if (!isAdmin) {
-          setError('Access denied. This page is only available to administrators.');
-        }
-      } else {
-        setError('Failed to load user data');
+      const data = await getCurrentUser();
+      setUserData(data);
+      if (!checkIsAdmin(data)) {
+        setError('Access denied. This page is only available to administrators.');
       }
     } catch (err) {
       console.error('Error loading user data:', err);

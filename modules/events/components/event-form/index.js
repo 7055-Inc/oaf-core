@@ -238,8 +238,8 @@ function EventFormContent() {
             isOpen={activeSection === section.id}
             summary={section.getSummary()}
             onToggle={() => openSection(activeSection === section.id ? null : section.id)}
-            onNext={() => handleSectionNext(section)}
-            nextLabel={saving ? 'Saving...' : 'Continue'}
+            onNext={isLast ? handlePublish : () => handleSectionNext(section)}
+            nextLabel={saving ? 'Saving...' : (isLast ? (mode === 'create' ? 'Create Event' : 'Update Event') : 'Continue')}
             showNext={mode === 'create' || activeSection === section.id}
             isLast={isLast}
           >
@@ -248,8 +248,8 @@ function EventFormContent() {
         );
       })}
 
-      {/* Publish / Create Button */}
-      {(isReadyToPublish() || mode === 'edit') && (
+      {/* Publish / Create Button - show when required sections complete OR user has a saved draft */}
+      {(isReadyToPublish() || mode === 'edit' || savedEventId) && (
         <div className="publish-section">
           <button
             onClick={handlePublish}

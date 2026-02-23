@@ -29,7 +29,7 @@ export default function ContactArtistModal({ isOpen, onClose, artistId, artistNa
     setErrorMessage('');
 
     try {
-      const response = await fetch(getApiUrl('api/artist-contact'), {
+      const response = await fetch(getApiUrl('api/v2/communications/artist-contact'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -59,7 +59,7 @@ export default function ContactArtistModal({ isOpen, onClose, artistId, artistNa
         }, 2000);
       } else {
         setSubmitStatus('error');
-        setErrorMessage(data.error || 'Failed to send message. Please try again.');
+        setErrorMessage(data.error?.message || data.error || 'Failed to send message. Please try again.');
       }
     } catch (error) {
       console.error('Error submitting contact form:', error);

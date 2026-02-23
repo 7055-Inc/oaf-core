@@ -182,7 +182,7 @@ export default function Events() {
                         
                         <div className={styles.cardFooter}>
                           <span className={styles.viewEvent}>View Details →</span>
-                          {event.allow_applications && event.application_status === 'open' && (
+                          {!!event.allow_applications && event.application_status === 'open' && (
                             <span className={styles.applicationsBadge}>Applications Open</span>
                           )}
                         </div>

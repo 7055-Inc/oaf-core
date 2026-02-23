@@ -150,7 +150,7 @@ export function ProfileFormProvider({ children, userData, initialData = null }) 
         formDataToSend.append('logo_image', imageFiles.logo_image);
       }
 
-      const endpoint = isAdmin ? 'users/admin/me' : 'users/me';
+      const endpoint = '/api/v2/users/me';
       
       const res = await authApiRequest(endpoint, {
         method: 'PATCH',

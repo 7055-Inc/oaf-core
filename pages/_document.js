@@ -16,8 +16,8 @@ class MyDocument extends Document {
           
           {/* DNS Prefetch and Preconnect for faster loading */}
           {/* API - 300ms savings per PageSpeed */}
-          <link rel="preconnect" href="https://api.brakebee.com" />
-          <link rel="dns-prefetch" href="https://api.brakebee.com" />
+          <link rel="preconnect" href={process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.brakebee.com'} />
+          <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.brakebee.com'} />
           
           {/* Fonts */}
           <link rel="preconnect" href="https://fonts.googleapis.com" />

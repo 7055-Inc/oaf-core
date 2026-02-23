@@ -26,7 +26,7 @@ export default function CheckoutSuccess() {
       }
 
       // Confirm the payment with our backend
-      const response = await authApiRequest('checkout/confirm-payment', {
+      const response = await authApiRequest('/api/v2/commerce/checkout/confirm-payment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -38,8 +38,8 @@ export default function CheckoutSuccess() {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        setOrderData(data);
+        const result = await response.json();
+        setOrderData(result.data || result);
         
         // Clear cart from localStorage
         localStorage.removeItem('checkoutCart');

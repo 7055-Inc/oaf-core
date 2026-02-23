@@ -29,14 +29,14 @@ export default function Marketplace() {
         include: 'images,vendor'
       });
       
-      const response = await fetch(getApiUrl(`products/all?${params.toString()}`));
+      const response = await fetch(getApiUrl(`api/v2/catalog/public/products?${params.toString()}`));
       
       if (!response.ok) {
         throw new Error('Failed to load products');
       }
 
       const data = await response.json();
-      let allProducts = data.products || [];
+      let allProducts = data.data || [];
       
       // Apply client-side category filtering
       if (category !== 'all') {

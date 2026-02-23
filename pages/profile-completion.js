@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import { authenticatedApiRequest } from '../lib/csrf';
 import { authApiRequest } from '../lib/apiUtils';
 import styles from '../styles/ProfileCompletion.module.css';
 
@@ -18,18 +17,27 @@ export default function ProfileCompletion() {
   useEffect(() => {
     const fetchProfileStatus = async () => {
       try {
-        const response = await authApiRequest('users/profile-completion-status');
+        const response = await authApiRequest('/api/v2/users/me/completion');
         if (!response.ok) {
           throw new Error('Failed to fetch profile status');
         }
-        const data = await response.json();
+        const result = await response.json();
+        const raw = result.data || result;
+        
+        const fieldLabels = {
+          first_name: 'First Name', last_name: 'Last Name',
+          address_line1: 'Street Address', city: 'City', state: 'State',
+          postal_code: 'Postal Code', phone: 'Phone Number', business_name: 'Business Name',
+          bio: 'Bio', profile_image_path: 'Profile Image'
+        };
+        const normalized = (raw.missingFields || []).map(f =>
+          typeof f === 'string' ? { field: f, label: fieldLabels[f] || f.replace(/_/g, ' ') } : f
+        );
+        const data = { ...raw, missingFields: normalized };
         setProfileData(data);
         
-        // Initialize form data with empty values for missing fields
         const initialFormData = {};
-        data.missingFields?.forEach(field => {
-          initialFormData[field.field] = '';
-        });
+        normalized.forEach(f => { initialFormData[f.field] = ''; });
         setFormData(initialFormData);
         
       } catch (err) {
@@ -57,7 +65,7 @@ export default function ProfileCompletion() {
     setError(null);
 
     try {
-      const response = await authApiRequest('users/complete-profile', {
+      const response = await authApiRequest('/api/v2/users/me/complete-profile', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
@@ -166,9 +174,10 @@ export default function ProfileCompletion() {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       try {
-        const checkResponse = await authApiRequest('users/profile-completion-status');
+        const checkResponse = await authApiRequest('/api/v2/users/me/completion');
         if (checkResponse.ok) {
-          const checkData = await checkResponse.json();
+          const checkResult = await checkResponse.json();
+          const checkData = checkResult.data || checkResult;
           if (!checkData.requiresCompletion) {
             profileComplete = true;
             break;

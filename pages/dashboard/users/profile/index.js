@@ -11,6 +11,10 @@ import { getAuthToken } from '../../../../lib/auth';
  * View Profile Page
  * Shows the current user's profile using the shared ProfileDisplay component
  */
+export async function getServerSideProps() {
+  return { props: {} };
+}
+
 export default function ProfileViewPage() {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);

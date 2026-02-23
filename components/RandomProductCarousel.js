@@ -47,8 +47,8 @@ const RandomProductCarousel = ({ title = "Discover Amazing Artwork", limit = 12,
         setLoading(true);
         // Build API URL with optional vendor filter
         const apiUrl = vendorId 
-          ? getApiUrl(`products/all?include=images&vendor_id=${vendorId}`)
-          : getApiUrl('products/all?include=images');
+          ? getApiUrl(`api/v2/catalog/public/products?vendor_id=${vendorId}`)
+          : getApiUrl('api/v2/catalog/public/products');
         
         const res = await fetch(apiUrl);
         
@@ -59,8 +59,8 @@ const RandomProductCarousel = ({ title = "Discover Amazing Artwork", limit = 12,
         const data = await res.json();
         
         // Shuffle and select random products
-        const shuffled = data.products ? 
-          [...data.products].sort(() => Math.random() - 0.5).slice(0, limit) :
+        const shuffled = data.data ? 
+          [...data.data].sort(() => Math.random() - 0.5).slice(0, limit) :
           [...data].sort(() => Math.random() - 0.5).slice(0, limit);
         
         setProducts(shuffled);
@@ -157,15 +157,16 @@ const RandomProductCarousel = ({ title = "Discover Amazing Artwork", limit = 12,
     // Check for image_url first (this is the main product image field)
     if (product.image_url) {
       if (product.image_url.startsWith('http')) return product.image_url;
-      return getSmartMediaUrl(`/api/media/serve/${product.image_url}`);
+      if (product.image_url.startsWith('/temp_images/')) return `${getApiUrl()}${product.image_url}`;
+      return getSmartMediaUrl(product.image_url);
     }
     // Check for images array as fallback
     if (product.images && product.images.length > 0) {
       const image = product.images[0];
-      // Handle new format: {url, is_primary} or old format: string
       const img = typeof image === 'string' ? image : image.url;
       if (img.startsWith('http')) return img;
-      return getSmartMediaUrl(`/api/media/serve/${img}`);
+      if (img.startsWith('/temp_images/')) return `${getApiUrl()}${img}`;
+      return getSmartMediaUrl(img);
     }
     return null;
   };

@@ -83,7 +83,7 @@ The Auth module handles all authentication and authorization for the Brakebee pl
 | Current Location | Purpose | Lines | Issues |
 |------------------|---------|-------|--------|
 | `lib/firebase.js` | Firebase init | 12 | ⚠️ Hardcoded credentials |
-| `lib/auth.js` | Token management | 95 | ⚠️ Hardcoded `api.beemeeart.com` |
+| `lib/auth.js` | Token management | 95 | ⚠️ Hardcoded `api.brakebee.com` |
 | `components/LoginScreen.js` | Login UI | 326 | ⚠️ Hardcoded URL |
 | `components/SignupScreen.js` | Signup UI | 330 | ⚠️ Hardcoded URL |
 
@@ -210,7 +210,7 @@ GET  /auth/cookie-consent/status - Get cookie consent status
 
 ### Critical Bugs
 6. **Hardcoded path in secureLogger.js** - `/var/www/main/api-service/logs/` breaks staging
-7. **Hardcoded URLs in mobile app** - `api.beemeeart.com` in 4 files, no staging/dev support
+7. **Hardcoded URLs in mobile app** - `api.brakebee.com` in 4 files, no staging/dev support
 8. **Hardcoded Firebase config** - `mobile-app/lib/firebase.js` has credentials in code
 
 ### Technical Debt

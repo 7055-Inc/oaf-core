@@ -15,7 +15,7 @@ export default function UnifiedCart() {
   const [oafCartItems, setOafCartItems] = useState([]);
   const router = useRouter();
 
-  // Coupon functionality (only for OAF items)
+  // Coupon functionality (only for Brakebee items)
   const {
     appliedCoupons,
     autoDiscounts,
@@ -31,7 +31,7 @@ export default function UnifiedCart() {
     fetchUnifiedCart();
   }, []);
 
-  // Extract OAF items and apply coupons when data changes
+  // Extract Brakebee items and apply coupons when data changes
   useEffect(() => {
     if (unifiedCartData && unifiedCartData.grouped_by_source.oaf) {
       const oafItems = unifiedCartData.grouped_by_source.oaf.items || [];
@@ -55,7 +55,7 @@ export default function UnifiedCart() {
 
     try {
       const totals = await calculateTotalsWithDiscounts(oafCartItems);
-      // Update the OAF section in unified cart data
+      // Update the Brakebee section in unified cart data
       setUnifiedCartData(prev => ({
         ...prev,
         grouped_by_source: {
@@ -69,7 +69,7 @@ export default function UnifiedCart() {
       }));
       setOafCartItems(totals.items || oafCartItems);
     } catch (error) {
-      console.error('Failed to recalculate OAF totals:', error);
+      console.error('Failed to recalculate Brakebee totals:', error);
     }
   };
 
@@ -82,7 +82,7 @@ export default function UnifiedCart() {
         return;
       }
 
-      const response = await fetch(getApiUrl('cart/unified'), {
+      const response = await fetch(getApiUrl('api/v2/commerce/cart/unified'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -90,7 +90,8 @@ export default function UnifiedCart() {
       });
 
       if (response.ok) {
-        const data = await response.json();
+        const result = await response.json();
+        const data = result.data || result;
         setUnifiedCartData(data);
         
         // Auto-expand sources with items
@@ -123,14 +124,14 @@ export default function UnifiedCart() {
     if (newQuantity < 1) return;
     
     try {
-      const response = await authApiRequest(`cart/${cartId}/items/${itemId}`, {
+      const response = await authApiRequest(`/api/v2/commerce/cart/${cartId}/items/${itemId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           quantity: newQuantity,
-          price: null // Keep existing price
+          price: null
         })
       });
 
@@ -145,7 +146,7 @@ export default function UnifiedCart() {
 
   const removeItem = async (cartId, itemId) => {
     try {
-      const response = await authApiRequest(`cart/${cartId}/items/${itemId}`, {
+      const response = await authApiRequest(`/api/v2/commerce/cart/${cartId}/items/${itemId}`, {
         method: 'DELETE'
       });
 
@@ -159,13 +160,13 @@ export default function UnifiedCart() {
   };
 
   const proceedToCheckout = () => {
-    // Create checkout data from all carts, including coupon data for OAF items
+    // Create checkout data from all carts, including coupon data for Brakebee items
     const checkoutData = {
       unified_cart: unifiedCartData,
       total_items: unifiedCartData.total_items,
       total_value: unifiedCartData.total_value,
       checkout_type: 'unified_multi_cart',
-      // Include coupon data for OAF items only
+      // Include coupon data for Brakebee items only
       oaf_coupons: {
         appliedCoupons: appliedCoupons,
         autoDiscounts: autoDiscounts,
@@ -361,7 +362,7 @@ export default function UnifiedCart() {
                           </div>
                         ))}
                         
-                        {/* Add coupon components only for OAF section */}
+                        {/* Add coupon components only for Brakebee section */}
                         {sourceName === 'oaf' && sourceData.total_items > 0 && (
                           <div className={styles.couponSection}>
                             <CouponEntry

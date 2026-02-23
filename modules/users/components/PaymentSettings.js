@@ -24,14 +24,14 @@ const PaymentSettings = () => {
       setLoading(true);
       setError(null);
       
-      const res = await authApiRequest('vendor/settings', { method: 'GET' });
+      const res = await authApiRequest('/api/v2/commerce/vendor/settings', { method: 'GET' });
       
       if (!res.ok) {
         throw new Error('Failed to fetch payment settings');
       }
       
       const data = await res.json();
-      setVendorSettings(data.settings);
+      setVendorSettings(data.data.settings);
     } catch (err) {
       setError('Unable to load payment settings. Please try again.');
     } finally {
@@ -44,7 +44,7 @@ const PaymentSettings = () => {
       setActionLoading(true);
       setError(null);
       
-      const res = await authApiRequest('vendor/stripe-account', {
+      const res = await authApiRequest('/api/v2/commerce/vendor/stripe-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -54,7 +54,7 @@ const PaymentSettings = () => {
       }
       
       const data = await res.json();
-      window.location.href = data.stripe_account.onboarding_url;
+      window.location.href = data.data.stripe_account.onboarding_url;
     } catch (err) {
       setError('Unable to connect Stripe account. Please try again.');
       setActionLoading(false);
@@ -66,14 +66,14 @@ const PaymentSettings = () => {
       setActionLoading(true);
       setError(null);
       
-      const res = await authApiRequest('vendor/stripe-onboarding', { method: 'GET' });
+      const res = await authApiRequest('/api/v2/commerce/vendor/stripe-onboarding', { method: 'GET' });
       
       if (!res.ok) {
         throw new Error('Failed to get onboarding link');
       }
       
       const data = await res.json();
-      window.location.href = data.onboarding_url;
+      window.location.href = data.data.onboarding_url;
     } catch (err) {
       setError('Unable to continue setup. Please try again.');
       setActionLoading(false);
@@ -85,7 +85,7 @@ const PaymentSettings = () => {
       setUpdatingPreferences(true);
       setError(null);
       
-      const res = await authApiRequest('vendor/subscription-preferences', {
+      const res = await authApiRequest('/api/v2/commerce/vendor/subscription-preferences', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

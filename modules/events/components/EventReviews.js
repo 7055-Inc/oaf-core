@@ -41,7 +41,7 @@ export default function EventReviews({ eventId, currentUserId, userType }) {
       // If there's a token, validate it (artist review)
       if (urlToken) {
         const token = getAuthToken();
-        const response = await authApiRequest('/api/reviews/validate-token', {
+        const response = await authApiRequest('/api/v2/content/reviews/validate-token', {
           method: 'POST',
           token,
           body: JSON.stringify({ token: urlToken, eventId }),
@@ -49,7 +49,8 @@ export default function EventReviews({ eventId, currentUserId, userType }) {
             'Content-Type': 'application/json'
           }
         });
-        const data = await response.json();
+        const envelope = await response.json();
+        const data = envelope.data || envelope;
 
         if (data.valid) {
           setTokenValid(true);
@@ -67,11 +68,12 @@ export default function EventReviews({ eventId, currentUserId, userType }) {
         } else {
           // Community user - check general eligibility
           const token = getAuthToken();
-          const response = await authApiRequest(`/api/reviews/check-eligibility?type=event&id=${eventId}`, {
+          const response = await authApiRequest(`/api/v2/content/reviews/check-eligibility?type=event&id=${eventId}`, {
             method: 'GET',
             token
           });
-          const data = await response.json();
+          const envelope = await response.json();
+          const data = envelope.data || envelope;
           setCanReview(data.canReview);
           setEligibilityMessage(data.reason || '');
           setReviewerType('community');
@@ -87,8 +89,9 @@ export default function EventReviews({ eventId, currentUserId, userType }) {
   const loadReviews = async () => {
     try {
       // Load artist reviews
-      const artistResponse = await apiRequest(`/api/reviews?type=event&id=${eventId}&sort=recent&limit=50`);
-      const artistData = await artistResponse.json();
+      const artistResponse = await apiRequest(`/api/v2/content/reviews?type=event&id=${eventId}&sort=recent&limit=50`);
+      const artistEnvelope = await artistResponse.json();
+      const artistData = artistEnvelope.data || artistEnvelope;
       const allReviews = Array.isArray(artistData) ? artistData : [];
 
       // Split by reviewer_type
@@ -105,8 +108,9 @@ export default function EventReviews({ eventId, currentUserId, userType }) {
 
   const loadReviewSummary = async () => {
     try {
-      const response = await apiRequest(`/api/reviews/summary?type=event&id=${eventId}`);
-      const data = await response.json();
+      const response = await apiRequest(`/api/v2/content/reviews/summary?type=event&id=${eventId}`);
+      const envelope = await response.json();
+      const data = envelope.data || envelope;
       setArtistSummary(data.artist);
       setCommunitySummary(data.community);
     } catch (error) {
@@ -151,7 +155,7 @@ export default function EventReviews({ eventId, currentUserId, userType }) {
         body.token = urlToken;
       }
 
-      const response = await authApiRequest('/api/reviews', {
+      const response = await authApiRequest('/api/v2/content/reviews', {
         method: 'POST',
         token: authToken,
         body: JSON.stringify(body),
@@ -160,7 +164,8 @@ export default function EventReviews({ eventId, currentUserId, userType }) {
         }
       });
 
-      const newReview = await response.json();
+      const envelope = await response.json();
+      const newReview = envelope.data || envelope;
 
       // Reset form
       setRating(0);
@@ -191,7 +196,7 @@ export default function EventReviews({ eventId, currentUserId, userType }) {
 
     try {
       const token = getAuthToken();
-      await authApiRequest(`/api/reviews/${reviewId}/helpful`, {
+      await authApiRequest(`/api/v2/content/reviews/${reviewId}/helpful`, {
         method: 'POST',
         token,
         body: JSON.stringify({ vote: voteType }),

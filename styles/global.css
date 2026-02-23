@@ -857,3 +857,17 @@ header {
     white-space: nowrap;
   }
 }
+
+/* ─── Social Central responsive helpers ─── */
+@media (max-width: 900px) {
+  /* Post Queue: stack media + content */
+  .sc-post-grid { grid-template-columns: 1fr !important; }
+  .sc-post-media { max-height: 200px; }
+
+  /* Build-a-Post: stack editor + preview */
+  .sc-composer-grid { grid-template-columns: 1fr !important; }
+  .sc-composer-preview { position: static !important; }
+
+  /* Calendar: smaller cells */
+  .sc-calendar-cell { min-height: 50px !important; font-size: 10px !important; }
+}

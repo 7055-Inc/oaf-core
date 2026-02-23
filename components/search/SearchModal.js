@@ -209,9 +209,10 @@ export default function SearchModal({
         const articleIds = leoResults.results.articles.map(a => a.id);
         const articlePromises = articleIds.map(async (id) => {
           try {
-            const response = await fetch(getApiUrl(`articles/by-id/${id}`));
+            const response = await fetch(getApiUrl(`api/v2/content/articles/by-id/${id}`));
             if (response.ok) {
-              const data = await response.json();
+              const envelope = await response.json();
+              const data = envelope.data || envelope;
               return { 
                 ...data.article, 
                 leoRelevance: leoResults.results.articles.find(a => a.id === id)?.relevance 

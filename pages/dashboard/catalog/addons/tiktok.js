@@ -2,7 +2,7 @@
  * TikTok Connector Page
  * Catalog > Addons > TikTok Connector
  * Vendor-facing: TikTok Shop connection and product data.
- * Requires tiktok-connector addon (or admin).
+ * Uses ConnectorSubscriptionGate for tier/terms/card flow.
  */
 
 import { useState, useEffect } from 'react';
@@ -10,8 +10,10 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { DashboardShell } from '../../../../modules/dashboard/components/layout';
 import { TikTokConnector } from '../../../../modules/catalog';
-import { authApiRequest } from '../../../../lib/apiUtils';
-import { hasAddon, isAdmin } from '../../../../lib/userUtils';
+import { getCurrentUser } from '../../../../lib/users/api';
+import { isAdmin } from '../../../../lib/userUtils';
+import ConnectorSubscriptionGate from '../../../../modules/catalog/components/ConnectorSubscriptionGate';
+import { TIKTOK_CONNECTOR_OPTS } from '../../../../modules/catalog/components/connectorSubscriptionConfig';
 
 export default function TikTokConnectorPage() {
   const [userData, setUserData] = useState(null);
@@ -21,13 +23,8 @@ export default function TikTokConnectorPage() {
   useEffect(() => {
     async function loadUser() {
       try {
-        const response = await authApiRequest('users/me', { method: 'GET' });
-        if (response.ok) {
-          const data = await response.json();
-          setUserData(data);
-        } else {
-          router.push('/login');
-        }
+        const data = await getCurrentUser();
+        setUserData(data);
       } catch (err) {
         console.error('Error loading user:', err);
         router.push('/login');
@@ -51,40 +48,33 @@ export default function TikTokConnectorPage() {
     return null;
   }
 
-  const canAccess = isAdmin(userData) || hasAddon(userData, 'tiktok-connector');
-
-  if (!canAccess) {
-    return (
-      <>
-        <Head>
-          <title>TikTok Connector | Catalog | Dashboard</title>
-        </Head>
-        <DashboardShell userData={userData}>
-          <div className="page-header">
-            <h1>TikTok Connector</h1>
-            <p className="page-subtitle">Sell your products on TikTok Shop</p>
-          </div>
-          <div className="alert alert-warning">
-            <strong>Addon required.</strong> Purchase the TikTok Connector addon from your subscriptions to use this feature.
-            <br />
-            <a href="/dashboard/business/subscriptions" className="btn btn-primary" style={{ marginTop: '10px' }}>View subscriptions</a>
-          </div>
-        </DashboardShell>
-      </>
-    );
-  }
-
   return (
     <>
       <Head>
         <title>TikTok Connector | Catalog | Dashboard</title>
       </Head>
       <DashboardShell userData={userData}>
-        <div className="page-header">
-          <h1>TikTok Connector</h1>
-          <p className="page-subtitle">Connect your TikTok Shop and manage product listings</p>
-        </div>
-        <TikTokConnector userData={userData} />
+        {isAdmin(userData) ? (
+          <>
+            <div className="page-header">
+              <h1>TikTok Connector</h1>
+              <p className="page-subtitle">Connect your TikTok Shop and manage product listings</p>
+            </div>
+            <TikTokConnector userData={userData} />
+          </>
+        ) : (
+          <ConnectorSubscriptionGate
+            addonSlug="tiktok-connector"
+            userData={userData}
+            connectorOpts={TIKTOK_CONNECTOR_OPTS}
+          >
+            <div className="page-header">
+              <h1>TikTok Connector</h1>
+              <p className="page-subtitle">Connect your TikTok Shop and manage product listings</p>
+            </div>
+            <TikTokConnector userData={userData} />
+          </ConnectorSubscriptionGate>
+        )}
       </DashboardShell>
     </>
   );

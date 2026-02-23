@@ -3,7 +3,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { DashboardShell } from '../../../modules/dashboard/components/layout';
 import { AddSite, WebsitesSubscriptionGate } from '../../../modules/websites';
-import { authApiRequest } from '../../../lib/apiUtils';
+import { getCurrentUser } from '../../../lib/users/api';
 import { hasPermission } from '../../../lib/userUtils';
 
 export default function NewSitePage() {
@@ -14,12 +14,8 @@ export default function NewSitePage() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await authApiRequest('users/me', { method: 'GET' });
-        if (!res.ok) {
-          router.push('/login');
-          return;
-        }
-        setUserData(await res.json());
+        const data = await getCurrentUser();
+        setUserData(data);
       } catch (err) {
         router.push('/login');
       } finally {

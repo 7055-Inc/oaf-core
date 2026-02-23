@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { adminListPersonas, adminDeletePersona, adminUpdatePersona } from '../../../lib/users/api';
+import { getApiUrl } from '../../../lib/config';
 
 /**
  * PersonaManagement Component
@@ -160,8 +161,12 @@ export default function PersonaManagement() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     {persona.profile_image_url ? (
                       <img 
-                        src={persona.profile_image_url} 
-                        alt="" 
+                        src={
+                          persona.profile_image_url.startsWith('http')
+                            ? persona.profile_image_url
+                            : getApiUrl(persona.profile_image_url)
+                        }
+                        alt=""
                         style={{ 
                           width: '40px', 
                           height: '40px', 

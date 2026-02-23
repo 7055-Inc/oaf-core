@@ -22,6 +22,7 @@ export default function AdminMarketplace({ userData, defaultType = 'marketplace'
   const [loading, setLoading] = useState(false);
   const [selectedApp, setSelectedApp] = useState(null);
   const [denialReason, setDenialReason] = useState('');
+  const [reapplicationPolicy, setReapplicationPolicy] = useState('allowed');
   const [processing, setProcessing] = useState(false);
 
   // Fetch when type or status changes
@@ -42,9 +43,9 @@ export default function AdminMarketplace({ userData, defaultType = 'marketplace'
       let statusParam = statusTab;
       
       if (applicationType === 'marketplace') {
-        apiPath = 'api/admin/marketplace/applications';
+        apiPath = 'api/v2/commerce/admin/marketplace/applications';
       } else if (applicationType === 'verified') {
-        apiPath = 'api/admin/verified/applications';
+        apiPath = 'api/v2/commerce/admin/verified/applications';
       } else {
         // Wholesale uses v2 API with different status naming
         apiPath = 'api/v2/commerce/wholesale/applications';
@@ -61,9 +62,10 @@ export default function AdminMarketplace({ userData, defaultType = 'marketplace'
       
       if (response.ok) {
         const data = await response.json();
+        const payload = data.data || data;
         setApplications(prev => ({
           ...prev,
-          [statusTab]: data.applications || []
+          [statusTab]: payload.applications || []
         }));
       }
     } catch (error) {
@@ -85,9 +87,9 @@ export default function AdminMarketplace({ userData, defaultType = 'marketplace'
     try {
       let apiPath;
       if (applicationType === 'marketplace') {
-        apiPath = `api/admin/marketplace/applications/${selectedApp.id}/${action}`;
+        apiPath = `api/v2/commerce/admin/marketplace/applications/${selectedApp.id}/${action}`;
       } else if (applicationType === 'verified') {
-        apiPath = `api/admin/verified/applications/${selectedApp.id}/${action}`;
+        apiPath = `api/v2/commerce/admin/verified/applications/${selectedApp.id}/${action}`;
       } else {
         // Wholesale uses v2 API
         apiPath = `api/v2/commerce/wholesale/applications/${selectedApp.id}/${action}`;
@@ -98,7 +100,8 @@ export default function AdminMarketplace({ userData, defaultType = 'marketplace'
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           admin_notes: action === 'deny' ? denialReason : `Application ${action}ed by admin`,
-          denial_reason: action === 'deny' ? denialReason : null
+          denial_reason: action === 'deny' ? denialReason : null,
+          ...(action === 'deny' && applicationType === 'wholesale' ? { reapplication_policy: reapplicationPolicy } : {})
         })
       });
 
@@ -107,6 +110,7 @@ export default function AdminMarketplace({ userData, defaultType = 'marketplace'
         alert(`${typeNames[applicationType]} application ${action}ed successfully!`);
         setSelectedApp(null);
         setDenialReason('');
+        setReapplicationPolicy('allowed');
         fetchApplications();
       } else {
         const errorData = await response.json();
@@ -140,7 +144,7 @@ export default function AdminMarketplace({ userData, defaultType = 'marketplace'
       };
       
       const response = await authApiRequest(
-        `admin/users/${selectedApp.user_id}/permissions`,
+        `api/v2/users/${selectedApp.user_id}/permissions`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -628,6 +632,22 @@ export default function AdminMarketplace({ userData, defaultType = 'marketplace'
                           rows={3}
                           className="form-textarea"
                         />
+                        {applicationType === 'wholesale' && (
+                          <div style={{ margin: '8px 0' }}>
+                            <label style={{ fontSize: '13px', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>
+                              Reapplication Policy
+                            </label>
+                            <select
+                              value={reapplicationPolicy}
+                              onChange={(e) => setReapplicationPolicy(e.target.value)}
+                              style={{ width: '100%', padding: '8px', fontSize: '13px' }}
+                            >
+                              <option value="allowed">Can reapply with proper requirements</option>
+                              <option value="blocked">Cannot reapply with this account</option>
+                              <option value="cooldown_90">Must wait 90 days to reapply</option>
+                            </select>
+                          </div>
+                        )}
                         <button
                           type="button"
                           className="btn danger"

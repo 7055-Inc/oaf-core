@@ -21,11 +21,12 @@ export default function SeriesPage() {
 
   const fetchSeries = async () => {
     try {
-      const response = await fetch(getApiUrl(`api/articles/series/${slug}`));
+      const response = await fetch(getApiUrl(`api/v2/content/articles/series/${slug}`));
       if (!response.ok) {
         throw new Error('Series not found');
       }
-      const data = await response.json();
+      const envelope = await response.json();
+      const data = envelope.data || envelope;
       setSeries(data.series);
       setArticles(data.articles || []);
     } catch (err) {

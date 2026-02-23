@@ -8,7 +8,7 @@ import { fetchJuryPackets, fetchJuryPacket, createJuryPacket, uploadJuryPacketFi
 import { getEventApplicationStats, applyToEvent, applyWithPacket, addAddonRequest } from '../../../../lib/applications/api';
 import { fetchApplicationFields, fetchAvailableAddons } from '../../../../lib/events/api';
 import { getPersonas } from '../../../../lib/users/api';
-import { authApiRequest } from '../../../../lib/apiUtils';
+import { getCurrentUser } from '../../../../lib/users/api';
 
 const ApplicationFormContext = createContext(null);
 
@@ -67,7 +67,7 @@ export function ApplicationFormProvider({ children, event, user, onSubmit, onCan
         fetchAvailableAddons(event.id).then(d => ({ data: d })).catch(() => ({ data: [] })),
         getEventApplicationStats(event.id).then(s => ({ data: s })).catch(() => ({ data: null })),
         getPersonas().then(d => ({ data: Array.isArray(d) ? d : [] })).catch(() => ({ data: [] })),
-        authApiRequest('users/me', { method: 'GET' }).then(r => r.json()).then(d => ({ data: d })).catch(() => ({ data: {} }))
+        getCurrentUser().then(d => ({ data: d })).catch(() => ({ data: {} }))
       ]);
 
       setJuryPackets(Array.isArray(packetsRes.data) ? packetsRes.data : []);

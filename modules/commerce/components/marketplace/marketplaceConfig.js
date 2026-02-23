@@ -111,7 +111,7 @@ export const marketplaceConfig = {
     }
   ],
   
-  // API endpoint for application submission
-  applicationEndpoint: 'api/subscriptions/verified/marketplace-applications/submit',
+  subscriptionApiBase: 'api/v2/commerce/subscriptions/marketplace',
+  applicationEndpoint: '/api/v2/commerce/subscriptions/verified/marketplace-applications/submit',
   applicationMethod: 'POST'
 };

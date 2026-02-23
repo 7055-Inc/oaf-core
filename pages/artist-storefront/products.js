@@ -3,7 +3,9 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import { getApiUrl, config, getSubdomainBase, getFrontendUrl } from '../../lib/config';
-import styles from './ArtistStorefront.module.css';
+
+// Map class names to themselves (styles now handled by global CSS/TemplateLoader)
+const styles = new Proxy({}, { get: (target, prop) => prop });
 
 const ArtistProducts = () => {
   const router = useRouter();
@@ -159,7 +161,7 @@ const ArtistProducts = () => {
       };
 
       // Add to cart via enhanced API
-      const response = await fetch('cart/add', {
+      const response = await fetch(`${config.API_BASE_URL}/api/v2/commerce/cart/add`, {
         method: 'POST',
         headers,
         body: JSON.stringify(body)

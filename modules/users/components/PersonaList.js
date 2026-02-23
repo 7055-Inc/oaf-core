@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getPersonas, deletePersona, setDefaultPersona } from '../../../lib/users/api';
+import { getApiUrl } from '../../../lib/config';
 
 /**
  * PersonaList Component
@@ -107,13 +108,20 @@ export default function PersonaList() {
               {/* Persona Image */}
               <div className="persona-image">
                 {persona.profile_image_url ? (
-                  <img src={persona.profile_image_url} alt={persona.display_name} />
+                  <img
+                    src={
+                      persona.profile_image_url.startsWith('http')
+                        ? persona.profile_image_url
+                        : getApiUrl(persona.profile_image_url)
+                    }
+                    alt={persona.display_name}
+                  />
                 ) : (
                   <div className="persona-image-placeholder">
                     <i className="material-icons">person</i>
                   </div>
                 )}
-                {persona.is_default && (
+                {!!persona.is_default && (
                   <span className="default-badge">Default</span>
                 )}
               </div>

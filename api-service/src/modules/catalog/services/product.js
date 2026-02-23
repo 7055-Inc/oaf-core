@@ -20,10 +20,10 @@ async function findById(productId) {
   const [products] = await db.query(
     `SELECT p.*, 
             c.name as category_name,
-            i.qty_on_hand, i.qty_available, i.qty_reserved, i.reorder_qty
+            i.qty_on_hand, i.qty_on_order, i.qty_available, i.reorder_qty
      FROM products p
      LEFT JOIN categories c ON p.category_id = c.id
-     LEFT JOIN inventory i ON p.id = i.product_id
+     LEFT JOIN product_inventory i ON p.id = i.product_id
      WHERE p.id = ?`,
     [productId]
   );
@@ -100,6 +100,15 @@ async function list(options = {}) {
   } else if (parentId !== undefined) {
     conditions.push('p.parent_id = ?');
     params.push(parentId);
+  }
+
+  if (options.marketplaceEnabled) {
+    conditions.push('p.marketplace_enabled = 1');
+  }
+
+  if (options.marketplaceCategory) {
+    conditions.push('p.marketplace_category = ?');
+    params.push(options.marketplaceCategory);
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -260,10 +269,10 @@ async function create(vendorId, data) {
     ship_method = 'free',
     ship_rate = null,
     allow_returns = '30_day',
-    // Marketplace
-    marketplace_enabled = true,
+    // Channel visibility (auto-managed by cron based on user permissions)
+    marketplace_enabled = false,
     marketplace_category = 'unsorted',
-    website_catalog_enabled = true,
+    website_catalog_enabled = false,
     // Identifiers
     gtin = null,
     mpn = null,
@@ -723,6 +732,51 @@ async function getStats(vendorId = null) {
   return stats[0];
 }
 
+async function getShipping(productId) {
+  const [rows] = await db.query(
+    'SELECT * FROM product_shipping WHERE product_id = ?',
+    [productId]
+  );
+  return rows[0] || {};
+}
+
+async function getVariationData(childIds) {
+  if (!childIds.length) return { types: [], options: {} };
+
+  const placeholders = childIds.map(() => '?').join(',');
+  const [variationData] = await db.query(`
+    SELECT pv.product_id, pv.variation_type_id, pv.variation_value_id,
+           vt.variation_name as type_name, vv.value_name
+    FROM product_variations pv
+    JOIN user_variation_types vt ON pv.variation_type_id = vt.id
+    JOIN user_variation_values vv ON pv.variation_value_id = vv.id
+    WHERE pv.product_id IN (${placeholders})
+    ORDER BY vt.variation_name, vv.value_name
+  `, childIds);
+
+  const [types] = await db.query(`
+    SELECT DISTINCT vt.id, vt.variation_name
+    FROM user_variation_types vt
+    JOIN product_variations pv ON vt.id = pv.variation_type_id
+    WHERE pv.product_id IN (${placeholders})
+    ORDER BY vt.variation_name
+  `, childIds);
+
+  const options = {};
+  for (const type of types) {
+    const [values] = await db.query(`
+      SELECT DISTINCT vv.id, vv.value_name
+      FROM user_variation_values vv
+      JOIN product_variations pv ON vv.id = pv.variation_value_id
+      WHERE pv.variation_type_id = ? AND pv.product_id IN (${placeholders})
+      ORDER BY vv.value_name
+    `, [type.id, ...childIds]);
+    options[type.variation_name] = values;
+  }
+
+  return { types, options, variationsByProduct: variationData };
+}
+
 module.exports = {
   // Read
   findById,
@@ -734,6 +788,8 @@ module.exports = {
   getAllInventoryHistory,
   getChildren,
   getVendorInfo,
+  getShipping,
+  getVariationData,
   getStats,
   // Create
   create,

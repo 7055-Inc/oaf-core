@@ -148,10 +148,11 @@ export default function CatalogImportExport({ userData }) {
   
   const loadVendors = async () => {
     try {
-      const response = await authApiRequest('admin/users');
+      const response = await authApiRequest('/api/v2/users', { method: 'GET' });
       if (response.ok) {
-        const data = await response.json();
-        const vendorUsers = (Array.isArray(data) ? data : []).filter(
+        const result = await response.json();
+        const allUsers = result.data || (Array.isArray(result) ? result : []);
+        const vendorUsers = allUsers.filter(
           user => user.permissions?.vendor === true
         );
         setVendors(vendorUsers);

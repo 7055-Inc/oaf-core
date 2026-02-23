@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Header from '../../../../components/Header';
 import { authApiRequest } from '../../../../lib/apiUtils';
+import { getCurrentUser } from '../../../../lib/users/api';
 import { ProductForm } from '../../../../modules/catalog';
 
 /**
@@ -42,13 +43,12 @@ export default function EditProductPage() {
       }
       
       // Fetch product (with inventory) and user data in parallel
-      const [productRes, userRes] = await Promise.all([
+      const [productRes, userDataRaw] = await Promise.all([
         authApiRequest(`products/${productId}?include=inventory,images`),
-        authApiRequest('users/me')
+        getCurrentUser()
       ]);
       
       const productData = await productRes.json();
-      const userDataRaw = await userRes.json();
       
       // API returns product directly (or { error: ... } on failure)
       if (productData.error) {

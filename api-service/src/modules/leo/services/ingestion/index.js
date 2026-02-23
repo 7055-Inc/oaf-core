@@ -11,6 +11,7 @@ const { OrderIngestion, getOrderIngestion } = require('./orders');
 const { EventIngestion, getEventIngestion } = require('./events');
 const { ReviewIngestion, getReviewIngestion } = require('./reviews');
 const { ArticleIngestion, getArticleIngestion } = require('./articles');
+const { ImageIngestion, getImageIngestion } = require('./images');
 
 module.exports = {
   UserIngestion,
@@ -26,5 +27,7 @@ module.exports = {
   ReviewIngestion,
   getReviewIngestion,
   ArticleIngestion,
-  getArticleIngestion
+  getArticleIngestion,
+  ImageIngestion,
+  getImageIngestion
 };

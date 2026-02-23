@@ -9,6 +9,7 @@ import {
   fetchCurationProducts, 
   categorizeProduct 
 } from '../../../lib/catalog';
+import { getSmartMediaUrl } from '../../../lib/config';
 
 export default function ProductCuration() {
   const [activeTab, setActiveTab] = useState('unsorted');
@@ -93,14 +94,10 @@ export default function ProductCuration() {
   };
 
   const getImageUrl = (product) => {
-    if (product.image_url) {
-      if (product.image_url.startsWith('http')) return product.image_url;
-      return `/api/media/serve/${product.image_url}`;
-    }
+    if (product.image_url) return getSmartMediaUrl(product.image_url);
     if (product.images && product.images.length > 0) {
       const img = product.images[0];
-      if (img.startsWith('http')) return img;
-      return `/api/media/serve/${img}`;
+      return getSmartMediaUrl(typeof img === 'string' ? img : img.url);
     }
     return null;
   };

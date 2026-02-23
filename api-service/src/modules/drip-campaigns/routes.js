@@ -18,6 +18,7 @@ const EnrollmentService = require('./services/enrollments');
 const FrequencyManager = require('./services/frequency');
 const AnalyticsService = require('./services/analytics');
 const EmailService = require('../../services/emailService');
+const { enforceDripCampaignLimit } = require('../email-marketing/utils/tierEnforcement');
 
 // ============================================
 // ADMIN ENDPOINTS
@@ -738,6 +739,154 @@ router.post('/internal/update-analytics', async (req, res) => {
     return res.json({ success: true, message: 'Analytics updated' });
   } catch (error) {
     console.error('Update analytics error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================
+// USER-LEVEL ENDPOINTS (My Campaigns)
+// ============================================
+
+/**
+ * GET /api/v2/drip-campaigns/my-campaigns
+ * Get user's own campaigns
+ */
+router.get('/my-campaigns', requireAuth, async (req, res) => {
+  try {
+    const { status, campaign_type } = req.query;
+    const filters = {
+      created_by: req.userId,
+      ...(status && { status }),
+      ...(campaign_type && { campaign_type })
+    };
+    
+    const result = await CampaignService.getAllCampaigns(filters, req.query);
+    return res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Get my campaigns error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/v2/drip-campaigns/my-campaigns/:id
+ * Get single user campaign
+ */
+router.get('/my-campaigns/:id', requireAuth, async (req, res) => {
+  try {
+    const campaign = await CampaignService.getCampaignById(req.params.id);
+    
+    if (!campaign) {
+      return res.status(404).json({ success: false, error: 'Campaign not found' });
+    }
+    
+    // Verify ownership
+    if (campaign.created_by !== req.userId) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+    
+    return res.json({ success: true, data: campaign });
+  } catch (error) {
+    console.error('Get my campaign error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/v2/drip-campaigns/my-campaigns
+ * Create user campaign
+ */
+router.post('/my-campaigns', requireAuth, async (req, res) => {
+  try {
+    // Check tier limit for drip campaigns
+    await enforceDripCampaignLimit(req.userId);
+    
+    // Add created_by to the campaign data
+    const campaignData = {
+      ...req.body,
+      created_by: req.userId
+    };
+    
+    const campaign = await CampaignService.createCampaign(campaignData);
+    return res.json({ success: true, data: campaign });
+  } catch (error) {
+    console.error('Create my campaign error:', error);
+    const statusCode = error.statusCode || 400;
+    return res.status(statusCode).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PUT /api/v2/drip-campaigns/my-campaigns/:id
+ * Update user campaign
+ */
+router.put('/my-campaigns/:id', requireAuth, async (req, res) => {
+  try {
+    // Verify ownership first
+    const existing = await CampaignService.getCampaignById(req.params.id);
+    
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Campaign not found' });
+    }
+    
+    if (existing.created_by !== req.userId) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+    
+    const campaign = await CampaignService.updateCampaign(req.params.id, req.body);
+    return res.json({ success: true, data: campaign });
+  } catch (error) {
+    console.error('Update my campaign error:', error);
+    return res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/v2/drip-campaigns/my-campaigns/:id
+ * Delete user campaign
+ */
+router.delete('/my-campaigns/:id', requireAuth, async (req, res) => {
+  try {
+    // Verify ownership first
+    const existing = await CampaignService.getCampaignById(req.params.id);
+    
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Campaign not found' });
+    }
+    
+    if (existing.created_by !== req.userId) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+    
+    await CampaignService.deleteCampaign(req.params.id);
+    return res.json({ success: true, message: 'Campaign deleted successfully' });
+  } catch (error) {
+    console.error('Delete my campaign error:', error);
+    return res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/v2/drip-campaigns/my-campaigns/:id/analytics
+ * Get analytics for user's campaign
+ */
+router.get('/my-campaigns/:id/analytics', requireAuth, async (req, res) => {
+  try {
+    // Verify ownership first
+    const existing = await CampaignService.getCampaignById(req.params.id);
+    
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Campaign not found' });
+    }
+    
+    if (existing.created_by !== req.userId) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+    
+    const analytics = await AnalyticsService.getCampaignAnalytics(req.params.id);
+    return res.json({ success: true, data: analytics });
+  } catch (error) {
+    console.error('Get campaign analytics error:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 });

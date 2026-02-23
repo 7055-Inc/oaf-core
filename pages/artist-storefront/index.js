@@ -5,7 +5,7 @@ import Link from 'next/link';
 import WholesalePricing from '../../components/WholesalePricing';
 import { isWholesaleCustomer } from '../../lib/userUtils';
 import { getAuthToken } from '../../lib/csrf';
-import { getFrontendUrl, getApiUrl, getSubdomainBase, config } from '../../lib/config';
+import { getFrontendUrl, getApiUrl, getSubdomainBase, getSmartMediaUrl, config } from '../../lib/config';
 import TemplateLoader from '../../components/sites-modules/TemplateLoader';
 
 const ArtistStorefront = () => {
@@ -97,7 +97,7 @@ const ArtistStorefront = () => {
       // Fetch all data in parallel including full profile
       const [profileResponse, productsResponse, articlesResponse, pagesResponse, categoriesResponse] = await Promise.all([
         fetch(`${config.API_BASE_URL}/users/profile/by-id/${siteData.user_id}`),
-        fetch(`${config.API_BASE_URL}/products/all?vendor_id=${siteData.user_id}&include=images&limit=12`),
+        fetch(`${config.API_BASE_URL}/api/v2/catalog/public/products?vendor_id=${siteData.user_id}&limit=12`),
         fetch(`${config.API_BASE_URL}/api/v2/websites/resolve/${subdomainToUse}/articles?type=menu`),
         fetch(`${config.API_BASE_URL}/api/v2/websites/resolve/${subdomainToUse}/articles?type=pages`),
         fetch(`${config.API_BASE_URL}/api/v2/websites/resolve/${subdomainToUse}/categories`)
@@ -118,8 +118,7 @@ const ArtistStorefront = () => {
       if (productsResponse.ok) {
         const productsData = await productsResponse.json();
         // Handle both response formats: direct array or {products: [...]}
-        const productsArray = productsData.products || productsData;
-        // Limit to 12 products on frontend since /products/all doesn't support limit
+        const productsArray = productsData.data || [];
         setProducts(Array.isArray(productsArray) ? productsArray.slice(0, 12) : []);
       }
 
@@ -236,7 +235,7 @@ const ArtistStorefront = () => {
       };
 
       // Add to cart via enhanced API
-      const response = await fetch(`${config.API_BASE_URL}/cart/add`, {
+      const response = await fetch(`${config.API_BASE_URL}/api/v2/commerce/cart/add`, {
         method: 'POST',
         headers,
         body: JSON.stringify(body)
@@ -292,27 +291,21 @@ const ArtistStorefront = () => {
     };
   };
 
-  // Image URL helper function (same logic as RandomProductCarousel)
   const getImageUrl = (product) => {
-    // Check for image_url first (this is the main product image field)
-    if (product.image_url) {
-      if (product.image_url.startsWith('http')) return product.image_url;
-      return `${config.API_BASE_URL}/api/media/serve/${product.image_url}`;
-    }
-    // Check for image_path (legacy field)
-    if (product.image_path) {
-      if (product.image_path.startsWith('http')) return product.image_path;
-      return `${config.API_BASE_URL}/api/media/serve/${product.image_path}`;
-    }
-    // Check for images array (from the include=images parameter)
+    const resolveUrl = (val) => {
+      if (!val) return null;
+      if (val.startsWith('http')) return val;
+      if (val.startsWith('/temp_images/')) return `${config.API_BASE_URL}${val}`;
+      return getSmartMediaUrl(val);
+    };
+    if (product.image_url) return resolveUrl(product.image_url);
+    if (product.image_path) return resolveUrl(product.image_path);
     if (product.images && product.images.length > 0) {
       const image = product.images[0];
-      // Handle new format: {url, is_primary} or old format: string
       const img = typeof image === 'string' ? image : image.url;
-      if (img.startsWith('http')) return img;
-      return `${config.API_BASE_URL}/api/media/serve/${img}`;
+      return resolveUrl(img);
     }
-    return null; // No image available
+    return null;
   };
 
   if (loading) {

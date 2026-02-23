@@ -78,8 +78,9 @@ export default function HelpSectionPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiRequest(`api/articles?page_type=help_article&section=${section}&status=published`);
-      const data = await response.json();
+      const response = await apiRequest(`api/v2/content/articles?page_type=help_article&section=${section}&status=published`);
+      const envelope = await response.json();
+      const data = envelope.data || envelope;
       setArticles(data.articles || []);
     } catch (err) {
       setError('Failed to load articles');

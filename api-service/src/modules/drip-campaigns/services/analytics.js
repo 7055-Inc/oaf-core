@@ -212,7 +212,7 @@ class AnalyticsService {
         camp.name as campaign_name,
         camp.campaign_key,
         u.username,
-        u.email,
+        u.username as email,
         de.event_type as attributed_event
       FROM drip_conversions dc
       LEFT JOIN drip_campaigns camp ON dc.campaign_id = camp.id

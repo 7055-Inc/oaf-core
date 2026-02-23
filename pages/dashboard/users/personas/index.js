@@ -4,6 +4,10 @@ import DashboardShell from '../../../../modules/dashboard/components/layout/Dash
 import { PersonaList } from '../../../../modules/users';
 import { getCurrentUser } from '../../../../lib/users';
 
+export async function getServerSideProps() {
+  return { props: {} };
+}
+
 export default function PersonasPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);

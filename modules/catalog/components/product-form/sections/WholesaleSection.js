@@ -1,14 +1,50 @@
 import { useProductForm } from '../ProductFormContext';
 
+const STANDARD_TIER_LABELS = [
+  { value: 'Bulk Buy', label: 'Bulk Buy' },
+  { value: 'Case Qty', label: 'Case Qty' },
+  { value: 'Pallet Qty', label: 'Pallet Qty' },
+  { value: 'Multi-Pallet Qty', label: 'Multi-Pallet Qty' },
+  { value: 'custom', label: 'Custom...' },
+];
+
 export default function WholesaleSection() {
   const { formData, updateField, updateFields } = useProductForm();
 
-  // Auto-update identifier_exists when GTIN changes
   const handleGTINChange = (value) => {
     updateFields({
       gtin: value,
       identifier_exists: value && value.trim() !== '' ? 'yes' : 'no'
     });
+  };
+
+  // Volume pricing tier management
+  const tiers = (() => {
+    try {
+      if (!formData.wholesale_pricing_tiers) return [];
+      const parsed = typeof formData.wholesale_pricing_tiers === 'string'
+        ? JSON.parse(formData.wholesale_pricing_tiers)
+        : formData.wholesale_pricing_tiers;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  })();
+
+  const updateTiers = (newTiers) => {
+    updateField('wholesale_pricing_tiers', newTiers.length > 0 ? JSON.stringify(newTiers) : null);
+  };
+
+  const addTier = () => {
+    const lastQty = tiers.length > 0 ? tiers[tiers.length - 1].min_qty || 10 : 10;
+    updateTiers([...tiers, { min_qty: lastQty * 2, price: '', label: 'Bulk Buy' }]);
+  };
+
+  const removeTier = (index) => {
+    updateTiers(tiers.filter((_, i) => i !== index));
+  };
+
+  const updateTier = (index, field, value) => {
+    const updated = tiers.map((tier, i) => i === index ? { ...tier, [field]: value } : tier);
+    updateTiers(updated);
   };
 
   return (
@@ -32,7 +68,7 @@ export default function WholesaleSection() {
       {/* Price Row */}
       <div className="form-grid-2">
         <div>
-          <label>Wholesale Price</label>
+          <label>Wholesale Price (Single Item)</label>
           <div style={{ position: 'relative' }}>
             <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#666' }}>$</span>
             <input
@@ -45,7 +81,7 @@ export default function WholesaleSection() {
               placeholder="0.00"
             />
           </div>
-          <small style={{ color: '#666' }}>Price for B2B buyers and marketplace cost basis</small>
+          <small style={{ color: '#666' }}>Base price for wholesale buyers (qty 1)</small>
         </div>
         
         <div>
@@ -63,6 +99,142 @@ export default function WholesaleSection() {
         </div>
       </div>
 
+      {/* Volume Pricing Tiers */}
+      {formData.wholesale_price && (
+        <div className="form-card" style={{ marginTop: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <strong>Volume Pricing Tiers</strong>
+            <button type="button" onClick={addTier} className="btn secondary small">
+              + Add Tier
+            </button>
+          </div>
+          <small style={{ color: '#666', display: 'block', marginBottom: '12px' }}>
+            Optional: Set lower prices for larger quantities. Wholesale buyers see the best price for their order qty.
+          </small>
+
+          {tiers.length > 0 && (
+            <div style={{ marginBottom: '12px' }}>
+              {/* Header */}
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '8px', marginBottom: '6px', fontSize: '12px', fontWeight: 'bold', color: '#555' }}>
+                <span>Label</span>
+                <span>Min Qty</span>
+                <span>Price</span>
+                <span></span>
+              </div>
+
+              {tiers.map((tier, index) => {
+                const isCustomLabel = !STANDARD_TIER_LABELS.some(s => s.value === tier.label && s.value !== 'custom');
+                const savings = tier.price && formData.wholesale_price
+                  ? ((1 - parseFloat(tier.price) / parseFloat(formData.wholesale_price)) * 100).toFixed(1)
+                  : null;
+
+                return (
+                  <div key={index} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '8px', marginBottom: '6px', alignItems: 'center' }}>
+                    <div>
+                      {isCustomLabel ? (
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <input
+                            type="text"
+                            value={tier.label || ''}
+                            onChange={e => updateTier(index, 'label', e.target.value)}
+                            placeholder="Custom label"
+                            style={{ flex: 1, fontSize: '13px' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => updateTier(index, 'label', 'Bulk Buy')}
+                            style={{ fontSize: '11px', padding: '2px 6px', background: 'none', border: '1px solid #ccc', borderRadius: '3px', cursor: 'pointer' }}
+                            title="Switch to standard labels"
+                          >
+                            &#x21C4;
+                          </button>
+                        </div>
+                      ) : (
+                        <select
+                          value={tier.label || 'Bulk Buy'}
+                          onChange={e => updateTier(index, 'label', e.target.value === 'custom' ? '' : e.target.value)}
+                          style={{ fontSize: '13px' }}
+                        >
+                          {STANDARD_TIER_LABELS.map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                    <input
+                      type="number"
+                      min="2"
+                      value={tier.min_qty || ''}
+                      onChange={e => updateTier(index, 'min_qty', parseInt(e.target.value) || '')}
+                      placeholder="Qty"
+                      style={{ fontSize: '13px' }}
+                    />
+                    <div style={{ position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: '#666', fontSize: '12px' }}>$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={tier.price || ''}
+                        onChange={e => updateTier(index, 'price', e.target.value)}
+                        placeholder="0.00"
+                        style={{ paddingLeft: '20px', fontSize: '13px' }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeTier(index)}
+                      style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', fontSize: '16px', padding: '4px' }}
+                      title="Remove tier"
+                    >
+                      &times;
+                    </button>
+                    {savings > 0 && (
+                      <small style={{ gridColumn: '1 / -1', color: '#28a745', fontSize: '11px', marginTop: '-4px' }}>
+                        {savings}% savings vs single item wholesale
+                      </small>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Tier preview */}
+          {tiers.length > 0 && formData.wholesale_price && (
+            <div style={{ background: '#f8f9fa', borderRadius: '6px', padding: '10px', fontSize: '12px' }}>
+              <strong style={{ fontSize: '11px', color: '#555' }}>Price Schedule Preview:</strong>
+              <div style={{ marginTop: '6px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                <span style={{ background: '#e8f5e9', padding: '3px 8px', borderRadius: '4px' }}>
+                  Single: ${parseFloat(formData.wholesale_price).toFixed(2)}
+                </span>
+                {tiers.filter(t => t.min_qty && t.price).map((tier, i) => (
+                  <span key={i} style={{ background: '#e8f5e9', padding: '3px 8px', borderRadius: '4px' }}>
+                    {tier.label || `${tier.min_qty}+`} {tier.min_qty}+: ${parseFloat(tier.price).toFixed(2)}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Minimum Order Quantity */}
+      {formData.wholesale_price && (
+        <div style={{ marginTop: '16px' }}>
+          <label>Minimum Order Quantity (optional)</label>
+          <input
+            type="number"
+            min="1"
+            value={formData.wholesale_moq || ''}
+            onChange={e => updateField('wholesale_moq', e.target.value ? parseInt(e.target.value) : null)}
+            placeholder="No minimum"
+            style={{ maxWidth: '200px' }}
+          />
+          <small style={{ color: '#666' }}>If set, wholesale buyers must order at least this many units</small>
+        </div>
+      )}
+
       {/* Wholesale Description */}
       <div style={{ marginTop: '16px', marginBottom: '16px' }}>
         <label>Wholesale Description</label>
@@ -70,7 +242,7 @@ export default function WholesaleSection() {
           value={formData.wholesale_description || ''}
           onChange={e => updateField('wholesale_description', e.target.value)}
           style={{ minHeight: '100px' }}
-          placeholder="Optional: Specific information for wholesale buyers (minimum order quantities, bulk discounts, packaging info, etc.)"
+          placeholder="Optional: Specific information for wholesale buyers (packaging info, lead times, etc.)"
         />
         <small style={{ color: '#666' }}>This description is shown to wholesale buyers and on B2B marketplaces</small>
       </div>
@@ -137,9 +309,20 @@ export default function WholesaleSection() {
   );
 }
 
-// Summary for collapsed state
 export function getWholesaleSummary(formData) {
   if (!formData.wholesale_price) return null;
-  return `$${formData.wholesale_price} wholesale`;
+  const tiers = (() => {
+    try {
+      if (!formData.wholesale_pricing_tiers) return [];
+      const parsed = typeof formData.wholesale_pricing_tiers === 'string'
+        ? JSON.parse(formData.wholesale_pricing_tiers) : formData.wholesale_pricing_tiers;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  })();
+  const tierCount = tiers.filter(t => t.min_qty && t.price).length;
+  let summary = `$${formData.wholesale_price} wholesale`;
+  if (tierCount > 0) summary += ` + ${tierCount} tier${tierCount > 1 ? 's' : ''}`;
+  if (formData.wholesale_moq) summary += ` (MOQ: ${formData.wholesale_moq})`;
+  return summary;
 }
 

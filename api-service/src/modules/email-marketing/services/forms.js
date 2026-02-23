@@ -337,6 +337,10 @@ class FormService {
       );
       
       if (existing.length === 0) {
+        // Check subscriber limit before adding (form submissions count toward limit)
+        const { enforceSubscriberLimit } = require('../utils/tierEnforcement');
+        await enforceSubscriberLimit(form.user_id, 1);
+        
         await connection.execute(
           `INSERT INTO user_email_lists (
             user_id, subscriber_id, status, tags, custom_fields, source, source_site_id

@@ -206,6 +206,27 @@ router.delete('/jury-packets/:id', requireAuth, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/v2/events/jury-packets/upload
+ * Upload images for a jury packet (temp storage)
+ */
+router.post('/jury-packets/upload',
+  requireAuth,
+  upload.array('images'),
+  async (req, res) => {
+    try {
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'No files uploaded' } });
+      }
+      const urls = req.files.map(file => `/temp_images/jury/${file.filename}`);
+      res.json({ success: true, data: { urls } });
+    } catch (error) {
+      console.error('Jury packet image upload error:', error);
+      res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: error.message } });
+    }
+  }
+);
+
 // ============================================================================
 // ARTIST CUSTOM EVENTS (personal calendar)
 // ============================================================================
@@ -269,6 +290,39 @@ router.delete('/custom/:id', requireAuth, async (req, res) => {
     }
     console.error('Error deleting custom event:', error);
     res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: error.message } });
+  }
+});
+
+// ============================================================================
+// DEDUPLICATION
+// ============================================================================
+
+/**
+ * POST /api/v2/events/custom/check-duplicates
+ * Check for duplicate events before creating a new custom event
+ */
+router.post('/custom/check-duplicates', requireAuth, async (req, res) => {
+  try {
+    const matches = await eventsService.checkDuplicateEvents(req.body);
+    res.json({ success: true, data: { matches } });
+  } catch (error) {
+    console.error('Error checking duplicate events:', error);
+    res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: error.message } });
+  }
+});
+
+/**
+ * POST /api/v2/events/custom/:id/append-artist
+ * Append current user to an existing unclaimed custom event claim group
+ */
+router.post('/custom/:id/append-artist', requireAuth, async (req, res) => {
+  try {
+    const result = await eventsService.appendArtistToClaim(req.params.id, req.userId);
+    res.json(result);
+  } catch (error) {
+    console.error('Error appending artist to claim:', error);
+    const status = error.message.includes('not found') ? 404 : 500;
+    res.status(status).json({ success: false, error: { code: status === 404 ? 'NOT_FOUND' : 'SERVER_ERROR', message: error.message } });
   }
 });
 
@@ -343,6 +397,155 @@ router.post('/claim/link/:token', requireAuth, requirePermission('events'), asyn
     }
     console.error('Error linking event:', error);
     res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: error.message } });
+  }
+});
+
+// ============================================================================
+// PROMOTER CLAIM (admin-solicited promoter account activation)
+// ============================================================================
+
+const EmailService = require('../../services/emailService');
+const promoterClaimEmailService = new EmailService();
+
+/**
+ * GET /api/v2/events/promoter-claim/verify/:token
+ * Verify promoter claim token and return event details (public, token is auth)
+ */
+router.get('/promoter-claim/verify/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    if (!token) {
+      return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Token is required' } });
+    }
+
+    const [tokenData] = await db.execute(`
+      SELECT 
+        pct.id as token_id, pct.expires_at, pct.claimed,
+        e.id as event_id, e.title as event_title,
+        e.start_date as event_start_date, e.end_date as event_end_date,
+        e.venue_name, e.venue_city, e.venue_state, e.description as event_description,
+        u.id as user_id, u.username as promoter_email,
+        CONCAT(up.first_name, ' ', up.last_name) as promoter_name,
+        up.first_name as promoter_first_name, up.last_name as promoter_last_name,
+        pp.business_name as promoter_business_name
+      FROM promoter_claim_tokens pct
+      JOIN users u ON pct.user_id = u.id
+      JOIN events e ON pct.event_id = e.id
+      LEFT JOIN user_profiles up ON u.id = up.user_id
+      LEFT JOIN promoter_profiles pp ON u.id = pp.user_id
+      WHERE pct.token = ? AND pct.claimed = 0 AND pct.expires_at > NOW()
+    `, [token]);
+
+    if (tokenData.length === 0) {
+      return res.status(404).json({ success: false, valid: false, error: { code: 'NOT_FOUND', message: 'Invalid or expired claim token' }, expired: true });
+    }
+
+    const d = tokenData[0];
+    res.json({
+      success: true,
+      data: {
+        valid: true,
+        event_id: d.event_id, event_title: d.event_title,
+        event_start_date: d.event_start_date, event_end_date: d.event_end_date,
+        venue_name: d.venue_name, venue_city: d.venue_city, venue_state: d.venue_state,
+        event_description: d.event_description, promoter_email: d.promoter_email,
+        promoter_name: d.promoter_name, promoter_first_name: d.promoter_first_name,
+        promoter_last_name: d.promoter_last_name, promoter_business_name: d.promoter_business_name
+      }
+    });
+  } catch (error) {
+    console.error('Error verifying promoter claim token:', error);
+    res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: error.message } });
+  }
+});
+
+/**
+ * POST /api/v2/events/promoter-claim/activate/:token
+ * Activate promoter account and claim event (public, token is auth)
+ */
+router.post('/promoter-claim/activate/:token', async (req, res) => {
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const { token } = req.params;
+    const { firebase_uid } = req.body;
+
+    if (!token || !firebase_uid) {
+      await connection.rollback();
+      return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Token and Firebase UID are required' } });
+    }
+
+    const [tokenData] = await connection.execute(`
+      SELECT 
+        pct.id as token_id, pct.user_id, pct.event_id, pct.claimed,
+        u.username as email,
+        COALESCE(CONCAT(up.first_name, ' ', up.last_name), u.username) as full_name,
+        COALESCE(up.first_name, SUBSTRING_INDEX(u.username, '@', 1)) as first_name,
+        e.title as event_title
+      FROM promoter_claim_tokens pct
+      JOIN users u ON pct.user_id = u.id
+      LEFT JOIN user_profiles up ON u.id = up.user_id
+      JOIN events e ON pct.event_id = e.id
+      WHERE pct.token = ? AND pct.claimed = 0 AND pct.expires_at > NOW()
+      FOR UPDATE
+    `, [token]);
+
+    if (tokenData.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Invalid or expired claim token' } });
+    }
+
+    const d = tokenData[0];
+
+    await connection.execute(
+      `UPDATE users SET status = 'active', email_verified = 'yes', email_confirmed = 1, google_uid = ? WHERE id = ?`,
+      [firebase_uid, d.user_id]
+    );
+    await connection.execute(`UPDATE events SET claim_status = 'claimed' WHERE id = ?`, [d.event_id]);
+    await connection.execute(`UPDATE promoter_claim_tokens SET claimed = 1, claimed_at = NOW() WHERE id = ?`, [d.token_id]);
+
+    try {
+      const [campaign] = await connection.execute('SELECT id FROM onboarding_campaigns WHERE is_active = 1 LIMIT 1');
+      if (campaign.length > 0) {
+        await connection.execute(
+          `INSERT INTO user_campaign_enrollments (user_id, campaign_id, enrolled_at, current_step) VALUES (?, ?, NOW(), 0)`,
+          [d.user_id, campaign[0].id]
+        );
+      }
+    } catch (enrollError) {
+      console.error('Campaign enrollment error (non-fatal):', enrollError);
+    }
+
+    await connection.commit();
+
+    try {
+      await promoterClaimEmailService.sendEmail(d.user_id, 'onboarding_welcome', {
+        promoter_name: d.full_name,
+        promoter_first_name: d.first_name,
+        event_title: d.event_title,
+        event_edit_url: `${process.env.FRONTEND_URL}/events/new?edit_event_id=${d.event_id}`,
+        help_url: `${process.env.FRONTEND_URL}/help/promoter-guide`
+      });
+    } catch (emailError) {
+      console.error('Welcome email error (non-fatal):', emailError);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        message: 'Account activated successfully',
+        user_id: d.user_id,
+        event_id: d.event_id,
+        redirect_url: `/events/new?edit_event_id=${d.event_id}`
+      }
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error activating promoter account:', error);
+    res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: error.message } });
+  } finally {
+    connection.release();
   }
 });
 
@@ -793,6 +996,190 @@ router.delete('/admin/unclaimed/:eventId', requireAuth, requirePermission('manag
       return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: error.message } });
     }
     res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: error.message } });
+  }
+});
+
+// ============================================================================
+// EVENT SERIES (recurring events with auto-generation)
+// ============================================================================
+
+/**
+ * GET /api/v2/events/series
+ * List promoter's event series with statistics
+ */
+router.get('/series', requireAuth, async (req, res) => {
+  try {
+    const promoterId = req.userId;
+    const [series] = await db.execute(`
+      SELECT 
+        es.*,
+        COUNT(se.event_id) as events_count,
+        MAX(e.start_date) as latest_event_date,
+        MIN(e.start_date) as earliest_event_date
+      FROM event_series es
+      LEFT JOIN series_events se ON es.id = se.series_id
+      LEFT JOIN events e ON se.event_id = e.id
+      WHERE es.promoter_id = ?
+      GROUP BY es.id
+      ORDER BY es.created_at DESC
+    `, [promoterId]);
+
+    res.json({ success: true, data: { series } });
+  } catch (error) {
+    console.error('Error fetching event series:', error);
+    res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: error.message } });
+  }
+});
+
+/**
+ * POST /api/v2/events/series
+ * Create new event series
+ */
+router.post('/series', requireAuth, async (req, res) => {
+  try {
+    const promoterId = req.userId;
+    const {
+      series_name, series_description, recurrence_pattern, recurrence_interval,
+      series_start_date, series_end_date, template_event_id, auto_generate, generate_months_ahead
+    } = req.body;
+
+    if (!series_name || !recurrence_pattern || !series_start_date) {
+      return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Missing required fields: series_name, recurrence_pattern, series_start_date' } });
+    }
+
+    const nextGenDate = new Date(series_start_date);
+    nextGenDate.setMonth(nextGenDate.getMonth() + (generate_months_ahead || 12));
+
+    const [result] = await db.execute(`
+      INSERT INTO event_series (
+        series_name, series_description, promoter_id, recurrence_pattern,
+        recurrence_interval, series_start_date, series_end_date,
+        template_event_id, auto_generate, generate_months_ahead, next_generation_date
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      series_name, series_description, promoterId, recurrence_pattern,
+      recurrence_interval, series_start_date, series_end_date || null,
+      template_event_id || null, auto_generate !== false, generate_months_ahead || 12, nextGenDate
+    ]);
+
+    await db.execute(
+      `INSERT INTO automation_logs (automation_type, series_id, status, message) VALUES ('event_generation', ?, 'success', 'Event series created')`,
+      [result.insertId]
+    );
+
+    res.status(201).json({ success: true, data: { series_id: result.insertId, message: 'Event series created successfully' } });
+  } catch (error) {
+    console.error('Error creating event series:', error);
+    res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: error.message } });
+  }
+});
+
+/**
+ * POST /api/v2/events/series/:id/generate
+ * Manually generate next event in series
+ */
+router.post('/series/:id/generate', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const promoterId = req.userId;
+
+    const [series] = await db.execute(
+      'SELECT * FROM event_series WHERE id = ? AND promoter_id = ?',
+      [id, promoterId]
+    );
+    if (series.length === 0) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Series not found' } });
+    }
+
+    const seriesInfo = series[0];
+
+    let templateData = {};
+    if (seriesInfo.template_event_id) {
+      const [templateEvent] = await db.execute('SELECT * FROM events WHERE id = ?', [seriesInfo.template_event_id]);
+      if (templateEvent.length > 0) {
+        templateData = { ...templateEvent[0] };
+        delete templateData.id;
+        delete templateData.created_at;
+        delete templateData.updated_at;
+      }
+    }
+
+    // Get last sequence number
+    const [seqResult] = await db.execute(
+      'SELECT COALESCE(MAX(sequence_number), 0) as last_number FROM series_events WHERE series_id = ?', [id]
+    );
+    const lastSeqNum = seqResult[0].last_number;
+
+    // Calculate next event dates
+    const baseDate = new Date(seriesInfo.series_start_date);
+    let nextDate = new Date(baseDate);
+    const seqNum = lastSeqNum + 1;
+    switch (seriesInfo.recurrence_pattern) {
+      case 'yearly':
+        nextDate.setFullYear(baseDate.getFullYear() + ((seqNum - 1) * seriesInfo.recurrence_interval));
+        break;
+      case 'quarterly':
+        nextDate.setMonth(baseDate.getMonth() + ((seqNum - 1) * 3 * seriesInfo.recurrence_interval));
+        break;
+      case 'monthly':
+        nextDate.setMonth(baseDate.getMonth() + ((seqNum - 1) * seriesInfo.recurrence_interval));
+        break;
+    }
+    const endDate = new Date(nextDate);
+    endDate.setDate(nextDate.getDate() + (seriesInfo.template_event_id ? 3 : 1));
+
+    const newEventData = {
+      ...templateData,
+      title: `${seriesInfo.series_name} ${nextDate.getFullYear()}`,
+      start_date: nextDate.toISOString().split('T')[0],
+      end_date: endDate.toISOString().split('T')[0],
+      promoter_id: promoterId,
+      event_status: 'draft'
+    };
+
+    // Create event from template data
+    const fields = Object.keys(newEventData);
+    const values = Object.values(newEventData);
+    const placeholders = fields.map(() => '?').join(', ');
+    const [eventResult] = await db.execute(
+      `INSERT INTO events (${fields.join(', ')}) VALUES (${placeholders})`, values
+    );
+    const eventId = eventResult.insertId;
+
+    await db.execute(
+      `INSERT INTO series_events (series_id, event_id, sequence_number, generation_method) VALUES (?, ?, ?, 'manual')`,
+      [id, eventId, seqNum]
+    );
+    await db.execute(
+      `INSERT INTO automation_logs (automation_type, series_id, event_id, status, message) VALUES ('event_generation', ?, ?, 'success', 'Event generated manually')`,
+      [id, eventId]
+    );
+
+    res.json({ success: true, data: { event_id: eventId, message: 'Next event generated successfully' } });
+  } catch (error) {
+    console.error('Error generating next event in series:', error);
+    res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: error.message } });
+  }
+});
+
+// ============================================================================
+// EXHIBITING REQUESTS
+// ============================================================================
+
+/**
+ * POST /api/v2/events/:id/request-exhibiting
+ * Artist requests to be verified as exhibiting at an event
+ */
+router.post('/:id/request-exhibiting', requireAuth, async (req, res) => {
+  try {
+    const result = await eventsService.requestExhibiting(req.params.id, req.userId);
+    res.json(result);
+  } catch (error) {
+    console.error('Error requesting exhibiting status:', error);
+    const status = error.message.includes('not found') ? 404
+      : error.message.includes('already') || error.message.includes('promoter') ? 409
+      : 500;
+    res.status(status).json({ success: false, error: { code: status === 500 ? 'SERVER_ERROR' : 'CONFLICT', message: error.message } });
   }
 });
 

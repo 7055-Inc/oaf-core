@@ -8,7 +8,7 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { DashboardShell } from '../../../modules/dashboard/components/layout';
-import { authApiRequest } from '../../../lib/apiUtils';
+import { getCurrentUser } from '../../../lib/users/api';
 import { fetchForms, createForm, updateForm, deleteForm, getFormEmbedCode } from '../../../lib/email-marketing/api';
 
 export default function FormsPage() {
@@ -49,13 +49,8 @@ export default function FormsPage() {
 
   const loadUser = async () => {
     try {
-      const response = await authApiRequest('users/me', { method: 'GET' });
-      if (response.ok) {
-        const data = await response.json();
-        setUserData(data);
-      } else {
-        router.push('/login');
-      }
+      const data = await getCurrentUser();
+      setUserData(data);
     } catch (err) {
       console.error('Error loading user:', err);
       router.push('/login');

@@ -57,14 +57,14 @@ class AssetService {
 
       query += ' ORDER BY created_at DESC';
 
-      // Pagination
+      // Pagination — embed directly since LIMIT/OFFSET with prepared statement placeholders
+      // can fail with mysql2 execute() in some configurations
       if (filters.limit) {
-        query += ' LIMIT ?';
-        params.push(parseInt(filters.limit));
-        
+        const lim = Math.max(1, parseInt(filters.limit, 10) || 50);
+        query += ` LIMIT ${lim}`;
         if (filters.offset) {
-          query += ' OFFSET ?';
-          params.push(parseInt(filters.offset));
+          const off = Math.max(0, parseInt(filters.offset, 10) || 0);
+          query += ` OFFSET ${off}`;
         }
       }
 

@@ -4,11 +4,16 @@ import Head from 'next/head';
 import DashboardShell from '../../../../../../modules/dashboard/components/layout/DashboardShell';
 import { getCurrentUser } from '../../../../../../lib/users';
 import { adminGetPersona, adminUpdatePersona } from '../../../../../../lib/users/api';
+import { getApiUrl } from '../../../../../../lib/config';
 
 /**
  * Admin Edit Persona Page
  * Admin-only page for editing any persona
  */
+export async function getServerSideProps() {
+  return { props: {} };
+}
+
 export default function AdminEditPersonaPage() {
   const router = useRouter();
   const { id } = router.query;
@@ -235,7 +240,11 @@ export default function AdminEditPersonaPage() {
                 {formData.profile_image_url && (
                   <div style={{ marginTop: '16px', textAlign: 'center' }}>
                     <img 
-                      src={formData.profile_image_url} 
+                      src={
+                        formData.profile_image_url.startsWith('http')
+                          ? formData.profile_image_url
+                          : getApiUrl(formData.profile_image_url)
+                      }
                       alt="Preview" 
                       style={{ 
                         maxWidth: '150px', 

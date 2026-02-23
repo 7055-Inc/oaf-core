@@ -5,8 +5,10 @@ import Link from 'next/link';
 import WholesalePricing from '../../components/WholesalePricing';
 import { isWholesaleCustomer } from '../../lib/userUtils';
 import { getAuthToken } from '../../lib/csrf';
-import { getApiUrl } from '../../lib/config';
-import styles from './ArtistStorefront.module.css';
+import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
+
+// Map class names to themselves (styles handled by global CSS/TemplateLoader)
+const styles = new Proxy({}, { get: (target, prop) => prop });
 
 const ArtistProductDetail = () => {
   const router = useRouter();
@@ -20,48 +22,34 @@ const ArtistProductDetail = () => {
   const [quantity, setQuantity] = useState(1);
   const [userData, setUserData] = useState(null);
 
-  // Image URL helper function (same as other components)
+  const resolveMediaUrl = (val) => {
+    if (!val) return null;
+    if (val.startsWith('http')) return val;
+    if (val.startsWith('/temp_images/')) return `${getApiUrl()}${val}`;
+    return getSmartMediaUrl(val);
+  };
+
   const getImageUrl = (product) => {
-    // Check for image_url first (this is the main product image field)
-    if (product.image_url) {
-      if (product.image_url.startsWith('http')) return product.image_url;
-      return getApiUrl(`api/media/serve/${product.image_url}`);
-    }
-    // Check for image_path (legacy field)
-    if (product.image_path) {
-      if (product.image_path.startsWith('http')) return product.image_path;
-      return `api/media/serve/${product.image_path}`;
-    }
-    // Check for images array (from the include=images parameter)
+    if (product.image_url) return resolveMediaUrl(product.image_url);
+    if (product.image_path) return resolveMediaUrl(product.image_path);
     if (product.images && product.images.length > 0) {
       const image = product.images[0];
-      // Handle new format: {url, is_primary} or old format: string
       const img = typeof image === 'string' ? image : image.url;
-      if (img.startsWith('http')) return img;
-      return `api/media/serve/${img}`;
+      return resolveMediaUrl(img);
     }
-    return null; // No image available
+    return null;
   };
 
   const getAllImages = (product) => {
     const images = [];
-    
-    // Add main image if exists
     const mainImage = getImageUrl(product);
-    if (mainImage) {
-      images.push(mainImage);
-    }
-    
-    // Add additional images from images array
+    if (mainImage) images.push(mainImage);
     if (product.images && product.images.length > 0) {
       product.images.forEach(img => {
-        const imageUrl = img.startsWith('http') ? img : `api/media/serve/${img}`;
-        if (!images.includes(imageUrl)) {
-          images.push(imageUrl);
-        }
+        const imageUrl = resolveMediaUrl(typeof img === 'string' ? img : img.url);
+        if (imageUrl && !images.includes(imageUrl)) images.push(imageUrl);
       });
     }
-    
     return images;
   };
 
@@ -117,7 +105,7 @@ const ArtistProductDetail = () => {
   const addToCart = async (productId) => {
     // Basic add to cart functionality - you may want to expand this
     try {
-      const response = await fetch('cart/add', {
+      const response = await fetch(getApiUrl('api/v2/commerce/cart/add'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

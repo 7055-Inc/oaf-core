@@ -10,9 +10,10 @@ export function useCoupons() {
 
   const validateCoupon = useCallback(async (couponCode, cartItems) => {
     try {
-      const response = await authApiRequest(`checkout/validate-coupon/${couponCode}?cart_items=${encodeURIComponent(JSON.stringify(cartItems))}`);
+      const response = await authApiRequest(`/api/v2/commerce/checkout/validate-coupon/${couponCode}?cart_items=${encodeURIComponent(JSON.stringify(cartItems))}`);
       const data = await handleApiResponse(response);
-      return data.coupon;
+      const payload = data.data || data;
+      return payload.coupon;
     } catch (error) {
       throw new Error(error.message || 'Invalid coupon code');
     }
@@ -47,7 +48,7 @@ export function useCoupons() {
 
   const getAutoDiscounts = useCallback(async (cartItems) => {
     try {
-      const response = await authApiRequest('checkout/get-auto-discounts', {
+      const response = await authApiRequest('/api/v2/commerce/checkout/get-auto-discounts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -56,8 +57,9 @@ export function useCoupons() {
       });
       
       const data = await handleApiResponse(response);
-      setAutoDiscounts(data.auto_discounts || []);
-      return data.auto_discounts || [];
+      const discountPayload = data.data || data;
+      setAutoDiscounts(discountPayload.auto_discounted_items || []);
+      return discountPayload.auto_discounted_items || [];
     } catch (error) {
       console.error('Failed to fetch auto discounts:', error);
       setAutoDiscounts([]);
@@ -70,7 +72,7 @@ export function useCoupons() {
     try {
       const appliedCouponCodes = appliedCoupons.map(c => c.code);
       
-      const response = await authApiRequest('checkout/calculate-totals', {
+      const response = await authApiRequest('/api/v2/commerce/checkout/calculate-totals', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -83,7 +85,7 @@ export function useCoupons() {
       });
 
       const data = await handleApiResponse(response);
-      return data;
+      return data.data || data;
     } catch (error) {
       throw new Error(error.message || 'Failed to calculate totals');
     } finally {

@@ -6,6 +6,8 @@
 const express = require('express');
 const router = express.Router();
 const { requireAuth, requirePermission } = require('../auth/middleware');
+const { getTemplatesForTier } = require('../../../../lib/crm/emailTemplates');
+const db = require('../../../config/db');
 
 // Services
 const SubscriberService = require('./services/subscribers');
@@ -356,6 +358,27 @@ router.get('/campaigns', requireAuth, async (req, res) => {
 });
 
 /**
+ * 20b. GET /api/v2/email-marketing/templates
+ * List CRM email templates available for user's tier (tier-based)
+ */
+router.get('/templates', requireAuth, async (req, res) => {
+  try {
+    const [rows] = await db.execute(
+      `SELECT tier FROM user_subscriptions
+       WHERE user_id = ? AND subscription_type = 'crm' AND status = 'active'
+       LIMIT 1`,
+      [req.userId]
+    );
+    const tier = rows[0]?.tier || 'free';
+    const templates = getTemplatesForTier(tier);
+    return res.json({ success: true, data: { templates, tier } });
+  } catch (error) {
+    console.error('List templates error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * 21. POST /api/v2/email-marketing/campaigns/single-blast
  * Create single blast campaign
  */
@@ -375,13 +398,13 @@ router.post('/campaigns/single-blast', requireAuth, async (req, res) => {
  */
 router.put('/campaigns/:id/schedule', requireAuth, async (req, res) => {
   try {
-    const { scheduled_at } = req.body;
+    const scheduledAt = req.body.scheduled_at || req.body.scheduled_send_at;
     
-    if (!scheduled_at) {
-      return res.status(400).json({ success: false, error: 'scheduled_at required' });
+    if (!scheduledAt) {
+      return res.status(400).json({ success: false, error: 'scheduled_at or scheduled_send_at required' });
     }
     
-    const campaign = await CampaignService.scheduleCampaign(req.userId, req.params.id, scheduled_at);
+    const campaign = await CampaignService.scheduleCampaign(req.userId, req.params.id, scheduledAt);
     return res.json({ success: true, data: { campaign } });
   } catch (error) {
     console.error('Schedule campaign error:', error);

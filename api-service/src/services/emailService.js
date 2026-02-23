@@ -6,7 +6,7 @@
 
 const nodemailer = require('nodemailer');
 const db = require('../../config/db');
-const emailTemplateConfig = require('../../../config/email-templates');
+const emailTemplateConfig = require('../../config/email-templates');
 
 /**
  * EmailService Class
@@ -178,56 +178,39 @@ class EmailService {
    */
   async getTemplate(templateKey) {
     try {
+      const configTemplate = emailTemplateConfig.getTemplate(templateKey);
+
+      // Config takes priority -- if it exists, use it with DB metadata as fallback
+      if (configTemplate) {
+        const [rows] = await db.execute(
+          'SELECT * FROM email_templates WHERE template_key = ?',
+          [templateKey]
+        );
+        const dbTemplate = rows[0];
+
+        return {
+          id: dbTemplate?.id || null,
+          template_key: configTemplate.template_key,
+          name: configTemplate.name || dbTemplate?.name,
+          subject_template: configTemplate.subject_template,
+          body_template: typeof configTemplate.body_template === 'object'
+            ? JSON.stringify(configTemplate.body_template)
+            : configTemplate.body_template,
+          is_transactional: configTemplate.is_transactional ? 1 : (dbTemplate?.is_transactional || 0),
+          priority_level: configTemplate.priority_level || dbTemplate?.priority_level,
+          layout_key: configTemplate.layout_key || dbTemplate?.layout_key || 'default',
+          can_compile: dbTemplate?.can_compile || 0,
+          from_config: true
+        };
+      }
+
+      // No config template -- fall back to database
       const [rows] = await db.execute(
         'SELECT * FROM email_templates WHERE template_key = ?',
         [templateKey]
       );
-      
-      const dbTemplate = rows[0];
-      const configTemplate = emailTemplateConfig.getTemplate(templateKey);
-      
-      // If no DB template and no config, return null
-      if (!dbTemplate && !configTemplate) {
-        return null;
-      }
-      
-      // If no DB template but config exists, return config as base
-      if (!dbTemplate && configTemplate) {
-        return {
-          id: null,
-          template_key: configTemplate.template_key,
-          name: configTemplate.name,
-          subject_template: configTemplate.subject_template,
-          body_template: typeof configTemplate.body_template === 'object' 
-            ? JSON.stringify(configTemplate.body_template) 
-            : configTemplate.body_template,
-          is_transactional: configTemplate.is_transactional ? 1 : 0,
-          priority_level: configTemplate.priority_level,
-          layout_key: configTemplate.layout_key,
-          can_compile: 0,
-          using_default: true
-        };
-      }
-      
-      // Merge DB template with config defaults for null fields
-      const template = { ...dbTemplate };
-      
-      if (configTemplate) {
-        // Use config defaults for null/empty fields
-        if (!template.body_template) {
-          template.body_template = typeof configTemplate.body_template === 'object'
-            ? JSON.stringify(configTemplate.body_template)
-            : configTemplate.body_template;
-          template.using_default_body = true;
-        }
-        
-        if (!template.subject_template && configTemplate.subject_template) {
-          template.subject_template = configTemplate.subject_template;
-          template.using_default_subject = true;
-        }
-      }
-      
-      return template;
+
+      return rows[0] || null;
     } catch (error) {
       console.error('Template fetch error:', error);
       throw error;

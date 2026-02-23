@@ -245,10 +245,10 @@ export async function getServerSideProps() {
         // Fetch their products
         if (featuredArtist?.id) {
           try {
-            const productsRes = await fetch(`${apiUrl}/products/all?vendor_id=${featuredArtist.id}&include=images`);
+            const productsRes = await fetch(`${apiUrl}/api/v2/catalog/public/products?vendor_id=${featuredArtist.id}`);
             if (productsRes.ok) {
               const productsData = await productsRes.json();
-              const allProducts = productsData.products || [];
+              const allProducts = productsData.data || [];
               
               // Filter to active parent products only
               featuredProducts = allProducts

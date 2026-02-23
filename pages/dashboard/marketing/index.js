@@ -18,3 +18,7 @@ export default function MarketingIndex() {
     </div>
   );
 }
+
+export async function getServerSideProps() {
+  return { props: {} };
+}

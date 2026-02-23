@@ -12,6 +12,7 @@ import {
   fetchEtsyProducts,
   saveEtsyProduct,
 } from '../../../../lib/catalog';
+import { getSmartMediaUrl } from '../../../../lib/config';
 
 export default function EtsyConnector({ userData }) {
   const [connectionStatus, setConnectionStatus] = useState(null);
@@ -225,7 +226,7 @@ export default function EtsyConnector({ userData }) {
                     const imgUrl = typeof image === 'string' ? image : image.url;
                     return (
                       <img
-                        src={imgUrl.startsWith('http') ? imgUrl : `/api/media/serve/${imgUrl}`}
+                        src={getSmartMediaUrl(imgUrl)}
                         alt={product.name || product.etsy_title}
                         style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: '4px' }}
                       />

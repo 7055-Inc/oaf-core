@@ -78,7 +78,7 @@ export default function Checkout() {
         
         setCartItems(allItems);
         
-        // Load OAF coupon data if available
+        // Load Brakebee coupon data if available
         if (data.oaf_coupons) {
           // Set coupon state from saved data
           // Note: We'll need to re-apply coupons since the hook state is fresh
@@ -209,7 +209,7 @@ export default function Checkout() {
         quantity: item.quantity
       }));
 
-      const response = await authApiRequest('checkout/calculate-totals', {
+      const response = await authApiRequest('/api/v2/commerce/checkout/calculate-totals', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -218,8 +218,8 @@ export default function Checkout() {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        setOrderSummary(data);
+        const result = await response.json();
+        setOrderSummary(result.data || result);
       } else {
         const errorData = await response.json();
         setError(errorData.error || 'Failed to calculate order totals');
@@ -245,7 +245,7 @@ export default function Checkout() {
         selected_shipping_rate: selectedShipping[item.product_id]?.rate
       }));
 
-      const response = await authApiRequest('checkout/create-payment-intent', {
+      const response = await authApiRequest('/api/v2/commerce/checkout/create-payment-intent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -257,8 +257,8 @@ export default function Checkout() {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        setPaymentIntent(data);
+        const result = await response.json();
+        setPaymentIntent(result.data || result);
         setPaymentStatus('Payment form ready');
       } else {
         const errorData = await response.json();
@@ -307,7 +307,7 @@ export default function Checkout() {
 
       if (confirmedPaymentIntent.status === 'succeeded') {
         // Payment succeeded, confirm with backend
-        const confirmResponse = await authApiRequest('checkout/confirm-payment', {
+        const confirmResponse = await authApiRequest('/api/v2/commerce/checkout/confirm-payment', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -443,7 +443,7 @@ export default function Checkout() {
                 </div>
               ))}
               
-              {/* Coupon Section - Only show for OAF items or single cart */}
+              {/* Coupon Section - Only show for Brakebee items or single cart */}
               {(checkoutType === 'single' || cartItems.some(item => item.marketplace_source === 'oaf')) && (
                 <div className={styles.couponSection}>
                   <CouponEntry

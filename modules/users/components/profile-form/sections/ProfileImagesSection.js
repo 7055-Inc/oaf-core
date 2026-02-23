@@ -1,9 +1,10 @@
 /**
  * Profile Images Section
- * Profile photo and header image uploads
+ * Profile photo and header image uploads (uses smart-serve thumbnails for current images)
  */
 
 import { useProfileForm } from '../ProfileFormContext';
+import { getSmartMediaUrl } from '../../../../../lib/config';
 
 export function getImagesSummary(formData, imageFiles) {
   const hasProfile = formData.profile_image_path || imageFiles?.profile_image;
@@ -18,7 +19,9 @@ export function getImagesSummary(formData, imageFiles) {
 }
 
 function ImageUploadCard({ title, icon, currentPath, file, fieldName, onFileChange }) {
-  const displayImage = file ? URL.createObjectURL(file) : currentPath;
+  const displayImage = file
+    ? URL.createObjectURL(file)
+    : (currentPath ? getSmartMediaUrl(currentPath, 'thumbnail') : null);
   
   return (
     <div className="image-upload-card">

@@ -20,7 +20,7 @@ export default function AuthorArchivePage() {
     setLoading(true);
     Promise.all([
       fetch(getApiUrl(`users/profile/${username}`)).then(res => res.json()),
-      fetch(`api/articles?author=${username}&limit=${pagination.limit}&page=${pagination.page}`).then(res => res.json())
+      fetch(getApiUrl(`api/v2/content/articles?author=${username}&limit=${pagination.limit}&page=${pagination.page}`)).then(res => res.json()).then(e => e.data || e)
     ])
       .then(([profileData, articlesData]) => {
         setAuthor(profileData.user || null);

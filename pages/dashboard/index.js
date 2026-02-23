@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
 import { authApiRequest } from '../../lib/apiUtils';
+import { getCurrentUser } from '../../lib/users/api';
 import DashboardShell from '../../modules/dashboard/components/layout/DashboardShell';
 
 
@@ -118,20 +119,8 @@ export default function Dashboard() {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         
-        authApiRequest('users/me', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        })
-          .then(res => {
-            if (!res.ok) {
-              throw new Error('Failed to fetch user data');
-            }
-            return res.json();
-          })
+        getCurrentUser()
           .then(data => {
-            // Add permissions from JWT to user data
             const userData = {
               ...data,
               permissions: payload.permissions || []
@@ -179,15 +168,16 @@ export default function Dashboard() {
     
     const fetchAdminNotifications = async () => {
       try {
-        const response = await authApiRequest('admin/notifications', {
+        const response = await authApiRequest('/api/v2/system/admin/notifications', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' }
         });
         
         if (response.ok) {
           const data = await response.json();
-          if (data.notifications) {
-            setAdminNotifications(data.notifications);
+          const notifs = data.data?.notifications || data.notifications;
+          if (notifs) {
+            setAdminNotifications(notifs);
           }
         }
       } catch (err) {
@@ -208,16 +198,14 @@ export default function Dashboard() {
     
     const fetchUserNotifications = async () => {
       try {
-        const response = await authApiRequest('api/tickets/my/notifications', {
+        const response = await authApiRequest('api/v2/system/tickets/my/notifications', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' }
         });
         
-        if (response.ok) {
-          const data = await response.json();
-          if (data.notifications) {
-            setUserNotifications(data.notifications);
-          }
+        const data = await response.json();
+        if (data.success && data.data?.notifications) {
+          setUserNotifications(data.data.notifications);
         }
       } catch (err) {
         // Silently fail - notifications are non-critical
@@ -676,3 +664,7 @@ export default function Dashboard() {
 
 
 // Applications Received (old) removed; My Applicants at /dashboard/commerce/applicants uses ApplicationCard, BulkAcceptanceInterface, PaymentDashboard from applications-received/
+
+export async function getServerSideProps() {
+  return { props: {} };
+}

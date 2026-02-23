@@ -5,6 +5,7 @@
 
 const db = require('../../../../config/db');
 const EmailService = require('../../../services/emailService');
+const { enforceEmailLimit } = require('../../email-marketing/utils/tierEnforcement');
 
 class EnrollmentService {
   /**
@@ -268,7 +269,7 @@ class EnrollmentService {
       `SELECT 
         de.*,
         u.username,
-        u.email,
+        u.username as email,
         u.user_type
       FROM drip_enrollments de
       JOIN users u ON de.user_id = u.id
@@ -429,6 +430,9 @@ class EnrollmentService {
         return { status: 'expired', step: nextStepNumber };
       }
       
+      // Check monthly email limit before sending
+      await enforceEmailLimit(enrollment.user_id, 1);
+
       // Send email
       const emailService = new EmailService();
       const contextData = enrollment.context_data ? JSON.parse(enrollment.context_data) : {};

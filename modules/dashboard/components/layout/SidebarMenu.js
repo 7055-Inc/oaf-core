@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import menuConfig, { menuStyleColors } from '../../config/menuConfig';
 import { hasPermission, isAdmin } from '../../../../lib/userUtils';
-import { authApiRequest, API_ENDPOINTS } from '../../../../lib/apiUtils';
+import { authApiRequest } from '../../../../lib/apiUtils';
 
 // Random icons for shortcuts (used when menu item doesn't have an icon)
 const SHORTCUT_ICONS = [
@@ -147,10 +147,10 @@ export default function SidebarMenu({ userData, collapsed, notifications = {} })
   
   const loadShortcuts = async () => {
     try {
-      const response = await authApiRequest(`${API_ENDPOINTS.DASHBOARD_WIDGETS_DATA}/my_shortcuts`);
+      const response = await authApiRequest('api/v2/system/dashboard-widgets/widget-data/my_shortcuts');
       if (response.ok) {
         const result = await response.json();
-        const shortcutsData = result.data.shortcuts || [];
+        const shortcutsData = result.data?.shortcuts || [];
         setShortcuts(shortcutsData);
         setShortcutHrefs(new Set(shortcutsData.map(s => s.href)));
       }
@@ -167,7 +167,7 @@ export default function SidebarMenu({ userData, collapsed, notifications = {} })
       // Use section icon or random icon
       const icon = `fas ${sectionIcon || getRandomIcon()}`;
       
-      const response = await authApiRequest(API_ENDPOINTS.DASHBOARD_WIDGETS_SHORTCUT_ADD, {
+      const response = await authApiRequest('api/v2/system/dashboard-widgets/shortcuts/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -177,8 +177,9 @@ export default function SidebarMenu({ userData, collapsed, notifications = {} })
       
       if (response.ok) {
         const result = await response.json();
-        setShortcuts(result.shortcuts);
-        setShortcutHrefs(new Set(result.shortcuts.map(s => s.href)));
+        const updated = result.data?.shortcuts || result.shortcuts || [];
+        setShortcuts(updated);
+        setShortcutHrefs(new Set(updated.map(s => s.href)));
         window.dispatchEvent(new CustomEvent('shortcuts-updated'));
       }
     } catch (err) {
@@ -191,7 +192,7 @@ export default function SidebarMenu({ userData, collapsed, notifications = {} })
       const shortcut = shortcuts.find(s => s.href === href);
       if (!shortcut) return;
       
-      const response = await authApiRequest(API_ENDPOINTS.DASHBOARD_WIDGETS_SHORTCUT_REMOVE, {
+      const response = await authApiRequest('api/v2/system/dashboard-widgets/shortcuts/remove', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ shortcutId: shortcut.id })
@@ -199,8 +200,9 @@ export default function SidebarMenu({ userData, collapsed, notifications = {} })
       
       if (response.ok) {
         const result = await response.json();
-        setShortcuts(result.shortcuts);
-        setShortcutHrefs(new Set(result.shortcuts.map(s => s.href)));
+        const updated = result.data?.shortcuts || result.shortcuts || [];
+        setShortcuts(updated);
+        setShortcutHrefs(new Set(updated.map(s => s.href)));
         window.dispatchEvent(new CustomEvent('shortcuts-updated'));
       }
     } catch (err) {

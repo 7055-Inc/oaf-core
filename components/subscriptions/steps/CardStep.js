@@ -42,10 +42,11 @@ export default function CardStep({
         return;
       }
       if (data.subscription?.stripe_customer_id) {
-        const cardResponse = await authApiRequest('api/users/payment-methods');
+        const cardResponse = await authApiRequest('api/v2/commerce/payment-methods');
         const cardData = await handleApiResponse(cardResponse);
-        if (cardData.success && cardData.paymentMethods && cardData.paymentMethods.length > 0) {
-          const card = cardData.paymentMethods[0];
+        const methods = cardData.data?.paymentMethods || cardData.paymentMethods;
+        if (cardData.success && methods && methods.length > 0) {
+          const card = methods[0];
           setCardInfo({
             brand: card.brand,
             last4: card.last4,
@@ -68,16 +69,17 @@ export default function CardStep({
 
   const createSetupIntent = async () => {
     try {
-      const response = await authApiRequest('api/payment-methods/create-setup-intent', {
+      const response = await authApiRequest('api/v2/commerce/payment-methods/create-setup-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subscription_type: subscriptionType })
       });
       
       const data = await handleApiResponse(response);
+      const payload = data.data || data;
       
-      if (data.success && data.setupIntent) {
-        setSetupIntent(data.setupIntent);
+      if (data.success && payload.setupIntent) {
+        setSetupIntent(payload.setupIntent);
         setShowCardSetup(true);
       } else {
         setError(data.error || 'Failed to initialize payment setup');
@@ -92,7 +94,7 @@ export default function CardStep({
 
   const handleCardSetupSuccess = async (confirmedSetupIntent) => {
     try {
-      const response = await authApiRequest('api/payment-methods/confirm-setup', {
+      const response = await authApiRequest('api/v2/commerce/payment-methods/confirm-setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

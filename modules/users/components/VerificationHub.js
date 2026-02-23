@@ -62,7 +62,7 @@ const VerificationHub = ({ userData }) => {
       
       if (hasVerifiedPermission) {
         try {
-          const termsResponse = await authApiRequest('subscriptions/verified/terms-check');
+          const termsResponse = await authApiRequest('api/v2/commerce/subscriptions/verified/terms-check');
           
           if (termsResponse.ok) {
             const termsInfo = await termsResponse.json();
@@ -102,7 +102,7 @@ const VerificationHub = ({ userData }) => {
 
   const fetchTermsForSignup = async () => {
     try {
-      const termsResponse = await authApiRequest('subscriptions/verified/terms-check');
+      const termsResponse = await authApiRequest('api/v2/commerce/subscriptions/verified/terms-check');
       if (termsResponse.ok) {
         const termsInfo = await termsResponse.json();
         setTermsData(termsInfo.latestTerms || termsInfo);
@@ -114,7 +114,7 @@ const VerificationHub = ({ userData }) => {
 
   const fetchVerifiedStats = async () => {
     try {
-      const response = await authApiRequest('subscriptions/verified/my');
+      const response = await authApiRequest('api/v2/commerce/subscriptions/verified/my');
       if (response.ok) {
         const data = await response.json();
         setVerifiedStats({
@@ -135,7 +135,7 @@ const VerificationHub = ({ userData }) => {
 
   const fetchApplicationHistory = async () => {
     try {
-      const response = await authApiRequest('subscriptions/verified/marketplace-applications');
+      const response = await authApiRequest('api/v2/commerce/subscriptions/verified/marketplace-applications');
       if (response.ok) {
         const data = await response.json();
         setApplications(Array.isArray(data) ? data : []);
@@ -151,7 +151,7 @@ const VerificationHub = ({ userData }) => {
     try {
       setProcessing(true);
       
-      const response = await authApiRequest('subscriptions/verified/terms-accept', {
+      const response = await authApiRequest('api/v2/commerce/subscriptions/verified/terms-accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ terms_version_id: termsData.id })
@@ -187,7 +187,7 @@ const VerificationHub = ({ userData }) => {
     try {
       setProcessing(true);
       
-      const response = await authApiRequest('subscriptions/verified/terms-accept', {
+      const response = await authApiRequest('api/v2/commerce/subscriptions/verified/terms-accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ terms_version_id: termsData.id })
@@ -256,7 +256,7 @@ const VerificationHub = ({ userData }) => {
       if (artistBioVideo) formData.append('jury_artist_bio_video', artistBioVideo);
       if (additionalVideo) formData.append('jury_additional_video', additionalVideo);
 
-      const response = await authApiRequest('users/me', {
+      const response = await authApiRequest('/api/v2/users/me', {
         method: 'PATCH',
         body: formData
       });

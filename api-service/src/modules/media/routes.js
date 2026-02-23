@@ -98,9 +98,9 @@ router.post('/complete/:id', requireMediaAuth, async (req, res) => {
       success: true,
       imageId,
       media_id,
-      status: 'processed',
+      status: 'complete',
       smart_url_preview: smartUrl,
-      message: 'Image processed successfully - ready for URL replacement'
+      message: 'Image processed, temp file cleaned up, serving via smart URL'
     });
   } catch (error) {
     secureLogger.error('Error completing image processing', error);

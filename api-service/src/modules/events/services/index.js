@@ -556,7 +556,7 @@ async function getArtistEventApplications(artistId) {
       e.venue_state,
       ea.status,
       ea.submitted_at,
-      ea.reviewed_at
+      ea.jury_reviewed_at as reviewed_at
     FROM event_applications ea
     JOIN events e ON ea.event_id = e.id
     WHERE ea.artist_id = ?
@@ -687,10 +687,14 @@ async function createJuryPacket(artistId, body) {
       throw new Error('Invalid persona selected');
     }
   }
+  const normalizedData = { ...(packet_data || {}) };
+  if (normalizedData.portfolio_url) {
+    normalizedData.portfolio_url = normalizeUrl(normalizedData.portfolio_url);
+  }
   const [result] = await db.execute(`
     INSERT INTO artist_jury_packets (artist_id, packet_name, packet_data, photos_data, persona_id)
     VALUES (?, ?, ?, ?, ?)
-  `, [artistId, String(packet_name).trim(), JSON.stringify(packet_data || {}), JSON.stringify(photos_data || []), persona_id || null]);
+  `, [artistId, String(packet_name).trim(), JSON.stringify(normalizedData), JSON.stringify(photos_data || []), persona_id || null]);
   return {
     id: result.insertId,
     packet_name: String(packet_name).trim(),
@@ -722,11 +726,15 @@ async function updateJuryPacket(packetId, artistId, body) {
       throw new Error('Invalid persona selected');
     }
   }
+  const normalizedData = { ...(packet_data || {}) };
+  if (normalizedData.portfolio_url) {
+    normalizedData.portfolio_url = normalizeUrl(normalizedData.portfolio_url);
+  }
   await db.execute(`
     UPDATE artist_jury_packets
     SET packet_name = ?, packet_data = ?, photos_data = ?, persona_id = ?
     WHERE id = ? AND artist_id = ?
-  `, [String(packet_name).trim(), JSON.stringify(packet_data || {}), JSON.stringify(photos_data || []), persona_id || null, packetId, artistId]);
+  `, [String(packet_name).trim(), JSON.stringify(normalizedData), JSON.stringify(photos_data || []), persona_id || null, packetId, artistId]);
   return { message: 'Jury packet updated successfully' };
 }
 
@@ -757,11 +765,210 @@ async function getCustomEvents(artistId) {
   return rows;
 }
 
+function normalizeUrl(url) {
+  if (!url || !url.trim()) return null;
+  let normalized = url.trim();
+  if (!/^https?:\/\//i.test(normalized)) {
+    normalized = 'http://' + normalized;
+  }
+  return normalized;
+}
+
+/**
+ * Check for duplicate events using Leo AI vector search.
+ * Also checks existing custom events with the same promoter email.
+ * Returns potential matches for the artist to confirm/deny.
+ */
+async function checkDuplicateEvents(eventData) {
+  const matches = [];
+
+  // Check 1: Existing official events via Leo vector search
+  try {
+    const { getVectorDB } = require('../../leo/services/vectorDB');
+    const vectorDB = getVectorDB();
+    await vectorDB.initialize();
+
+    const searchQuery = [
+      eventData.event_name,
+      eventData.venue_name,
+      eventData.city,
+      eventData.state,
+      eventData.event_start_date
+        ? new Date(eventData.event_start_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+        : ''
+    ].filter(Boolean).join(' ');
+
+    const results = await vectorDB.semanticSearch(searchQuery, 'event_data', {
+      limit: 5,
+      filter: { classification: '151' }
+    });
+
+    for (const r of results) {
+      if (r.similarity >= 0.80) {
+        matches.push({
+          type: 'official',
+          event_id: r.metadata.event_id,
+          title: r.metadata.title,
+          start_date: r.metadata.start_date,
+          end_date: r.metadata.end_date,
+          venue_city: r.metadata.venue_city,
+          venue_state: r.metadata.venue_state,
+          venue_name: r.metadata.venue_name,
+          similarity: r.similarity
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Leo vector search failed (non-fatal):', err.message);
+  }
+
+  // Check 2: Existing unclaimed custom events with similar name + promoter email
+  try {
+    const params = [];
+    let sql = `
+      SELECT ace.id as custom_event_id, ace.event_name, ace.event_start_date, ace.event_end_date,
+             ace.venue_name, ace.city, ace.state, ace.promoter_email, ace.promoter_name,
+             ace.associated_promoter_event,
+             u.username as creator_email,
+             COALESCE(ap.business_name, CONCAT(up.first_name, ' ', up.last_name)) as creator_name
+      FROM artist_custom_events ace
+      JOIN users u ON ace.artist_id = u.id
+      LEFT JOIN user_profiles up ON u.id = up.user_id
+      LEFT JOIN artist_profiles ap ON u.id = ap.user_id
+      WHERE ace.associated_promoter_event IS NULL
+    `;
+
+    if (eventData.promoter_email) {
+      sql += ' AND ace.promoter_email = ?';
+      params.push(eventData.promoter_email);
+    }
+
+    const [customs] = await db.execute(sql, params);
+
+    for (const c of customs) {
+      const nameSimilarity = stringSimilarity(eventData.event_name, c.event_name);
+      if (nameSimilarity >= 0.7) {
+        matches.push({
+          type: 'custom_claim',
+          custom_event_id: c.custom_event_id,
+          title: c.event_name,
+          start_date: c.event_start_date,
+          end_date: c.event_end_date,
+          venue_city: c.city,
+          venue_state: c.state,
+          venue_name: c.venue_name,
+          promoter_email: c.promoter_email,
+          creator_name: c.creator_name,
+          similarity: nameSimilarity
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Custom event dedup check failed (non-fatal):', err.message);
+  }
+
+  return matches;
+}
+
+/**
+ * Simple string similarity (Dice coefficient) for event name comparison.
+ */
+function stringSimilarity(a, b) {
+  if (!a || !b) return 0;
+  a = a.toLowerCase().trim();
+  b = b.toLowerCase().trim();
+  if (a === b) return 1;
+
+  const bigrams = (str) => {
+    const set = new Set();
+    for (let i = 0; i < str.length - 1; i++) {
+      set.add(str.substring(i, i + 2));
+    }
+    return set;
+  };
+
+  const setA = bigrams(a);
+  const setB = bigrams(b);
+  let intersection = 0;
+  for (const bg of setA) {
+    if (setB.has(bg)) intersection++;
+  }
+  return (2 * intersection) / (setA.size + setB.size);
+}
+
+/**
+ * Append an artist to an existing unclaimed custom event's claim group.
+ * This is called when artist #2+ confirms "this is my event too."
+ */
+async function appendArtistToClaim(artistCustomEventId, artistId) {
+  const [existing] = await db.execute(
+    'SELECT id, event_name, promoter_email, promoter_name FROM artist_custom_events WHERE id = ?',
+    [artistCustomEventId]
+  );
+  if (!existing.length) throw new Error('Custom event not found');
+
+  await db.execute(`
+    INSERT IGNORE INTO event_claim_artists (artist_custom_event_id, artist_id, created_at)
+    VALUES (?, ?, NOW())
+  `, [artistCustomEventId, artistId]);
+
+  // Re-send the promoter claim email with updated artist list
+  const customEvent = existing[0];
+  if (customEvent.promoter_email) {
+    try {
+      const EmailService = require('../../../services/emailService');
+      const emailService = new EmailService();
+
+      const [allArtists] = await db.execute(`
+        SELECT DISTINCT u.id, u.username as email,
+               COALESCE(ap.business_name, CONCAT(up.first_name, ' ', up.last_name)) as artist_name
+        FROM (
+          SELECT artist_id FROM event_claim_artists WHERE artist_custom_event_id = ?
+          UNION
+          SELECT artist_id FROM artist_custom_events WHERE id = ?
+        ) combined
+        JOIN users u ON combined.artist_id = u.id
+        LEFT JOIN user_profiles up ON u.id = up.user_id
+        LEFT JOIN artist_profiles ap ON u.id = ap.user_id
+      `, [artistCustomEventId, artistCustomEventId]);
+
+      const artistNames = allArtists.map(a => a.artist_name || a.email);
+
+      const [tokens] = await db.execute(
+        'SELECT token FROM event_claim_tokens WHERE artist_custom_event_id = ? AND claimed = 0 ORDER BY id DESC LIMIT 1',
+        [artistCustomEventId]
+      );
+
+      if (tokens.length) {
+        const claimUrl = `${process.env.FRONTEND_URL}/events/claim/${tokens[0].token}`;
+        const [aceData] = await db.execute('SELECT * FROM artist_custom_events WHERE id = ?', [artistCustomEventId]);
+        const ace = aceData[0];
+
+        await emailService.sendExternalEmail(customEvent.promoter_email, 'promoter_event_notification_grouped', {
+          promoter_name: customEvent.promoter_name || 'Event Organizer',
+          event_name: customEvent.event_name,
+          artist_names: artistNames.join(', '),
+          artist_count: artistNames.length,
+          event_start_date: new Date(ace.event_start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+          event_end_date: new Date(ace.event_end_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+          venue_name: ace.venue_name || 'Not specified',
+          event_location: [ace.city, ace.state].filter(Boolean).join(', ') || 'Location TBD',
+          claim_url: claimUrl
+        }, { replyTo: allArtists[0]?.email });
+      }
+    } catch (e) {
+      console.error('Non-fatal: failed to send grouped claim email:', e.message);
+    }
+  }
+
+  return { success: true, message: 'You have been added to this event claim' };
+}
+
 /**
  * Create custom artist event (optionally send promoter claim email)
  */
 async function createCustomEvent(artistId, eventData) {
-  const EmailService = require('../../../../services/emailService');
+  const EmailService = require('../../../services/emailService');
   const crypto = require('crypto');
   const emailService = new EmailService();
 
@@ -784,7 +991,7 @@ async function createCustomEvent(artistId, eventData) {
     venue_name || null,
     city || null,
     state || null,
-    website || null,
+    normalizeUrl(website),
     promoter_name || null,
     promoter_email || null
   ]);
@@ -866,7 +1073,7 @@ async function updateCustomEvent(artistId, id, eventData) {
     WHERE id = ? AND artist_id = ?
   `, [
     event_name, event_start_date, event_end_date,
-    venue_name || null, city || null, state || null, website || null,
+    venue_name || null, city || null, state || null, normalizeUrl(website),
     promoter_name || null, promoter_email || null,
     id, artistId
   ]);
@@ -939,8 +1146,34 @@ async function verifyClaimToken(token) {
 /**
  * Claim artist custom event as new draft event (promoter).
  */
+/**
+ * Add a single artist as applicant + event_artist within a transaction.
+ * Skips duplicates silently using INSERT IGNORE.
+ */
+async function addArtistToEvent(connection, eventId, artistId, addedBy) {
+  await connection.execute(`
+    INSERT IGNORE INTO event_applications (event_id, artist_id, status, created_at)
+    VALUES (?, ?, 'submitted', NOW())
+  `, [eventId, artistId]);
+  await connection.execute(`
+    INSERT IGNORE INTO event_artists (event_id, artist_id, status, application_method, added_by, added_at)
+    VALUES (?, ?, 'applied', 'system', ?, NOW())
+  `, [eventId, artistId, addedBy]);
+}
+
+/**
+ * Get all grouped artists from event_claim_artists for a custom event.
+ */
+async function getGroupedClaimArtists(connection, artistCustomEventId) {
+  const [rows] = await connection.execute(
+    'SELECT artist_id FROM event_claim_artists WHERE artist_custom_event_id = ?',
+    [artistCustomEventId]
+  );
+  return rows.map(r => r.artist_id);
+}
+
 async function claimNew(token, promoterId) {
-  const EmailService = require('../../../../services/emailService');
+  const EmailService = require('../../../services/emailService');
   const emailService = new EmailService();
   const connection = await db.getConnection();
   try {
@@ -977,10 +1210,14 @@ async function claimNew(token, promoterId) {
       promoterId, promoterId
     ]);
     const newEventId = newEvent.insertId;
-    await connection.execute(`
-      INSERT INTO event_applications (event_id, artist_id, status, created_at)
-      VALUES (?, ?, 'submitted', NOW())
-    `, [newEventId, eventData.artist_id]);
+
+    await addArtistToEvent(connection, newEventId, eventData.artist_id, eventData.artist_id);
+
+    const groupedArtists = await getGroupedClaimArtists(connection, eventData.artist_custom_event_id);
+    for (const groupedArtistId of groupedArtists) {
+      await addArtistToEvent(connection, newEventId, groupedArtistId, groupedArtistId);
+    }
+
     await connection.execute(`
       UPDATE artist_custom_events SET associated_promoter_event = ? WHERE id = ?
     `, [newEventId, eventData.artist_custom_event_id]);
@@ -1020,7 +1257,7 @@ async function claimNew(token, promoterId) {
  * Link artist custom event to existing promoter event.
  */
 async function linkExisting(token, promoterId, eventId) {
-  const EmailService = require('../../../../services/emailService');
+  const EmailService = require('../../../services/emailService');
   const emailService = new EmailService();
   const connection = await db.getConnection();
   try {
@@ -1052,16 +1289,13 @@ async function linkExisting(token, promoterId, eventId) {
       await connection.rollback();
       throw new Error('Event not found or you do not have permission');
     }
-    const [existingApp] = await connection.execute(
-      'SELECT id FROM event_applications WHERE event_id = ? AND artist_id = ?',
-      [eventId, eventData.artist_id]
-    );
-    if (!existingApp.length) {
-      await connection.execute(`
-        INSERT INTO event_applications (event_id, artist_id, status, created_at)
-        VALUES (?, ?, 'submitted', NOW())
-      `, [eventId, eventData.artist_id]);
+    await addArtistToEvent(connection, eventId, eventData.artist_id, eventData.artist_id);
+
+    const groupedArtists = await getGroupedClaimArtists(connection, eventData.artist_custom_event_id);
+    for (const groupedArtistId of groupedArtists) {
+      await addArtistToEvent(connection, eventId, groupedArtistId, groupedArtistId);
     }
+
     await connection.execute(
       'UPDATE artist_custom_events SET associated_promoter_event = ? WHERE id = ?',
       [eventId, eventData.artist_custom_event_id]
@@ -1302,6 +1536,80 @@ async function deleteUnclaimedEvent(eventId) {
   }
 }
 
+// ============================================================================
+// EXHIBITING REQUESTS
+// ============================================================================
+
+/**
+ * Artist requests to be verified as exhibiting at an event.
+ * Adds them as 'applied' in event_artists and emails the promoter.
+ */
+async function requestExhibiting(eventId, artistId) {
+  const EmailService = require('../../../services/emailService');
+  const emailService = new EmailService();
+
+  const [event] = await db.execute(
+    'SELECT id, title, promoter_id, venue_city, venue_state, start_date, end_date FROM events WHERE id = ?',
+    [eventId]
+  );
+  if (!event.length) throw new Error('Event not found');
+  const evt = event[0];
+
+  if (evt.promoter_id === artistId) {
+    throw new Error('You are the promoter of this event');
+  }
+
+  const [existing] = await db.execute(
+    'SELECT id, status FROM event_artists WHERE event_id = ? AND artist_id = ?',
+    [eventId, artistId]
+  );
+  if (existing.length) {
+    const status = existing[0].status;
+    if (['confirmed', 'accepted'].includes(status)) {
+      throw new Error('You are already a confirmed artist at this event');
+    }
+    if (status === 'applied') {
+      throw new Error('You have already requested to exhibit at this event');
+    }
+  }
+
+  await db.execute(`
+    INSERT IGNORE INTO event_artists (event_id, artist_id, status, application_method, added_by, added_at)
+    VALUES (?, ?, 'applied', 'system', ?, NOW())
+  `, [eventId, artistId, artistId]);
+
+  const [artist] = await db.execute(`
+    SELECT u.username as email,
+           COALESCE(up.first_name, u.username) as first_name,
+           COALESCE(up.last_name, '') as last_name,
+           ap.business_name
+    FROM users u
+    LEFT JOIN user_profiles up ON u.id = up.user_id
+    LEFT JOIN artist_profiles ap ON u.id = ap.user_id
+    WHERE u.id = ?
+  `, [artistId]);
+
+  try {
+    const artistInfo = artist[0] || {};
+    const artistName = artistInfo.business_name ||
+      `${(artistInfo.first_name || '')} ${(artistInfo.last_name || '')}`.trim() || artistInfo.email;
+
+    await emailService.queueEmail(evt.promoter_id, 'artist_exhibiting_request', {
+      artist_name: artistName,
+      artist_id: artistId,
+      event_name: evt.title,
+      event_id: eventId,
+      event_start_date: new Date(evt.start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+      event_location: [evt.venue_city, evt.venue_state].filter(Boolean).join(', ') || 'Location TBD',
+      manage_url: `${process.env.FRONTEND_URL}/dashboard/events/${eventId}/artists`
+    }, { priority: 2 });
+  } catch (e) {
+    console.error('Non-fatal: failed to send exhibiting request email:', e.message);
+  }
+
+  return { success: true, message: 'Your request has been sent to the event promoter' };
+}
+
 module.exports = {
   // Event types
   getEventTypes,
@@ -1362,5 +1670,12 @@ module.exports = {
   // Admin: Unclaimed events (promoter onboarding)
   getUnclaimedEvents,
   resendClaimEmail,
-  deleteUnclaimedEvent
+  deleteUnclaimedEvent,
+
+  // Exhibiting requests
+  requestExhibiting,
+
+  // Deduplication
+  checkDuplicateEvents,
+  appendArtistToClaim
 };

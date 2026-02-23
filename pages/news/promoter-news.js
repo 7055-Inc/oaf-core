@@ -105,17 +105,17 @@ export async function getServerSideProps({ query }) {
   const featuredLimit = 5;
 
   try {
-    // Fetch featured articles (most recent for slider)
     const featuredResponse = await fetch(
-      getApiUrl(`api/articles?section=${PAGE_CONFIG.section}&status=published&limit=${featuredLimit}&page=1`)
+      getApiUrl(`api/v2/content/articles?section=${PAGE_CONFIG.section}&status=published&limit=${featuredLimit}&page=1`)
     );
-    const featuredData = featuredResponse.ok ? await featuredResponse.json() : { articles: [] };
+    const featuredEnvelope = featuredResponse.ok ? await featuredResponse.json() : { data: { articles: [] } };
+    const featuredData = featuredEnvelope.data || featuredEnvelope;
 
-    // Fetch latest articles for grid
     const latestResponse = await fetch(
-      getApiUrl(`api/articles?section=${PAGE_CONFIG.section}&status=published&limit=${limit}&page=${page}`)
+      getApiUrl(`api/v2/content/articles?section=${PAGE_CONFIG.section}&status=published&limit=${limit}&page=${page}`)
     );
-    const latestData = latestResponse.ok ? await latestResponse.json() : { articles: [], pagination: {} };
+    const latestEnvelope = latestResponse.ok ? await latestResponse.json() : { data: { articles: [], pagination: {} } };
+    const latestData = latestEnvelope.data || latestEnvelope;
 
     return {
       props: {

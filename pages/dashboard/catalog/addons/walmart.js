@@ -2,7 +2,7 @@
  * Walmart Connector Page
  * Catalog > Addons > Walmart Connector
  * Vendor-facing: list products, add/manage Walmart listings.
- * Requires walmart-connector addon (or admin).
+ * Uses ConnectorSubscriptionGate for tier/terms/card flow.
  */
 
 import { useState, useEffect } from 'react';
@@ -10,8 +10,10 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { DashboardShell } from '../../../../modules/dashboard/components/layout';
 import { WalmartConnector } from '../../../../modules/catalog';
-import { authApiRequest } from '../../../../lib/apiUtils';
-import { hasAddon, isAdmin } from '../../../../lib/userUtils';
+import { getCurrentUser } from '../../../../lib/users/api';
+import { isAdmin } from '../../../../lib/userUtils';
+import ConnectorSubscriptionGate from '../../../../modules/catalog/components/ConnectorSubscriptionGate';
+import { WALMART_CONNECTOR_OPTS } from '../../../../modules/catalog/components/connectorSubscriptionConfig';
 
 export default function WalmartConnectorPage() {
   const [userData, setUserData] = useState(null);
@@ -21,13 +23,8 @@ export default function WalmartConnectorPage() {
   useEffect(() => {
     async function loadUser() {
       try {
-        const response = await authApiRequest('users/me', { method: 'GET' });
-        if (response.ok) {
-          const data = await response.json();
-          setUserData(data);
-        } else {
-          router.push('/login');
-        }
+        const data = await getCurrentUser();
+        setUserData(data);
       } catch (err) {
         console.error('Error loading user:', err);
         router.push('/login');
@@ -51,40 +48,33 @@ export default function WalmartConnectorPage() {
     return null;
   }
 
-  const canAccess = isAdmin(userData) || hasAddon(userData, 'walmart-connector');
-
-  if (!canAccess) {
-    return (
-      <>
-        <Head>
-          <title>Walmart Connector | Catalog | Dashboard</title>
-        </Head>
-        <DashboardShell userData={userData}>
-          <div className="page-header">
-            <h1>Walmart Connector</h1>
-            <p className="page-subtitle">List your products on Walmart.com</p>
-          </div>
-          <div className="alert alert-warning">
-            <strong>Addon required.</strong> Purchase the Walmart Connector addon from your subscriptions to use this feature.
-            <br />
-            <a href="/dashboard/business/subscriptions" className="btn btn-primary" style={{ marginTop: '10px' }}>View subscriptions</a>
-          </div>
-        </DashboardShell>
-      </>
-    );
-  }
-
   return (
     <>
       <Head>
         <title>Walmart Connector | Catalog | Dashboard</title>
       </Head>
       <DashboardShell userData={userData}>
-        <div className="page-header">
-          <h1>Walmart Connector</h1>
-          <p className="page-subtitle">List your products on Walmart.com through Brakebee&apos;s seller account</p>
-        </div>
-        <WalmartConnector userData={userData} />
+        {isAdmin(userData) ? (
+          <>
+            <div className="page-header">
+              <h1>Walmart Connector</h1>
+              <p className="page-subtitle">List your products on Walmart.com through Brakebee&apos;s seller account</p>
+            </div>
+            <WalmartConnector userData={userData} />
+          </>
+        ) : (
+          <ConnectorSubscriptionGate
+            addonSlug="walmart-connector"
+            userData={userData}
+            connectorOpts={WALMART_CONNECTOR_OPTS}
+          >
+            <div className="page-header">
+              <h1>Walmart Connector</h1>
+              <p className="page-subtitle">List your products on Walmart.com through Brakebee&apos;s seller account</p>
+            </div>
+            <WalmartConnector userData={userData} />
+          </ConnectorSubscriptionGate>
+        )}
       </DashboardShell>
     </>
   );

@@ -30,12 +30,29 @@ function markFailed(imageId) {
 }
 
 async function markProcessed(imageId, mediaId) {
+  const [rows] = await db.query(
+    'SELECT image_path FROM pending_images WHERE id = ? AND status = ?',
+    [imageId, 'pending']
+  );
+
   const [result] = await db.query(
     `UPDATE pending_images
-     SET permanent_url = ?, thumbnail_url = ?, status = ?, updated_at = NOW()
+     SET permanent_url = ?, thumbnail_url = ?, status = 'complete', updated_at = NOW()
      WHERE id = ? AND status = 'pending'`,
-    [String(mediaId), String(mediaId), 'processed', imageId]
+    [String(mediaId), String(mediaId), imageId]
   );
+
+  if (result.affectedRows > 0 && rows[0]) {
+    const tempPath = resolveFullPath(rows[0].image_path);
+    try {
+      if (fs.existsSync(tempPath)) {
+        fs.unlinkSync(tempPath);
+      }
+    } catch (err) {
+      console.warn(`[MEDIA] Could not delete temp file ${tempPath}:`, err.message);
+    }
+  }
+
   return result.affectedRows > 0;
 }
 

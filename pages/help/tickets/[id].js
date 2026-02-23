@@ -50,20 +50,20 @@ export default function TicketDetailPage() {
   const fetchTicket = async () => {
     try {
       setLoading(true);
-      const response = await authApiRequest(`api/tickets/${id}`, {
+      const response = await authApiRequest(`api/v2/system/tickets/${id}`, {
         method: 'GET'
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setTicket(data.ticket);
-        setMessages(data.messages || []);
+      const data = await response.json();
+      if (data.success) {
+        setTicket(data.data.ticket);
+        setMessages(data.data.messages || []);
       } else if (response.status === 404) {
         setError('Ticket not found');
       } else if (response.status === 401) {
         router.push('/login');
       } else {
-        throw new Error('Failed to fetch ticket');
+        throw new Error(data.error?.message || 'Failed to fetch ticket');
       }
     } catch (err) {
       console.error('Error fetching ticket:', err);
@@ -79,18 +79,18 @@ export default function TicketDetailPage() {
 
     setSubmitting(true);
     try {
-      const response = await authApiRequest(`api/tickets/${id}/messages`, {
+      const response = await authApiRequest(`api/v2/system/tickets/${id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: newMessage.trim() })
       });
 
-      if (response.ok) {
+      const data = await response.json();
+      if (data.success) {
         setNewMessage('');
-        fetchTicket(); // Refresh ticket and messages
+        fetchTicket();
       } else {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to send message');
+        throw new Error(data.error?.message || 'Failed to send message');
       }
     } catch (err) {
       setError(err.message);
@@ -103,15 +103,15 @@ export default function TicketDetailPage() {
     if (!confirm('Are you sure you want to close this ticket?')) return;
 
     try {
-      const response = await authApiRequest(`api/tickets/${id}/close`, {
+      const response = await authApiRequest(`api/v2/system/tickets/${id}/close`, {
         method: 'PATCH'
       });
 
-      if (response.ok) {
-        fetchTicket(); // Refresh ticket
+      const data = await response.json();
+      if (data.success) {
+        fetchTicket();
       } else {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to close ticket');
+        throw new Error(data.error?.message || 'Failed to close ticket');
       }
     } catch (err) {
       setError(err.message);

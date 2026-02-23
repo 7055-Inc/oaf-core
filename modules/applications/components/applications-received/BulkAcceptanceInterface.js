@@ -21,7 +21,7 @@ export default function BulkAcceptanceInterface({ applications, selectedEvent, o
         const application = applications.find(app => app.id === appId);
         const boothFee = bulkBoothFee || application.booth_fee || 0;
         
-        return fetch(getApiUrl(`api/applications/${appId}/bulk-accept`), {
+        return fetch(getApiUrl(`api/v2/applications/${appId}/bulk-accept`), {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,

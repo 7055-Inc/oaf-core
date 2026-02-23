@@ -5,9 +5,10 @@ import Script from 'next/script';
 import Link from 'next/link';
 import { Breadcrumb } from '../../modules/shared';
 import { getFrontendUrl, getApiUrl, getSmartMediaUrl } from '../../lib/config';
+import { getCurrentUser } from '../../lib/users/api';
 import { ApplicationForm, ApplicationStatus, EventReviews } from '../../modules/events';
 import { fetchMyApplications, getEventApplicationStats, updateApplication } from '../../lib/applications/api';
-import { fetchEvent, fetchEventCategories, fetchEventArtists } from '../../lib/events/api';
+import { fetchEvent, fetchEventCategories, fetchEventArtists, requestExhibiting } from '../../lib/events/api';
 import styles from './styles/EventView.module.css';
 import { TicketPurchaseModal } from '../../modules/events';
 
@@ -493,6 +494,10 @@ export default function EventPage({
   // Ticket modal state
   const [showTicketModal, setShowTicketModal] = useState(false);
 
+  // Exhibiting request state
+  const [exhibitingRequestStatus, setExhibitingRequestStatus] = useState(null);
+  const [exhibitingRequestLoading, setExhibitingRequestLoading] = useState(false);
+
   // Helper function for image URLs (needed for schema)
   const getSchemaImageUrl = (imagePath) => {
     if (!imagePath) return null;
@@ -566,17 +571,7 @@ export default function EventPage({
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      // Fetch current user
-      fetch(getApiUrl('users/me'), {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-        .then(res => {
-          if (res.ok) return res.json();
-          throw new Error('Failed to fetch user data');
-        })
+      getCurrentUser()
         .then(userData => {
           setUser(userData);
           
@@ -772,9 +767,7 @@ export default function EventPage({
     if (!event || !event.allow_applications) return false;
     if (event.application_status !== 'accepting') return false;
     if (!user) return false;
-    // Removed userApplication check - users can apply multiple times with different personas
     
-    // Check if application deadline has passed
     if (event.application_deadline) {
       const deadline = new Date(event.application_deadline);
       const now = new Date();
@@ -782,6 +775,32 @@ export default function EventPage({
     }
     
     return true;
+  };
+
+  const handleExhibitingRequest = async () => {
+    if (!user || !id) return;
+    setExhibitingRequestLoading(true);
+    try {
+      await requestExhibiting(id);
+      setExhibitingRequestStatus('sent');
+    } catch (err) {
+      if (err.message.includes('already')) {
+        setExhibitingRequestStatus('already');
+      } else {
+        setExhibitingRequestStatus('error');
+      }
+    } finally {
+      setExhibitingRequestLoading(false);
+    }
+  };
+
+  const isAlreadyExhibiting = () => {
+    if (!user || !exhibitingArtists) return false;
+    return exhibitingArtists.some(a => a.user_id === user.id || a.artist_id === user.id);
+  };
+
+  const isPromoter = () => {
+    return user && event && event.promoter_id === user.id;
   };
 
   if (loading) {
@@ -1302,6 +1321,52 @@ export default function EventPage({
             />
           </div>
 
+          {/* "I'm Exhibiting Here" Section */}
+          {user && !isPromoter() && !isAlreadyExhibiting() && (
+            <div className={styles.sectionSeparator}>
+              <hr className={styles.separator} />
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                {exhibitingRequestStatus === 'sent' ? (
+                  <p style={{ color: '#28a745', fontWeight: 500 }}>
+                    <i className="fas fa-check-circle"></i> Your request has been sent to the event promoter.
+                  </p>
+                ) : exhibitingRequestStatus === 'already' ? (
+                  <p style={{ color: '#666' }}>
+                    <i className="fas fa-info-circle"></i> You've already submitted a request for this event.
+                  </p>
+                ) : exhibitingRequestStatus === 'error' ? (
+                  <p style={{ color: '#dc3545' }}>
+                    <i className="fas fa-exclamation-circle"></i> Something went wrong. Please try again.
+                  </p>
+                ) : (
+                  <>
+                    <p style={{ marginBottom: '12px', color: '#555' }}>Are you an artist exhibiting at this event?</p>
+                    <button
+                      onClick={handleExhibitingRequest}
+                      disabled={exhibitingRequestLoading}
+                      style={{
+                        background: '#055474',
+                        color: '#fff',
+                        border: 'none',
+                        padding: '10px 24px',
+                        borderRadius: '4px',
+                        cursor: exhibitingRequestLoading ? 'wait' : 'pointer',
+                        fontWeight: 600,
+                        fontSize: '14px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                    >
+                      <i className="fas fa-hand-paper"></i>
+                      {exhibitingRequestLoading ? 'Sending...' : "I'm Exhibiting Here"}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* HR Separator */}
           {!!event.allow_applications && (
             <div className={styles.sectionSeparator}>
@@ -1585,20 +1650,22 @@ export async function getServerSideProps(context) {
     } catch (e) { /* event load failed, leave initial* null/empty */ }
 
     const [reviewsRes, reviewSummaryRes] = await Promise.all([
-      fetch(`${apiUrl}/api/reviews?type=event&id=${id}&sort=recent&limit=10`, fetchOptions).catch(() => null),
-      fetch(`${apiUrl}/api/reviews/summary?type=event&id=${id}`, fetchOptions).catch(() => null)
+      fetch(`${apiUrl}/api/v2/content/reviews?type=event&id=${id}&sort=recent&limit=10`, fetchOptions).catch(() => null),
+      fetch(`${apiUrl}/api/v2/content/reviews/summary?type=event&id=${id}`, fetchOptions).catch(() => null)
     ]);
     
     if (reviewsRes?.ok) {
       try { 
-        const data = await reviewsRes.json(); 
+        const envelope = await reviewsRes.json(); 
+        const data = envelope.data || envelope;
         initialReviews = Array.isArray(data) ? data : [];
       } catch (e) { /* ignore */ }
     }
     
     if (reviewSummaryRes?.ok) {
       try { 
-        initialReviewSummary = await reviewSummaryRes.json();
+        const envelope = await reviewSummaryRes.json();
+        initialReviewSummary = envelope.data || envelope;
       } catch (e) { /* ignore */ }
     }
 

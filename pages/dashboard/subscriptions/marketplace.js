@@ -10,7 +10,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import DashboardShell from '../../../modules/dashboard/components/layout/DashboardShell';
 import { MarketplaceSubscription } from '../../../modules/commerce/components/marketplace';
-import { authApiRequest } from '../../../lib/apiUtils';
+import { getCurrentUser } from '../../../lib/users/api';
 
 export default function MarketplaceSubscriptionsPage() {
   const router = useRouter();
@@ -24,12 +24,7 @@ export default function MarketplaceSubscriptionsPage() {
 
   const loadUserData = async () => {
     try {
-      const response = await authApiRequest('users/me', { method: 'GET' });
-      if (!response.ok) {
-        router.push('/login?redirect=/dashboard/subscriptions/marketplace');
-        return;
-      }
-      const data = await response.json();
+      const data = await getCurrentUser();
       setUserData(data);
     } catch (err) {
       console.error('Error loading user data:', err);

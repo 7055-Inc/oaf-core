@@ -44,13 +44,14 @@ const AddPromoter = () => {
 
     try {
       setCheckingEmail(true);
-      const response = await authApiRequest(`admin/promoters/check-email?email=${encodeURIComponent(email)}`);
+      const response = await authApiRequest(`/api/v2/system/admin/promoters/check-email?email=${encodeURIComponent(email)}`);
       
       if (!response.ok) {
         throw new Error('Failed to check email');
       }
 
-      const data = await response.json();
+      const result = await response.json();
+      const data = result.data || result;
       setDuplicateCheck(data.exists ? {
         exists: true,
         message: `⚠️ This promoter already exists in the system. User ID: ${data.user_id}`,
@@ -95,7 +96,7 @@ const AddPromoter = () => {
     setSuccess(null);
 
     try {
-      const response = await authApiRequest('admin/promoters/create', {
+      const response = await authApiRequest('/api/v2/system/admin/promoters/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

@@ -15,7 +15,7 @@ export default function TermsOfService() {
   const fetchCurrentTerms = async () => {
     try {
       setLoading(true);
-      const response = await fetch(getApiUrl('api/terms/current'), {
+      const response = await fetch(getApiUrl('api/v2/system/terms/current'), {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -23,12 +23,11 @@ export default function TermsOfService() {
         }
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to load terms: ${response.status} ${response.statusText}`);
-      }
-
       const data = await response.json();
-      setTerms(data);
+      if (!data.success) {
+        throw new Error(data.error?.message || `Failed to load terms: ${response.status}`);
+      }
+      setTerms(data.data);
     } catch (err) {
       console.error('Error fetching terms:', err);
       setError(err.message);

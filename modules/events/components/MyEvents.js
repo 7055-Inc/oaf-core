@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { fetchMyEvents, fetchCustomEvents, createCustomEvent, updateCustomEvent, deleteCustomEvent } from '../../../lib/events';
+import { fetchMyEvents, fetchCustomEvents, createCustomEvent, updateCustomEvent, deleteCustomEvent, checkDuplicateEvents, appendArtistToClaim } from '../../../lib/events';
 import { fetchMyApplications } from '../../../lib/applications';
 
 // Convert ISO or YYYY-MM-DD to date input value
@@ -34,7 +34,7 @@ function CustomEventModal({ onSave, onCancel, initialData = null }) {
         website: '',
         promoter_name: '',
         promoter_email: '',
-        notify_promoter: false
+        notify_promoter: true
       };
     }
     return {
@@ -45,16 +45,151 @@ function CustomEventModal({ onSave, onCancel, initialData = null }) {
   };
 
   const [formData, setFormData] = useState(getInitialFormData());
+  const [step, setStep] = useState('form'); // 'form' | 'checking' | 'matches' | 'saving'
+  const [matches, setMatches] = useState([]);
+  const [appendStatus, setAppendStatus] = useState(null); // null | 'appending' | 'done' | 'error'
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (initialData) {
+      onSave(formData);
+      return;
+    }
+
+    setStep('checking');
+    try {
+      const found = await checkDuplicateEvents(formData);
+      if (found && found.length > 0) {
+        setMatches(found);
+        setStep('matches');
+      } else {
+        setStep('saving');
+        onSave(formData);
+      }
+    } catch (err) {
+      console.error('Dedup check failed, proceeding with creation:', err);
+      setStep('saving');
+      onSave(formData);
+    }
+  };
+
+  const handleAppendToClaim = async (match) => {
+    setAppendStatus('appending');
+    try {
+      await appendArtistToClaim(match.custom_event_id);
+      setAppendStatus('done');
+    } catch (err) {
+      console.error('Failed to append to claim:', err);
+      setAppendStatus('error');
+    }
+  };
+
+  const handleCreateAnyway = () => {
+    setStep('saving');
     onSave(formData);
   };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+      return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch { return dateStr; }
+  };
+
+  if (step === 'checking') {
+    return (
+      <div className="modal-overlay">
+        <div className="modal-content" style={{ textAlign: 'center', padding: '40px' }}>
+          <div className="spinner" style={{ margin: '0 auto 20px' }}></div>
+          <p>Checking for similar events...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'matches') {
+    if (appendStatus === 'done') {
+      return (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ padding: '30px' }}>
+            <div style={{ textAlign: 'center' }}>
+              <i className="fas fa-check-circle" style={{ color: '#28a745', fontSize: '48px', marginBottom: '16px' }}></i>
+              <h3 style={{ margin: '0 0 12px' }}>You've been added!</h3>
+              <p style={{ color: '#666' }}>You've been added to the event claim. The promoter will be notified.</p>
+              <button onClick={onCancel} className="btn btn-primary" style={{ marginTop: '20px' }}>Close</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="modal-overlay">
+        <div className="modal-content" style={{ maxWidth: '550px' }}>
+          <h3 className="modal-title">We found similar events</h3>
+          <p style={{ color: '#666', marginBottom: '20px' }}>
+            Is one of these the same event you're trying to add?
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px', maxHeight: '300px', overflowY: 'auto' }}>
+            {matches.map((match, idx) => (
+              <div key={idx} style={{
+                border: '1px solid #e0e0e0',
+                borderRadius: '8px',
+                padding: '16px',
+                background: '#fafafa'
+              }}>
+                <div style={{ fontWeight: 600, marginBottom: '4px' }}>{match.title}</div>
+                <div style={{ fontSize: '13px', color: '#666', marginBottom: '8px' }}>
+                  {match.start_date && <span>{formatDate(match.start_date)}</span>}
+                  {match.venue_city && <span> &middot; {match.venue_city}{match.venue_state ? `, ${match.venue_state}` : ''}</span>}
+                  {match.venue_name && <span> &middot; {match.venue_name}</span>}
+                </div>
+                <div style={{ fontSize: '12px', color: '#999', marginBottom: '10px' }}>
+                  {Math.round(match.similarity * 100)}% match
+                  {match.type === 'official' && ' — Official Event'}
+                  {match.type === 'custom_claim' && match.creator_name && ` — Added by ${match.creator_name}`}
+                </div>
+                {match.type === 'official' ? (
+                  <a
+                    href={`/events/${match.event_id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn-secondary"
+                    style={{ fontSize: '13px', padding: '6px 14px' }}
+                  >
+                    <i className="fas fa-external-link-alt"></i> View Event
+                  </a>
+                ) : match.type === 'custom_claim' ? (
+                  <button
+                    onClick={() => handleAppendToClaim(match)}
+                    disabled={appendStatus === 'appending'}
+                    className="btn btn-primary"
+                    style={{ fontSize: '13px', padding: '6px 14px' }}
+                  >
+                    {appendStatus === 'appending' ? 'Joining...' : "Yes, this is my event too"}
+                  </button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+          {appendStatus === 'error' && (
+            <p style={{ color: '#dc3545', fontSize: '14px', marginBottom: '12px' }}>Failed to join. Please try again.</p>
+          )}
+          <div className="modal-actions" style={{ borderTop: '1px solid #eee', paddingTop: '16px' }}>
+            <button onClick={onCancel} className="btn btn-secondary">Cancel</button>
+            <button onClick={handleCreateAnyway} className="btn btn-primary">
+              No match — Create New Event
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="modal-overlay">
@@ -91,7 +226,7 @@ function CustomEventModal({ onSave, onCancel, initialData = null }) {
           </div>
           <div className="form-group">
             <label>Website</label>
-            <input type="url" name="website" value={formData.website} onChange={handleChange} className="form-input" />
+            <input type="text" name="website" value={formData.website} onChange={handleChange} className="form-input" placeholder="example.com or https://example.com" />
           </div>
           <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #eee' }}>
             <h4 style={{ margin: '0 0 15px 0', fontSize: '16px', fontWeight: '600' }}>Promoter Information (Optional)</h4>
@@ -110,7 +245,9 @@ function CustomEventModal({ onSave, onCancel, initialData = null }) {
           </div>
           <div className="modal-actions" style={{ borderTop: '1px solid #eee', paddingTop: '20px' }}>
             <button type="button" onClick={onCancel} className="btn btn-secondary">Cancel</button>
-            <button type="submit" className="btn btn-primary">{initialData ? 'Save Changes' : 'Add Event'}</button>
+            <button type="submit" className="btn btn-primary" disabled={step === 'saving'}>
+              {step === 'saving' ? 'Saving...' : (initialData ? 'Save Changes' : 'Add Event')}
+            </button>
           </div>
         </form>
       </div>

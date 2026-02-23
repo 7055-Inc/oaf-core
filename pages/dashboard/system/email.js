@@ -12,9 +12,10 @@
 
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
-import { authApiRequest } from '../../../lib/apiUtils';
 import DashboardShell from '../../../modules/dashboard/components/layout/DashboardShell';
 import { EmailCore } from '../../../modules/system/components';
+import { getCurrentUser } from '../../../lib/users/api';
+import { isAdmin as checkIsAdmin } from '../../../lib/userUtils';
 
 export default function EmailPage() {
   const [userData, setUserData] = useState(null);
@@ -27,24 +28,13 @@ export default function EmailPage() {
 
   const loadUserData = async () => {
     try {
-      const response = await authApiRequest('api/v2/auth/me');
-      if (!response.ok) {
-        setError('Failed to load user data');
-        return;
-      }
-      const result = await response.json();
-      if (result.success && result.data) {
-        const isAdmin = result.data.roles?.includes('admin') || result.data.user_type === 'admin';
-        setUserData({ ...result.data, isAdmin });
-        
-        if (!isAdmin) {
-          setError('Access denied. This page is only available to administrators.');
-        }
-      } else {
-        setError('Failed to load user data');
+      const data = await getCurrentUser();
+      setUserData(data);
+      if (!checkIsAdmin(data)) {
+        setError('Access denied. This page is only available to administrators.');
       }
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Failed to load user data');
     } finally {
       setLoading(false);
     }

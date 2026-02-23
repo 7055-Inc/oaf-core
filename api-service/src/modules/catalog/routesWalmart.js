@@ -1,175 +1,156 @@
 /**
  * Walmart Connector Routes (v2)
- * RESTful endpoints under /api/v2/catalog/walmart
- * Catalog addon: vendor product listing + admin feed management.
+ * Mounted at /api/v2/catalog/walmart
  */
 
 const express = require('express');
 const router = express.Router();
-const { requireAuth, requirePermission } = require('../auth/middleware');
+const { requireAuth } = require('../auth/middleware');
+const { requirePermission } = require('../auth/middleware/requirePermission');
 const walmartService = require('./services/walmart');
 
-/**
- * GET /api/v2/catalog/walmart/categories
- */
+// ============================================================================
+// CUSTOMER ROUTES
+// ============================================================================
+
 router.get('/categories', requireAuth, async (req, res) => {
   try {
-    const result = await walmartService.getCategories(true);
-    return res.json({ success: true, categories: result.categories, cached: result.cached || false, fallback: result.fallback || false });
+    const result = await walmartService.getCategories();
+    res.json({ success: true, data: result });
   } catch (error) {
-    console.error('Walmart categories error:', error.message);
-    return res.status(500).json({ success: false, error: 'Failed to fetch categories' });
+    console.error('Error fetching Walmart categories:', error);
+    res.status(500).json({ success: false, error: { message: 'Failed to fetch categories' } });
   }
 });
 
-/**
- * POST /api/v2/catalog/walmart/categories/refresh
- */
 router.post('/categories/refresh', requireAuth, async (req, res) => {
   try {
     walmartService.refreshCategoriesCache();
     const result = await walmartService.getCategories(false);
-    return res.json({ success: true, message: 'Taxonomy cache refreshed', categoryCount: result.categories.length });
+    res.json({ success: true, data: { message: 'Taxonomy cache refreshed', categoryCount: result.categories.length } });
   } catch (error) {
-    console.error('Walmart categories refresh error:', error.message);
-    return res.status(500).json({ success: false, error: 'Failed to refresh taxonomy' });
+    console.error('Error refreshing taxonomy:', error);
+    res.status(500).json({ success: false, error: { message: 'Failed to refresh taxonomy' } });
   }
 });
 
-/**
- * GET /api/v2/catalog/walmart/products
- */
 router.get('/products', requireAuth, async (req, res) => {
   try {
-    const products = await walmartService.listProducts(req.userId);
-    return res.json({ success: true, products });
+    const products = await walmartService.listProducts(req.user.id);
+    res.json({ success: true, data: { products } });
   } catch (error) {
-    console.error('Walmart products list error:', error.message);
-    return res.status(500).json({ success: false, error: 'Failed to fetch products' });
+    console.error('Error fetching Walmart products:', error);
+    res.status(500).json({ success: false, error: { message: 'Failed to fetch products' } });
   }
 });
 
-/**
- * GET /api/v2/catalog/walmart/products/:productId
- */
 router.get('/products/:productId', requireAuth, async (req, res) => {
   try {
-    const product = await walmartService.getProduct(req.params.productId, req.userId);
-    if (!product) return res.status(404).json({ success: false, error: 'Product not found' });
-    return res.json({ success: true, product });
+    const product = await walmartService.getProduct(req.params.productId, req.user.id);
+    if (!product) {
+      return res.status(404).json({ success: false, error: { message: 'Product not found' } });
+    }
+    res.json({ success: true, data: { product } });
   } catch (error) {
-    console.error('Walmart product get error:', error.message);
-    return res.status(500).json({ success: false, error: 'Failed to fetch product' });
+    console.error('Error fetching Walmart product:', error);
+    res.status(500).json({ success: false, error: { message: 'Failed to fetch product' } });
   }
 });
 
-/**
- * POST /api/v2/catalog/walmart/products/:productId
- */
 router.post('/products/:productId', requireAuth, async (req, res) => {
   try {
-    const result = await walmartService.saveProduct(req.params.productId, req.userId, req.body);
-    if (!result.found) return res.status(404).json({ success: false, error: 'Product not found' });
-    return res.json({ success: true, message: 'Walmart product data saved' });
+    const result = await walmartService.saveProduct(req.params.productId, req.user.id, req.body);
+    if (!result.found) {
+      return res.status(404).json({ success: false, error: { message: 'Product not found' } });
+    }
+    res.json({ success: true, data: { message: 'Walmart product data saved' } });
   } catch (error) {
-    console.error('Walmart product save error:', error.message);
-    return res.status(500).json({ success: false, error: 'Failed to save product' });
+    console.error('Error saving Walmart product:', error);
+    res.status(500).json({ success: false, error: { message: 'Failed to save product' } });
   }
 });
 
-/**
- * PUT /api/v2/catalog/walmart/products/:productId
- */
 router.put('/products/:productId', requireAuth, async (req, res) => {
   try {
-    const result = await walmartService.updateProduct(req.params.productId, req.userId, req.body);
-    if (!result.found) return res.status(404).json({ success: false, error: 'Product not found' });
-    return res.json({ success: true, message: 'Walmart product updated' });
+    const result = await walmartService.updateProduct(req.params.productId, req.user.id, req.body);
+    if (!result.found) {
+      return res.status(404).json({ success: false, error: { message: 'Product not found' } });
+    }
+    res.json({ success: true, data: { message: 'Walmart product updated' } });
   } catch (error) {
-    console.error('Walmart product update error:', error.message);
-    return res.status(500).json({ success: false, error: 'Failed to update product' });
+    console.error('Error updating Walmart product:', error);
+    res.status(500).json({ success: false, error: { message: 'Failed to update product' } });
   }
 });
 
-/**
- * DELETE /api/v2/catalog/walmart/products/:productId
- */
 router.delete('/products/:productId', requireAuth, async (req, res) => {
   try {
-    const result = await walmartService.removeProduct(req.params.productId, req.userId);
-    if (!result.found) return res.status(404).json({ success: false, error: 'Product not found' });
-    return res.json({ success: true, message: 'Product removed', cooldown_ends_at: result.cooldown_ends_at });
+    const result = await walmartService.removeProduct(req.params.productId, req.user.id);
+    if (!result.found) {
+      return res.status(404).json({ success: false, error: { message: 'Product not found' } });
+    }
+    res.json({ success: true, data: { message: 'Product removed', cooldown_ends_at: result.cooldown_ends_at } });
   } catch (error) {
-    console.error('Walmart product remove error:', error.message);
-    return res.status(500).json({ success: false, error: 'Failed to remove product' });
+    console.error('Error removing Walmart product:', error);
+    res.status(500).json({ success: false, error: { message: 'Failed to remove product' } });
   }
 });
 
-/**
- * GET /api/v2/catalog/walmart/allocations
- */
 router.get('/allocations', requireAuth, async (req, res) => {
   try {
-    const allocations = await walmartService.getAllocations(req.userId);
-    return res.json({ success: true, allocations });
+    const allocations = await walmartService.getAllocations(req.user.id);
+    res.json({ success: true, data: { allocations } });
   } catch (error) {
-    console.error('Walmart allocations error:', error.message);
-    return res.status(500).json({ success: false, error: 'Failed to fetch allocations' });
+    console.error('Error fetching allocations:', error);
+    res.status(500).json({ success: false, error: { message: 'Failed to fetch allocations' } });
   }
 });
 
-// ----- Admin (manage_system) -----
+// ============================================================================
+// ADMIN ROUTES
+// ============================================================================
 
-/**
- * GET /api/v2/catalog/walmart/admin/products
- */
 router.get('/admin/products', requireAuth, requirePermission('manage_system'), async (req, res) => {
   try {
-    const { status = 'all', page = 1, limit = 25, search = '' } = req.query;
-    const result = await walmartService.adminListProducts({ status, page: parseInt(page), limit: parseInt(limit), search });
-    return res.json({ success: true, products: result.products, total: result.total, page: parseInt(page), limit: parseInt(limit) });
+    const { status, page, limit, search } = req.query;
+    const result = await walmartService.adminListProducts({ status, page, limit, search });
+    res.json({
+      success: true,
+      data: { products: result.products, total: result.total, page: parseInt(page) || 1, limit: parseInt(limit) || 25 }
+    });
   } catch (error) {
-    console.error('Walmart admin products error:', error.message);
-    return res.status(500).json({ success: false, error: 'Failed to fetch products' });
+    console.error('Error fetching admin Walmart products:', error);
+    res.status(500).json({ success: false, error: { message: 'Failed to fetch products' } });
   }
 });
 
-/**
- * POST /api/v2/catalog/walmart/admin/products/:productId/activate
- */
 router.post('/admin/products/:productId/activate', requireAuth, requirePermission('manage_system'), async (req, res) => {
   try {
-    await walmartService.adminActivate(req.params.productId, req.userId);
-    return res.json({ success: true, message: 'Product activated' });
+    await walmartService.adminActivate(req.params.productId, req.user.id);
+    res.json({ success: true, data: { message: 'Product activated' } });
   } catch (error) {
-    console.error('Walmart admin activate error:', error.message);
-    return res.status(500).json({ success: false, error: 'Failed to activate product' });
+    console.error('Error activating product:', error);
+    res.status(500).json({ success: false, error: { message: 'Failed to activate product' } });
   }
 });
 
-/**
- * POST /api/v2/catalog/walmart/admin/products/:productId/pause
- */
 router.post('/admin/products/:productId/pause', requireAuth, requirePermission('manage_system'), async (req, res) => {
   try {
-    await walmartService.adminPause(req.params.productId, req.userId);
-    return res.json({ success: true, message: 'Product paused' });
+    await walmartService.adminPause(req.params.productId, req.user.id);
+    res.json({ success: true, data: { message: 'Product paused' } });
   } catch (error) {
-    console.error('Walmart admin pause error:', error.message);
-    return res.status(500).json({ success: false, error: 'Failed to pause product' });
+    console.error('Error pausing product:', error);
+    res.status(500).json({ success: false, error: { message: 'Failed to pause product' } });
   }
 });
 
-/**
- * PUT /api/v2/catalog/walmart/admin/products/:productId
- */
 router.put('/admin/products/:productId', requireAuth, requirePermission('manage_system'), async (req, res) => {
   try {
     await walmartService.adminUpdateProduct(req.params.productId, req.body);
-    return res.json({ success: true, message: 'Product updated' });
+    res.json({ success: true, data: { message: 'Product updated' } });
   } catch (error) {
-    console.error('Walmart admin update error:', error.message);
-    return res.status(500).json({ success: false, error: 'Failed to update product' });
+    console.error('Error updating product:', error);
+    res.status(500).json({ success: false, error: { message: 'Failed to update product' } });
   }
 });
 

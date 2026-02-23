@@ -60,8 +60,7 @@ export default function WalmartConnector({ userData }) {
   const fetchWalmartData = async () => {
     try {
       setLoading(true);
-      const response = await authApiRequest('api/walmart/products');
-      const data = await response.json();
+      const data = await fetchWalmartProducts();
       if (data.success) {
         setProducts(data.products);
       }
@@ -74,8 +73,7 @@ export default function WalmartConnector({ userData }) {
 
   const fetchCategories = async () => {
     try {
-      const response = await authApiRequest('api/walmart/categories');
-      const data = await response.json();
+      const data = await fetchWalmartCategories();
       if (data.success) {
         setCategories(data.categories);
       }

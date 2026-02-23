@@ -4,6 +4,10 @@
  */
 
 const db = require('../../../../config/db');
+const EmailService = require('../../../services/emailService');
+
+const emailService = new EmailService();
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://brakebee.com';
 
 /**
  * Get wholesale applications by status
@@ -13,9 +17,10 @@ async function listApplications({ status }) {
     SELECT 
       wa.*,
       u.username,
-      CONCAT(u.first_name, ' ', u.last_name) as user_full_name
+      COALESCE(CONCAT(up.first_name, ' ', up.last_name), u.username) as user_full_name
     FROM wholesale_applications wa
     JOIN users u ON wa.user_id = u.id
+    LEFT JOIN user_profiles up ON u.id = up.user_id
   `;
   
   const params = [];
@@ -39,9 +44,10 @@ async function getApplication(id) {
     SELECT 
       wa.*,
       u.username,
-      CONCAT(u.first_name, ' ', u.last_name) as user_full_name
+      COALESCE(CONCAT(up.first_name, ' ', up.last_name), u.username) as user_full_name
     FROM wholesale_applications wa
     JOIN users u ON wa.user_id = u.id
+    LEFT JOIN user_profiles up ON u.id = up.user_id
     WHERE wa.id = ?
   `, [id]);
   
@@ -95,25 +101,25 @@ async function approveApplication(id, adminUserId, adminNotes) {
       WHERE id = ?
     `, [adminUserId, adminNotes || 'Application approved', id]);
 
-    // Grant wholesale permission by updating user_type
+    // Grant wholesale permission
     await db.execute(`
-      UPDATE users 
-      SET user_type = 'wholesale' 
-      WHERE id = ?
+      INSERT INTO user_permissions (user_id, wholesale) 
+      VALUES (?, 1)
+      ON DUPLICATE KEY UPDATE wholesale = 1
     `, [userId]);
 
-    // Also add to user_permissions if the table exists
+    await db.execute('COMMIT');
+
     try {
-      await db.execute(`
-        INSERT INTO user_permissions (user_id, wholesale) 
-        VALUES (?, 1)
-        ON DUPLICATE KEY UPDATE wholesale = 1
-      `, [userId]);
-    } catch (permError) {
-      console.log('Note: Could not update user_permissions table:', permError.message);
+      await emailService.queueEmail(userId, 'wholesale_application_approved', {
+        contactName: application[0].business_name,
+        businessName: application[0].business_name,
+        dashboardLink: `${FRONTEND_URL}/dashboard`
+      }, { priority: 2 });
+    } catch (emailErr) {
+      console.error('Error queuing wholesale approval email:', emailErr);
     }
 
-    await db.execute('COMMIT');
     return { success: true };
 
   } catch (error) {
@@ -125,7 +131,7 @@ async function approveApplication(id, adminUserId, adminNotes) {
 /**
  * Deny wholesale application
  */
-async function denyApplication(id, adminUserId, adminNotes, denialReason) {
+async function denyApplication(id, adminUserId, adminNotes, denialReason, reapplicationPolicy = 'allowed') {
   if (!denialReason) {
     throw new Error('Denial reason is required');
   }
@@ -136,9 +142,35 @@ async function denyApplication(id, adminUserId, adminNotes, denialReason) {
         reviewed_by = ?, 
         review_date = NOW(), 
         admin_notes = ?,
-        denial_reason = ?
+        denial_reason = ?,
+        reapplication_policy = ?
     WHERE id = ?
-  `, [adminUserId, adminNotes || 'Application denied', denialReason, id]);
+  `, [adminUserId, adminNotes || 'Application denied', denialReason, reapplicationPolicy || 'allowed', id]);
+
+  // Get application details for email
+  const [appData] = await db.execute(
+    'SELECT user_id, business_name FROM wholesale_applications WHERE id = ?', [id]
+  );
+
+  if (appData.length > 0) {
+    const reapplyMessages = {
+      allowed: 'You are welcome to reapply with updated information at any time.',
+      blocked: 'Unfortunately, reapplication is not available for this account. Please contact support if you have questions.',
+      cooldown_90: 'You may submit a new application after 90 days from today.'
+    };
+
+    try {
+      await emailService.queueEmail(appData[0].user_id, 'wholesale_application_denied', {
+        contactName: appData[0].business_name,
+        businessName: appData[0].business_name,
+        denialReason,
+        reapplicationMessage: reapplyMessages[reapplicationPolicy] || reapplyMessages.allowed,
+        supportEmail: 'marketplace@brakebee.com'
+      }, { priority: 2 });
+    } catch (emailErr) {
+      console.error('Error queuing wholesale denial email:', emailErr);
+    }
+  }
 
   return { success: true };
 }
@@ -171,13 +203,33 @@ async function submitApplication(userId, applicationData) {
 
   // Check if user already has a pending or approved application
   const [existingApp] = await db.execute(`
-    SELECT id, status FROM wholesale_applications 
-    WHERE user_id = ? AND status IN ('pending', 'approved', 'under_review')
+    SELECT id, status, reapplication_policy, review_date FROM wholesale_applications 
+    WHERE user_id = ?
+    ORDER BY created_at DESC
+    LIMIT 1
   `, [userId]);
 
   if (existingApp.length > 0) {
-    const status = existingApp[0].status;
-    throw new Error(`You already have a ${status} wholesale application`);
+    const app = existingApp[0];
+
+    if (['pending', 'approved', 'under_review'].includes(app.status)) {
+      throw new Error(`You already have a ${app.status} wholesale application`);
+    }
+
+    // Enforce reapplication policy for denied applications
+    if (app.status === 'denied') {
+      if (app.reapplication_policy === 'blocked') {
+        throw new Error('Reapplication is not available for this account. Please contact support.');
+      }
+      if (app.reapplication_policy === 'cooldown_90' && app.review_date) {
+        const cooldownEnd = new Date(app.review_date);
+        cooldownEnd.setDate(cooldownEnd.getDate() + 90);
+        if (new Date() < cooldownEnd) {
+          const dateStr = cooldownEnd.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+          throw new Error(`You may reapply after ${dateStr}.`);
+        }
+      }
+    }
   }
 
   // Insert the application
@@ -197,6 +249,16 @@ async function submitApplication(userId, applicationData) {
     additional_info
   ]);
 
+  try {
+    await emailService.queueEmail(userId, 'wholesale_application_received', {
+      contactName: contact_name,
+      businessName: business_name,
+      applicationStatusLink: `${FRONTEND_URL}/dashboard/account/wholesale-application`
+    }, { priority: 2 });
+  } catch (emailErr) {
+    console.error('Error queuing wholesale application received email:', emailErr);
+  }
+
   return { application_id: result.insertId };
 }
 
@@ -205,7 +267,7 @@ async function submitApplication(userId, applicationData) {
  */
 async function getUserApplicationStatus(userId) {
   const [applications] = await db.execute(`
-    SELECT id, status, created_at, review_date, denial_reason
+    SELECT id, status, created_at, review_date, denial_reason, reapplication_policy
     FROM wholesale_applications 
     WHERE user_id = ?
     ORDER BY created_at DESC

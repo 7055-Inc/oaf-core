@@ -84,8 +84,8 @@ router.put('/applications/:id/approve', ...adminAuth, async (req, res) => {
  */
 router.put('/applications/:id/deny', ...adminAuth, async (req, res) => {
   try {
-    const { admin_notes, denial_reason } = req.body;
-    await wholesaleService.denyApplication(req.params.id, req.userId, admin_notes, denial_reason);
+    const { admin_notes, denial_reason, reapplication_policy } = req.body;
+    await wholesaleService.denyApplication(req.params.id, req.userId, admin_notes, denial_reason, reapplication_policy);
     res.json({ success: true, message: 'Application denied successfully' });
   } catch (error) {
     console.error('Error denying wholesale application:', error);
@@ -112,7 +112,7 @@ router.post('/apply', ...customerAuth, async (req, res) => {
     });
   } catch (error) {
     console.error('Error submitting wholesale application:', error);
-    if (error.message.includes('required') || error.message.includes('already have')) {
+    if (error.message.includes('required') || error.message.includes('already have') || error.message.includes('reapply') || error.message.includes('Reapplication')) {
       return res.status(400).json({ error: error.message });
     }
     res.status(500).json({ error: 'Failed to submit application' });

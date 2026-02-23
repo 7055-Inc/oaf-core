@@ -1,12 +1,12 @@
 /**
  * Content Module Routes
- * Mounts legacy articles router at /articles for v2 path: /api/v2/content/articles/*
+ * V2 articles, reviews — proper implementations replacing legacy router
  */
 
 const express = require('express');
 const router = express.Router();
-const legacyArticlesRouter = require('../../routes/articles');
 
-router.use('/articles', legacyArticlesRouter);
+router.use('/articles', require('./routesArticles'));
+router.use('/reviews', require('./routesReviews'));
 
 module.exports = router;

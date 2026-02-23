@@ -16,6 +16,7 @@ const {
 
 const {
   requirePermission,
+  requireAnyPermission,
   requireAllAccess,
   canAccessAll,
   getEffectivePermissions,
@@ -59,6 +60,7 @@ const requireUserType = (userType) => {
 module.exports = {
   hasPermission,
   requirePermission,
+  requireAnyPermission,
   canAccessAll,
   requireAllAccess,
   hasUserType,

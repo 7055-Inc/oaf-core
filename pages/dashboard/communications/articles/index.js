@@ -9,7 +9,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { DashboardShell } from '../../../../modules/dashboard/components/layout';
 import { ArticlesManagement } from '../../../../modules/communications';
-import { authApiRequest } from '../../../../lib/apiUtils';
+import { getCurrentUser } from '../../../../lib/users/api';
 import { hasPermission, isAdmin } from '../../../../lib/userUtils';
 
 export default function ArticlesPage() {
@@ -20,13 +20,8 @@ export default function ArticlesPage() {
   useEffect(() => {
     async function loadUser() {
       try {
-        const response = await authApiRequest('users/me', { method: 'GET' });
-        if (response.ok) {
-          const data = await response.json();
-          setUserData(data);
-        } else {
-          router.push('/login');
-        }
+        const data = await getCurrentUser();
+        setUserData(data);
       } catch (err) {
         console.error('Error loading user:', err);
         router.push('/login');

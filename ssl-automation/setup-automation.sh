@@ -9,7 +9,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 INSTALL_DIR="/opt/oaf-ssl-automation"
 LOG_DIR="/var/log/oaf-ssl-automation"
 
-echo "🚀 Setting up OAF SSL Automation Framework..."
+echo "🚀 Setting up Brakebee SSL Automation Framework..."
 
 # Create directories
 sudo mkdir -p $INSTALL_DIR
@@ -37,7 +37,7 @@ sudo chown www-data:www-data $LOG_DIR/*.log
 echo "🔧 Creating systemd service..."
 sudo tee /etc/systemd/system/oaf-domain-manager.service > /dev/null <<EOF
 [Unit]
-Description=OAF Domain Manager SSL Automation
+Description=Brakebee Domain Manager SSL Automation
 After=network.target mysql.service
 
 [Service]
@@ -55,7 +55,7 @@ EOF
 # Create cleanup service
 sudo tee /etc/systemd/system/oaf-domain-cleanup.service > /dev/null <<EOF
 [Unit]
-Description=OAF Domain Validation Cleanup
+Description=Brakebee Domain Validation Cleanup
 After=network.target mysql.service
 
 [Service]
@@ -73,7 +73,7 @@ EOF
 # Create timer files for automation
 sudo tee /etc/systemd/system/oaf-domain-manager.timer > /dev/null <<EOF
 [Unit]
-Description=Run OAF Domain Manager every 5 minutes
+Description=Run Brakebee Domain Manager every 5 minutes
 Requires=oaf-domain-manager.service
 
 [Timer]
@@ -86,7 +86,7 @@ EOF
 
 sudo tee /etc/systemd/system/oaf-domain-cleanup.timer > /dev/null <<EOF
 [Unit]
-Description=Run OAF Domain Cleanup daily
+Description=Run Brakebee Domain Cleanup daily
 Requires=oaf-domain-cleanup.service
 
 [Timer]

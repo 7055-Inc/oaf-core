@@ -8,6 +8,10 @@ import DashboardShell from '../../../modules/dashboard/components/layout/Dashboa
  * Users Section Index
  * Redirects to profile page by default
  */
+export async function getServerSideProps() {
+  return { props: {} };
+}
+
 export default function UsersIndex() {
   const router = useRouter();
 

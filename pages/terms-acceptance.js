@@ -20,12 +20,12 @@ export default function TermsAcceptance() {
   useEffect(() => {
     const fetchCurrentTerms = async () => {
       try {
-        const response = await fetch(getApiUrl('api/terms/current'));
-        if (!response.ok) {
-          throw new Error('Failed to fetch current terms');
-        }
+        const response = await fetch(getApiUrl('api/v2/system/terms/current'));
         const data = await response.json();
-        setTermsData(data);
+        if (!data.success) {
+          throw new Error(data.error?.message || 'Failed to fetch current terms');
+        }
+        setTermsData(data.data);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -80,7 +80,7 @@ export default function TermsAcceptance() {
     setError(null);
 
     try {
-      const response = await authApiRequest('api/terms/accept', {
+      const response = await authApiRequest('api/v2/system/terms/accept', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -90,9 +90,9 @@ export default function TermsAcceptance() {
         })
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to accept terms');
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to accept terms');
       }
 
       // Simple redirect without complex verification

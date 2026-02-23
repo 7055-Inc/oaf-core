@@ -47,14 +47,15 @@ export default function EventsIOwn({ userData, onEdit }) {
     const tokens = {};
     for (const event of events) {
       try {
-        const response = await fetch(getApiUrl(`api/reviews/event-token/${event.id}`), {
+        const response = await fetch(getApiUrl(`api/v2/content/reviews/event-token/${event.id}`), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         });
         if (response.ok) {
-          const data = await response.json();
+          const envelope = await response.json();
+          const data = envelope.data || envelope;
           tokens[event.id] = data.url;
         }
       } catch (err) {

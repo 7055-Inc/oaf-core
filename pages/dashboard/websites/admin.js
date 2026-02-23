@@ -8,7 +8,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { DashboardShell } from '../../../modules/dashboard/components/layout';
 import { AllSites } from '../../../modules/websites';
-import { authApiRequest } from '../../../lib/apiUtils';
+import { getCurrentUser } from '../../../lib/users/api';
 
 export default function WebsitesAdminPage() {
   const [userData, setUserData] = useState(null);
@@ -18,12 +18,8 @@ export default function WebsitesAdminPage() {
   useEffect(() => {
     async function load() {
       try {
-        const response = await authApiRequest('users/me', { method: 'GET' });
-        if (!response.ok) {
-          router.push('/login');
-          return;
-        }
-        setUserData(await response.json());
+        const data = await getCurrentUser();
+        setUserData(data);
       } catch (err) {
         console.error('Error loading:', err);
         router.push('/login');

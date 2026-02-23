@@ -6,6 +6,7 @@
 const db = require('../../../../config/db');
 const { generateEmailHash, normalizeEmail } = require('../utils/emailHash');
 const { isValidEmail, sanitizeString, parseTags, validateCustomFields } = require('../utils/validation');
+const { enforceSubscriberLimit, checkSubscriberLimit } = require('../utils/tierEnforcement');
 
 class SubscriberService {
   /**
@@ -136,6 +137,9 @@ class SubscriberService {
       if (!isValidEmail(email)) {
         throw new Error('Invalid email address');
       }
+      
+      // Check tier limit before adding
+      await enforceSubscriberLimit(userId, 1);
       
       const normalizedEmail = normalizeEmail(email);
       const emailHash = generateEmailHash(normalizedEmail);
@@ -376,11 +380,19 @@ class SubscriberService {
       skip_duplicates = true
     } = options;
     
+    // Pre-check: Warn if import would exceed limits
+    const limitCheck = await checkSubscriberLimit(userId, csvData.length);
+    const willExceedLimit = !limitCheck.allowed;
+    
     const results = {
       total: csvData.length,
       imported: 0,
       skipped: 0,
-      errors: []
+      errors: [],
+      warning: willExceedLimit 
+        ? `Import may exceed your ${limitCheck.tier} plan limit of ${limitCheck.limit} subscribers. ` +
+          `You currently have ${limitCheck.current}. Some subscribers may not be added.`
+        : null
     };
     
     for (const row of csvData) {

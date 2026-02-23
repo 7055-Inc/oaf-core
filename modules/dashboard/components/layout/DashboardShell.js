@@ -51,30 +51,29 @@ export default function DashboardShell({ children, userData: propUserData }) {
       try {
         // Fetch admin notifications if user has admin access
         if (checkIsAdmin(userData)) {
-          const adminRes = await authApiRequest('admin/notifications', {
+          const adminRes = await authApiRequest('/api/v2/system/admin/notifications', {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' }
           });
           
           if (adminRes.ok) {
             const data = await adminRes.json();
-            if (data.notifications) {
-              setNotifications(prev => ({ ...prev, ...data.notifications }));
+            const notifs = data.data?.notifications || data.notifications;
+            if (notifs) {
+              setNotifications(prev => ({ ...prev, ...notifs }));
             }
           }
         }
         
         // Fetch user ticket notifications
-        const ticketRes = await authApiRequest('api/tickets/my/notifications', {
+        const ticketRes = await authApiRequest('api/v2/system/tickets/my/notifications', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' }
         });
         
-        if (ticketRes.ok) {
-          const data = await ticketRes.json();
-          if (data.notifications) {
-            setNotifications(prev => ({ ...prev, user_tickets: data.notifications.unread || 0 }));
-          }
+        const ticketData = await ticketRes.json();
+        if (ticketData.success && ticketData.data?.notifications) {
+          setNotifications(prev => ({ ...prev, user_tickets: ticketData.data.notifications.unread || 0 }));
         }
       } catch (err) {
         // Silently fail - notifications are non-critical

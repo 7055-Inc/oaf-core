@@ -36,7 +36,8 @@ async function runIngestions() {
     { name: 'events', getter: 'getEventIngestion' },
     { name: 'reviews', getter: 'getReviewIngestion' },
     { name: 'articles', getter: 'getArticleIngestion' },
-    { name: 'behavior', getter: 'getBehaviorIngestion' }
+    { name: 'behavior', getter: 'getBehaviorIngestion' },
+    { name: 'images', getter: 'getImageIngestion' }
   ];
 
   // Import services

@@ -14,7 +14,7 @@ export const websitesSubscriptionTiers = getAllTiersForDisplay();
 export function getWebsitesSubscriptionConfig(dashboardComponent) {
   return {
     displayName: 'Website Subscription',
-    subtitle: 'Create stunning artist websites with your OAF data',
+    subtitle: 'Create stunning artist websites with your Brakebee data',
     autoApprove: true,
     dashboardComponent,
     tiers: websitesSubscriptionTiers,

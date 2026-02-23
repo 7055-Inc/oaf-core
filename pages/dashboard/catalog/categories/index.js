@@ -11,7 +11,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { DashboardShell } from '../../../../modules/dashboard/components/layout';
 import { CategoryManagement } from '../../../../modules/catalog';
-import { authApiRequest } from '../../../../lib/apiUtils';
+import { getCurrentUser } from '../../../../lib/users/api';
 
 export default function CategoriesPage() {
   const [userData, setUserData] = useState(null);
@@ -21,19 +21,13 @@ export default function CategoriesPage() {
   useEffect(() => {
     async function loadUser() {
       try {
-        const response = await authApiRequest('users/me', { method: 'GET' });
-        if (response.ok) {
-          const data = await response.json();
-          setUserData(data);
-          
-          // Check if user is admin
-          const isAdmin = data.user_type === 'admin' || data.roles?.includes('admin');
-          const hasPermission = data.permissions?.includes('manage_system');
-          if (!isAdmin && !hasPermission) {
-            router.push('/dashboard');
-          }
-        } else {
-          router.push('/login');
+        const data = await getCurrentUser();
+        setUserData(data);
+        
+        const isAdmin = data.user_type === 'admin' || data.roles?.includes('admin');
+        const hasPermission = data.permissions?.includes('manage_system');
+        if (!isAdmin && !hasPermission) {
+          router.push('/dashboard');
         }
       } catch (err) {
         console.error('Error loading user:', err);

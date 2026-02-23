@@ -61,15 +61,15 @@ export default function TicketsPage() {
         ticketParams.append('status', filter);
       }
 
-      const ticketResponse = await authApiRequest(`api/tickets/my?${ticketParams}`, {
+      const ticketResponse = await authApiRequest(`api/v2/system/tickets/my?${ticketParams}`, {
         method: 'GET'
       });
 
-      if (ticketResponse.ok) {
-        const data = await ticketResponse.json();
-        setTickets(data.tickets || []);
+      const data = await ticketResponse.json();
+      if (data.success) {
+        setTickets(data.data?.tickets || []);
       } else {
-        throw new Error('Failed to fetch tickets');
+        throw new Error(data.error?.message || 'Failed to fetch tickets');
       }
 
     } catch (err) {

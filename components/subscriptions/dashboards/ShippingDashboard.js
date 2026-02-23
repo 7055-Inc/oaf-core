@@ -95,7 +95,7 @@ function StandaloneLabelCreator({ userData, onUpdate }) {
 
   const loadVendorAddress = async () => {
     try {
-      const response = await authApiRequest('api/subscriptions/shipping/vendor-address');
+      const response = await authApiRequest('api/v2/commerce/subscriptions/shipping/vendor-address');
       
       if (response.ok) {
         const data = await response.json();
@@ -153,7 +153,7 @@ function StandaloneLabelCreator({ userData, onUpdate }) {
         throw new Error('Please fill in complete Ship To address');
       }
 
-      const response = await authApiRequest('api/shipping/calculate-cart-shipping', {
+      const response = await authApiRequest('api/v2/commerce/shipping/calculate-cart-shipping', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -172,10 +172,11 @@ function StandaloneLabelCreator({ userData, onUpdate }) {
       
       if (!response.ok) throw new Error('Failed to fetch rates');
       
-      const data = await response.json();
-      if (data.shipping_results && data.shipping_results[0] && data.shipping_results[0].available_rates) {
-        setRates(data.shipping_results[0].available_rates);
-        setSelectedRate(data.shipping_results[0].available_rates[0] || null);
+      const json = await response.json();
+      const payload = json.data || json;
+      if (payload.shipping_results && payload.shipping_results[0] && payload.shipping_results[0].available_rates) {
+        setRates(payload.shipping_results[0].available_rates);
+        setSelectedRate(payload.shipping_results[0].available_rates[0] || null);
       } else {
         throw new Error('No rates available for this shipment');
       }
@@ -196,7 +197,7 @@ function StandaloneLabelCreator({ userData, onUpdate }) {
     setError(null);
 
     try {
-      const response = await authApiRequest('api/subscriptions/shipping/create-standalone-label', {
+      const response = await authApiRequest('api/v2/commerce/subscriptions/shipping/create-standalone-label', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -606,7 +607,7 @@ function StandaloneLabelLibrary() {
       setLoading(true);
       setError(null);
 
-      const response = await authApiRequest('api/subscriptions/shipping/standalone-labels', {
+      const response = await authApiRequest('api/v2/commerce/subscriptions/shipping/standalone-labels', {
         method: 'GET'
       });
 
@@ -782,7 +783,7 @@ function StandaloneLabelLibrary() {
                 ) : (
                   <a 
                     href={label.label_file_path.includes('/user_') 
-                      ? `api/shipping/labels/${encodeURIComponent(label.label_file_path.split('/').pop())}`
+                      ? `api/v2/commerce/shipping/labels/${encodeURIComponent(label.label_file_path.split('/').pop())}`
                       : getFrontendUrl(label.label_file_path)}
                     target="_blank"
                     rel="noopener noreferrer"

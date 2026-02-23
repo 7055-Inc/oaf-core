@@ -150,10 +150,10 @@ module.exports = {
     
     try {
       // Fetch products - only active parent products (exclude child/variation products)
-      const productsRes = await fetch(`${API_URL}/products/all?limit=2000&status=active`);
+      const productsRes = await fetch(`${API_URL}/api/v2/catalog/public/products?limit=2000`);
       if (productsRes.ok) {
         const data = await productsRes.json();
-        const products = data.products || data;
+        const products = data.data || [];
         if (Array.isArray(products)) {
           products
             .filter(product => 

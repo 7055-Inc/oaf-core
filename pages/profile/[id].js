@@ -4,6 +4,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { Breadcrumb } from '../../modules/shared';
 import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
+import { getCurrentUser } from '../../lib/users/api';
 import { ProfileDisplay } from '../../modules/shared';
 import styles from './Profile.module.css';
 
@@ -18,21 +19,8 @@ export default function ProfileView({ initialProfile, initialProducts = [], init
   useEffect(() => {
     const fetchCurrentUser = async () => {
       try {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-        
-        const response = await fetch(getApiUrl('users/me'), {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setCurrentUserId(data.id);
-        }
+        const data = await getCurrentUser();
+        setCurrentUserId(data.id);
       } catch (err) {
         // Silently handle auth errors - user just won't see edit button
       }
@@ -247,7 +235,7 @@ export async function getServerSideProps(context) {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
       }),
-      fetch(`${apiUrl}/products/all?vendor_id=${id}&include=images&limit=24`, {
+      fetch(`${apiUrl}/api/v2/catalog/public/products?vendor_id=${id}&limit=24`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
       }).catch(() => null)
@@ -262,7 +250,7 @@ export async function getServerSideProps(context) {
     // Process products for SSR
     if (productsRes?.ok) {
       const productsData = await productsRes.json();
-      const products = productsData.products || productsData || [];
+      const products = productsData.data || [];
       
       // Filter to active parent products only
       initialProducts = products

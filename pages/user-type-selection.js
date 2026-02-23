@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import { authenticatedApiRequest } from '../lib/csrf';
 import { authApiRequest } from '../lib/apiUtils';
 import styles from '../styles/UserTypeSelection.module.css';
 
@@ -23,7 +22,7 @@ export default function UserTypeSelection() {
     setError(null);
 
     try {
-      const response = await authApiRequest('users/select-user-type', {
+      const response = await authApiRequest('/api/v2/users/me/select-user-type', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

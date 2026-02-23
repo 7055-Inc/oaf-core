@@ -154,22 +154,24 @@ class ContentService {
         created_by = 'human'
       } = data;
 
-      // Validate required fields
-      if (!campaign_id || !type || !channel || !content) {
+      // Validate required fields (campaign_id is optional for manual/standalone posts)
+      if (!type || !channel || !content) {
         return { 
           success: false, 
-          error: 'Missing required fields: campaign_id, type, channel, content' 
+          error: 'Missing required fields: type, channel, content' 
         };
       }
 
-      // Validate campaign exists
-      const [campaigns] = await db.execute(
-        'SELECT id FROM marketing_campaigns WHERE id = ?',
-        [campaign_id]
-      );
+      // Validate campaign exists (if provided)
+      if (campaign_id) {
+        const [campaigns] = await db.execute(
+          'SELECT id FROM marketing_campaigns WHERE id = ?',
+          [campaign_id]
+        );
 
-      if (campaigns.length === 0) {
-        return { success: false, error: 'Campaign not found' };
+        if (campaigns.length === 0) {
+          return { success: false, error: 'Campaign not found' };
+        }
       }
 
       // Validate content structure
@@ -198,6 +200,7 @@ class ContentService {
 
       return { 
         success: true, 
+        content: { id: result.insertId },
         content_id: result.insertId,
         message: 'Content created successfully'
       };
@@ -327,12 +330,12 @@ class ContentService {
       return { valid: false, error: `Invalid channel: ${channel}` };
     }
 
-    // Social media posts should have text or media
+    // Social media posts should have text/caption or media
     if (['post', 'story', 'reel', 'video'].includes(type)) {
-      if (!content.text && !content.media_urls) {
+      if (!content.text && !content.caption && !content.media_urls) {
         return { 
           valid: false, 
-          error: 'Social media content must have text or media_urls' 
+          error: 'Social media content must have text, caption, or media_urls' 
         };
       }
     }

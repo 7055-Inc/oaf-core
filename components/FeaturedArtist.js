@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import styles from './FeaturedArtist.module.css';
 import { getApiUrl, getSmartMediaUrl } from '../lib/config';
+import { getPublicArtists } from '../lib/users/api';
 
 export default function FeaturedArtist({ initialArtist = null, initialProducts = [] }) {
   const [artist, setArtist] = useState(initialArtist);
@@ -22,16 +23,8 @@ export default function FeaturedArtist({ initialArtist = null, initialProducts =
       setIsLoading(true);
       setError(null);
       
-      // Fetch artists who are approved vendors
-      const response = await fetch(getApiUrl('users/artists?has_permission=vendor&limit=50'));
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch artists');
-      }
-      
-      const data = await response.json();
-      // API returns array directly, not { artists: [...] }
-      const artists = Array.isArray(data) ? data : (data.artists || []);
+      const data = await getPublicArtists({ limit: 50 });
+      const artists = Array.isArray(data) ? data : [];
       
       if (artists.length === 0) {
         setError('No artists found');
@@ -44,10 +37,10 @@ export default function FeaturedArtist({ initialArtist = null, initialProducts =
       
       // Fetch their products with images
       if (randomArtist.id) {
-        const productsResponse = await fetch(getApiUrl(`products/all?vendor_id=${randomArtist.id}&include=images`));
+        const productsResponse = await fetch(getApiUrl(`api/v2/catalog/public/products?vendor_id=${randomArtist.id}`));
         if (productsResponse.ok) {
           const productsData = await productsResponse.json();
-          const allProducts = productsData.products || [];
+          const allProducts = productsData.data || [];
           
           // Filter to active parent products only
           const parentProducts = allProducts.filter(p => 

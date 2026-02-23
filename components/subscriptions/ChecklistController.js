@@ -179,8 +179,8 @@ export default function ChecklistController({
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 subscription_type: subscriptionType,
-                tier_name: tier.name || subscriptionType,
-                tier_price: typeof tier.price === 'string' ? 0 : tier.price
+                tier_name: tier.id || tier.name || subscriptionType,
+                tier_price: typeof tier.price === 'string' ? 0 : (tier.price || 0)
               })
             });
             

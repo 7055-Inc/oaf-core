@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { authApiRequest } from '../../../lib/apiUtils';
+import { getCurrentUser } from '../../../lib/users/api';
 import CompleteProfileSuggestion from './onboarding/CompleteProfileSuggestion';
 import WebsiteSuggestion from './onboarding/WebsiteSuggestion';
 import MarketplaceSuggestion from './onboarding/MarketplaceSuggestion';
@@ -135,14 +135,7 @@ export default function OnboardingBanner({ userData: dashboardUserData, openSlid
 
   const loadProfileData = async () => {
     try {
-      // Fetch full user profile from /users/me (for profile fields)
-      const response = await authApiRequest('users/me');
-
-      if (!response.ok) {
-        throw new Error('Failed to load user data');
-      }
-
-      const data = await response.json();
+      const data = await getCurrentUser();
       setProfileData(data);
     } catch (err) {
       console.error('OnboardingBanner - Error:', err);

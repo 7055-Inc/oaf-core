@@ -141,7 +141,7 @@ export const shippingLabelsConfig = {
     }
   ],
   
-  // v2 API endpoint for preferences submission
+  subscriptionApiBase: 'api/v2/commerce/subscriptions/shipping',
   applicationEndpoint: '/api/v2/commerce/shipping/preferences',
   applicationMethod: 'POST'
 };

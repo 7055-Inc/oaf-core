@@ -46,13 +46,14 @@ const EmailPreferences = () => {
     setError(null);
     
     try {
-      const response = await authApiRequest('emails/preferences');
+      const response = await authApiRequest('api/v2/users/email-preferences');
       
       if (!response.ok) {
         throw new Error('Failed to load preferences');
       }
       
-      const data = await response.json();
+      const json = await response.json();
+      const data = json.data || json;
       
       setPreferences({
         frequency: data.frequency || 'weekly',
@@ -87,10 +88,10 @@ const EmailPreferences = () => {
     setError(null);
     
     try {
-      const response = await authApiRequest('emails/bounce-status');
+      const response = await authApiRequest('api/v2/users/email-preferences/bounce-status');
       if (response.ok) {
-        const data = await response.json();
-        setBounceStatus(data);
+        const json = await response.json();
+        setBounceStatus(json.data || json);
       } else {
         throw new Error('Failed to load bounce status');
       }
@@ -108,7 +109,7 @@ const EmailPreferences = () => {
     setMessage('');
 
     try {
-      const response = await authApiRequest('emails/preferences', {
+      const response = await authApiRequest('api/v2/users/email-preferences', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -120,7 +121,7 @@ const EmailPreferences = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update preferences');
+        throw new Error(errorData.error?.message || errorData.error || 'Failed to update preferences');
       }
 
       setMessage('Email preferences updated successfully!');
@@ -137,7 +138,7 @@ const EmailPreferences = () => {
     setMessage('');
 
     try {
-      const response = await authApiRequest('emails/reactivate', {
+      const response = await authApiRequest('api/v2/users/email-preferences/reactivate', {
         method: 'POST'
       });
       

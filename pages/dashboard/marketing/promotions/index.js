@@ -8,7 +8,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { DashboardShell } from '../../../../modules/dashboard/components/layout';
 import { PromotionsManagement } from '../../../../modules/commerce';
-import { authApiRequest } from '../../../../lib/apiUtils';
+import { getCurrentUser } from '../../../../lib/users/api';
 import { hasPermission } from '../../../../lib/userUtils';
 
 export default function PromotionsPage() {
@@ -19,13 +19,8 @@ export default function PromotionsPage() {
   useEffect(() => {
     async function loadUser() {
       try {
-        const response = await authApiRequest('users/me', { method: 'GET' });
-        if (response.ok) {
-          const data = await response.json();
-          setUserData(data);
-        } else {
-          router.push('/login');
-        }
+        const data = await getCurrentUser();
+        setUserData(data);
       } catch (err) {
         console.error('Error loading user:', err);
         router.push('/login');

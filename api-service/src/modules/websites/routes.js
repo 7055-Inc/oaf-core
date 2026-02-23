@@ -115,6 +115,87 @@ router.get('/sites/:id/addons', async (req, res) => {
   }
 });
 
+// Contact form submission (PUBLIC - rate-limited)
+const rateLimit = require('express-rate-limit');
+const contactFormLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { success: false, error: { code: 'RATE_LIMIT', message: 'Too many requests, please try again later.' } },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+router.post('/addons/contact/submit', contactFormLimit, async (req, res) => {
+  try {
+    const db = require('../../../config/db');
+    const { siteId, name, email, phone, message } = req.body;
+
+    if (!name || !email || !message || !siteId) {
+      return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Missing required fields: name, email, message, siteId' } });
+    }
+    if (typeof name !== 'string' || name.trim().length === 0 || name.length > 100) {
+      return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Name is required and must be less than 100 characters' } });
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Please provide a valid email address' } });
+    }
+    if (phone && (typeof phone !== 'string' || phone.length > 20)) {
+      return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Phone number must be less than 20 characters' } });
+    }
+    if (typeof message !== 'string' || message.trim().length < 10 || message.length > 2000) {
+      return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Message must be between 10 and 2000 characters' } });
+    }
+
+    const sanitizedName = name.trim();
+    const sanitizedEmail = email.toLowerCase().trim();
+    const sanitizedPhone = phone ? phone.trim() : null;
+    const sanitizedMessage = message.trim();
+
+    const [siteResult] = await db.execute(
+      'SELECT id, user_id, site_name, subdomain, custom_domain FROM sites WHERE id = ? AND status = "active"', [siteId]
+    );
+    if (siteResult.length === 0) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Site not found' } });
+    }
+    const site = siteResult[0];
+
+    const [addonResult] = await db.execute(
+      `SELECT sa.* FROM site_addons sa JOIN website_addons wa ON sa.addon_id = wa.id WHERE sa.site_id = ? AND wa.addon_slug = 'contact-form' AND sa.is_active = 1`, [siteId]
+    );
+    if (addonResult.length === 0) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Contact form not available for this site' } });
+    }
+
+    await db.execute(
+      `INSERT INTO contact_submissions (site_id, sender_name, sender_email, sender_phone, message, ip_address, user_agent, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [parseInt(siteId), sanitizedName, sanitizedEmail, sanitizedPhone, sanitizedMessage, req.ip, req.get('User-Agent') || null]
+    );
+
+    try {
+      const EmailService = require('../../services/emailService');
+      const emailSvc = new EmailService();
+      await emailSvc.sendEmail(site.user_id, 'contact_form_notification', {
+        sender_name: sanitizedName,
+        sender_email: sanitizedEmail,
+        sender_phone: sanitizedPhone || 'Not provided',
+        message: sanitizedMessage,
+        timestamp: new Date().toLocaleString(),
+        site_name: site.site_name || 'Artist Site',
+        site_url: site.custom_domain ? `https://${site.custom_domain}` : `https://${site.subdomain}.${(process.env.FRONTEND_URL || '').replace('https://', '') || 'brakebee.com'}`,
+        siteId: parseInt(siteId)
+      }, { replyTo: sanitizedEmail });
+    } catch (emailError) {
+      console.error('Contact form email notification failed (non-fatal):', emailError);
+    }
+
+    res.json({ success: true, data: { message: 'Your message has been sent successfully' } });
+  } catch (error) {
+    console.error('Contact form submission error:', error);
+    res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: error.message } });
+  }
+});
+
 // ============================================================================
 // SITES (authenticated)
 // ============================================================================

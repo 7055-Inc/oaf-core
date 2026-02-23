@@ -6,14 +6,13 @@
  */
 
 export const verifiedConfig = {
-  displayName: "Verified Artist",
-  subtitle: "Get your verified badge - prove your work is handmade by you",
+  displayName: "",
+  subtitle: "",
   applicationTitle: "Apply for Verification",
   applicationSubtitle: "Submit your application to become a verified artist",
   autoApprove: false,  // Requires manual admin approval
   paymentReason: "Your card will be charged the annual verification fee and used for automatic renewals.",
   
-  // Single tier - annual billing
   tiers: [
     {
       name: "Verified Artist",
@@ -25,12 +24,26 @@ export const verifiedConfig = {
         "Verified artist badge on your profile",
         "Proof your work is handmade by you",
         "Increased buyer trust and credibility",
-        "Manual review of your creative process",
-        "Annual renewal to prevent fraud",
-        "Access to verified-only features"
+        "Manual jury-style review of your creative process",
+        "Lasts a full year",
+        "Access to verified-only features",
+        'Marked as "Verified Handmade" during jurying process with participating events',
+        "Featured placement for marketplace sellers"
+      ],
+      buttonText: "Get Verified"
+    },
+    {
+      name: "Free with Marketplace",
+      description: "Marketplace sellers are automatically verified at no extra cost",
+      price: 0,
+      priceDisplay: "Free",
+      period: "",
+      features: [
+        "Verified artist badge included with your marketplace subscription"
       ],
       popular: true,
-      buttonText: "Get Verified"
+      buttonText: "Join the Marketplace",
+      redirectUrl: "/dashboard/commerce/marketplace"
     }
   ],
   
@@ -111,7 +124,7 @@ export const verifiedConfig = {
     }
   ],
   
-  // API endpoint for application submission (shared with marketplace)
-  applicationEndpoint: 'api/subscriptions/verified/marketplace-applications/submit',
+  subscriptionApiBase: 'api/v2/commerce/subscriptions/verified',
+  applicationEndpoint: '/api/v2/commerce/subscriptions/verified/marketplace-applications/submit',
   applicationMethod: 'POST'
 };

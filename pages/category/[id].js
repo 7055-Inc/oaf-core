@@ -43,7 +43,7 @@ export default function CategoryLandingPage() {
       fetch(getApiUrl(`categories/seo/${id}`)).then(res => res.json()),
       fetch(getApiUrl(`categories`)).then(res => res.json()), // Get all categories to find children
       // Use curated art marketplace API with category filter and images
-      fetch(getApiUrl(`api/curated/art/products/all?category_id=${id}&include=images`)).then(res => res.json())
+      fetch(getApiUrl(`api/v2/catalog/public/products?marketplace_category=art&category_id=${id}`)).then(res => res.json())
     ])
       .then(([catData, contentData, seoData, allCatData, prodData]) => {
         setCategory(catData.category || null);
@@ -54,7 +54,7 @@ export default function CategoryLandingPage() {
         const children = allCatData.flat_categories?.filter(cat => cat.parent_id === parseInt(id)) || [];
         setChildCategories(children);
         
-        setProducts(prodData.products || []);
+        setProducts(prodData.data || []);
         setLoading(false);
         
         // Fetch featured artists if set

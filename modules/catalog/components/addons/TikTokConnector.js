@@ -18,6 +18,7 @@ import {
   saveTikTokCorporateProduct,
   removeTikTokCorporateProduct,
 } from '../../../../lib/catalog';
+import { getSmartMediaUrl } from '../../../../lib/config';
 
 // Helper: Calculate corporate price (wholesale × 2 or retail × 1.2)
 const calculateCorporatePrice = (product) => {
@@ -500,7 +501,7 @@ export default function TikTokConnector({ userData }) {
                     const imgUrl = typeof image === 'string' ? image : image.url;
                     return (
                       <img
-                        src={imgUrl.startsWith('http') ? imgUrl : `/api/media/serve/${imgUrl}`}
+                        src={getSmartMediaUrl(imgUrl)}
                         alt={product.name || product.tiktok_title}
                         style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: '4px' }}
                       />

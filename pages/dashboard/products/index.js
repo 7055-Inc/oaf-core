@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Header from '../../../components/Header';
 import { authApiRequest } from '../../../lib/apiUtils';
+import { getCurrentUser } from '../../../lib/users/api';
 import { getSmartMediaUrl, config, getApiUrl } from '../../../lib/config';
 import styles from '../Dashboard.module.css';
 
@@ -28,14 +29,8 @@ export default function VendorProducts() {
 
   const fetchCurrentUser = async () => {
     try {
-      const response = await authApiRequest('users/me', {
-        method: 'GET'
-      });
-
-      if (response.ok) {
-        const userData = await response.json();
-        setIsAdmin(userData.user_type === 'admin');
-      }
+      const userData = await getCurrentUser();
+      setIsAdmin(userData.user_type === 'admin');
     } catch (err) {
       // Silently handle errors - user just won't see admin features
     }
@@ -44,8 +39,8 @@ export default function VendorProducts() {
   const fetchProducts = async () => {
     try {
       const endpoint = showAllProducts && isAdmin 
-        ? 'products/all?include=inventory,images,vendor'
-        : 'products/my/?include=inventory,images';
+        ? 'api/v2/catalog/products?view=all&include=inventory,images,vendor'
+        : 'api/v2/catalog/products?include=inventory,images';
         
       const response = await authApiRequest(endpoint, {
         method: 'GET'
@@ -125,7 +120,7 @@ export default function VendorProducts() {
   const handleBulkDelete = async () => {
     setDeleting(true);
     try {
-      const response = await authenticatedApiRequest(getApiUrl('products/bulk-delete'), {
+      const response = await authenticatedApiRequest(getApiUrl('api/v2/catalog/products/bulk-delete'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

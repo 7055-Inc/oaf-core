@@ -106,7 +106,7 @@ export default function ShippingHub() {
   const getLabelUrl = (label) => {
     if (!label.label_file_path) return '#';
     const filename = label.label_file_path.split('/').pop();
-    return getApiUrl(`/api/shipping/labels/${encodeURIComponent(filename)}`);
+    return getApiUrl(`/api/v2/commerce/shipping/labels/${encodeURIComponent(filename)}`);
   };
 
   return (

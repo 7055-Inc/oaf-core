@@ -5,6 +5,8 @@
 
 const db = require('../../../../config/db');
 const EmailService = require('../../../services/emailService');
+const { enforceEmailLimit, enforceSingleBlastLimit, recordSingleBlastUsage } = require('../utils/tierEnforcement');
+const { validateTemplateForTier } = require('../../../../../lib/crm/emailTemplates');
 
 class CampaignService {
   /**
@@ -24,19 +26,24 @@ class CampaignService {
       scheduled_send_at
     } = campaignData;
     
+    // Validate template tier
+    const userTier = await this._getUserCRMTier(userId);
+    validateTemplateForTier(userTier, template_key);
+
     const [result] = await db.execute(
       `INSERT INTO drip_campaigns (
         campaign_key, name, description, category,
-        campaign_type, template_key,
+        campaign_type, template_key, subject_line,
         scheduled_send_at, send_status,
         target_list_filter,
         created_by, is_system, is_active
-      ) VALUES (?, ?, ?, 'marketing', 'single_blast', ?, ?, 'draft', ?, ?, 0, 1)`,
+      ) VALUES (?, ?, ?, 'marketing', 'single_blast', ?, ?, ?, 'draft', ?, ?, 0, 1)`,
       [
         `single-blast-${Date.now()}`,
         name,
         description,
         template_key,
+        subject_line || name || '',
         scheduled_send_at || null,
         JSON.stringify(target_list_filter),
         userId
@@ -114,6 +121,16 @@ class CampaignService {
         throw new Error('No recipients match the target list filter');
       }
       
+      // Check tier email limit
+      await enforceEmailLimit(userId, recipients.length);
+      
+      // Check single blast limit (will throw if no credits or limit exceeded)
+      await enforceSingleBlastLimit(userId);
+
+      // Validate template tier
+      const userTier = await this._getUserCRMTier(userId);
+      validateTemplateForTier(userTier, campaign.template_key);
+      
       // Update campaign status
       await connection.execute(
         `UPDATE drip_campaigns
@@ -128,6 +145,7 @@ class CampaignService {
       let sent = 0;
       let errors = 0;
       
+      const subjectLine = campaign.subject_line || campaign.name || '';
       for (const recipient of recipients) {
         try {
           await emailService.sendEmail(
@@ -136,8 +154,10 @@ class CampaignService {
             {
               email: recipient.email,
               first_name: recipient.first_name || '',
-              last_name: recipient.last_name || ''
-            }
+              last_name: recipient.last_name || '',
+              subject_line: subjectLine
+            },
+            { to: recipient.email }
           );
           
           // Record analytics
@@ -150,7 +170,7 @@ class CampaignService {
               campaignId,
               recipient.user_list_id,
               recipient.subscriber_id,
-              campaign.name
+              subjectLine || campaign.name
             ]
           );
           
@@ -170,6 +190,9 @@ class CampaignService {
         WHERE id = ?`,
         [campaignId]
       );
+      
+      // Record single blast usage (consumes credit if needed)
+      await recordSingleBlastUsage(userId, campaignId, recipients.length);
       
       await connection.commit();
       
@@ -272,6 +295,17 @@ class CampaignService {
     );
     
     return campaign[0];
+  }
+
+  async _getUserCRMTier(userId) {
+    const [rows] = await db.execute(
+      `SELECT tier FROM user_subscriptions
+       WHERE user_id = ? AND subscription_type = 'crm' AND status = 'active'
+       LIMIT 1`,
+      [userId]
+    );
+    const sub = rows[0];
+    return sub?.tier || 'free';
   }
 
   /**

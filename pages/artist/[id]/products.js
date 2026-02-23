@@ -30,7 +30,7 @@ export default function ArtistProductsPage() {
         // Fetch artist info and products in parallel
         const [artistRes, productsRes] = await Promise.all([
           fetch(getApiUrl(`users/profile/by-id/${id}`)),
-          fetch(getApiUrl(`products/all?vendor_id=${id}&include=images`))
+          fetch(getApiUrl(`api/v2/catalog/public/products?vendor_id=${id}`))
         ]);
         
         if (artistRes.ok) {
@@ -40,7 +40,7 @@ export default function ArtistProductsPage() {
         
         if (productsRes.ok) {
           const productsData = await productsRes.json();
-          const productsArray = productsData.products || productsData || [];
+          const productsArray = productsData.data || [];
           
           // Filter to only active products, no drafts, no child variants
           const filteredProducts = productsArray.filter(product => 

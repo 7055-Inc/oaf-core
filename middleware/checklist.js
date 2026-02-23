@@ -81,12 +81,14 @@ export async function checklist(req) {
 
     // Check if user is Draft and needs to select user type
     if (roles.includes('Draft')) {
-      return NextResponse.redirect(new URL('/user-type-selection', req.url));
+      const userTypeUrl = new URL('/user-type-selection', req.url);
+      userTypeUrl.searchParams.set('redirect', path);
+      return NextResponse.redirect(userTypeUrl);
     }
 
     // Check if user has accepted current terms
     try {
-    const termsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/terms/check-acceptance?t=${Date.now()}`, {
+    const termsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v2/system/terms/check-acceptance?t=${Date.now()}`, {
       method: 'GET',
       headers: {
           'Authorization': `Bearer ${token}`,
@@ -105,7 +107,8 @@ export async function checklist(req) {
           return NextResponse.next();
         }
 
-      const termsData = await termsResponse.json();
+      const termsJson = await termsResponse.json();
+      const termsData = termsJson.data || termsJson;
       
         // Validate response structure
         if (typeof termsData.requiresAcceptance === 'boolean' && termsData.requiresAcceptance) {

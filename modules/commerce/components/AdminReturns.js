@@ -2,7 +2,7 @@
  * Admin Returns Component
  * Admin interface for managing return requests across the platform
  * 
- * Uses existing /api/returns/admin/* endpoints
+ * Uses v2 /api/v2/commerce/returns/admin/* endpoints
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -31,11 +31,11 @@ export default function AdminReturns() {
       const params = new URLSearchParams();
 
       if (activeTab === 'all') {
-        endpoint = '/api/returns/admin/all';
+        endpoint = '/api/v2/commerce/returns/admin/all';
         if (searchTerm) params.append('search', searchTerm);
         if (vendorFilter) params.append('vendor', vendorFilter);
       } else {
-        endpoint = `/api/returns/admin/by-status/${activeTab}`;
+        endpoint = `/api/v2/commerce/returns/admin/by-status/${activeTab}`;
       }
 
       const queryString = params.toString();
@@ -45,7 +45,8 @@ export default function AdminReturns() {
       
       if (response.ok) {
         const data = await response.json();
-        setReturns(data.returns || []);
+        const payload = data.data || data;
+        setReturns(payload.returns || []);
       } else {
         console.error('Failed to fetch returns');
         setReturns([]);
@@ -67,7 +68,7 @@ export default function AdminReturns() {
     if (!message || !message.trim()) return;
 
     try {
-      const response = await authenticatedApiRequest(getApiUrl(`/api/returns/${returnId}/admin-message`), {
+      const response = await authenticatedApiRequest(getApiUrl(`/api/v2/commerce/returns/${returnId}/admin-message`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: message.trim() })
@@ -272,7 +273,7 @@ export default function AdminReturns() {
 
                 {returnItem.shipping_label_id && (
                   <a 
-                    href={`/api/returns/${returnItem.id}/label`}
+                    href={`/api/v2/commerce/returns/${returnItem.id}/label`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn btn-secondary btn-sm"

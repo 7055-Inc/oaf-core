@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { authApiRequest } from '../../../lib/apiUtils';
 import { DashboardShell } from '../../../modules/dashboard/components/layout';
+import { getCurrentUser } from '../../../lib/users/api';
+import { isAdmin as checkIsAdmin } from '../../../lib/userUtils';
 
 /**
  * Leo AI - Manual Sync Page
@@ -26,21 +28,8 @@ export default function LeoSyncPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch user data
-        const userResponse = await authApiRequest('api/v2/auth/me');
-        if (userResponse.ok) {
-          const result = await userResponse.json();
-          if (result.success && result.data) {
-            const isAdmin = result.data.roles?.includes('admin') || false;
-            setUserData({ ...result.data, isAdmin });
-          } else {
-            setError('Failed to load user data');
-            return;
-          }
-        } else {
-          setError('Failed to load user data');
-          return;
-        }
+        const data = await getCurrentUser();
+        setUserData(data);
 
         // Fetch available ingestion scripts
         const scriptsResponse = await authApiRequest('api/v2/leo/admin/ingest/status');
@@ -268,7 +257,7 @@ export default function LeoSyncPage() {
     );
   }
 
-  if (!userData?.isAdmin) {
+  if (!checkIsAdmin(userData)) {
     return (
       <DashboardShell>
         <div className="error-alert">

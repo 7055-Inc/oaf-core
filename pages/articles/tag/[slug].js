@@ -19,8 +19,8 @@ export default function TagArchivePage() {
     setLoading(true);
     
     Promise.all([
-      fetch(getApiUrl(`api/articles/tags/${slug}`)).then(res => res.json()),
-      fetch(`api/articles?tag=${slug}&limit=${pagination.limit}&page=${pagination.page}`).then(res => res.json())
+      fetch(getApiUrl(`api/v2/content/articles/tags/${slug}`)).then(res => res.json()).then(e => e.data || e),
+      fetch(getApiUrl(`api/v2/content/articles?tag=${slug}&limit=${pagination.limit}&page=${pagination.page}`)).then(res => res.json()).then(e => e.data || e)
     ])
       .then(([tagData, articlesData]) => {
         setTag(tagData.tag || { name: slug, slug });

@@ -13,19 +13,26 @@ const { verifyToken } = require('../../auth/middleware');
  */
 const requireAuth = verifyToken;
 
+// Helper: check if user is admin (works with both role string and roles array)
+function _isAdmin(req) {
+  if (req.user?.role === 'admin' || req.user?.role === 'super_admin') return true;
+  if (Array.isArray(req.roles) && (req.roles.includes('admin') || req.roles.includes('super_admin'))) return true;
+  return false;
+}
+
 /**
  * Verify user is admin
  */
 const requireAdmin = async (req, res, next) => {
   try {
-    if (!req.user) {
+    if (!req.user && !req.userId) {
       return res.status(401).json({ 
         success: false, 
         error: 'Authentication required' 
       });
     }
 
-    if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    if (!_isAdmin(req)) {
       return res.status(403).json({ 
         success: false, 
         error: 'Admin access required' 
@@ -48,7 +55,7 @@ const requireAdmin = async (req, res, next) => {
  */
 const canAccessCampaign = async (req, res, next) => {
   try {
-    if (!req.user) {
+    if (!req.user && !req.userId) {
       return res.status(401).json({ 
         success: false, 
         error: 'Authentication required' 
@@ -56,7 +63,7 @@ const canAccessCampaign = async (req, res, next) => {
     }
 
     // Admin can access everything
-    if (req.user.role === 'admin' || req.user.role === 'super_admin') {
+    if (_isAdmin(req)) {
       req.isAdmin = true;
       return next();
     }
@@ -79,7 +86,7 @@ const canAccessCampaign = async (req, res, next) => {
  */
 const canModifyContent = async (req, res, next) => {
   try {
-    if (!req.user) {
+    if (!req.user && !req.userId) {
       return res.status(401).json({ 
         success: false, 
         error: 'Authentication required' 
@@ -87,7 +94,7 @@ const canModifyContent = async (req, res, next) => {
     }
 
     // Admin can modify everything
-    if (req.user.role === 'admin' || req.user.role === 'super_admin') {
+    if (_isAdmin(req)) {
       req.canModify = true;
       return next();
     }

@@ -7,7 +7,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { getVectorDB, SearchService, getUserIngestion, getBehaviorIngestion, getProductIngestion, getOrderIngestion, getEventIngestion, getReviewIngestion, getArticleIngestion, getTruthOrchestrator, getTruthStore, getBrain } = require('./services');
+const { getVectorDB, SearchService, getUserIngestion, getBehaviorIngestion, getProductIngestion, getOrderIngestion, getEventIngestion, getReviewIngestion, getArticleIngestion, getImageIngestion, getTruthOrchestrator, getTruthStore, getBrain } = require('./services');
 const { verifyToken, requireAdmin } = require('../auth/middleware');
 const { getUserPreferences, getCacheStats } = require('./services/utils/userPreferences');
 
@@ -726,6 +726,49 @@ router.post('/admin/ingest/articles', verifyToken, requireAdmin, async (req, res
 });
 
 /**
+ * POST /api/v2/leo/admin/ingest/images
+ * Manually trigger image analysis ingestion (admin only)
+ * 
+ * Fetches AI analysis from Media VM and enriches existing product/user
+ * records in ChromaDB with visual metadata (colors, style, mood, etc.)
+ * 
+ * Body: { full?: boolean } - if true, re-process all images; otherwise incremental
+ */
+router.post('/admin/ingest/images', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { full = false } = req.body;
+    
+    const lastRun = full 
+      ? '1970-01-01 00:00:00'
+      : new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' ');
+
+    const jobId = `images_${Date.now()}`;
+    
+    const job = runIngestionAsync(jobId, 'images', async () => {
+      const ingestion = getImageIngestion();
+      await ingestion.initialize();
+      return await ingestion.run(lastRun);
+    });
+
+    res.json({
+      success: true,
+      message: `Image analysis ingestion started (${full ? 'full' : 'incremental'})`,
+      jobId: job.id,
+      status: 'running',
+      pollUrl: `/api/v2/leo/admin/ingest/job/${job.id}`
+    });
+
+  } catch (error) {
+    console.error('[LEO] Image analysis ingestion error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Image analysis ingestion failed to start',
+      message: error.message
+    });
+  }
+});
+
+/**
  * GET /api/v2/leo/admin/ingest/status
  * Get available ingestion scripts and their status
  */
@@ -787,6 +830,14 @@ router.get('/admin/ingest/status', verifyToken, requireAdmin, async (req, res) =
         endpoint: '/api/v2/leo/admin/ingest/articles',
         collection: 'site_content',
         description: 'Ingests articles, blog posts, help articles, and pages with tags and topics',
+        status: 'ready'
+      },
+      {
+        id: 'images',
+        name: 'Image Analysis',
+        endpoint: '/api/v2/leo/admin/ingest/images',
+        collection: 'art_metadata',
+        description: 'Fetches AI analysis from Media VM and enriches product/user records with visual metadata',
         status: 'ready'
       }
     ];

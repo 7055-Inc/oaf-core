@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { authenticatedApiRequest } from '../../../../lib/auth';
-import { authApiRequest, API_ENDPOINTS } from '../../../../lib/apiUtils';
+import { authApiRequest } from '../../../../lib/apiUtils';
 import WidgetRenderer from './WidgetRenderer';
 import styles from './WidgetGrid.module.css';
 
@@ -22,10 +22,11 @@ export default function WidgetGrid() {
 
   const loadDashboard = async () => {
     try {
-      const response = await authApiRequest('api/dashboard-widgets/layout');
+      const response = await authApiRequest('api/v2/system/dashboard-widgets/layout');
       if (response.ok) {
-        const data = await response.json();
-        rebuildGridFromLayout([...data.userLayout, ...data.adminLayout]);
+        const json = await response.json();
+        const data = json.data || json;
+        rebuildGridFromLayout([...(data.userLayout || []), ...(data.adminLayout || [])]);
       }
     } catch (err) {
     } finally {
@@ -70,7 +71,7 @@ export default function WidgetGrid() {
         }
       }
 
-      const response = await authApiRequest(API_ENDPOINTS.DASHBOARD_WIDGETS_LAYOUT, {
+      const response = await authApiRequest('api/v2/system/dashboard-widgets/layout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ layout })

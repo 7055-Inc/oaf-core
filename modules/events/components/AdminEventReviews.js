@@ -41,11 +41,12 @@ export default function AdminEventReviews() {
   const loadPendingReviews = async () => {
     try {
       const token = getAuthToken();
-      const response = await authApiRequest('/api/reviews/admin/pending', {
+      const response = await authApiRequest('/api/v2/content/reviews/admin/pending', {
         method: 'GET',
         token
       });
-      const data = await response.json();
+      const envelope = await response.json();
+      const data = envelope.data || envelope;
       setPendingReviews(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error loading pending reviews:', error);
@@ -77,7 +78,7 @@ export default function AdminEventReviews() {
 
     try {
       const token = getAuthToken();
-      const response = await authApiRequest('/api/reviews/admin/pending', {
+      const response = await authApiRequest('/api/v2/content/reviews/admin/pending', {
         method: 'POST',
         token,
         body: JSON.stringify({

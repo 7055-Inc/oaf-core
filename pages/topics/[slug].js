@@ -29,8 +29,9 @@ export default function TopicPage() {
   const fetchTopic = async () => {
     try {
       setLoading(true);
-      const response = await fetch(getApiUrl(`api/articles/topics/${slug}`));
-      const data = await response.json();
+      const response = await fetch(getApiUrl(`api/v2/content/articles/topics/${slug}`));
+      const envelope = await response.json();
+      const data = envelope.data || envelope;
       
       if (data.topic) {
         setTopic(data.topic);
@@ -47,12 +48,13 @@ export default function TopicPage() {
 
   const fetchArticles = async () => {
     try {
-      const response = await fetch(`api/articles/topics/${topic.id}/articles?page=${pagination.page}&limit=${pagination.limit}&status=published`);
-      const data = await response.json();
+      const response = await fetch(getApiUrl(`api/v2/content/articles/topics/${topic.id}/articles?page=${pagination.page}&limit=${pagination.limit}&status=published`));
+      const envelope = await response.json();
+      const data = envelope.data || envelope;
       
       if (data.articles) {
         setArticles(data.articles);
-        setPagination(prev => ({ ...prev, total: data.total || 0 }));
+        setPagination(prev => ({ ...prev, total: data.pagination?.total || 0 }));
       } else {
         setArticles([]);
       }

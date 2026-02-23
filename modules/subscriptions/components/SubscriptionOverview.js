@@ -137,19 +137,19 @@ export default function SubscriptionOverview({ userData }) {
       return;
     }
 
-    // Navigate to appropriate signup page for subscriptions
+    // Navigate to appropriate dashboard page (each uses ChecklistController for tier/signup flow)
     switch (item.id) {
       case 'marketplace':
-        window.location.href = '/makers';
+        window.location.href = '/dashboard/commerce/marketplace';
         break;
       case 'shipping':
-        window.location.href = '/dashboard/commerce/shipping';
+        window.location.href = '/dashboard/commerce/shipping-labels';
         break;
       case 'website':
-        window.location.href = '/custom-sites/signup';
+        window.location.href = '/dashboard/websites/subscription';
         break;
       case 'verification':
-        window.location.href = '/makers'; // Verification is part of makers flow
+        window.location.href = '/dashboard/users/verified';
         break;
       default:
         break;
@@ -180,7 +180,7 @@ export default function SubscriptionOverview({ userData }) {
       let endpoint;
       switch (item.id) {
         case 'shipping':
-          endpoint = 'api/subscriptions/shipping/cancel';
+          endpoint = 'api/v2/commerce/subscriptions/shipping/cancel';
           break;
         case 'website':
           endpoint = 'api/v2/websites/subscription/cancel';

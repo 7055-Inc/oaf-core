@@ -150,10 +150,10 @@ export default function AccordionSection({
         {children}
         
         {/* Next/Continue button */}
-        {showNext && !isLast && (
+        {showNext && (
           <div className="form-submit-section" style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #eee', paddingTop: '20px' }}>
             <button type="button" onClick={handleNext}>
-              {nextLabel} <i className="fas fa-arrow-right"></i>
+              {isLast ? nextLabel : <>{nextLabel} <i className="fas fa-arrow-right"></i></>}
             </button>
           </div>
         )}

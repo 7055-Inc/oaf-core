@@ -20,6 +20,7 @@ const { isAdmin } = require('../auth/services/permissions');
 
 // Import multer for file uploads
 const upload = require('../../config/multer');
+const db = require('../../../config/db');
 
 // =============================================================================
 // PRODUCTS - LIST & READ
@@ -1239,6 +1240,210 @@ router.post('/categories/upload', requireAuth, upload.array('images'), async (re
 });
 
 // =============================================================================
+// VARIATIONS
+// =============================================================================
+
+router.get('/products/variations/types', requireAuth, async (req, res) => {
+  try {
+    const [types] = await db.query(`
+      SELECT vt.id, vt.variation_name, vt.created_at,
+             COUNT(DISTINCT p.parent_id) as usage_count
+      FROM user_variation_types vt
+      LEFT JOIN product_variations pv ON vt.id = pv.variation_type_id
+      LEFT JOIN products p ON pv.product_id = p.id AND p.product_type = 'variant' AND p.status != 'deleted'
+      WHERE vt.user_id = ? AND vt.user_id IS NOT NULL
+      GROUP BY vt.id, vt.variation_name, vt.created_at
+      ORDER BY vt.variation_name
+    `, [req.userId]);
+    res.json({ success: true, data: types });
+  } catch (error) {
+    console.error('Error fetching variation types:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message, status: 500 } });
+  }
+});
+
+router.post('/products/variations/types', requireAuth, async (req, res) => {
+  try {
+    const { variation_name } = req.body;
+    if (!variation_name || !variation_name.trim()) {
+      return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Variation name is required', status: 400 } });
+    }
+    const trimmedName = variation_name.trim();
+    const [existing] = await db.query(
+      'SELECT id FROM user_variation_types WHERE user_id = ? AND variation_name = ?',
+      [req.userId, trimmedName]
+    );
+    if (existing.length > 0) {
+      return res.status(409).json({ success: false, error: { code: 'CONFLICT', message: 'Variation type already exists', status: 409 } });
+    }
+    const [result] = await db.query(
+      'INSERT INTO user_variation_types (user_id, variation_name) VALUES (?, ?)',
+      [req.userId, trimmedName]
+    );
+    const [newType] = await db.query('SELECT id, variation_name, created_at FROM user_variation_types WHERE id = ?', [result.insertId]);
+    res.status(201).json({ success: true, data: newType[0] });
+  } catch (error) {
+    console.error('Error creating variation type:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message, status: 500 } });
+  }
+});
+
+router.get('/products/variations/types/:id/values', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { product_id } = req.query;
+    const [typeCheck] = await db.query(
+      'SELECT id FROM user_variation_types WHERE id = ? AND user_id = ? AND user_id IS NOT NULL',
+      [id, req.userId]
+    );
+    if (typeCheck.length === 0) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Variation type not found', status: 404 } });
+    }
+    let query = 'SELECT id, value_name, product_id, created_at FROM user_variation_values WHERE variation_type_id = ? AND user_id = ? AND user_id IS NOT NULL';
+    let params = [id, req.userId];
+    if (product_id) {
+      query += ' AND product_id = ?';
+      params.push(product_id);
+    }
+    query += ' ORDER BY value_name';
+    const [values] = await db.query(query, params);
+    res.json({ success: true, data: values });
+  } catch (error) {
+    console.error('Error fetching variation values:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message, status: 500 } });
+  }
+});
+
+router.post('/products/variations/values', requireAuth, async (req, res) => {
+  try {
+    const { variation_type_id, value_name, product_id } = req.body;
+    if (!variation_type_id || !value_name || !value_name.trim()) {
+      return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Variation type ID and value name are required', status: 400 } });
+    }
+    if (!product_id) {
+      return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Product ID is required', status: 400 } });
+    }
+    const trimmedValue = value_name.trim();
+    const [typeCheck] = await db.query('SELECT id FROM user_variation_types WHERE id = ? AND user_id = ?', [variation_type_id, req.userId]);
+    if (typeCheck.length === 0) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Variation type not found', status: 404 } });
+    }
+    const [productCheck] = await db.query('SELECT id FROM products WHERE id = ? AND vendor_id = ?', [product_id, req.userId]);
+    if (productCheck.length === 0) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Product not found or access denied', status: 404 } });
+    }
+    const [existing] = await db.query(
+      'SELECT id FROM user_variation_values WHERE product_id = ? AND variation_type_id = ? AND value_name = ?',
+      [product_id, variation_type_id, trimmedValue]
+    );
+    if (existing.length > 0) {
+      return res.status(409).json({ success: false, error: { code: 'CONFLICT', message: 'Variation value already exists for this product', status: 409 } });
+    }
+    const [result] = await db.query(
+      'INSERT INTO user_variation_values (variation_type_id, value_name, user_id, product_id) VALUES (?, ?, ?, ?)',
+      [variation_type_id, trimmedValue, req.userId, product_id]
+    );
+    const [newValue] = await db.query(
+      'SELECT id, variation_type_id, value_name, product_id, created_at FROM user_variation_values WHERE id = ?',
+      [result.insertId]
+    );
+    res.status(201).json({ success: true, data: newValue[0] });
+  } catch (error) {
+    console.error('Error creating variation value:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message, status: 500 } });
+  }
+});
+
+router.delete('/products/variations/types/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [typeCheck] = await db.query('SELECT id FROM user_variation_types WHERE id = ? AND user_id = ?', [id, req.userId]);
+    if (typeCheck.length === 0) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Variation type not found', status: 404 } });
+    }
+    await db.query('DELETE FROM user_variation_values WHERE variation_type_id = ?', [id]);
+    await db.query('DELETE FROM user_variation_types WHERE id = ?', [id]);
+    res.json({ success: true, data: { message: 'Variation type deleted successfully' } });
+  } catch (error) {
+    console.error('Error deleting variation type:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message, status: 500 } });
+  }
+});
+
+router.post('/products/variations', requireAuth, async (req, res) => {
+  try {
+    const { product_id, variation_type_id, variation_value_id } = req.body;
+    if (!product_id || !variation_type_id || !variation_value_id) {
+      return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Product ID, variation type ID, and variation value ID are required', status: 400 } });
+    }
+    const [productCheck] = await db.query('SELECT * FROM products WHERE id = ?', [product_id]);
+    if (productCheck.length === 0) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Product not found', status: 404 } });
+    }
+    const userIsAdmin = isAdmin(req.roles || []);
+    const isOwner = productCheck[0].vendor_id === req.userId;
+    if (!userIsAdmin && !isOwner) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Not authorized to edit this product', status: 403 } });
+    }
+    const [typeCheck] = await db.query('SELECT id FROM user_variation_types WHERE id = ? AND user_id = ?', [variation_type_id, req.userId]);
+    if (typeCheck.length === 0) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Variation type not found', status: 404 } });
+    }
+    const [valueCheck] = await db.query('SELECT id FROM user_variation_values WHERE id = ? AND variation_type_id = ?', [variation_value_id, variation_type_id]);
+    if (valueCheck.length === 0) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Variation value not found', status: 404 } });
+    }
+    const [result] = await db.query(
+      'INSERT INTO product_variations (product_id, variation_type_id, variation_value_id) VALUES (?, ?, ?)',
+      [product_id, variation_type_id, variation_value_id]
+    );
+    res.status(201).json({ success: true, data: { id: result.insertId, product_id: parseInt(product_id), variation_type_id: parseInt(variation_type_id), variation_value_id: parseInt(variation_value_id) } });
+  } catch (error) {
+    console.error('Error creating product variation:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message, status: 500 } });
+  }
+});
+
+router.post('/products/upload', requireAuth, upload.array('images'), async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'No files uploaded', status: 400 } });
+    }
+    const { product_id } = req.query;
+    if (product_id && product_id !== 'new') {
+      const [product] = await db.query('SELECT * FROM products WHERE id = ?', [product_id]);
+      if (!product.length) {
+        return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Product not found', status: 404 } });
+      }
+      const userIsAdmin = isAdmin(req.roles || []);
+      const isOwner = product[0].vendor_id === req.userId;
+      if (!userIsAdmin && !isOwner) {
+        return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Not authorized', status: 403 } });
+      }
+    }
+    const urls = [];
+    for (const file of req.files) {
+      const imagePath = `/temp_images/products/${file.filename}`;
+      await db.query(
+        'INSERT INTO pending_images (user_id, image_path, original_name, mime_type, status) VALUES (?, ?, ?, ?, ?)',
+        [req.userId, imagePath, file.originalname, file.mimetype, 'pending']
+      );
+      if (product_id && product_id !== 'new') {
+        await db.query(
+          'INSERT INTO product_images (product_id, image_url, `order`) VALUES (?, ?, ?)',
+          [product_id, imagePath, 0]
+        );
+      }
+      urls.push(imagePath);
+    }
+    res.json({ success: true, data: { urls } });
+  } catch (error) {
+    console.error('Error uploading product images:', error);
+    res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: error.message, status: 500 } });
+  }
+});
+
+// =============================================================================
 // PUBLIC ENDPOINTS (no auth required)
 // =============================================================================
 
@@ -1251,6 +1456,7 @@ router.get('/public/products', async (req, res) => {
     const {
       vendor_id,
       category_id,
+      marketplace_category,
       search,
       page = 1,
       limit = 20,
@@ -1261,6 +1467,8 @@ router.get('/public/products', async (req, res) => {
     const result = await productService.list({
       vendorId: vendor_id || null,
       categoryId: category_id || null,
+      marketplaceEnabled: true,
+      marketplaceCategory: marketplace_category || null,
       status: 'active',
       search: search || null,
       parentId: null,
@@ -1297,7 +1505,7 @@ router.get('/public/products', async (req, res) => {
 router.get('/public/products/:id', async (req, res) => {
   try {
     const productId = parseInt(req.params.id);
-    const product = await productService.findById(productId);
+    let product = await productService.findById(productId);
 
     if (!product || product.status !== 'active') {
       return res.status(404).json({
@@ -1306,13 +1514,60 @@ router.get('/public/products/:id', async (req, res) => {
       });
     }
 
-    // Add related data
-    product.images = await productService.getImages(product.id);
-    product.inventory = await productService.getInventory(product.id);
-    product.children = await productService.getChildren(product.id);
-    product.vendor = await productService.getVendorInfo(product.vendor_id);
+    let parentProduct = product;
+    let childProducts = [];
 
-    res.json({ success: true, data: product });
+    if (product.parent_id !== null) {
+      const parent = await productService.findById(product.parent_id);
+      if (parent && parent.status === 'active') {
+        parentProduct = parent;
+      }
+    }
+
+    if (parentProduct.product_type === 'variable') {
+      childProducts = await productService.getChildren(parentProduct.id);
+    }
+
+    parentProduct.images = await productService.getImages(parentProduct.id);
+    parentProduct.inventory = await productService.getInventory(parentProduct.id);
+    parentProduct.shipping = await productService.getShipping(parentProduct.id);
+    parentProduct.vendor = await productService.getVendorInfo(parentProduct.vendor_id);
+
+    for (const child of childProducts) {
+      child.images = await productService.getImages(child.id);
+      child.inventory = await productService.getInventory(child.id);
+    }
+
+    let variationTypes = [];
+    let variationOptions = {};
+    if (parentProduct.product_type === 'variable' && childProducts.length > 0) {
+      const childIds = childProducts.map(c => c.id);
+      const varData = await productService.getVariationData(childIds);
+      variationTypes = varData.types;
+      variationOptions = varData.options;
+
+      childProducts.forEach(child => {
+        const childVars = varData.variationsByProduct.filter(v => v.product_id === child.id);
+        const byType = {};
+        childVars.forEach(v => {
+          if (!byType[v.type_name]) byType[v.type_name] = [];
+          byType[v.type_name].push({ value_id: v.variation_value_id, value_name: v.value_name });
+        });
+        child.variations = byType;
+      });
+    }
+
+    const responseData = {
+      ...parentProduct,
+      children: childProducts,
+      variation_types: variationTypes,
+      variation_options: variationOptions,
+      family_size: childProducts.length,
+      requested_product_id: productId,
+      is_requested_product_parent: product.parent_id === null
+    };
+
+    res.json({ success: true, data: responseData });
   } catch (error) {
     console.error('Error getting public product:', error);
     res.status(500).json({
@@ -1776,5 +2031,11 @@ router.get('/import/status/:jobId', requireAuth, async (req, res) => {
     });
   }
 });
+
+// Walmart connector sub-routes
+router.use('/walmart', require('./routesWalmart'));
+
+// TikTok connector sub-routes
+router.use('/tiktok', require('./routesTiktok'));
 
 module.exports = router;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { authApiRequest, API_ENDPOINTS } from '../../../../../lib/apiUtils';
+import { authApiRequest } from '../../../../../lib/apiUtils';
 import styles from './shortcuts/shortcuts.module.css';
 
 export default function ShortcutsWidget({ config, onConfigChange }) {
@@ -15,12 +15,12 @@ export default function ShortcutsWidget({ config, onConfigChange }) {
   const loadShortcutsData = useCallback(async () => {
     try {
       const response = await authApiRequest(
-        `${API_ENDPOINTS.DASHBOARD_WIDGETS_DATA}/my_shortcuts`
+        'api/v2/system/dashboard-widgets/widget-data/my_shortcuts'
       );
 
       if (response.ok) {
         const result = await response.json();
-        const shortcutsData = result.data.shortcuts || [];
+        const shortcutsData = result.data?.shortcuts || [];
         setShortcuts(shortcutsData);
         
         // Tell the grid to span 6 cells for shortcuts widget
@@ -64,7 +64,7 @@ export default function ShortcutsWidget({ config, onConfigChange }) {
     setError(null);
 
     try {
-      const response = await authApiRequest(API_ENDPOINTS.DASHBOARD_WIDGETS_SHORTCUT_REMOVE, {
+      const response = await authApiRequest('api/v2/system/dashboard-widgets/shortcuts/remove', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ shortcutId })
@@ -72,7 +72,7 @@ export default function ShortcutsWidget({ config, onConfigChange }) {
 
       if (response.ok) {
         const result = await response.json();
-        setShortcuts(result.shortcuts);
+        setShortcuts(result.data?.shortcuts || result.shortcuts || []);
         
         // Update parent widget config
         if (onConfigChangeRef.current) {

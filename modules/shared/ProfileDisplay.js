@@ -5,6 +5,7 @@ import styles from '../../pages/profile/Profile.module.css';
 import { getSmartMediaUrl, getApiUrl } from '../../lib/config';
 import ContactArtistModal from '../../components/shared/ContactArtistModal';
 import ArtistProductCarousel from './ArtistProductCarousel';
+import { fetchArtistEventApplications } from '../../lib/events/api';
 
 export default function ProfileDisplay({ 
   userProfile, 
@@ -28,10 +29,10 @@ export default function ProfileDisplay({
     
     const fetchProducts = async () => {
       try {
-        const response = await fetch(getApiUrl(`products/all?vendor_id=${userProfile.id}&include=images,inventory`));
+        const response = await fetch(getApiUrl(`api/v2/catalog/public/products?vendor_id=${userProfile.id}`));
         if (response.ok) {
           const data = await response.json();
-          setProducts(data.products || data);
+          setProducts(data.data || []);
         }
       } catch (error) {
         console.error('Error fetching products:', error);

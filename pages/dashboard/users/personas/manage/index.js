@@ -9,6 +9,10 @@ import { getCurrentUser } from '../../../../../lib/users';
  * All Personas Management Page
  * Admin-only page for viewing/managing all personas system-wide
  */
+export async function getServerSideProps() {
+  return { props: {} };
+}
+
 export default function PersonaManagementPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);

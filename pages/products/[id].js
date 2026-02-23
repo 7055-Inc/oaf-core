@@ -8,6 +8,7 @@ import WholesalePricing from '../../components/WholesalePricing';
 import ProductReviews from '../../components/ProductReviews';
 import { getAuthToken } from '../../lib/csrf';
 import { apiRequest, authApiRequest } from '../../lib/apiUtils';
+import { getCurrentUser } from '../../lib/users/api';
 import { isWholesaleCustomer } from '../../lib/userUtils';
 import styles from './styles/ProductView.module.css';
 
@@ -119,31 +120,16 @@ export default function ProductView({ initialProduct, initialError, initialRevie
           return;
         }
         
-        // Use the new curated art marketplace API - includes all data in single call
-        const res = await apiRequest(`api/curated/art/products/${id}?include=images,shipping,vendor,inventory,categories`, {
+        const res = await apiRequest(`api/v2/catalog/public/products/${id}`, {
           method: 'GET'
         });
         
         if (!res.ok) {
-          // If curated endpoint fails, try the regular products endpoint as fallback
-          console.log(`Curated endpoint failed with ${res.status}, trying regular products endpoint...`);
-          
-          const fallbackRes = await apiRequest(`products/${id}?include=images,shipping,vendor,inventory,categories`, {
-            method: 'GET'
-          });
-          
-          if (!fallbackRes.ok) {
-            throw new Error(`Product not found. Curated API: ${res.status}, Regular API: ${fallbackRes.status}`);
-          }
-          
-          const fallbackData = await fallbackRes.json();
-          const processedFallbackData = processProductImages(fallbackData);
-          setProduct(processedFallbackData);
-          console.log('Successfully loaded product from regular endpoint:', processedFallbackData);
-          return;
+          throw new Error(`Product not found (status ${res.status})`);
         }
         
-        const data = await res.json();
+        const envelope = await res.json();
+        const data = envelope.data || envelope;
 
         // Process image URLs to ensure they use smart media proxy
         const processedData = processProductImages(data);
@@ -218,14 +204,8 @@ export default function ProductView({ initialProduct, initialError, initialRevie
           return;
         }
         
-        const response = await authApiRequest('users/me', {
-          method: 'GET'
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setCurrentUserId(data.id);
-        }
+        const data = await getCurrentUser();
+        setCurrentUserId(data.id);
       } catch (err) {
         // Silently handle auth errors - user just won't see edit button
       }
@@ -254,19 +234,17 @@ export default function ProductView({ initialProduct, initialError, initialRevie
       // First, get or create a cart for the user
       let cartId;
       
-      // Try to get existing cart
-      const cartRes = await authApiRequest('cart');
+      const cartRes = await authApiRequest('/api/v2/commerce/cart');
 
       if (cartRes.ok) {
-        const carts = await cartRes.json();
-        // Find an active cart or create one
+        const cartResult = await cartRes.json();
+        const carts = cartResult.data || (Array.isArray(cartResult) ? cartResult : []);
         const activeCart = carts.find(cart => cart.status === 'draft');
         
         if (activeCart) {
           cartId = activeCart.id;
         } else {
-          // Create a new cart
-          const createCartRes = await authApiRequest('cart', {
+          const createCartRes = await authApiRequest('/api/v2/commerce/cart', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -278,15 +256,15 @@ export default function ProductView({ initialProduct, initialError, initialRevie
 
           if (!createCartRes.ok) throw new Error('Failed to create cart');
           
-          const cartData = await createCartRes.json();
+          const createResult = await createCartRes.json();
+          const cartData = createResult.data || createResult;
           cartId = cartData.cart.id;
         }
       } else {
         throw new Error('Failed to get cart information');
       }
 
-      // Now add the item to the cart
-      const addItemRes = await authApiRequest(`cart/${cartId}/items`, {
+      const addItemRes = await authApiRequest(`/api/v2/commerce/cart/${cartId}/items`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -1058,21 +1036,21 @@ export async function getServerSideProps(context) {
     // Fetch product and reviews in parallel
     const [productResponse, reviewsResponse, reviewSummaryResponse] = await Promise.all([
       fetch(
-        `${apiUrl}/api/curated/art/products/${id}?include=images,shipping,vendor,inventory,categories`,
+        `${apiUrl}/api/v2/catalog/public/products/${id}`,
         {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         }
       ),
       fetch(
-        `${apiUrl}/api/reviews?type=product&id=${id}&sort=recent&limit=10`,
+        `${apiUrl}/api/v2/content/reviews?type=product&id=${id}&sort=recent&limit=10`,
         {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         }
       ).catch(() => null),
       fetch(
-        `${apiUrl}/api/reviews/summary?type=product&id=${id}`,
+        `${apiUrl}/api/v2/content/reviews/summary?type=product&id=${id}`,
         {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
@@ -1086,38 +1064,25 @@ export async function getServerSideProps(context) {
     
     if (reviewsResponse?.ok) {
       try {
-        const reviewsData = await reviewsResponse.json();
+        const reviewsEnvelope = await reviewsResponse.json();
+        const reviewsData = reviewsEnvelope.data || reviewsEnvelope;
         initialReviews = Array.isArray(reviewsData) ? reviewsData : [];
       } catch (e) { /* ignore */ }
     }
     
     if (reviewSummaryResponse?.ok) {
       try {
-        initialReviewSummary = await reviewSummaryResponse.json();
+        const summaryEnvelope = await reviewSummaryResponse.json();
+        initialReviewSummary = summaryEnvelope.data || summaryEnvelope;
       } catch (e) { /* ignore */ }
     }
 
     if (!productResponse.ok) {
-      // Try crafts endpoint as fallback
-      const craftsResponse = await fetch(
-        `${apiUrl}/api/curated/crafts/products/${id}?include=images,shipping,vendor,inventory,categories`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-      
-      if (!craftsResponse.ok) {
-        return { props: { initialProduct: null, initialError: 'Product not found', initialReviews: [], initialReviewSummary: null } };
-      }
-      
-      const craftsData = await craftsResponse.json();
-      return { props: { initialProduct: craftsData, initialError: null, initialReviews, initialReviewSummary } };
+      return { props: { initialProduct: null, initialError: 'Product not found', initialReviews: [], initialReviewSummary: null } };
     }
 
-    const data = await productResponse.json();
+    const envelope = await productResponse.json();
+    const data = envelope.data || envelope;
     return { props: { initialProduct: data, initialError: null, initialReviews, initialReviewSummary } };
   } catch (error) {
     console.error('SSR fetch error:', error);

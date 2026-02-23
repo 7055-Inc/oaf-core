@@ -5,6 +5,7 @@
  */
 
 import { useProfileForm } from '../ProfileFormContext';
+import { getSmartMediaUrl } from '../../../../../lib/config';
 
 export function getPromoterSummary(formData) {
   const parts = [];
@@ -118,7 +119,17 @@ export default function PromoterProfileSection() {
           className="form-input-file"
         />
         {formData.logo_path && !imageFiles.logo_image && (
-          <img src={formData.logo_path} alt="Logo" className="form-image-preview-small" />
+          <div
+            className="form-image-preview-wrap"
+            style={{ width: 120, height: 120, overflow: 'hidden', flexShrink: 0 }}
+          >
+            <img
+              src={getSmartMediaUrl(formData.logo_path, 'thumbnail')}
+              alt="Logo"
+              className="form-image-preview-small"
+              style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block' }}
+            />
+          </div>
         )}
       </div>
       

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Head from 'next/head';
 import { getApiUrl } from '../../lib/config';
+import { getCurrentUser } from '../../lib/users/api';
 
 export default function ProfileSetup() {
   const [user, setUser] = useState(null);
@@ -48,17 +49,7 @@ export default function ProfileSetup() {
 
     const fetchUser = async () => {
       try {
-        const res = await fetch(getApiUrl('users/me'), {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        if (!res.ok) {
-          throw new Error('Failed to fetch user profile');
-        }
-        const data = await res.json();
+        const data = await getCurrentUser();
         setUser(data);
         setFormData({
           first_name: data.first_name || '',
@@ -159,7 +150,7 @@ export default function ProfileSetup() {
         body.upcoming_events = formData.upcoming_events ? JSON.parse(formData.upcoming_events) : [];
         body.is_non_profit = formData.is_non_profit;
       }
-      const res = await fetch(getApiUrl('users/me'), {
+      const res = await fetch(getApiUrl('/api/v2/users/me'), {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useProductForm } from '../ProductFormContext';
 import { uploadProductImage } from '../../../../../lib/catalog';
-import { config } from '../../../../../lib/config';
+import { config, getSmartMediaUrl } from '../../../../../lib/config';
 
 // Helper to get correct display URL for images
 const getDisplayUrl = (image) => {
@@ -11,14 +11,9 @@ const getDisplayUrl = (image) => {
   if (imageUrl.startsWith('http')) {
     return imageUrl;
   } else if (imageUrl.startsWith('/temp_images/')) {
-    // Temp images are served from API server
     return `${config.API_BASE_URL}${imageUrl}`;
-  } else if (imageUrl.startsWith('/')) {
-    // Other local paths (like /api/media/serve/)
-    return imageUrl;
   } else {
-    // Media IDs or other formats
-    return `/api/media/serve/${imageUrl}`;
+    return getSmartMediaUrl(imageUrl);
   }
 };
 

@@ -12,6 +12,16 @@ import { DashboardShell } from '../../../../modules/dashboard/components/layout'
 import { authApiRequest } from '../../../../lib/apiUtils';
 import { getCurrentUser } from '../../../../lib/users';
 
+function canReapply(appStatus) {
+  if (!appStatus || appStatus.status !== 'denied') return true;
+  if (appStatus.reapplication_policy === 'blocked') return false;
+  if (appStatus.reapplication_policy === 'cooldown_90' && appStatus.review_date) {
+    const cooldownEnd = new Date(new Date(appStatus.review_date).getTime() + 90 * 24 * 60 * 60 * 1000);
+    return new Date() >= cooldownEnd;
+  }
+  return true;
+}
+
 export default function WholesaleApplicationPage() {
   const router = useRouter();
   const [userData, setUserData] = useState(null);
@@ -120,7 +130,7 @@ export default function WholesaleApplicationPage() {
   }
 
   // Check if user already has wholesale access
-  const hasWholesale = userData?.permissions?.includes('wholesale') || userData?.user_type === 'wholesale';
+  const hasWholesale = userData?.permissions?.includes('wholesale');
 
   return (
     <DashboardShell userData={userData}>
@@ -189,15 +199,23 @@ export default function WholesaleApplicationPage() {
                   {applicationStatus.denial_reason && (
                     <p className="text-muted">Reason: {applicationStatus.denial_reason}</p>
                   )}
-                  <p>If you believe this was in error, please contact support.</p>
+                  {applicationStatus.reapplication_policy === 'blocked' && (
+                    <p>Reapplication is not available for this account. Please <a href="mailto:marketplace@brakebee.com">contact support</a> to discuss your application.</p>
+                  )}
+                  {applicationStatus.reapplication_policy === 'cooldown_90' && applicationStatus.review_date && (
+                    <p>You may reapply after {new Date(new Date(applicationStatus.review_date).getTime() + 90 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}.</p>
+                  )}
+                  {(!applicationStatus.reapplication_policy || applicationStatus.reapplication_policy === 'allowed') && (
+                    <p>You are welcome to reapply with updated information below.</p>
+                  )}
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Application form - only show if no wholesale access and no pending application */}
-        {!hasWholesale && (!applicationStatus || applicationStatus.status === 'denied') && (
+        {/* Application form - only show if no wholesale access and reapplication is allowed */}
+        {!hasWholesale && (!applicationStatus || (applicationStatus.status === 'denied' && canReapply(applicationStatus))) && (
           <>
             {/* Program Info */}
             <div className="card">

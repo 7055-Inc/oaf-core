@@ -65,10 +65,11 @@ const AdminPromotions = () => {
 
   const fetchPromotions = async () => {
     try {
-      const response = await authApiRequest('admin/promotions/all', { method: 'GET' });
+      const response = await authApiRequest('/api/v2/system/admin/promotions/all', { method: 'GET' });
       if (response.ok) {
         const data = await response.json();
-        setPromotions(data.promotions || []);
+        const payload = data.data || data;
+        setPromotions(payload.promotions || []);
       }
     } catch (err) {
       setError(err.message);
@@ -77,10 +78,11 @@ const AdminPromotions = () => {
 
   const fetchSitewideSales = async () => {
     try {
-      const response = await authApiRequest('admin/sales/all', { method: 'GET' });
+      const response = await authApiRequest('/api/v2/system/admin/sales/all', { method: 'GET' });
       if (response.ok) {
         const data = await response.json();
-        setSitewideSales(data.sales || []);
+        const payload = data.data || data;
+        setSitewideSales(payload.sales || []);
       }
     } catch (err) {
       console.error('Failed to fetch sales:', err);
@@ -89,10 +91,11 @@ const AdminPromotions = () => {
 
   const fetchAdminCoupons = async () => {
     try {
-      const response = await authApiRequest('admin/coupons/all', { method: 'GET' });
+      const response = await authApiRequest('/api/v2/system/admin/coupons/all', { method: 'GET' });
       if (response.ok) {
         const data = await response.json();
-        setAdminCoupons(data.coupons || []);
+        const payload = data.data || data;
+        setAdminCoupons(payload.coupons || []);
       }
     } catch (err) {
       console.error('Failed to fetch coupons:', err);
@@ -138,7 +141,7 @@ const AdminPromotions = () => {
       if (promotionForm.application_type === 'coupon_code') data.coupon_code = promotionForm.coupon_code;
       if (promotionForm.total_usage_limit) data.total_usage_limit = parseInt(promotionForm.total_usage_limit);
 
-      const response = await authApiRequest('admin/promotions/create', {
+      const response = await authApiRequest('/api/v2/system/admin/promotions/create', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
       });
       if (response.ok) {
@@ -169,7 +172,7 @@ const AdminPromotions = () => {
       if (saleForm.application_type === 'coupon_code') data.coupon_code = saleForm.coupon_code;
       if (saleForm.total_usage_limit) data.total_usage_limit = parseInt(saleForm.total_usage_limit);
 
-      const response = await authApiRequest('admin/sales/create-sitewide', {
+      const response = await authApiRequest('/api/v2/system/admin/sales/create-sitewide', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
       });
       if (response.ok) {
@@ -201,7 +204,7 @@ const AdminPromotions = () => {
       if (couponForm.total_usage_limit) data.total_usage_limit = parseInt(couponForm.total_usage_limit);
       if (couponForm.max_discount_amount) data.max_discount_amount = parseFloat(couponForm.max_discount_amount);
 
-      const response = await authApiRequest('admin/coupons', {
+      const response = await authApiRequest('/api/v2/system/admin/coupons', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
       });
       if (response.ok) {
@@ -221,7 +224,7 @@ const AdminPromotions = () => {
   const togglePromotion = async (id, currentStatus) => {
     const newStatus = currentStatus === 'active' ? 'paused' : 'active';
     try {
-      const response = await authApiRequest(`admin/promotions/${id}`, {
+      const response = await authApiRequest(`/api/v2/system/admin/promotions/${id}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus })
       });
       if (response.ok) {
@@ -235,7 +238,7 @@ const AdminPromotions = () => {
 
   const toggleSale = async (id, isActive) => {
     try {
-      const response = await authApiRequest(`admin/sales/${id}`, {
+      const response = await authApiRequest(`/api/v2/system/admin/sales/${id}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_active: !isActive })
       });
       if (response.ok) {
@@ -249,7 +252,7 @@ const AdminPromotions = () => {
 
   const toggleCoupon = async (id, isActive) => {
     try {
-      const response = await authApiRequest(`admin/coupons/${id}`, {
+      const response = await authApiRequest(`/api/v2/system/admin/coupons/${id}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_active: !isActive })
       });
       if (response.ok) {
@@ -268,10 +271,10 @@ const AdminPromotions = () => {
     setVendorProducts({});
     setSelectedProducts({});
     try {
-      const response = await authApiRequest('admin/users?role=vendor', { method: 'GET' });
+      const response = await authApiRequest('/api/v2/users?user_type=vendor', { method: 'GET' });
       if (response.ok) {
         const data = await response.json();
-        setAvailableVendors(data.users || []);
+        setAvailableVendors(data.data || data.users || []);
         setShowInviteModal(true);
       }
     } catch (err) {
@@ -320,7 +323,7 @@ const AdminPromotions = () => {
       selectedVendors.forEach(vid => {
         if (selectedProducts[vid]?.length > 0) product_selections[vid] = selectedProducts[vid];
       });
-      const response = await authApiRequest(`admin/promotions/${selectedPromotionId}/invite-vendors`, {
+      const response = await authApiRequest(`/api/v2/system/admin/promotions/${selectedPromotionId}/invite-vendors`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           vendor_ids: selectedVendors,

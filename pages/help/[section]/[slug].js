@@ -48,11 +48,12 @@ export default function HelpArticlePage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiRequest(`api/articles/${slug}`);
+      const response = await apiRequest(`api/v2/content/articles/${slug}`);
       if (!response.ok) {
         throw new Error('Article not found');
       }
-      const data = await response.json();
+      const envelope = await response.json();
+      const data = envelope.data || envelope;
       setArticle(data.article);
       
       // Fetch related articles from same section
@@ -68,9 +69,9 @@ export default function HelpArticlePage() {
 
   const fetchRelatedArticles = async (articleSection, currentId) => {
     try {
-      const response = await apiRequest(`api/articles?page_type=help_article&section=${articleSection}&status=published&limit=5`);
-      const data = await response.json();
-      // Filter out current article
+      const response = await apiRequest(`api/v2/content/articles?page_type=help_article&section=${articleSection}&status=published&limit=5`);
+      const envelope = await response.json();
+      const data = envelope.data || envelope;
       setRelatedArticles((data.articles || []).filter(a => a.id !== currentId).slice(0, 4));
     } catch (err) {
       // Silent fail for related articles

@@ -16,8 +16,9 @@ export default function TopicsPage() {
   const fetchTopics = async () => {
     try {
       setLoading(true);
-      const response = await fetch(getApiUrl('api/articles/topics'));
-      const data = await response.json();
+      const response = await fetch(getApiUrl('api/v2/content/articles/topics'));
+      const envelope = await response.json();
+      const data = envelope.data || envelope;
       setTopics(data.topics || []);
     } catch (err) {
       console.error('Error fetching topics:', err);

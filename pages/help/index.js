@@ -18,6 +18,10 @@ const QUICK_LINKS = [
   { icon: 'fa-wrench', label: 'Technical Support', href: '/help/technical', description: 'Troubleshooting, browser support' },
 ];
 
+export async function getServerSideProps() {
+  return { props: {} };
+}
+
 export default function HelpCenterPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');

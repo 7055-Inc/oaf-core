@@ -7,8 +7,20 @@
 
 const express = require('express');
 const router = express.Router();
-const multer = require('multer');
 const path = require('path');
+const db = require('../../../config/db');
+const sharedUpload = require('../../config/multer');
+const { getProcessedMediaUrls } = require('../../utils/mediaUtils');
+const { uploadLimiter } = require('../shared/middleware/rateLimiter');
+
+// Helper: resolve admin status from req (the auth middleware sets req.roles as an array)
+function _isAdmin(req) {
+  if (req.user?.role === 'admin' || req.user?.role === 'super_admin') return true;
+  if (Array.isArray(req.roles) && (req.roles.includes('admin') || req.roles.includes('super_admin'))) return true;
+  return false;
+}
+// Normalize: some routes use _uid(req), but the auth middleware sets req.userId
+function _uid(req) { return req.userId || req.user?.userId || req.user?.id; }
 const { verifyToken } = require('../auth/middleware');
 const { 
   requireAuth, 
@@ -31,33 +43,270 @@ const {
   getVideoTemplateService
 } = require('./services');
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, '/var/www/staging/temp_images/marketing');
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+// Use the shared multer config (proper directories, naming, and file type handling)
+const upload = sharedUpload;
+
+// ============================================================================
+// SOCIAL SUBSCRIPTION ROUTES (ChecklistController-compatible)
+// ============================================================================
+
+const { getUserSocialTier } = require('./utils/tierEnforcement');
+const { getAllSocialTiersForDisplay, getSocialTierForDisplay } = require('../../../../lib/social-central/tierConfig');
+const stripeService = require('../../services/stripeService');
+
+/**
+ * GET /api/v2/marketing/subscription/my
+ * Returns the ChecklistController-compatible shape:
+ *   { subscription: { id, status, tier, tierPrice, termsAccepted, cardLast4, application_status }, has_permission }
+ */
+router.get('/subscription/my', requireAuth, async (req, res) => {
+  try {
+    const userId = _uid(req);
+
+    // 1. Get subscription record
+    const [subscriptions] = await db.query(
+      `SELECT id, status, tier, tier_price, stripe_customer_id, created_at
+       FROM user_subscriptions WHERE user_id = ? AND subscription_type = 'social' LIMIT 1`,
+      [userId]
+    );
+    const subscription = subscriptions[0] || null;
+
+    // 2. Check terms acceptance
+    const [termsCheck] = await db.query(
+      `SELECT uta.id FROM user_terms_acceptance uta
+       JOIN terms_versions tv ON uta.terms_version_id = tv.id
+       WHERE uta.user_id = ? AND uta.subscription_type = 'social' AND tv.is_current = 1
+       LIMIT 1`,
+      [userId]
+    );
+    const termsAccepted = termsCheck.length > 0;
+
+    // 3. Check card on file
+    let cardLast4 = null;
+    const cust = subscription?.stripe_customer_id ||
+      (await db.query(
+        'SELECT stripe_customer_id FROM user_subscriptions WHERE user_id = ? AND stripe_customer_id IS NOT NULL LIMIT 1',
+        [userId]
+      ))[0]?.[0]?.stripe_customer_id;
+    if (cust) {
+      try {
+        const pm = await stripeService.stripe.paymentMethods.list({
+          customer: cust, type: 'card', limit: 1
+        });
+        if (pm.data.length > 0) cardLast4 = pm.data[0].card.last4;
+      } catch (e) { console.error('Error fetching payment method:', e.message); }
+    }
+
+    // 4. Check permission
+    const [perms] = await db.query('SELECT leo_social FROM user_permissions WHERE user_id = ?', [userId]);
+    let hasPermission = perms.length > 0 && perms[0].leo_social === 1;
+
+    // 5. Auto-activate if all requirements met
+    if (subscription && termsAccepted && cardLast4) {
+      if (!hasPermission) {
+        await db.query(
+          'INSERT INTO user_permissions (user_id, leo_social) VALUES (?, 1) ON DUPLICATE KEY UPDATE leo_social = 1',
+          [userId]
+        );
+        hasPermission = true;
+      }
+      if (subscription.status === 'incomplete') {
+        await db.query('UPDATE user_subscriptions SET status = ? WHERE id = ?', ['active', subscription.id]);
+        subscription.status = 'active';
+      }
+    }
+
+    const tier = subscription?.tier != null && String(subscription.tier).trim() !== ''
+      ? String(subscription.tier).trim()
+      : null;
+
+    res.json({
+      success: true,
+      subscription: {
+        id: subscription?.id ?? null,
+        status: subscription?.status || 'inactive',
+        tier,
+        tierPrice: subscription?.tier_price != null ? Number(subscription.tier_price) : null,
+        termsAccepted: Boolean(termsAccepted),
+        cardLast4: cardLast4 != null && String(cardLast4).trim() !== '' ? String(cardLast4).trim() : null,
+        application_status: 'approved',  // Social Central auto-approves
+      },
+      has_permission: hasPermission,
+    });
+  } catch (error) {
+    console.error('Get social subscription error:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 100 * 1024 * 1024 // 100MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    // Allow images, videos, audio, and documents
-    const allowedTypes = /jpeg|jpg|png|gif|webp|mp4|mov|avi|mp3|wav|pdf|doc|docx/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-    
-    if (mimetype && extname) {
-      return cb(null, true);
-    } else {
-      cb(new Error('Invalid file type'));
+/**
+ * GET /api/v2/marketing/subscription/tiers
+ * Get all available tiers for pricing display
+ */
+router.get('/subscription/tiers', async (req, res) => {
+  try {
+    const tiers = getAllSocialTiersForDisplay();
+    res.json({ success: true, tiers });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/v2/marketing/subscription/select-tier
+ * ChecklistController sends: { subscription_type, tier_name, tier_price }
+ * Sets status = 'incomplete' so the user continues through terms + card steps.
+ */
+router.post('/subscription/select-tier', requireAuth, async (req, res) => {
+  try {
+    const { subscription_type, tier_name, tier_price } = req.body;
+
+    // Accept both old format (tier) and new format (tier_name)
+    const tierKey = tier_name || req.body.tier;
+    if (!tierKey) {
+      return res.status(400).json({ success: false, error: 'tier_name is required' });
     }
+
+    const userId = _uid(req);
+
+    const [existing] = await db.query(
+      `SELECT id FROM user_subscriptions WHERE user_id = ? AND subscription_type = 'social' LIMIT 1`,
+      [userId]
+    );
+
+    if (existing.length > 0) {
+      await db.query(
+        `UPDATE user_subscriptions SET tier = ?, tier_price = ?, status = 'incomplete', updated_at = NOW() WHERE id = ?`,
+        [tierKey, tier_price || 0, existing[0].id]
+      );
+      res.json({ success: true, action: 'updated', subscription_id: existing[0].id });
+    } else {
+      const [result] = await db.query(
+        `INSERT INTO user_subscriptions (user_id, subscription_type, tier, tier_price, status)
+         VALUES (?, 'social', ?, ?, 'incomplete')`,
+        [userId, tierKey, tier_price || 0]
+      );
+      res.json({ success: true, action: 'created', subscription_id: result.insertId });
+    }
+  } catch (error) {
+    console.error('Select social tier error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/v2/marketing/subscription/terms-check
+ * Returns current terms and whether user has accepted them
+ */
+router.get('/subscription/terms-check', requireAuth, async (req, res) => {
+  try {
+    const userId = _uid(req);
+
+    const [latestTerms] = await db.query(
+      `SELECT id, title, content, version, created_at
+       FROM terms_versions
+       WHERE subscription_type = 'social' AND is_current = 1
+       ORDER BY created_at DESC LIMIT 1`
+    );
+
+    if (latestTerms.length === 0) {
+      return res.status(404).json({ success: false, error: 'No social terms found' });
+    }
+
+    const terms = latestTerms[0];
+
+    const [acceptance] = await db.query(
+      'SELECT id FROM user_terms_acceptance WHERE user_id = ? AND subscription_type = ? AND terms_version_id = ?',
+      [userId, 'social', terms.id]
+    );
+
+    res.json({
+      success: true,
+      termsAccepted: acceptance.length > 0,
+      latestTerms: {
+        id: terms.id,
+        title: terms.title,
+        content: terms.content,
+        version: terms.version,
+        created_at: terms.created_at,
+      },
+    });
+  } catch (error) {
+    console.error('Social terms check error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/v2/marketing/subscription/terms-accept
+ * Accept the current terms version
+ */
+router.post('/subscription/terms-accept', requireAuth, async (req, res) => {
+  try {
+    const userId = _uid(req);
+    const { terms_version_id } = req.body;
+
+    if (!terms_version_id) {
+      return res.status(400).json({ success: false, error: 'terms_version_id is required' });
+    }
+
+    // Validate terms version exists and is for social
+    const [termsCheck] = await db.query(
+      'SELECT id FROM terms_versions WHERE id = ? AND subscription_type = ?',
+      [terms_version_id, 'social']
+    );
+    if (termsCheck.length === 0) {
+      return res.status(404).json({ success: false, error: 'Invalid terms version' });
+    }
+
+    await db.query(
+      `INSERT IGNORE INTO user_terms_acceptance (user_id, subscription_type, terms_version_id, accepted_at)
+       VALUES (?, 'social', ?, NOW())`,
+      [userId, terms_version_id]
+    );
+
+    res.json({ success: true, message: 'Terms acceptance recorded successfully' });
+  } catch (error) {
+    console.error('Social terms accept error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/v2/marketing/subscription/cancel
+ * Cancel the user's Social Central subscription
+ */
+router.post('/subscription/cancel', requireAuth, async (req, res) => {
+  try {
+    const userId = _uid(req);
+
+    const [subscription] = await db.query(
+      `SELECT id, status FROM user_subscriptions
+       WHERE user_id = ? AND subscription_type = 'social' AND status IN ('active','incomplete')
+       LIMIT 1`,
+      [userId]
+    );
+
+    if (subscription.length === 0) {
+      return res.status(404).json({ success: false, error: 'No active Social Central subscription found' });
+    }
+
+    // Cancel the subscription
+    await db.query(
+      `UPDATE user_subscriptions SET status = 'cancelled', updated_at = NOW() WHERE id = ?`,
+      [subscription[0].id]
+    );
+
+    // Remove leo_social permission
+    await db.query(
+      'UPDATE user_permissions SET leo_social = 0 WHERE user_id = ?',
+      [userId]
+    );
+
+    res.json({ success: true, message: 'Social Central subscription cancelled. You retain access until the end of your billing period.' });
+  } catch (error) {
+    console.error('Cancel social subscription error:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -76,7 +325,7 @@ router.get('/campaigns', requireAuth, canAccessCampaign, async (req, res) => {
     // Non-admin users can only see their own campaigns
     if (!req.isAdmin) {
       filters.owner_type = 'user';
-      filters.owner_id = req.user.id;
+      filters.owner_id = _uid(req);
     }
 
     const result = await CampaignService.getCampaigns(filters);
@@ -100,7 +349,7 @@ router.get('/campaigns/:id', requireAuth, canAccessCampaign, async (req, res) =>
   try {
     const result = await CampaignService.getCampaignById(
       req.params.id,
-      req.user.id,
+      _uid(req),
       req.isAdmin
     );
     
@@ -126,7 +375,7 @@ router.post('/campaigns', requireAuth, canAccessCampaign, async (req, res) => {
     // Set owner based on user role
     if (!req.isAdmin) {
       data.owner_type = 'user';
-      data.owner_id = req.user.id;
+      data.owner_id = _uid(req);
     }
 
     const result = await CampaignService.createCampaign(data);
@@ -151,7 +400,7 @@ router.put('/campaigns/:id', requireAuth, canAccessCampaign, async (req, res) =>
     const result = await CampaignService.updateCampaign(
       req.params.id,
       req.body,
-      req.user.id,
+      _uid(req),
       req.isAdmin
     );
     
@@ -174,7 +423,7 @@ router.delete('/campaigns/:id', requireAuth, canAccessCampaign, async (req, res)
   try {
     const result = await CampaignService.deleteCampaign(
       req.params.id,
-      req.user.id,
+      _uid(req),
       req.isAdmin
     );
     
@@ -223,7 +472,7 @@ router.get('/content', requireAuth, canAccessCampaign, async (req, res) => {
     // Non-admin users can only see their own content
     if (!req.isAdmin) {
       filters.owner_type = 'user';
-      filters.owner_id = req.user.id;
+      filters.owner_id = _uid(req);
     }
 
     const result = await ContentService.getContent(filters);
@@ -247,7 +496,7 @@ router.get('/content/:id', requireAuth, canAccessCampaign, async (req, res) => {
   try {
     const result = await ContentService.getContentById(
       req.params.id,
-      req.user.id,
+      _uid(req),
       req.isAdmin
     );
     
@@ -290,7 +539,7 @@ router.put('/content/:id', requireAuth, canModifyContent, async (req, res) => {
     const result = await ContentService.updateContent(
       req.params.id,
       req.body,
-      req.user.id,
+      _uid(req),
       req.canModify
     );
     
@@ -313,7 +562,7 @@ router.delete('/content/:id', requireAuth, canModifyContent, async (req, res) =>
   try {
     const result = await ContentService.deleteContent(
       req.params.id,
-      req.user.id,
+      _uid(req),
       req.canModify
     );
     
@@ -340,7 +589,7 @@ router.post('/content/:id/submit', requireAuth, async (req, res) => {
   try {
     const result = await ApprovalService.submitForReview(
       req.params.id,
-      req.user.id
+      _uid(req)
     );
     
     if (result.success) {
@@ -362,7 +611,7 @@ router.post('/content/:id/approve', requireAuth, requireAdmin, async (req, res) 
   try {
     const result = await ApprovalService.approveContent(
       req.params.id,
-      req.user.id,
+      _uid(req),
       req.body.feedback
     );
     
@@ -385,7 +634,7 @@ router.post('/content/:id/reject', requireAuth, requireAdmin, async (req, res) =
   try {
     const result = await ApprovalService.rejectContent(
       req.params.id,
-      req.user.id,
+      _uid(req),
       req.body.feedback
     );
     
@@ -408,7 +657,7 @@ router.post('/content/:id/comment', requireAuth, async (req, res) => {
   try {
     const result = await ApprovalService.addComment(
       req.params.id,
-      req.user.id,
+      _uid(req),
       req.body.comment
     );
     
@@ -474,7 +723,7 @@ router.post('/content/:id/schedule', requireAuth, async (req, res) => {
     const result = await SchedulerService.scheduleContent(
       req.params.id,
       req.body.scheduled_at,
-      req.user.id
+      _uid(req)
     );
     
     if (result.success) {
@@ -526,6 +775,72 @@ router.delete('/content/:id/schedule', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Cancel schedule error:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+/**
+ * POST /api/v2/marketing/content/:id/approve-schedule
+ * Streamlined: approve AI-generated content + optionally schedule in one step.
+ * For content owned by the current user (no admin review required).
+ * Body: { scheduled_at? } — if provided, also schedules. If omitted, just approves.
+ */
+router.post('/content/:id/approve-schedule', requireAuth, async (req, res) => {
+  try {
+    const contentId = req.params.id;
+    const { scheduled_at } = req.body;
+    const isAdmin = _isAdmin(req);
+
+    // Get content to verify ownership
+    const contentResult = await ContentService.getContentById(contentId, req.userId, isAdmin);
+    if (!contentResult.success) {
+      return res.status(404).json(contentResult);
+    }
+
+    const content = contentResult.content;
+
+    // Must be draft or revision_requested to approve
+    if (!['draft', 'revision_requested', 'pending_review'].includes(content.status)) {
+      return res.status(400).json({ success: false, error: `Cannot approve content with status: ${content.status}` });
+    }
+
+    // Approve — set to approved
+    await db.execute(
+      'UPDATE marketing_content SET status = ?, approved_by = ? WHERE id = ?',
+      ['approved', req.userId, contentId]
+    );
+
+    // Optionally schedule
+    if (scheduled_at) {
+      const scheduleDate = new Date(scheduled_at);
+      if (scheduleDate <= new Date()) {
+        return res.status(400).json({ success: false, error: 'Scheduled time must be in the future' });
+      }
+
+      // Check for conflicts
+      const conflictResult = await SchedulerService.checkConflicts(content.channel, scheduled_at, contentId);
+
+      await db.execute(
+        'UPDATE marketing_content SET status = ?, scheduled_at = ? WHERE id = ?',
+        ['scheduled', scheduled_at, contentId]
+      );
+
+      return res.json({
+        success: true,
+        status: 'scheduled',
+        scheduled_at,
+        has_conflicts: conflictResult.has_conflicts || false,
+        message: `Post approved and scheduled for ${scheduleDate.toLocaleString()}`,
+      });
+    }
+
+    res.json({
+      success: true,
+      status: 'approved',
+      message: 'Post approved. Ready to schedule.',
+    });
+  } catch (error) {
+    console.error('Approve-schedule error:', error);
+    res.status(500).json({ success: false, error: error.message || 'Failed to approve content' });
   }
 });
 
@@ -653,9 +968,9 @@ router.get('/analytics/overview', requireAuth, async (req, res) => {
     const filters = { ...req.query };
     
     // Non-admin users can only see their own analytics
-    if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    if (!_isAdmin(req)) {
       filters.owner_type = 'user';
-      filters.owner_id = req.user.id;
+      filters.owner_id = _uid(req);
     }
 
     const result = await AnalyticsService.getOverview(filters);
@@ -716,6 +1031,104 @@ router.get('/analytics/top', requireAuth, async (req, res) => {
 });
 
 // ============================================================================
+// PENDING IMAGE STATUS ROUTES (media processing pipeline)
+// ============================================================================
+
+/**
+ * GET /api/v2/marketing/media/pending/:id
+ * Check the processing status of a pending image (marketing media)
+ */
+router.get('/media/pending/:id', requireAuth, async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT id, status, permanent_url, thumbnail_url, metadata, created_at, updated_at
+       FROM pending_images WHERE id = ? AND user_id = ?`,
+      [req.params.id, _uid(req)]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Pending image not found' });
+    }
+    const row = rows[0];
+    if (row.metadata && typeof row.metadata === 'string') {
+      row.metadata = JSON.parse(row.metadata);
+    }
+    res.json({
+      success: true,
+      pendingImage: {
+        id: row.id,
+        status: row.status,
+        permanentUrl: row.permanent_url,
+        thumbnailUrl: row.thumbnail_url,
+        metadata: row.metadata,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      },
+    });
+  } catch (error) {
+    console.error('Get pending image status error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+/**
+ * POST /api/v2/marketing/media/pending/batch
+ * Check statuses for multiple pending images at once
+ * Body: { ids: [1, 2, 3] }
+ */
+router.post('/media/pending/batch', requireAuth, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.json({ success: true, pendingImages: [] });
+    }
+    const placeholders = ids.map(() => '?').join(',');
+    const [rows] = await db.query(
+      `SELECT id, status, permanent_url, thumbnail_url, image_path, metadata, updated_at
+       FROM pending_images WHERE id IN (${placeholders}) AND user_id = ?`,
+      [...ids, _uid(req)]
+    );
+    const smartBase = process.env.SMART_MEDIA_BASE_URL || (process.env.API_BASE_URL ? `${process.env.API_BASE_URL}/api/v2/media/images` : '');
+    const pendingImages = rows.map(row => {
+      if (row.metadata && typeof row.metadata === 'string') {
+        row.metadata = JSON.parse(row.metadata);
+      }
+      // Convert media IDs to full smart-serve URLs
+      const mediaId = row.permanent_url;
+      const permanentUrl = mediaId && /^\d+$/.test(String(mediaId))
+        ? `${smartBase}/${mediaId}?size=detail`
+        : row.permanent_url;
+      const thumbnailUrl = mediaId && /^\d+$/.test(String(mediaId))
+        ? `${smartBase}/${mediaId}?size=thumbnail`
+        : row.thumbnail_url;
+
+      // For composed images, extract the URL-relative path from the absolute filesystem path
+      let composedUrl = null;
+      if (row.metadata?.strategy === 'sharp_compose' && row.metadata?.compositionType === 'campaign_media') {
+        const imgPath = row.image_path || '';
+        const tempIdx = imgPath.indexOf('/temp_images/');
+        if (tempIdx !== -1) {
+          composedUrl = imgPath.substring(tempIdx); // e.g. /temp_images/marketing/composed/file.jpg
+        }
+      }
+
+      return {
+        id: row.id,
+        status: row.status,
+        permanentUrl,
+        thumbnailUrl,
+        composedUrl,
+        metadata: row.metadata,
+        updatedAt: row.updated_at,
+      };
+    });
+    res.json({ success: true, pendingImages });
+  } catch (error) {
+    console.error('Batch pending image status error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// ============================================================================
 // ASSET ROUTES
 // ============================================================================
 
@@ -730,7 +1143,7 @@ router.get('/assets', requireAuth, canAccessCampaign, async (req, res) => {
     // Non-admin users can only see their own assets
     if (!req.isAdmin) {
       filters.owner_type = 'user';
-      filters.owner_id = req.user.id;
+      filters.owner_id = _uid(req);
     }
 
     const result = await AssetService.getAssets(filters);
@@ -754,7 +1167,7 @@ router.get('/assets/:id', requireAuth, canAccessCampaign, async (req, res) => {
   try {
     const result = await AssetService.getAssetById(
       req.params.id,
-      req.user.id,
+      _uid(req),
       req.isAdmin
     );
     
@@ -773,7 +1186,7 @@ router.get('/assets/:id', requireAuth, canAccessCampaign, async (req, res) => {
  * POST /api/v2/marketing/assets/upload
  * Upload new asset
  */
-router.post('/assets/upload', requireAuth, upload.single('file'), async (req, res) => {
+router.post('/assets/upload', requireAuth, uploadLimiter, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ 
@@ -799,8 +1212,8 @@ router.post('/assets/upload', requireAuth, upload.single('file'), async (req, re
     };
 
     const data = {
-      owner_type: req.user.role === 'admin' || req.user.role === 'super_admin' ? 'admin' : 'user',
-      owner_id: req.user.id,
+      owner_type: _isAdmin(req) ? 'admin' : 'user',
+      owner_id: _uid(req),
       type: type,
       file_path: req.file.path,
       metadata: metadata,
@@ -837,7 +1250,7 @@ router.put('/assets/:id', requireAuth, canAccessCampaign, async (req, res) => {
     const result = await AssetService.updateAsset(
       req.params.id,
       req.body,
-      req.user.id,
+      _uid(req),
       req.isAdmin
     );
     
@@ -860,7 +1273,7 @@ router.delete('/assets/:id', requireAuth, canAccessCampaign, async (req, res) =>
   try {
     const result = await AssetService.deleteAsset(
       req.params.id,
-      req.user.id,
+      _uid(req),
       req.isAdmin
     );
     
@@ -911,7 +1324,14 @@ router.get('/assets/search', requireAuth, async (req, res) => {
  * GET /api/v2/marketing/oauth/:platform/authorize
  * Start OAuth flow - redirects user to platform authorization
  */
-router.get('/oauth/:platform/authorize', requireAuth, async (req, res) => {
+router.get('/oauth/:platform/authorize', (req, res, next) => {
+  // OAuth authorize is called via browser navigation (window.location.href),
+  // so the Authorization header isn't sent. Accept token from query param.
+  if (!req.headers.authorization && req.query.token) {
+    req.headers.authorization = `Bearer ${req.query.token}`;
+  }
+  next();
+}, requireAuth, async (req, res) => {
   try {
     const { platform } = req.params;
     const baseUrl = process.env.API_BASE_URL || 'http://localhost:3001';
@@ -919,8 +1339,8 @@ router.get('/oauth/:platform/authorize', requireAuth, async (req, res) => {
     
     // Generate state for CSRF protection
     const state = Buffer.from(JSON.stringify({
-      userId: req.user.id,
-      userRole: req.user.role,
+      userId: _uid(req),
+      userRole: _isAdmin(req) ? 'admin' : 'user',
       timestamp: Date.now()
     })).toString('base64');
 
@@ -1006,8 +1426,8 @@ router.get('/oauth/:platform/callback', async (req, res) => {
               <p><strong>Account:</strong> ${result.connection.account_name || result.connection.account_id}</p>
               <p><strong>Platform:</strong> ${result.connection.platform}</p>
               <br>
-              <a href="/dashboard/marketing/connections">View Connections</a> | 
-              <a href="/dashboard/marketing">Back to Marketing</a>
+              <a href="/dashboard/marketing/social-central/connections">View Connections</a> | 
+              <a href="/dashboard/marketing/social-central">Back to Social Central</a>
             </div>
           </body>
         </html>
@@ -1018,7 +1438,7 @@ router.get('/oauth/:platform/callback', async (req, res) => {
           <body>
             <h1>Connection Failed</h1>
             <p>Error: ${result.error}</p>
-            <a href="/dashboard/marketing/connections">Try Again</a>
+            <a href="/dashboard/marketing/social-central/connections">Try Again</a>
           </body>
         </html>
       `);
@@ -1063,8 +1483,8 @@ router.post('/oauth/:platform/refresh', requireAuth, requireAdmin, async (req, r
  */
 router.get('/connections', requireAuth, async (req, res) => {
   try {
-    const ownerType = req.user.role === 'admin' || req.user.role === 'super_admin' ? 'admin' : 'user';
-    const ownerId = req.user.id;
+    const ownerType = _isAdmin(req) ? 'admin' : 'user';
+    const ownerId = _uid(req);
 
     const result = await OAuthService.getConnections(ownerType, ownerId);
     
@@ -1079,6 +1499,211 @@ router.get('/connections', requireAuth, async (req, res) => {
   }
 });
 
+// ============================================================================
+// CRM / EMAIL CONNECTION ROUTES (must be before :id param routes)
+// ============================================================================
+
+/**
+ * POST /api/v2/marketing/connections/crm
+ * Enable CRM email as a campaign channel (creates an internal "email" connection)
+ */
+router.post('/connections/crm', requireAuth, async (req, res) => {
+  try {
+    const userId = _uid(req);
+    const ownerType = _isAdmin(req) ? 'admin' : 'user';
+
+    // Check if already active
+    const [existing] = await db.execute(
+      `SELECT id, status FROM social_connections WHERE platform = 'email' AND owner_id = ? AND owner_type = ?`,
+      [userId, ownerType]
+    );
+    if (existing.length > 0) {
+      if (existing[0].status === 'active') {
+        return res.json({ success: true, message: 'CRM email already connected', connectionId: existing[0].id });
+      }
+      // Re-activate revoked/expired row
+      await db.execute(`UPDATE social_connections SET status = 'active' WHERE id = ?`, [existing[0].id]);
+      return res.json({ success: true, message: 'CRM email system reconnected', connectionId: existing[0].id });
+    }
+
+    // Insert new internal connection record
+    const [result] = await db.execute(
+      `INSERT INTO social_connections (platform, owner_id, owner_type, account_id, account_name, status, permissions)
+       VALUES ('email', ?, ?, ?, 'CRM Email System', 'active', ?)`,
+      [userId, ownerType, `crm_${userId}`, JSON.stringify({ channels: ['newsletter', 'announcement', 'promotion'] })]
+    );
+
+    res.json({ success: true, message: 'CRM email system connected', connectionId: result.insertId });
+  } catch (error) {
+    console.error('Connect CRM error:', error);
+    res.status(500).json({ success: false, error: 'Failed to connect CRM email system' });
+  }
+});
+
+/**
+ * DELETE /api/v2/marketing/connections/crm
+ * Disable CRM email channel
+ */
+router.delete('/connections/crm', requireAuth, async (req, res) => {
+  try {
+    const userId = _uid(req);
+    const ownerType = _isAdmin(req) ? 'admin' : 'user';
+
+    await db.execute(
+      `UPDATE social_connections SET status = 'revoked' WHERE platform = 'email' AND owner_id = ? AND owner_type = ?`,
+      [userId, ownerType]
+    );
+
+    res.json({ success: true, message: 'CRM email system disconnected' });
+  } catch (error) {
+    console.error('Disconnect CRM error:', error);
+    res.status(500).json({ success: false, error: 'Failed to disconnect CRM email system' });
+  }
+});
+
+// ============================================================================
+// INTERNAL SYSTEM TOGGLES — Drip Campaigns & Product Collections
+// (admin-only toggles, same pattern as CRM email above)
+// ============================================================================
+
+const INTERNAL_TOGGLES = {
+  drip: { accountId: (uid) => `drip_${uid}`, accountName: 'Drip Campaign System', permissions: { channels: ['welcome', 'nurture', 'reengagement', 'promotional'] } },
+  collection: { accountId: (uid) => `collection_${uid}`, accountName: 'Product Collections', permissions: { channels: ['catalog', 'showcase', 'featured'] } },
+};
+
+/**
+ * POST /api/v2/marketing/connections/:system(drip|collection)
+ * Enable an internal system as an admin campaign channel
+ */
+router.post('/connections/drip', requireAuth, async (req, res) => { return _toggleInternal(req, res, 'drip', true); });
+router.post('/connections/collection', requireAuth, async (req, res) => { return _toggleInternal(req, res, 'collection', true); });
+
+/**
+ * DELETE /api/v2/marketing/connections/:system(drip|collection)
+ * Disable an internal system channel
+ */
+router.delete('/connections/drip', requireAuth, async (req, res) => { return _toggleInternal(req, res, 'drip', false); });
+router.delete('/connections/collection', requireAuth, async (req, res) => { return _toggleInternal(req, res, 'collection', false); });
+
+async function _toggleInternal(req, res, platform, enable) {
+  try {
+    if (!_isAdmin(req)) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+    const userId = _uid(req);
+    const cfg = INTERNAL_TOGGLES[platform];
+
+    if (enable) {
+      // Check if row already exists (active or revoked)
+      const [existing] = await db.execute(
+        `SELECT id, status FROM social_connections WHERE platform = ? AND owner_id = ? AND owner_type = 'admin'`,
+        [platform, userId]
+      );
+      if (existing.length > 0) {
+        if (existing[0].status === 'active') {
+          return res.json({ success: true, message: `${cfg.accountName} already enabled`, connectionId: existing[0].id });
+        }
+        // Re-activate revoked/expired row
+        await db.execute(`UPDATE social_connections SET status = 'active' WHERE id = ?`, [existing[0].id]);
+        return res.json({ success: true, message: `${cfg.accountName} re-enabled for campaigns`, connectionId: existing[0].id });
+      }
+      const [result] = await db.execute(
+        `INSERT INTO social_connections (platform, owner_id, owner_type, account_id, account_name, status, permissions)
+         VALUES (?, ?, 'admin', ?, ?, 'active', ?)`,
+        [platform, userId, cfg.accountId(userId), cfg.accountName, JSON.stringify(cfg.permissions)]
+      );
+      return res.json({ success: true, message: `${cfg.accountName} enabled for campaigns`, connectionId: result.insertId });
+    } else {
+      await db.execute(
+        `UPDATE social_connections SET status = 'revoked' WHERE platform = ? AND owner_id = ? AND owner_type = 'admin'`,
+        [platform, userId]
+      );
+      return res.json({ success: true, message: `${cfg.accountName} disabled` });
+    }
+  } catch (error) {
+    console.error(`Toggle ${platform} error:`, error);
+    res.status(500).json({ success: false, error: `Failed to toggle ${platform}` });
+  }
+}
+
+// ============================================================================
+// ADMIN CONNECTION MANAGEMENT ROUTES (must be before :id param routes)
+// ============================================================================
+
+/**
+ * GET /api/v2/marketing/connections/admin/all
+ * Get ALL connections across all users and admin (admin oversight)
+ */
+router.get('/connections/admin/all', requireAuth, async (req, res) => {
+  try {
+    if (!_isAdmin(req)) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+
+    const { platform, status, owner_type, search } = req.query;
+
+    let query = `
+      SELECT sc.id, sc.owner_type, sc.owner_id, sc.platform, sc.account_id,
+             sc.account_name, sc.label, sc.status, sc.token_expires_at,
+             sc.created_at, sc.updated_at,
+             u.username AS owner_username
+      FROM social_connections sc
+      LEFT JOIN users u ON sc.owner_id = u.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (platform) { query += ' AND sc.platform = ?'; params.push(platform); }
+    if (status) { query += ' AND sc.status = ?'; params.push(status); }
+    if (owner_type) { query += ' AND sc.owner_type = ?'; params.push(owner_type); }
+    if (search) {
+      query += ' AND (sc.account_name LIKE ? OR sc.label LIKE ? OR u.username LIKE ?)';
+      const s = `%${search}%`;
+      params.push(s, s, s);
+    }
+
+    query += ' ORDER BY sc.owner_type DESC, sc.platform, sc.created_at DESC';
+
+    const [connections] = await db.execute(query, params);
+
+    res.json({
+      success: true,
+      connections,
+      total: connections.length,
+    });
+  } catch (error) {
+    console.error('Get all connections (admin) error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch connections' });
+  }
+});
+
+/**
+ * PUT /api/v2/marketing/connections/:id/label
+ * Update label/nickname on a connection (admin only)
+ */
+router.put('/connections/:id/label', requireAuth, async (req, res) => {
+  try {
+    if (!_isAdmin(req)) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+
+    const { label } = req.body;
+    if (label !== undefined && label !== null && label.length > 100) {
+      return res.status(400).json({ success: false, error: 'Label must be 100 characters or fewer' });
+    }
+
+    await db.execute(
+      'UPDATE social_connections SET label = ? WHERE id = ?',
+      [label || null, req.params.id]
+    );
+
+    res.json({ success: true, message: 'Label updated' });
+  } catch (error) {
+    console.error('Update connection label error:', error);
+    res.status(500).json({ success: false, error: 'Failed to update label' });
+  }
+});
+
 /**
  * GET /api/v2/marketing/connections/:id
  * Get single connection details
@@ -1089,8 +1714,8 @@ router.get('/connections/:id', requireAuth, async (req, res) => {
     
     if (result.success) {
       // Verify ownership
-      const ownerType = req.user.role === 'admin' || req.user.role === 'super_admin' ? 'admin' : 'user';
-      const ownerId = req.user.id;
+      const ownerType = _isAdmin(req) ? 'admin' : 'user';
+      const ownerId = _uid(req);
 
       if (result.connection.owner_type !== ownerType || result.connection.owner_id !== ownerId) {
         return res.status(403).json({ 
@@ -1119,8 +1744,8 @@ router.get('/connections/:id', requireAuth, async (req, res) => {
  */
 router.delete('/connections/:id', requireAuth, async (req, res) => {
   try {
-    const ownerType = req.user.role === 'admin' || req.user.role === 'super_admin' ? 'admin' : 'user';
-    const ownerId = req.user.id;
+    const ownerType = _isAdmin(req) ? 'admin' : 'user';
+    const ownerId = _uid(req);
 
     const result = await OAuthService.deleteConnection(
       req.params.id,
@@ -1161,7 +1786,7 @@ router.post('/ads/google/campaigns', requireAuth, requireAdmin, async (req, res)
          AND platform = 'google' 
          AND status = 'active'
        ORDER BY created_at DESC LIMIT 1`,
-      [req.user.id]
+      [_uid(req)]
     );
 
     if (connections.length === 0) {
@@ -1371,7 +1996,7 @@ router.post('/ads/bing/campaigns', requireAuth, requireAdmin, async (req, res) =
          AND platform = 'bing' 
          AND status = 'active'
        ORDER BY created_at DESC LIMIT 1`,
-      [req.user.id]
+      [_uid(req)]
     );
 
     if (connections.length === 0) {
@@ -1690,7 +2315,7 @@ router.get('/email/campaigns/:id/stats', requireAuth, async (req, res) => {
  */
 router.post('/email/templates', requireAuth, requireAdmin, async (req, res) => {
   try {
-    req.body.created_by = req.user.id;
+    req.body.created_by = _uid(req);
     const result = await EmailMarketingService.createTemplate(req.body);
     
     if (result.success) {
@@ -1811,7 +2436,7 @@ router.post('/video/process', requireAuth, upload.single('video'), async (req, r
     // Create asset record first
     const assetResult = await AssetService.createAsset({
       owner_type: req.isAdmin ? 'admin' : 'user',
-      owner_id: req.user.id,
+      owner_id: _uid(req),
       type: 'video',
       file_path: videoFile.path,
       metadata: JSON.stringify({
@@ -1870,7 +2495,7 @@ router.post('/video/convert', requireAuth, upload.single('video'), async (req, r
     // Create asset for output
     const assetResult = await AssetService.createAsset({
       owner_type: req.isAdmin ? 'admin' : 'user',
-      owner_id: req.user.id,
+      owner_id: _uid(req),
       type: 'video',
       file_path: outputPath,
       metadata: JSON.stringify({
@@ -1919,7 +2544,7 @@ router.post('/video/clip', requireAuth, upload.single('video'), async (req, res)
     // Create asset for clip
     const assetResult = await AssetService.createAsset({
       owner_type: req.isAdmin ? 'admin' : 'user',
-      owner_id: req.user.id,
+      owner_id: _uid(req),
       type: 'video',
       file_path: clipPath,
       metadata: JSON.stringify({
@@ -1967,7 +2592,7 @@ router.post('/video/adapt', requireAuth, upload.single('video'), async (req, res
     // Create asset for adapted video
     const assetResult = await AssetService.createAsset({
       owner_type: req.isAdmin ? 'admin' : 'user',
-      owner_id: req.user.id,
+      owner_id: _uid(req),
       type: 'video',
       file_path: adaptedPath,
       metadata: JSON.stringify({
@@ -2084,7 +2709,7 @@ router.post('/video/captions', requireAuth, upload.single('video'), async (req, 
     // Create asset for captioned video
     const assetResult = await AssetService.createAsset({
       owner_type: req.isAdmin ? 'admin' : 'user',
-      owner_id: req.user.id,
+      owner_id: _uid(req),
       type: 'video',
       file_path: result.captionedVideoPath,
       metadata: JSON.stringify({
@@ -2137,7 +2762,7 @@ router.post('/video/analyze', requireAuth, upload.single('video'), async (req, r
     // Create asset first if needed
     const assetResult = await AssetService.createAsset({
       owner_type: req.isAdmin ? 'admin' : 'user',
-      owner_id: req.user.id,
+      owner_id: _uid(req),
       type: 'video',
       file_path: videoFile.path,
       metadata: JSON.stringify({
@@ -2207,7 +2832,7 @@ router.post('/video/auto-clip', requireAuth, upload.single('video'), async (req,
     for (let i = 0; i < clipPaths.length; i++) {
       const assetResult = await AssetService.createAsset({
         owner_type: req.isAdmin ? 'admin' : 'user',
-        owner_id: req.user.id,
+        owner_id: _uid(req),
         type: 'video',
         file_path: clipPaths[i],
         metadata: JSON.stringify({
@@ -2305,7 +2930,7 @@ router.post('/video/apply-template', requireAuth, upload.single('video'), async 
     // Create asset for templated video
     const assetResult = await AssetService.createAsset({
       owner_type: req.isAdmin ? 'admin' : 'user',
-      owner_id: req.user.id,
+      owner_id: _uid(req),
       type: 'video',
       file_path: outputPath,
       metadata: JSON.stringify({
@@ -2350,16 +2975,705 @@ router.post('/video/templates', requireAdmin, async (req, res) => {
 // HEALTH CHECK
 // ============================================================================
 
+// =============================================================================
+// AI CONTENT GENERATION ROUTES
+// =============================================================================
+
+const { getContentGenerationService } = require('./services/ai/ContentGenerationService');
+
+/**
+ * GET /api/v2/marketing/ai/status
+ * Check if AI generation is available
+ */
+router.get('/ai/status', requireAuth, (req, res) => {
+  const aiService = getContentGenerationService();
+  res.json({
+    success: true,
+    available: aiService.isAvailable(),
+  });
+});
+
+/**
+ * POST /api/v2/marketing/ai/caption
+ * Generate a caption for a single post (Build-a-Post flow)
+ * Body: { platform, mediaDescription?, tone?, goal?, additionalNotes? }
+ */
+router.post('/ai/caption', requireAuth, async (req, res) => {
+  try {
+    const aiService = getContentGenerationService();
+    if (!aiService.isAvailable()) {
+      return res.status(503).json({ success: false, error: 'AI service not configured' });
+    }
+
+    const { platform, mediaDescription, tone, goal, additionalNotes } = req.body;
+    if (!platform) {
+      return res.status(400).json({ success: false, error: 'Platform is required' });
+    }
+
+    const result = await aiService.generateCaption({
+      userId: req.userId,
+      platform,
+      mediaDescription,
+      tone,
+      goal,
+      additionalNotes,
+    });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('AI caption generation error:', error);
+    res.status(500).json({ success: false, error: error.message || 'Failed to generate caption' });
+  }
+});
+
+/**
+ * GET /api/v2/marketing/ai/composition-templates
+ * List available composition templates for post media styling.
+ * Higher tiers can select templates; free tier gets auto-assigned.
+ */
+router.get('/ai/composition-templates', requireAuth, (req, res) => {
+  try {
+    const { getMediaComposerService } = require('./services/ai/MediaComposerService');
+    // Read templates from the COMPOSITION_TEMPLATES constant
+    const templates = require('./services/ai/MediaComposerService').COMPOSITION_TEMPLATES || [];
+    const list = templates.map(t => ({
+      id: t.id,
+      name: t.name,
+      description: t.description,
+    }));
+    res.json({ success: true, templates: list });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/v2/marketing/ai/campaign
+ * Generate a full campaign with AI-created post concepts
+ * Body: { campaignName, campaignGoal, platforms[], startDate, endDate, postCount? }
+ */
+router.post('/ai/campaign', requireAuth, async (req, res) => {
+  try {
+    const aiService = getContentGenerationService();
+    if (!aiService.isAvailable()) {
+      return res.status(503).json({ success: false, error: 'AI service not configured' });
+    }
+
+    const { campaignName, campaignGoal, platforms, startDate, endDate, postCount, connectCRM, crmEmailEnabled, connectDrip, connectCollection } = req.body;
+    if (!campaignName || !campaignGoal || !platforms || !startDate || !endDate) {
+      return res.status(400).json({ success: false, error: 'Missing required fields: campaignName, campaignGoal, platforms, startDate, endDate' });
+    }
+
+    const ownerType = _isAdmin(req) ? 'admin' : 'user';
+    const platformList = Array.isArray(platforms) ? platforms : [platforms];
+
+    // Phase 1-3: Generate text → match media → compose platform-ready assets
+    const result = await aiService.generateCampaignContent({
+      userId: _uid(req),
+      ownerType,
+      campaignName,
+      campaignGoal,
+      platforms: platformList,
+      startDate,
+      endDate,
+      postCount,
+      crmEmailEnabled: !!(connectCRM && crmEmailEnabled),
+      dripEnabled: !!connectDrip,
+      collectionEnabled: !!connectCollection,
+    });
+
+    // Persist: Create the campaign record
+    const campaignResult = await CampaignService.createCampaign({
+      name: campaignName,
+      description: `AI-generated campaign. Goal: ${campaignGoal}. Platforms: ${platformList.join(', ')}.`,
+      type: 'social',
+      status: 'draft',
+      owner_type: ownerType,
+      owner_id: req.userId,
+      start_date: startDate,
+      end_date: endDate,
+      goals: JSON.stringify({
+        goal: campaignGoal,
+        platforms: platformList,
+        dataRichness: result.dataRichness,
+        mediaMatchStats: result.mediaMatchStats,
+      }),
+    });
+
+    if (!campaignResult.success) {
+      return res.status(500).json({ success: false, error: 'Campaign generated but failed to save: ' + campaignResult.error });
+    }
+
+    const campaignId = campaignResult.campaign_id;
+
+    // Persist: Create content records for each generated post
+    const savedPosts = [];
+    for (const post of (result.posts || [])) {
+      try {
+        const contentPayload = {
+          caption: post.caption || '',
+          hashtags: post.hashtags || [],
+          callToAction: post.callToAction || '',
+          title: post.title || '',
+          suggestedMediaDescription: post.suggestedMediaDescription || '',
+          visualDirection: post.visualDirection || '',
+          rationale: post.rationale || '',
+          suggestedDay: post.suggestedDay,
+          suggestedTime: post.suggestedTime,
+          // Media matching results
+          matchedMedia: post.matchedMedia || null,
+          mediaCandidates: post.mediaCandidates || [],
+          mediaSource: post.mediaSource || 'none',
+          composition: post.composition || null,
+        };
+
+        const contentResult = await ContentService.createContent({
+          campaign_id: campaignId,
+          type: post.type || 'post',
+          channel: post.platform || platformList[0],
+          content: contentPayload,
+          status: 'draft',
+          created_by: 'ai',
+        });
+
+        if (contentResult.success) {
+          savedPosts.push({ ...contentPayload, id: contentResult.content.id, platform: post.platform });
+        }
+      } catch (postErr) {
+        console.error(`Failed to save post "${post.title}":`, postErr.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        campaignId,
+        campaignName,
+        posts: savedPosts,
+        totalPosts: savedPosts.length,
+        brandContext: result.brandContext ? { name: result.brandContext.name, style: result.brandContext.style, dataRichness: result.dataRichness } : null,
+        mediaMatchStats: result.mediaMatchStats,
+      },
+    });
+  } catch (error) {
+    console.error('AI campaign generation error:', error);
+    res.status(500).json({ success: false, error: error.message || 'Failed to generate campaign content' });
+  }
+});
+
+/**
+ * POST /api/v2/marketing/ai/revise
+ * Revise a post based on user feedback
+ * Body: { originalPost, feedback, platform }
+ */
+router.post('/ai/revise', requireAuth, async (req, res) => {
+  try {
+    const aiService = getContentGenerationService();
+    if (!aiService.isAvailable()) {
+      return res.status(503).json({ success: false, error: 'AI service not configured' });
+    }
+
+    const { originalPost, feedback, platform } = req.body;
+    if (!originalPost || !feedback || !platform) {
+      return res.status(400).json({ success: false, error: 'Missing required fields: originalPost, feedback, platform' });
+    }
+
+    const result = await aiService.revisePost({
+      userId: req.userId,
+      originalPost,
+      feedback,
+      platform,
+    });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('AI revision error:', error);
+    res.status(500).json({ success: false, error: error.message || 'Failed to revise post' });
+  }
+});
+
+/**
+ * POST /api/v2/marketing/ai/reimagine
+ * Generate a completely different take on a post
+ * Body: { originalPost, platform, mediaDescription? }
+ */
+router.post('/ai/reimagine', requireAuth, async (req, res) => {
+  try {
+    const aiService = getContentGenerationService();
+    if (!aiService.isAvailable()) {
+      return res.status(503).json({ success: false, error: 'AI service not configured' });
+    }
+
+    const { originalPost, platform, mediaDescription } = req.body;
+    if (!originalPost || !platform) {
+      return res.status(400).json({ success: false, error: 'Missing required fields: originalPost, platform' });
+    }
+
+    const result = await aiService.reimaginePost({
+      userId: req.userId,
+      originalPost,
+      platform,
+      mediaDescription,
+    });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('AI reimagine error:', error);
+    res.status(500).json({ success: false, error: error.message || 'Failed to reimagine post' });
+  }
+});
+
+/**
+ * POST /api/v2/marketing/ai/suggest-time
+ * Suggest optimal posting time
+ * Body: { platform, contentType?, timezone? }
+ */
+router.post('/ai/suggest-time', requireAuth, async (req, res) => {
+  try {
+    const aiService = getContentGenerationService();
+    if (!aiService.isAvailable()) {
+      return res.status(503).json({ success: false, error: 'AI service not configured' });
+    }
+
+    const { platform, contentType, timezone } = req.body;
+    if (!platform) {
+      return res.status(400).json({ success: false, error: 'Platform is required' });
+    }
+
+    const ownerType = _isAdmin(req) ? 'admin' : 'user';
+
+    const result = await aiService.suggestPostingTime({
+      userId: req.userId,
+      ownerType,
+      platform,
+      contentType,
+      timezone,
+    });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('AI time suggestion error:', error);
+    res.status(500).json({ success: false, error: error.message || 'Failed to suggest posting time' });
+  }
+});
+
+// =============================================================================
+// CONTENT SUBMISSION ROUTES (Share Content page)
+// =============================================================================
+
+const contentSubmissionService = require('./services/content');
+
+/**
+ * GET /api/v2/marketing/user-info
+ * Get user info for share-content form prefill
+ */
+router.get('/user-info', requireAuth, async (req, res) => {
+  try {
+    const userId = _uid(req);
+    const [users] = await db.execute(
+      `SELECT u.id, u.username, u.user_type,
+              up.display_name, up.first_name, up.last_name,
+              ap.business_name AS artist_business_name,
+              pp.business_name AS promoter_business_name
+       FROM users u
+       LEFT JOIN user_profiles up ON u.id = up.user_id
+       LEFT JOIN artist_profiles ap ON u.id = ap.user_id
+       LEFT JOIN promoter_profiles pp ON u.id = pp.user_id
+       WHERE u.id = ?`,
+      [userId]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    const user = users[0];
+    res.json({
+      success: true,
+      data: {
+        id: user.id,
+        username: user.username,
+        email: user.username,
+        user_type: user.user_type,
+        display_name: user.display_name,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        business_name: user.artist_business_name || user.promoter_business_name || null
+      }
+    });
+  } catch (error) {
+    console.error('Get user info error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch user info' });
+  }
+});
+
+/**
+ * GET /api/v2/marketing/my-submissions
+ * Get current user's content submissions
+ */
+router.get('/my-submissions', requireAuth, async (req, res) => {
+  try {
+    const userId = _uid(req);
+    const [rows] = await db.execute(
+      `SELECT id, image_path, original_filename, mime_type, file_size,
+              description, status, media_used, created_at
+       FROM user_media_submissions
+       WHERE user_id = ?
+       ORDER BY created_at DESC`,
+      [userId]
+    );
+
+    for (const row of rows) {
+      const media = await getProcessedMediaUrls(row.image_path, 'detail');
+      row.image_url = media?.image_url || null;
+      row.thumbnail_url = media?.thumbnail_url || null;
+    }
+
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    console.error('Get my submissions error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch submissions' });
+  }
+});
+
+/**
+ * POST /api/v2/marketing/submit
+ * Submit marketing content with files
+ */
+router.post('/submit', requireAuth, uploadLimiter, upload.array('marketing_media', 10), async (req, res) => {
+  try {
+    const userId = _uid(req);
+    const { description } = req.body;
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ success: false, error: 'At least one file is required' });
+    }
+
+    const insertedIds = [];
+    for (const file of req.files) {
+      const imagePath = `/temp_images/marketing/${file.filename}`;
+
+      // Insert into pending_images for remote VM processing
+      const [pendingResult] = await db.execute(
+        `INSERT INTO pending_images (user_id, image_path, original_name, mime_type, status)
+         VALUES (?, ?, ?, ?, 'pending')`,
+        [userId, imagePath, file.originalname, file.mimetype]
+      );
+
+      // Insert into user_media_submissions
+      const [subResult] = await db.execute(
+        `INSERT INTO user_media_submissions
+         (user_id, pending_image_id, image_path, original_filename, mime_type, file_size, description)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [userId, pendingResult.insertId, imagePath, file.originalname, file.mimetype, file.size, description || null]
+      );
+      insertedIds.push(subResult.insertId);
+    }
+
+    res.json({
+      success: true,
+      data: { ids: insertedIds, count: insertedIds.length },
+      message: 'Content submitted successfully'
+    });
+  } catch (error) {
+    console.error('Submit content error:', error);
+    res.status(500).json({ success: false, error: 'Failed to submit content' });
+  }
+});
+
+/**
+ * GET /api/v2/marketing/admin/submissions
+ * Get all content submissions (admin only)
+ */
+router.get('/admin/submissions', requireAuth, async (req, res) => {
+  try {
+    if (!_isAdmin(req)) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 24));
+    const offset = (page - 1) * limit;
+
+    let baseQuery = `
+      FROM user_media_submissions s
+      LEFT JOIN users u ON s.user_id = u.id
+      LEFT JOIN user_profiles up ON u.id = up.user_id
+      LEFT JOIN artist_profiles ap ON u.id = ap.user_id
+      LEFT JOIN promoter_profiles pp ON u.id = pp.user_id
+    `;
+    const conditions = [];
+    const params = [];
+
+    if (req.query.status) { conditions.push('s.status = ?'); params.push(req.query.status); }
+    if (req.query.user_id) { conditions.push('s.user_id = ?'); params.push(req.query.user_id); }
+    if (req.query.media_used !== undefined) { conditions.push('s.media_used = ?'); params.push(req.query.media_used === 'true' ? 1 : 0); }
+    if (req.query.mime_type) { conditions.push('s.mime_type LIKE ?'); params.push(req.query.mime_type + '%'); }
+
+    if (req.query.search) {
+      const term = `%${req.query.search}%`;
+      conditions.push(`(s.description LIKE ? OR s.original_filename LIKE ? OR up.first_name LIKE ? OR up.last_name LIKE ? OR u.username LIKE ? OR COALESCE(ap.business_name, pp.business_name) LIKE ?)`);
+      params.push(term, term, term, term, term, term);
+    }
+
+    if (conditions.length) baseQuery += ' WHERE ' + conditions.join(' AND ');
+
+    const sortableColumns = { created_at: 's.created_at', original_filename: 's.original_filename', status: 's.status', media_used: 's.media_used' };
+    const sortCol = sortableColumns[req.query.sort] || 's.created_at';
+    const sortOrder = req.query.order === 'asc' ? 'ASC' : 'DESC';
+
+    const [countResult] = await db.execute(`SELECT COUNT(*) as total ${baseQuery}`, params);
+    const total = countResult[0].total;
+
+    const [rows] = await db.execute(
+      `SELECT s.*, u.username as email, up.first_name, up.last_name, up.display_name, COALESCE(ap.business_name, pp.business_name) as business_name ${baseQuery} ORDER BY ${sortCol} ${sortOrder} LIMIT ${limit} OFFSET ${offset}`,
+      params
+    );
+
+    for (const row of rows) {
+      const media = await getProcessedMediaUrls(row.image_path, 'detail');
+      row.image_url = media?.image_url || null;
+      row.thumbnail_url = media?.thumbnail_url || null;
+    }
+
+    res.json({ success: true, data: rows, total, page, limit, totalPages: Math.ceil(total / limit) });
+  } catch (error) {
+    console.error('Get all submissions error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch submissions' });
+  }
+});
+
+/**
+ * GET /api/v2/marketing/admin/submissions/:id
+ * Get a single submission (admin only)
+ */
+router.get('/admin/submissions/:id', requireAuth, async (req, res) => {
+  try {
+    if (!_isAdmin(req)) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+    const [rows] = await db.execute(
+      `SELECT s.*, u.first_name, u.last_name, u.email, u.business_name
+       FROM user_media_submissions s
+       LEFT JOIN users u ON s.user_id = u.id
+       WHERE s.id = ?`,
+      [req.params.id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Submission not found' });
+    }
+    const item = rows[0];
+    const media = await getProcessedMediaUrls(item.image_path, 'detail');
+    item.image_url = media?.image_url || null;
+    item.thumbnail_url = media?.thumbnail_url || null;
+    res.json({ success: true, data: item });
+  } catch (error) {
+    console.error('Get submission error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch submission' });
+  }
+});
+
+/**
+ * PUT /api/v2/marketing/admin/submissions/:id/notes
+ * Update admin notes on a submission
+ */
+router.put('/admin/submissions/:id/notes', requireAuth, async (req, res) => {
+  try {
+    if (!_isAdmin(req)) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+    await db.execute(
+      'UPDATE user_media_submissions SET admin_notes = ? WHERE id = ?',
+      [req.body.admin_notes, req.params.id]
+    );
+    res.json({ success: true, message: 'Notes updated' });
+  } catch (error) {
+    console.error('Update notes error:', error);
+    res.status(500).json({ success: false, error: 'Failed to update notes' });
+  }
+});
+
+/**
+ * PUT /api/v2/marketing/admin/submissions/:id/status
+ * Update submission status
+ */
+router.put('/admin/submissions/:id/status', requireAuth, async (req, res) => {
+  try {
+    if (!_isAdmin(req)) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+    await db.execute(
+      'UPDATE user_media_submissions SET status = ? WHERE id = ?',
+      [req.body.status, req.params.id]
+    );
+    res.json({ success: true, message: 'Status updated' });
+  } catch (error) {
+    console.error('Update status error:', error);
+    res.status(500).json({ success: false, error: 'Failed to update status' });
+  }
+});
+
+/**
+ * PUT /api/v2/marketing/admin/submissions/:id/media-used
+ * Toggle media_used flag
+ */
+router.put('/admin/submissions/:id/media-used', requireAuth, async (req, res) => {
+  try {
+    if (!_isAdmin(req)) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+    await db.execute(
+      'UPDATE user_media_submissions SET media_used = ? WHERE id = ?',
+      [req.body.media_used ? 1 : 0, req.params.id]
+    );
+    res.json({ success: true, message: 'Media used flag updated' });
+  } catch (error) {
+    console.error('Update media_used error:', error);
+    res.status(500).json({ success: false, error: 'Failed to update media used flag' });
+  }
+});
+
+/**
+ * DELETE /api/v2/marketing/admin/submissions/:id
+ * Delete a submission
+ */
+router.delete('/admin/submissions/:id', requireAuth, async (req, res) => {
+  try {
+    if (!_isAdmin(req)) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+    await db.execute('DELETE FROM user_media_submissions WHERE id = ?', [req.params.id]);
+    res.json({ success: true, message: 'Submission deleted' });
+  } catch (error) {
+    console.error('Delete submission error:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete submission' });
+  }
+});
+
+/**
+ * GET /api/v2/marketing/admin/submissions/:id/download
+ * Download the original (uncompressed) file for a submission
+ */
+router.get('/admin/submissions/:id/download', requireAuth, async (req, res) => {
+  try {
+    if (!_isAdmin(req)) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+
+    const [rows] = await db.execute(
+      'SELECT s.*, pi.permanent_url, pi.status as processing_status FROM user_media_submissions s LEFT JOIN pending_images pi ON s.pending_image_id = pi.id WHERE s.id = ?',
+      [req.params.id]
+    );
+    if (rows.length === 0) return res.status(404).json({ success: false, error: 'Submission not found' });
+
+    const item = rows[0];
+    const filename = item.original_filename || item.image_path.split('/').pop();
+
+    // If VM has processed it, proxy the original from the media backend
+    if ((item.processing_status === 'processed' || item.processing_status === 'complete') && item.permanent_url) {
+      const MEDIA_BACKEND_URL = process.env.MEDIA_BACKEND_URL || 'http://10.128.0.29:3001';
+      const MEDIA_API_KEY = process.env.MEDIA_API_KEY || process.env.MAIN_API_KEY || '';
+      try {
+        const axios = require('axios');
+        const mediaResponse = await axios.get(`${MEDIA_BACKEND_URL}/serve/${item.permanent_url}?size=zoom`, {
+          headers: { Authorization: `Bearer ${MEDIA_API_KEY}` },
+          responseType: 'stream',
+          timeout: 30000
+        });
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        if (mediaResponse.headers['content-type']) res.setHeader('Content-Type', mediaResponse.headers['content-type']);
+        mediaResponse.data.pipe(res);
+        return;
+      } catch (proxyErr) {
+        console.error('Media backend download failed, falling back to temp:', proxyErr.message);
+      }
+    }
+
+    // Fallback: serve temp file from disk
+    const fs = require('fs');
+    const fullPath = path.join(__dirname, '../../../../', item.image_path.replace(/^\//, ''));
+    if (!fs.existsSync(fullPath)) {
+      return res.status(404).json({ success: false, error: 'File not found on disk' });
+    }
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', item.mime_type || 'application/octet-stream');
+    fs.createReadStream(fullPath).pipe(res);
+  } catch (error) {
+    console.error('Download submission error:', error);
+    res.status(500).json({ success: false, error: 'Failed to download file' });
+  }
+});
+
+// =============================================================================
+// HEALTH CHECK
+// =============================================================================
+
+// =============================================================================
+// BRAND VOICE CONFIGURATION
+// =============================================================================
+
+/**
+ * GET /api/v2/marketing/brand-voice
+ * Get the current user's brand voice configuration
+ */
+router.get('/brand-voice', async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Not authenticated' });
+
+    const [rows] = await db.query('SELECT brand_voice FROM users WHERE id = ?', [userId]);
+    const brandVoice = rows[0]?.brand_voice
+      ? (typeof rows[0].brand_voice === 'string' ? JSON.parse(rows[0].brand_voice) : rows[0].brand_voice)
+      : null;
+
+    res.json({ success: true, brandVoice: brandVoice || {} });
+  } catch (error) {
+    console.error('[Marketing] Error fetching brand voice:', error.message);
+    res.status(500).json({ success: false, error: 'Failed to fetch brand voice' });
+  }
+});
+
+/**
+ * PUT /api/v2/marketing/brand-voice
+ * Update the current user's brand voice configuration
+ *
+ * Body: { voice_tone, writing_style, brand_personality, emoji_usage,
+ *         banned_phrases (array), example_posts (array), target_audience }
+ */
+router.put('/brand-voice', async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Not authenticated' });
+
+    const allowed = ['voice_tone', 'writing_style', 'brand_personality', 'emoji_usage',
+                     'banned_phrases', 'example_posts', 'target_audience'];
+    const brandVoice = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) {
+        brandVoice[key] = req.body[key];
+      }
+    }
+
+    await db.query('UPDATE users SET brand_voice = ? WHERE id = ?', [JSON.stringify(brandVoice), userId]);
+    res.json({ success: true, brandVoice });
+  } catch (error) {
+    console.error('[Marketing] Error saving brand voice:', error.message);
+    res.status(500).json({ success: false, error: 'Failed to save brand voice' });
+  }
+});
+
 /**
  * GET /api/v2/marketing/health
  * Health check endpoint
  */
 router.get('/health', (req, res) => {
+  const aiService = getContentGenerationService();
   res.json({
     success: true,
     message: 'Marketing module is healthy',
-    version: '1.0.0',
-    sprint: 'C2 - Video System'
+    version: '2.0.0',
+    sprint: 'Social Central - AI Content Generation',
+    aiAvailable: aiService.isAvailable(),
   });
 });
 

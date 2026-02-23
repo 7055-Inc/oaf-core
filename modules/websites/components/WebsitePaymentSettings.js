@@ -1,6 +1,6 @@
 /**
  * Websites > Payment Settings – Card on file for website subscription.
- * Uses v2 subscription/my for cardLast4; api/users/payment-methods for full card display; StripeCardSetup for add/update.
+ * Uses v2 subscription/my for cardLast4; v2 commerce/payment-methods for full card display; StripeCardSetup for add/update.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -30,11 +30,12 @@ export default function WebsitePaymentSettings() {
       const data = await fetchWebsitesSubscription();
       if (data.subscription?.cardLast4) {
         try {
-          const cardResponse = await authApiRequest('api/users/payment-methods');
+          const cardResponse = await authApiRequest('api/v2/commerce/payment-methods');
           if (cardResponse.ok) {
             const cardData = await cardResponse.json();
-            if (cardData.success && cardData.paymentMethods?.length > 0) {
-              const card = cardData.paymentMethods[0];
+            const methods = cardData.data?.paymentMethods || cardData.paymentMethods;
+            if (cardData.success && methods?.length > 0) {
+              const card = methods[0];
               setCardInfo({ brand: card.brand, last4: card.last4, exp_month: card.exp_month, exp_year: card.exp_year });
             } else {
               setCardInfo({ brand: 'card', last4: data.subscription.cardLast4 });
@@ -46,14 +47,15 @@ export default function WebsitePaymentSettings() {
           setCardInfo({ brand: 'card', last4: data.subscription.cardLast4 });
         }
       }
-      const intentResponse = await authApiRequest('api/payment-methods/create-setup-intent', {
+      const intentResponse = await authApiRequest('api/v2/commerce/payment-methods/create-setup-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subscription_type: SUBSCRIPTION_TYPE })
       });
       const intentData = await intentResponse.json();
-      if (intentResponse.ok && intentData.success && intentData.setupIntent) {
-        setSetupIntent(intentData.setupIntent);
+      const intentPayload = intentData.data || intentData;
+      if (intentResponse.ok && intentData.success && intentPayload.setupIntent) {
+        setSetupIntent(intentPayload.setupIntent);
         setShowCardSetup(true);
       } else if (!intentResponse.ok) {
         setError(intentData.error || intentData.message || 'Could not load payment form.');
@@ -70,7 +72,7 @@ export default function WebsitePaymentSettings() {
     try {
       setProcessing(true);
       setError('');
-      const response = await authApiRequest('api/payment-methods/confirm-setup', {
+      const response = await authApiRequest('api/v2/commerce/payment-methods/confirm-setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

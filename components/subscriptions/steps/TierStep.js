@@ -2,8 +2,10 @@
 // Used across all subscription types
 
 import React from 'react';
+import { useRouter } from 'next/router';
 
 export default function TierStep({ tiers, onTierSelect, subscriptionTitle, subscriptionSubtitle }) {
+  const router = useRouter();
   
   // Check if we should show headers (only if explicitly provided)
   const showHeader = subscriptionTitle !== '' || subscriptionSubtitle !== '';
@@ -23,9 +25,9 @@ export default function TierStep({ tiers, onTierSelect, subscriptionTitle, subsc
       {/* Tier Cards */}
       <div style={{ 
         display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+        gridTemplateColumns: tiers.length === 1 ? '1fr' : 'repeat(auto-fit, minmax(300px, 1fr))', 
         gap: '30px',
-        maxWidth: '1600px',
+        maxWidth: tiers.length === 1 ? '480px' : '1200px',
         margin: '0 auto'
       }}>
         {tiers.map((tier, index) => (
@@ -60,15 +62,15 @@ export default function TierStep({ tiers, onTierSelect, subscriptionTitle, subsc
 
             {/* Tier Header */}
             <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-              <h3 style={{ marginBottom: '10px', fontSize: '24px' }}>{tier.name}</h3>
+              <h3 style={{ marginBottom: '10px', fontSize: '24px' }}>{tier.displayName || tier.name || tier.id}</h3>
               <p style={{ color: '#6c757d', fontSize: '16px', marginBottom: '20px', lineHeight: '1.4' }}>
                 {tier.description}
               </p>
               <div style={{ marginBottom: '20px' }}>
                 <span style={{ fontSize: '36px', fontWeight: 'bold' }}>
-                  {tier.priceDisplay || tier.price}
+                  {tier.priceDisplay || (typeof tier.price === 'number' ? `$${tier.price}` : tier.price)}
                 </span>
-                <span style={{ color: '#6c757d' }}>{tier.period}</span>
+                <span style={{ color: '#6c757d' }}>{tier.period || '/month'}</span>
               </div>
             </div>
 
@@ -84,10 +86,10 @@ export default function TierStep({ tiers, onTierSelect, subscriptionTitle, subsc
 
             {/* CTA Button */}
             <button
-              onClick={() => onTierSelect(tier)}
+              onClick={() => tier.redirectUrl ? router.push(tier.redirectUrl) : onTierSelect(tier)}
               style={{ width: '100%', padding: '15px', fontSize: '16px' }}
             >
-              {tier.buttonText || `Get Started with ${tier.name}`}
+              {tier.buttonText || `Get Started with ${tier.displayName || tier.name || tier.id}`}
             </button>
           </div>
         ))}

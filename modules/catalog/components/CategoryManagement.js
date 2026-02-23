@@ -16,7 +16,7 @@ import {
   searchCategoryVendors,
   uploadCategoryImages,
 } from '../../../lib/catalog';
-import { getApiUrl } from '../../../lib/config';
+import { getApiUrl, getSmartMediaUrl } from '../../../lib/config';
 
 /**
  * CategoryManagement Component
@@ -541,7 +541,7 @@ export default function CategoryManagement() {
                         <div key={product.id} onClick={() => handleAddProduct(product)} className="search-dropdown-item">
                           {product.image_url && (
                             <img 
-                              src={product.image_url.startsWith('http') ? product.image_url : `/api/media/serve/${product.image_url}`}
+                              src={getSmartMediaUrl(product.image_url)}
                               alt={product.name}
                               className="category-product-thumb"
                             />
@@ -567,7 +567,7 @@ export default function CategoryManagement() {
                       <div key={product.id} className="category-product-item">
                         {product.image_url && (
                           <img 
-                            src={product.image_url.startsWith('http') ? product.image_url : `/api/media/serve/${product.image_url}`}
+                            src={getSmartMediaUrl(product.image_url)}
                             alt={product.name}
                             className="category-product-thumb"
                           />

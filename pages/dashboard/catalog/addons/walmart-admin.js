@@ -9,7 +9,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { DashboardShell } from '../../../../modules/dashboard/components/layout';
 import { WalmartConnectorAdmin } from '../../../../modules/catalog';
-import { authApiRequest } from '../../../../lib/apiUtils';
+import { getCurrentUser } from '../../../../lib/users/api';
 
 export default function WalmartConnectorAdminPage() {
   const [userData, setUserData] = useState(null);
@@ -19,17 +19,12 @@ export default function WalmartConnectorAdminPage() {
   useEffect(() => {
     async function loadUser() {
       try {
-        const response = await authApiRequest('users/me', { method: 'GET' });
-        if (response.ok) {
-          const data = await response.json();
-          if (data.user_type !== 'admin') {
-            router.push('/dashboard/catalog');
-            return;
-          }
-          setUserData(data);
-        } else {
-          router.push('/login');
+        const data = await getCurrentUser();
+        if (data.user_type !== 'admin') {
+          router.push('/dashboard/catalog');
+          return;
         }
+        setUserData(data);
       } catch (err) {
         console.error('Error loading user:', err);
         router.push('/login');

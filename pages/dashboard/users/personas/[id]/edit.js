@@ -4,6 +4,10 @@ import DashboardShell from '../../../../../modules/dashboard/components/layout/D
 import { PersonaForm } from '../../../../../modules/users';
 import { getCurrentUser } from '../../../../../lib/users';
 
+export async function getServerSideProps() {
+  return { props: {} };
+}
+
 export default function EditPersonaPage() {
   const router = useRouter();
   const { id } = router.query;

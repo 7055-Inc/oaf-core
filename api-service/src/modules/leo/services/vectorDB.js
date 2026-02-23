@@ -142,6 +142,45 @@ class VectorDatabase {
     }
   }
 
+  async updateDocumentMetadata(collectionName, documentId, newMetadata) {
+    try {
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+
+      const collection = this.collections.get(collectionName);
+      if (!collection) {
+        throw new Error(`Collection '${collectionName}' not found`);
+      }
+
+      const existing = await collection.get({
+        ids: [documentId],
+        include: ['metadatas', 'documents']
+      });
+
+      if (!existing.ids || !existing.ids.length) {
+        return { success: false, reason: 'Document not found' };
+      }
+
+      const mergedMetadata = {
+        ...(existing.metadatas[0] || {}),
+        ...newMetadata
+      };
+
+      await collection.update({
+        ids: [documentId],
+        metadatas: [mergedMetadata]
+      });
+
+      logger.info(`Updated metadata for '${documentId}' in '${collectionName}'`);
+      return { success: true };
+
+    } catch (error) {
+      logger.error(`Failed to update metadata for '${documentId}' in '${collectionName}':`, error);
+      throw error;
+    }
+  }
+
   async getCollectionStats() {
     const stats = {};
     for (const [name, collection] of this.collections) {

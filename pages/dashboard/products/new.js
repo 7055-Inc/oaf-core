@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '../../../components/Header';
-import { authApiRequest } from '../../../lib/apiUtils';
+import { getCurrentUser } from '../../../lib/users/api';
 import { ProductForm } from '../../../modules/catalog';
 
 /**
@@ -23,8 +23,7 @@ export default function NewProductPage() {
   const loadUserData = async () => {
     try {
       setLoading(true);
-      const res = await authApiRequest('users/me');
-      const data = await res.json();
+      const data = await getCurrentUser();
       setUserData(data);
     } catch (err) {
       console.error('Error loading user data:', err);

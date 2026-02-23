@@ -5,7 +5,8 @@ import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { usePageType } from '../hooks/usePageType';
 import { getAuthToken, clearAuthTokens } from '../lib/auth';
-import { authApiRequest, apiGet, API_ENDPOINTS } from '../lib/apiUtils';
+import { authApiRequest, apiGet } from '../lib/apiUtils';
+import { getCurrentUser } from '../lib/users/api';
 import styles from './Header.module.css';
 
 // Lazy load heavy components - only loaded when needed
@@ -64,22 +65,9 @@ export default function Header() {
     
     if (token && !isAuthPage) {
       setIsLoggedIn(true);
-      // Fetch userId from /users/me
-      authApiRequest(API_ENDPOINTS.USERS_ME, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-        .then(res => {
-          if (!res.ok) {
-            throw new Error('Failed to fetch user profile');
-          }
-          return res.json();
-        })
+      getCurrentUser()
         .then(data => {
           setUserId(data.id);
-          // Fetch cart count
           fetchCartCount();
         })
         .catch(err => {
@@ -183,29 +171,25 @@ export default function Header() {
 
   const fetchCartCount = async () => {
     try {
-      // Get active cart
-      const cartRes = await authApiRequest(API_ENDPOINTS.CART, {
+      const cartRes = await authApiRequest('/api/v2/commerce/cart', {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json' }
       });
 
       if (cartRes.ok) {
-        const carts = await cartRes.json();
+        const cartResult = await cartRes.json();
+        const carts = cartResult.data || (Array.isArray(cartResult) ? cartResult : []);
         const activeCart = carts.find(cart => cart.status === 'draft');
         
         if (activeCart) {
-          // Get cart items
-          const itemsRes = await authApiRequest(`${API_ENDPOINTS.CART}/${activeCart.id}/items`, {
+          const itemsRes = await authApiRequest(`/api/v2/commerce/cart/${activeCart.id}/items`, {
             method: 'GET',
-            headers: {
-              'Content-Type': 'application/json'
-            }
+            headers: { 'Content-Type': 'application/json' }
           });
           
           if (itemsRes.ok) {
-            const items = await itemsRes.json();
+            const itemsResult = await itemsRes.json();
+            const items = itemsResult.data || (Array.isArray(itemsResult) ? itemsResult : []);
             const totalCount = items.reduce((sum, item) => sum + item.quantity, 0);
             setCartItemCount(totalCount);
           }
@@ -213,7 +197,6 @@ export default function Header() {
       }
     } catch (err) {
       console.log('Error fetching cart count:', err.message);
-      // Don't log as error since this is expected for non-authenticated users
     }
   };
 

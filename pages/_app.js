@@ -39,9 +39,9 @@ const DEFAULT_SEO = {
 const ORGANIZATION_SCHEMA = {
   "@context": "https://schema.org",
   "@type": "Organization",
-  "name": "Online Art Festival LLC",
-  "legalName": "Online Art Festival LLC",
-  "alternateName": ["Brakebee", "Brakebee Arts"],
+  "name": "Brakebee",
+  "legalName": "Online Art Festival LLC DBA Brakebee",
+  "alternateName": ["Brakebee Arts"],
   "url": "https://brakebee.com",
   "logo": "https://brakebee.com/static_media/brakebee-logo.png",
   "description": "Brakebee connects art lovers with independent artists. Discover unique artwork, attend live events, and support creators directly.",

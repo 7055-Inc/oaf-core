@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { createPersona, updatePersona, getPersona, uploadPersonaImage } from '../../../lib/users/api';
-import { getSmartMediaUrl } from '../../../lib/config';
+import { getSmartMediaUrl, getApiUrl } from '../../../lib/config';
 
 /**
  * PersonaForm Component
@@ -64,9 +64,14 @@ export default function PersonaForm({ personaId = null }) {
         is_default: persona.is_default || false,
       });
       
-      // Set existing image as preview
+      // Set existing image as preview (temp_images are served from API, not smart-serve)
       if (persona.profile_image_url) {
-        setImagePreview(getSmartMediaUrl(persona.profile_image_url));
+        const url = persona.profile_image_url.startsWith('http')
+          ? persona.profile_image_url
+          : persona.profile_image_url.startsWith('/temp_images/')
+            ? getApiUrl(persona.profile_image_url)
+            : getSmartMediaUrl(persona.profile_image_url);
+        setImagePreview(url);
       }
     } catch (err) {
       setError(err.message);
@@ -133,9 +138,9 @@ export default function PersonaForm({ personaId = null }) {
       return;
     }
     
-    // Validate persona_name format (alphanumeric and underscores only)
-    if (!/^[a-zA-Z0-9_]+$/.test(formData.persona_name)) {
-      setError('Persona name can only contain letters, numbers, and underscores');
+    // Validate persona_name format (allow letters, numbers, spaces, and common characters)
+    if (!/^[a-zA-Z0-9 _\-'.&]+$/.test(formData.persona_name)) {
+      setError('Persona name contains invalid characters');
       return;
     }
     
@@ -203,11 +208,11 @@ export default function PersonaForm({ personaId = null }) {
                 name="persona_name"
                 value={formData.persona_name}
                 onChange={handleChange}
-                placeholder="e.g., abstract_artist"
+                placeholder="e.g., Abstract Artist"
                 required
               />
               <div className="form-help">
-                Used in URLs and handles. Letters, numbers, and underscores only.
+                A unique name for this persona.
               </div>
             </div>
             <div>
@@ -281,16 +286,16 @@ export default function PersonaForm({ personaId = null }) {
         <div className="form-card">
           <h3>Profile Image</h3>
           
-          <div className="image-upload-box">
+          <div className="image-upload-section">
             <div 
-              className="image-upload-preview"
+              className="image-upload-box"
               onClick={() => fileInputRef.current?.click()}
               style={{ cursor: 'pointer' }}
             >
               {imagePreview ? (
                 <img src={imagePreview} alt="Preview" />
               ) : (
-                <div className="image-upload-placeholder">
+                <div className="placeholder">
                   <i className="material-icons">add_photo_alternate</i>
                   <span>Click to upload</span>
                 </div>

@@ -10,7 +10,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import DashboardShell from '../../../modules/dashboard/components/layout/DashboardShell';
 import { AdminMarketplace } from '../../../modules/commerce/components';
-import { authApiRequest } from '../../../lib/apiUtils';
+import { getCurrentUser } from '../../../lib/users/api';
 import { isAdmin } from '../../../lib/userUtils';
 
 export default function MarketplaceApplicationsPage() {
@@ -29,14 +29,8 @@ export default function MarketplaceApplicationsPage() {
 
   const loadUserData = async () => {
     try {
-      const response = await authApiRequest('users/me', { method: 'GET' });
-      if (!response.ok) {
-        router.push('/login?redirect=/dashboard/commerce/marketplace-applications');
-        return;
-      }
-      const data = await response.json();
+      const data = await getCurrentUser();
       
-      // Check admin permission
       if (!isAdmin(data)) {
         router.push('/dashboard');
         return;

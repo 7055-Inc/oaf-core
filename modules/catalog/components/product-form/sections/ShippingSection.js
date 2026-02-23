@@ -102,7 +102,7 @@ export default function ShippingSection() {
         packages: packages.filter(pkg => pkg.length && pkg.width && pkg.height && pkg.weight)
       };
       
-      const response = await authApiRequest('api/shipping/calculate-cart-shipping', {
+      const response = await authApiRequest('api/v2/commerce/shipping/calculate-cart-shipping', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -113,10 +113,11 @@ export default function ShippingSection() {
       });
 
       if (response.ok) {
-        const data = await response.json();
+        const json = await response.json();
+        const payload = json.data || json;
         
-        if (data.shipping_results && data.shipping_results.length > 0) {
-          const shippingResult = data.shipping_results[0];
+        if (payload.shipping_results && payload.shipping_results.length > 0) {
+          const shippingResult = payload.shipping_results[0];
           
           if (shippingResult.available_rates && shippingResult.available_rates.length > 0) {
             shippingResult.available_rates.forEach(rate => {

@@ -4,6 +4,10 @@ import { useRouter, useParams } from 'next/navigation';
 import styles from './Policies.module.css';
 import { apiRequest } from '../../lib/apiUtils';
 
+export async function getServerSideProps() {
+  return { props: {} };
+}
+
 export default function PolicyPage() {
   const [policy, setPolicy] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -72,29 +76,19 @@ export default function PolicyPage() {
           
           // Handle additional terms types
           if (termsTypeMap[policyType]) {
-            endpoint = `api/terms/type/${termsTypeMap[policyType]}`;
+            endpoint = `api/v2/system/terms/type/${termsTypeMap[policyType]}`;
           } else {
             switch (policyType) {
               case 'shipping':
-                endpoint = 'shipping-policies/default';
-                break;
               case 'returns':
-                endpoint = 'return-policies/default';
-                break;
               case 'privacy':
-                endpoint = 'privacy-policies/default';
-                break;
               case 'cookies':
-                endpoint = 'cookie-policies/default';
-                break;
               case 'copyright':
-                endpoint = 'copyright-policies/default';
+              case 'transparency':
+                endpoint = `api/v2/system/policies/${policyType}/default`;
                 break;
               case 'terms':
-                endpoint = 'api/terms/current';
-                break;
-              case 'transparency':
-                endpoint = 'transparency-policies/default';
+                endpoint = 'api/v2/system/terms/current';
                 break;
             }
           }
@@ -105,8 +99,8 @@ export default function PolicyPage() {
 
           if (response.ok) {
             const data = await response.json();
-            // Terms endpoint returns 'content' field, others return 'policy_text'
-            setPolicy(data.content || data.policy_text);
+            const payload = data.data || data;
+            setPolicy(payload.content || payload.policy_text);
           } else {
             throw new Error('Policy not found');
           }

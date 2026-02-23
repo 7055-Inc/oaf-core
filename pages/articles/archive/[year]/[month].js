@@ -17,9 +17,10 @@ export default function DateArchivePage() {
     if (!year || !month) return;
     setLoading(true);
     
-    fetch(getApiUrl(`api/articles?year=${year}&month=${month}&limit=${pagination.limit}&page=${pagination.page}`))
+    fetch(getApiUrl(`api/v2/content/articles?year=${year}&month=${month}&limit=${pagination.limit}&page=${pagination.page}`))
       .then(res => res.json())
-      .then(data => {
+      .then(envelope => {
+        const data = envelope.data || envelope;
         setArticles(data.articles || []);
         setPagination(prev => ({
           ...prev,

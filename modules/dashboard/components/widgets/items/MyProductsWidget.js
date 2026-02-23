@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { authApiRequest, API_ENDPOINTS } from '../../../../../lib/apiUtils';
+import { authApiRequest } from '../../../../../lib/apiUtils';
 import { config, getSmartMediaUrl } from '../../../../../lib/config';
 import styles from './my-products/my-products.module.css';
 
@@ -37,12 +37,12 @@ export default function MyProductsWidget({ config: widgetConfig, onConfigChange 
   const loadProductsData = async () => {
     try {
       const response = await authApiRequest(
-        `${API_ENDPOINTS.PRODUCTS}/my?limit=5&include=images`
+        'api/v2/catalog/products?limit=5&include=images'
       );
 
       if (response.ok) {
         const result = await response.json();
-        const productsData = result.products || [];
+        const productsData = result.data || [];
         setProducts(productsData);
       } else {
         throw new Error('Failed to load products');
@@ -73,7 +73,7 @@ export default function MyProductsWidget({ config: widgetConfig, onConfigChange 
   const handleRemoveWidget = async () => {
     if (confirm('Are you sure you want to remove the My Products widget from your dashboard?')) {
       try {
-        const response = await authApiRequest(API_ENDPOINTS.DASHBOARD_WIDGETS_REMOVE, {
+        const response = await authApiRequest('api/v2/system/dashboard-widgets/remove-widget', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ widgetType: 'my_products' })

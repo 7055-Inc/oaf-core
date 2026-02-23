@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import { getApiUrl } from '../../../lib/config';
-import { getAuthToken, authenticatedApiRequest } from '../../../lib/csrf';
+import { getAuthToken } from '../../../lib/csrf';
+import { getCurrentUser } from '../../../lib/users/api';
 import { verifyClaimToken, claimNew, linkExistingClaim, fetchMyEvents } from '../../../lib/events/api';
 import styles from './claim.module.css';
 
@@ -26,11 +26,8 @@ export default function ClaimEvent() {
         const authToken = await getAuthToken();
         if (authToken) {
           // Fetch user data
-          const response = await authenticatedApiRequest(getApiUrl('users/me'));
-          if (response.ok) {
-            const userData = await response.json();
-            setUser(userData);
-          }
+          const userData = await getCurrentUser();
+          setUser(userData);
         }
       } catch (err) {
         console.error('Auth check error:', err);

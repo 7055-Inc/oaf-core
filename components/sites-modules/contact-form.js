@@ -347,7 +347,7 @@ class ContactFormAddon {
         }
         
         // Submit to backend
-        const response = await fetch(getApiUrl('api/addons/contact/submit'), {
+        const response = await fetch(getApiUrl('api/v2/websites/addons/contact/submit'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -364,7 +364,7 @@ class ContactFormAddon {
         
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to send message');
+          throw new Error(errorData.error?.message || errorData.error || 'Failed to send message');
         }
         
         // Success

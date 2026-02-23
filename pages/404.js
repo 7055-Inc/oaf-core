@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { getApiUrl } from '../lib/config';
+import { getApiUrl, getSmartMediaUrl } from '../lib/config';
 import { SearchBar } from '../components/search';
 import RandomProductCarousel from '../components/RandomProductCarousel';
 import styles from '../styles/404.module.css';
@@ -52,7 +52,8 @@ const Custom404 = () => {
   const getImageUrl = (imagePath) => {
     if (!imagePath) return '/static_media/placeholder-product.jpg';
     if (imagePath.startsWith('http')) return imagePath;
-    return `api/media/serve/${imagePath}`;
+    if (imagePath.startsWith('/temp_images/')) return `${getApiUrl()}${imagePath}`;
+    return getSmartMediaUrl(imagePath);
   };
 
   return (

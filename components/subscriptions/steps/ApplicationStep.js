@@ -94,7 +94,7 @@ export default function ApplicationStep({
         
         submitData.append('verified_application', 'true');
         
-        response = await authApiRequest('users/me', {
+        response = await authApiRequest('/api/v2/users/me', {
           method: 'PATCH',
           body: submitData
         });

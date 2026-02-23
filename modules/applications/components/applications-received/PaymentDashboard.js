@@ -22,7 +22,7 @@ export default function PaymentDashboard({ applications, selectedEvent, onRefres
     setLoading(true);
     try {
       const token = getAuthToken();
-      const response = await fetch(getApiUrl(`api/applications/payment-dashboard/${selectedEvent.id}`), {
+      const response = await fetch(getApiUrl(`api/v2/applications/payment-dashboard/${selectedEvent.id}`), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -30,10 +30,11 @@ export default function PaymentDashboard({ applications, selectedEvent, onRefres
       });
 
       if (response.ok) {
-        const data = await response.json();
-        setPaymentSummary(data.summary ? {
-          total_received: data.summary.total_collected ?? 0,
-          total_outstanding: data.summary.total_outstanding ?? 0
+        const json = await response.json();
+        const summary = json.data?.summary || json.summary;
+        setPaymentSummary(summary ? {
+          total_received: summary.total_collected ?? 0,
+          total_outstanding: summary.total_outstanding ?? 0
         } : null);
       }
     } catch (err) {
@@ -46,7 +47,7 @@ export default function PaymentDashboard({ applications, selectedEvent, onRefres
   const sendPaymentReminder = async (applicationIds) => {
     try {
       const token = getAuthToken();
-      const response = await fetch(getApiUrl('api/applications/payment-reminder'), {
+      const response = await fetch(getApiUrl('api/v2/applications/payment-reminder'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -72,7 +73,7 @@ export default function PaymentDashboard({ applications, selectedEvent, onRefres
   const markPaymentReceived = async (applicationId) => {
     try {
       const token = getAuthToken();
-      const response = await fetch(getApiUrl(`api/applications/${applicationId}/payment-received`), {
+      const response = await fetch(getApiUrl(`api/v2/applications/${applicationId}/payment-received`), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

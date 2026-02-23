@@ -244,7 +244,7 @@ async function adminListProducts(options = {}) {
   const total = countResult[0].total;
   const [products] = await db.query(`
     SELECT wcp.id, wcp.product_id, wcp.user_id, wcp.walmart_item_id, wcp.walmart_title, wcp.walmart_description, wcp.walmart_price, wcp.is_active, wcp.listing_status, wcp.sync_status, wcp.created_at,
-      p.name, p.price, p.wholesale_price, p.inventory_count, u.username, u.email as vendor_email, up.display_name as vendor_name, wia.allocated_quantity
+      p.name, p.price, p.wholesale_price, p.inventory_count, u.username, u.username as vendor_email, up.display_name as vendor_name, wia.allocated_quantity
     FROM walmart_corporate_products wcp JOIN products p ON wcp.product_id = p.id JOIN users u ON wcp.user_id = u.id
     LEFT JOIN user_profiles up ON u.id = up.user_id LEFT JOIN walmart_inventory_allocations wia ON wcp.product_id = wia.product_id
     WHERE 1=1 ${statusFilter} ${searchFilter} ORDER BY wcp.created_at DESC LIMIT ? OFFSET ?

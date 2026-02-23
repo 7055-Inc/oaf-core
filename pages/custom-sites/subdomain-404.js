@@ -34,10 +34,10 @@ const SubdomainCustom404 = () => {
       setSiteData(siteData);
       
       // Fetch products for this vendor
-      const productsRes = await fetch(getApiUrl(`products/all?include=images&vendor_id=${siteData.user_id}`));
+      const productsRes = await fetch(getApiUrl(`api/v2/catalog/public/products?vendor_id=${siteData.user_id}`));
       if (productsRes.ok) {
         const productsData = await productsRes.json();
-        const products = productsData.products || productsData || [];
+        const products = productsData.data || [];
         setVendorProducts(products);
       }
       

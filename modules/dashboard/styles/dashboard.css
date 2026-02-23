@@ -73,7 +73,6 @@
   flex-direction: column;
   min-width: 0; /* Prevents flex child overflow */
   position: relative;
-  z-index: 1; /* Below sidebar toggle */
 }
 
 /* =============================================================================
@@ -137,7 +136,6 @@
 .sidebar-menu {
   flex: 1;
   padding: 1rem 0;
-  overflow-y: auto;
   overflow-x: hidden;
 }
 
@@ -232,7 +230,8 @@
 }
 
 .sidebar-menu-items.expanded {
-  max-height: 500px;
+  max-height: none;
+  overflow: visible;
 }
 
 .sidebar-menu-item {

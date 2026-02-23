@@ -18,6 +18,9 @@ const PERMISSIONS = {
   SHIPPING: 'shipping',
   SITES: 'sites',
   PROFESSIONAL_SITES: 'professional_sites',
+  CRM: 'crm',
+  LEO_SOCIAL: 'leo_social',
+  WHOLESALE: 'wholesale',
 };
 
 /**
@@ -79,6 +82,9 @@ const PERMISSION_COLUMNS = [
   'shipping',
   'sites',
   'professional_sites',
+  'crm',
+  'leo_social',
+  'wholesale',
 ];
 
 module.exports = {

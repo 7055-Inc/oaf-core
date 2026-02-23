@@ -5,9 +5,10 @@
 
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
-import { authApiRequest } from '../../../lib/apiUtils';
 import { DashboardShell } from '../../../modules/dashboard/components/layout';
 import { AdminReturns } from '../../../modules/commerce/components';
+import { getCurrentUser } from '../../../lib/users/api';
+import { isAdmin as checkIsAdmin } from '../../../lib/userUtils';
 
 /**
  * Admin Returns Page
@@ -27,20 +28,10 @@ export default function ReturnsAdminPage() {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const response = await authApiRequest('api/v2/auth/me');
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success && result.data) {
-            const isAdmin = result.data.roles?.includes('admin') || false;
-            setUserData({ ...result.data, isAdmin });
-          } else {
-            setError('Failed to load user data');
-          }
-        } else {
-          setError('Failed to load user data');
-        }
+        const data = await getCurrentUser();
+        setUserData(data);
       } catch (err) {
-        setError(err.message);
+        setError(err.message || 'Failed to load user data');
       } finally {
         setLoading(false);
       }
@@ -69,7 +60,7 @@ export default function ReturnsAdminPage() {
   }
 
   // Admin check
-  if (!userData?.isAdmin) {
+  if (!checkIsAdmin(userData)) {
     return (
       <DashboardShell>
         <div className="error-alert">

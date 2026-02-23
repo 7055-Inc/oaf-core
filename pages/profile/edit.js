@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Head from 'next/head';
 import styles from './Edit.module.css';
 import { authApiRequest } from '../../lib/apiUtils';
+import { getCurrentUser } from '../../lib/users/api';
 import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
 
 // Available art categories for dropdown
@@ -169,14 +170,7 @@ export default function ProfileEdit() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await authApiRequest('users/me', {
-          method: 'GET'
-        });
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.error || 'Failed to fetch user profile');
-        }
-        const data = await res.json();
+        const data = await getCurrentUser();
         setUser(data);
         setFormData({
           first_name: data.first_name || '',
@@ -445,7 +439,7 @@ export default function ProfileEdit() {
         formDataToSend.append('logo_image', logoImage);
       }
 
-      const res = await authApiRequest('users/me', {
+      const res = await authApiRequest('/api/v2/users/me', {
         method: 'PATCH',
         body: formDataToSend
       });

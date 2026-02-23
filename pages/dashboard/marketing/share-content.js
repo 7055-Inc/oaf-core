@@ -6,14 +6,12 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
 import Head from 'next/head';
-import { authApiRequest } from '../../../lib/apiUtils';
 import DashboardShell from '../../../modules/dashboard/components/layout/DashboardShell';
 import { ShareContent } from '../../../modules/marketing';
+import { getCurrentUser } from '../../../lib/users/api';
 
 export default function ShareContentPage() {
-  const router = useRouter();
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -24,17 +22,8 @@ export default function ShareContentPage() {
 
   const loadUserData = async () => {
     try {
-      const response = await authApiRequest('api/v2/auth/me');
-      if (!response.ok) {
-        router.push('/login?redirect=/dashboard/marketing/share-content');
-        return;
-      }
-      const result = await response.json();
-      if (result.success && result.data) {
-        setUserData(result.data);
-      } else {
-        setError('Failed to load user data');
-      }
+      const data = await getCurrentUser();
+      setUserData(data);
     } catch (err) {
       console.error('Error loading user data:', err);
       setError('Failed to load user data');

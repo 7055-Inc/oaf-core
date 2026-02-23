@@ -310,4 +310,87 @@ router.patch('/admin/tickets/:id', requireAuth, requirePermission('manage_system
   }
 });
 
+// ============================================================================
+// ARTIST CONTACT FORM (PUBLIC)
+// ============================================================================
+
+const rateLimit = require('express-rate-limit');
+const artistContactLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { success: false, error: { code: 'RATE_LIMIT', message: 'Too many requests, please try again later.' } },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * POST /api/v2/communications/artist-contact
+ * Submit contact form message to an artist (public, rate-limited)
+ */
+router.post('/artist-contact', artistContactLimit, async (req, res) => {
+  try {
+    const db = require('../../../config/db');
+    const { artist_id, sender_name, sender_email, sender_phone, subject, message } = req.body;
+
+    if (!artist_id || !sender_name || !sender_email || !message) {
+      return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Artist ID, sender name, email, and message are required' } });
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(sender_email)) {
+      return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Invalid email address' } });
+    }
+
+    const [artists] = await db.execute(`
+      SELECT u.id, u.username as email, up.display_name, up.first_name, up.last_name, ap.business_name
+      FROM users u
+      LEFT JOIN user_profiles up ON u.id = up.user_id
+      LEFT JOIN artist_profiles ap ON u.id = ap.user_id
+      WHERE u.id = ? AND u.user_type = 'artist' AND u.status = 'active'
+    `, [artist_id]);
+
+    if (artists.length === 0) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Artist not found' } });
+    }
+
+    const artist = artists[0];
+    const artistName = artist.business_name || artist.display_name ||
+      `${artist.first_name} ${artist.last_name}`.trim() || 'Artist';
+
+    const [result] = await db.execute(`
+      INSERT INTO artist_contact_messages (artist_id, sender_name, sender_email, sender_phone, subject, message, ip_address, user_agent)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [artist_id, sender_name, sender_email, sender_phone || null, subject || 'Contact Form Message', message, req.ip, req.get('User-Agent') || null]);
+
+    const messageId = result.insertId;
+
+    const EmailService = require('../../services/emailService');
+    try {
+      await EmailService.sendExternalEmail({
+        to: artist.email,
+        subject: `New Contact Form Message${subject ? `: ${subject}` : ''}`,
+        template: 'artist-contact-notification',
+        data: { artistName, senderName: sender_name, senderEmail: sender_email, senderPhone: sender_phone, subject: subject || 'No subject', message, messageId, profileUrl: `${process.env.FRONTEND_URL || 'https://brakebee.com'}/profile/${artist_id}` }
+      });
+    } catch (emailError) {
+      console.error('Artist contact email notification failed (non-fatal):', emailError);
+    }
+
+    try {
+      await EmailService.sendExternalEmail({
+        to: 'hello@brakebee.com',
+        subject: `Artist Contact Form: ${artistName} received a message`,
+        template: 'artist-contact-admin-copy',
+        data: { artistName, artistId: artist_id, artistEmail: artist.email, senderName: sender_name, senderEmail: sender_email, senderPhone: sender_phone, subject: subject || 'No subject', message, messageId }
+      });
+    } catch (emailError) {
+      console.error('Artist contact admin copy failed (non-fatal):', emailError);
+    }
+
+    res.json({ success: true, data: { message: 'Your message has been sent successfully!', messageId } });
+  } catch (error) {
+    console.error('Artist contact form submission error:', error);
+    res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: error.message } });
+  }
+});
+
 module.exports = router;

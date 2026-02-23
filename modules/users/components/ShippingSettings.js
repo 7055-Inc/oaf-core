@@ -33,24 +33,25 @@ const ShippingSettings = () => {
   useEffect(() => {
     const loadPreferences = async () => {
       try {
-        const response = await authApiRequest('vendor/shipping-preferences');
+        const response = await authApiRequest('/api/v2/commerce/vendor/shipping-preferences');
         if (response.ok) {
           const data = await response.json();
+          const prefs = data.data?.preferences || {};
           if (data.success) {
             setPreferences({
-              return_company_name: data.preferences.return_company_name || '',
-              return_contact_name: data.preferences.return_contact_name || '',
-              return_address_line_1: data.preferences.return_address_line_1 || '',
-              return_address_line_2: data.preferences.return_address_line_2 || '',
-              return_city: data.preferences.return_city || '',
-              return_state: data.preferences.return_state || '',
-              return_postal_code: data.preferences.return_postal_code || '',
-              return_country: data.preferences.return_country || 'US',
-              return_phone: data.preferences.return_phone || '',
-              label_size_preference: data.preferences.label_size_preference || '4x6',
-              signature_required_default: Boolean(data.preferences.signature_required_default),
-              insurance_default: Boolean(data.preferences.insurance_default),
-              handling_days: data.preferences.handling_days || 3
+              return_company_name: prefs.return_company_name || '',
+              return_contact_name: prefs.return_contact_name || '',
+              return_address_line_1: prefs.return_address_line_1 || '',
+              return_address_line_2: prefs.return_address_line_2 || '',
+              return_city: prefs.return_city || '',
+              return_state: prefs.return_state || '',
+              return_postal_code: prefs.return_postal_code || '',
+              return_country: prefs.return_country || 'US',
+              return_phone: prefs.return_phone || '',
+              label_size_preference: prefs.label_size_preference || '4x6',
+              signature_required_default: Boolean(prefs.signature_required_default),
+              insurance_default: Boolean(prefs.insurance_default),
+              handling_days: prefs.handling_days || 3
             });
           }
         }
@@ -69,7 +70,7 @@ const ShippingSettings = () => {
     setMessage({ text: '', type: '' });
     
     try {
-      const response = await authApiRequest('vendor/shipping-preferences', {
+      const response = await authApiRequest('/api/v2/commerce/vendor/shipping-preferences', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(preferences)

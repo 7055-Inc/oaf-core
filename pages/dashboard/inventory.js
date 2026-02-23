@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Header from '../../components/Header';
 import { authenticatedApiRequest } from '../../lib/csrf';
 import { authApiRequest } from '../../lib/apiUtils';
+import { getCurrentUser } from '../../lib/users/api';
 import { hasAddon } from '../../lib/userUtils';
 import styles from './Inventory.module.css';
 
@@ -54,12 +55,9 @@ export default function InventoryManagement() {
 
   const fetchUserPermissions = async () => {
     try {
-      const response = await authApiRequest('users/me');
-      if (response.ok) {
-        const userDataResponse = await response.json();
-        setUserData(userDataResponse);
-        setUserPermissions(userDataResponse);
-      }
+      const userDataResponse = await getCurrentUser();
+      setUserData(userDataResponse);
+      setUserPermissions(userDataResponse);
     } catch (err) {
       console.error('Error fetching user permissions:', err);
     }

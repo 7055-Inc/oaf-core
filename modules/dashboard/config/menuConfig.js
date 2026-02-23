@@ -68,11 +68,13 @@ const menuConfig = [
       },
       { 
         label: 'Payment Settings', 
-        href: '/dashboard/users/payments' 
+        href: '/dashboard/users/payments',
+        permission: 'stripe_connect'
       },
       { 
         label: 'Shipping Settings', 
-        href: '/dashboard/users/shipping' 
+        href: '/dashboard/users/shipping',
+        permissions: ['shipping', 'vendor']
       },
       { 
         href: '/dashboard/users/verified',
@@ -82,15 +84,6 @@ const menuConfig = [
           permission: 'verified',
           hasPermission: 'Verified Status',
           noPermission: 'Get Verified'
-        }
-      },
-      { 
-        href: '/dashboard/account/wholesale-application',
-        // Conditional label based on wholesale permission
-        labelCondition: {
-          permission: 'wholesale',
-          hasPermission: 'Wholesale Status',
-          noPermission: 'Apply for Wholesale'
         }
       },
       // Admin-only user management items
@@ -126,7 +119,7 @@ const menuConfig = [
     label: 'Catalog',
     href: '/dashboard/catalog',
     icon: 'fa-box',
-    permissions: ['vendor', 'sites'], // Need either permission
+    userTypes: ['artist', 'admin'],
     items: [
       { 
         label: 'My Products', 
@@ -153,11 +146,15 @@ const menuConfig = [
         href: '/dashboard/catalog/inventory/log' 
       },
       {
-        label: 'Addons',
+        label: 'Sales Channels',
         items: [
-          { label: 'Walmart Connector', href: '/dashboard/catalog/addons/walmart', permissions: ['vendor', 'sites'] },
+          { label: 'Marketplace', href: '/dashboard/commerce/marketplace' },
+          { label: 'Artist Website', href: '/dashboard/websites/subscription' },
+          { label: 'Walmart Connector', href: '/dashboard/catalog/addons/walmart' },
           { label: 'Walmart Connector Admin', href: '/dashboard/catalog/addons/walmart-admin', adminOnly: true },
-          { label: 'TikTok Connector', href: '/dashboard/catalog/addons/tiktok', permissions: ['vendor', 'sites'] },
+          { label: 'Wayfair Connector', href: '/dashboard/catalog/addons/wayfair' },
+          { label: 'Wayfair Connector Admin', href: '/dashboard/catalog/addons/wayfair-admin', adminOnly: true },
+          { label: 'TikTok Connector', href: '/dashboard/catalog/addons/tiktok' },
           { label: 'TikTok Connector Admin', href: '/dashboard/catalog/addons/tiktok-admin', adminOnly: true },
         ]
       },
@@ -310,6 +307,7 @@ const menuConfig = [
     label: 'CRM',
     href: '/dashboard/crm',
     icon: 'fa-envelope',
+    permission: 'crm',
     items: [
       { 
         label: 'Subscribers', 

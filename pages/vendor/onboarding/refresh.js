@@ -28,7 +28,7 @@ export default function StripeOnboardingRefresh() {
       setStatus('loading');
       setError(null);
 
-      const response = await authApiRequest('vendor/stripe-onboarding');
+      const response = await authApiRequest('/api/v2/commerce/vendor/stripe-onboarding');
       
       if (!response.ok) {
         throw new Error('Failed to refresh onboarding link');
@@ -36,11 +36,11 @@ export default function StripeOnboardingRefresh() {
       
       const data = await response.json();
       
-      if (data.success && data.onboarding_url) {
+      if (data.success && data.data?.onboarding_url) {
         setStatus('redirecting');
         // Small delay to show the redirecting message
         setTimeout(() => {
-          window.location.href = data.onboarding_url;
+          window.location.href = data.data.onboarding_url;
         }, 1000);
       } else {
         throw new Error('Invalid response from server');

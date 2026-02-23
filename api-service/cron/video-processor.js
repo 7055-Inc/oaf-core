@@ -9,10 +9,18 @@
  * Video processing is CPU-intensive, so we process one job at a time
  */
 
-const db = require('../src/config/db');
-const { promisify } = require('util');
-const query = promisify(db.query).bind(db);
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+// Fallback: also load root .env if api-service .env doesn't have DB vars
+if (!process.env.DB_HOST) require('dotenv').config({ path: require('path').join(__dirname, '../../.env') });
+const db = require('../config/db');
 const fs = require('fs').promises;
+
+// db is a mysql2/promise pool — db.execute() and db.query() already return promises
+// Wrapper to keep existing code compatible (destructures rows from [rows, fields])
+async function query(sql, params) {
+  const [rows] = await db.execute(sql, params);
+  return rows;
+}
 
 // Import video services
 const { getVideoService } = require('../src/modules/marketing/services/VideoService');
@@ -225,10 +233,9 @@ async function processVideoQueue() {
     console.error('[Video Processor] Error:', error);
   } finally {
     // Close database connection
-    db.end(() => {
-      console.log('[Video Processor] Complete');
-      process.exit(0);
-    });
+    try { await db.end(); } catch {}
+    console.log('[Video Processor] Complete');
+    process.exit(0);
   }
 }
 

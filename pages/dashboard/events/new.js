@@ -11,7 +11,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { DashboardShell } from '../../../modules/dashboard/components/layout';
 import { EventForm } from '../../../modules/events';
-import { authApiRequest } from '../../../lib/apiUtils';
+import { getCurrentUser } from '../../../lib/users/api';
 
 export default function NewEventPage() {
   const [userData, setUserData] = useState(null);
@@ -22,26 +22,19 @@ export default function NewEventPage() {
   useEffect(() => {
     async function loadUser() {
       try {
-        const response = await authApiRequest('users/me', { method: 'GET' });
-        if (response.ok) {
-          const data = await response.json();
-          
-          // Check for events permission (promoter or admin)
-          const canCreateEvents = 
-            data.permissions?.includes?.('events') || 
-            data.user_type === 'promoter' || 
-            data.user_type === 'admin';
-          
-          if (!canCreateEvents) {
-            // User doesn't have permission to create events
-            router.push('/dashboard');
-            return;
-          }
-          
-          setUserData(data);
-        } else {
-          router.push('/login');
+        const data = await getCurrentUser();
+        
+        const canCreateEvents = 
+          data.permissions?.includes?.('events') || 
+          data.user_type === 'promoter' || 
+          data.user_type === 'admin';
+        
+        if (!canCreateEvents) {
+          router.push('/dashboard');
+          return;
         }
+        
+        setUserData(data);
       } catch (err) {
         console.error('Error loading user:', err);
         router.push('/login');

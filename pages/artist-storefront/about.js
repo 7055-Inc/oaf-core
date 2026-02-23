@@ -3,7 +3,9 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import { getApiUrl, config, getSubdomainBase, getFrontendUrl } from '../../lib/config';
-import styles from './ArtistStorefront.module.css';
+
+// Map class names to themselves (styles now handled by global CSS/TemplateLoader)
+const styles = new Proxy({}, { get: (target, prop) => prop });
 
 const ArtistAbout = () => {
   const router = useRouter();
@@ -280,7 +282,7 @@ const ArtistAbout = () => {
                     <a>Brakebee</a>
                   </Link>
                 </p>
-                <p className={styles.poweredBy}>Powered by OAF</p>
+                <p className={styles.poweredBy}>Powered by Brakebee</p>
               </div>
             </div>
             

@@ -8,7 +8,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { DashboardShell } from '../../../../modules/dashboard/components/layout';
 import { SiteManage, WebsitesSubscriptionGate } from '../../../../modules/websites';
-import { authApiRequest } from '../../../../lib/apiUtils';
+import { getCurrentUser } from '../../../../lib/users/api';
 import { fetchWebsitesSubscription } from '../../../../lib/websites/api';
 import { hasPermission } from '../../../../lib/userUtils';
 
@@ -22,12 +22,7 @@ export default function ManageSitePage() {
   useEffect(() => {
     async function load() {
       try {
-        const userRes = await authApiRequest('users/me', { method: 'GET' });
-        if (!userRes.ok) {
-          router.push('/login');
-          return;
-        }
-        const user = await userRes.json();
+        const user = await getCurrentUser();
         setUserData(user);
 
         try {
