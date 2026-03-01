@@ -12,6 +12,7 @@ const db = require('../../../config/db');
 const sharedUpload = require('../../config/multer');
 const { getProcessedMediaUrls } = require('../../utils/mediaUtils');
 const { uploadLimiter } = require('../shared/middleware/rateLimiter');
+const { decrypt } = require('../../utils/encryption');
 
 // Helper: resolve admin status from req (the auth middleware sets req.roles as an array)
 function _isAdmin(req) {
@@ -1797,6 +1798,8 @@ router.post('/ads/google/campaigns', requireAuth, requireAdmin, async (req, res)
     }
 
     const connection = connections[0];
+    if (connection.access_token) connection.access_token = decrypt(connection.access_token);
+    if (connection.refresh_token) connection.refresh_token = decrypt(connection.refresh_token);
     const publisher = new GoogleAdsPublisher(connection);
 
     // Create campaign
@@ -1893,7 +1896,10 @@ router.put('/ads/google/campaigns/:id', requireAuth, requireAdmin, async (req, r
       return res.status(400).json({ success: false, error: 'No active Google Ads connection found' });
     }
 
-    const publisher = new GoogleAdsPublisher(connections[0]);
+    const googleConn = connections[0];
+    if (googleConn.access_token) googleConn.access_token = decrypt(googleConn.access_token);
+    if (googleConn.refresh_token) googleConn.refresh_token = decrypt(googleConn.refresh_token);
+    const publisher = new GoogleAdsPublisher(googleConn);
 
     // Update status on Google
     if (req.body.status) {
@@ -1964,7 +1970,10 @@ router.get('/ads/google/performance', requireAuth, requireAdmin, async (req, res
       return res.status(400).json({ success: false, error: 'No active Google Ads connection found' });
     }
 
-    const publisher = new GoogleAdsPublisher(connections[0]);
+    const googleConn2 = connections[0];
+    if (googleConn2.access_token) googleConn2.access_token = decrypt(googleConn2.access_token);
+    if (googleConn2.refresh_token) googleConn2.refresh_token = decrypt(googleConn2.refresh_token);
+    const publisher = new GoogleAdsPublisher(googleConn2);
     const result = await publisher.getAnalytics(campaign.external_campaign_id);
 
     res.json(result);
@@ -2007,6 +2016,8 @@ router.post('/ads/bing/campaigns', requireAuth, requireAdmin, async (req, res) =
     }
 
     const connection = connections[0];
+    if (connection.access_token) connection.access_token = decrypt(connection.access_token);
+    if (connection.refresh_token) connection.refresh_token = decrypt(connection.refresh_token);
     const publisher = new BingAdsPublisher(connection);
 
     // Create campaign
@@ -2103,7 +2114,10 @@ router.put('/ads/bing/campaigns/:id', requireAuth, requireAdmin, async (req, res
       return res.status(400).json({ success: false, error: 'No active Bing Ads connection found' });
     }
 
-    const publisher = new BingAdsPublisher(connections[0]);
+    const bingConn = connections[0];
+    if (bingConn.access_token) bingConn.access_token = decrypt(bingConn.access_token);
+    if (bingConn.refresh_token) bingConn.refresh_token = decrypt(bingConn.refresh_token);
+    const publisher = new BingAdsPublisher(bingConn);
 
     // Update status on Bing
     if (req.body.status) {
@@ -2173,7 +2187,10 @@ router.get('/ads/bing/performance', requireAuth, requireAdmin, async (req, res) 
       return res.status(400).json({ success: false, error: 'No active Bing Ads connection found' });
     }
 
-    const publisher = new BingAdsPublisher(connections[0]);
+    const bingConn2 = connections[0];
+    if (bingConn2.access_token) bingConn2.access_token = decrypt(bingConn2.access_token);
+    if (bingConn2.refresh_token) bingConn2.refresh_token = decrypt(bingConn2.refresh_token);
+    const publisher = new BingAdsPublisher(bingConn2);
     const result = await publisher.getAnalytics(campaign.external_campaign_id);
 
     res.json(result);

@@ -15,6 +15,7 @@
 const axios = require('axios');
 const crypto = require('crypto');
 const db = require('../../config/db');
+const { encrypt, decrypt } = require('../utils/encryption');
 
 class TikTokService {
   constructor() {
@@ -350,18 +351,20 @@ class TikTokService {
     }
     
     const shop = shops[0];
+    const accessToken = decrypt(shop.access_token);
+    const refreshToken = decrypt(shop.refresh_token);
     const now = new Date();
     const expiresAt = new Date(shop.token_expires_at);
     
     // Check if token is still valid (with 5-minute buffer)
     const bufferTime = 5 * 60 * 1000; // 5 minutes
     if (expiresAt.getTime() - now.getTime() > bufferTime) {
-      return shop.access_token;
+      return accessToken;
     }
     
     // Token expired, refresh it
     console.log(`Refreshing TikTok access token for shop ${shopId}`);
-    const tokenData = await this.refreshAccessToken(shop.refresh_token);
+    const tokenData = await this.refreshAccessToken(refreshToken);
     
     // Update token in database
     const newExpiresAt = new Date(now.getTime() + (tokenData.expires_in * 1000));
@@ -369,7 +372,7 @@ class TikTokService {
       `UPDATE tiktok_user_shops 
        SET access_token = ?, refresh_token = ?, token_expires_at = ?, updated_at = CURRENT_TIMESTAMP 
        WHERE shop_id = ? AND user_id = ?`,
-      [tokenData.access_token, tokenData.refresh_token, newExpiresAt, shopId, userId]
+      [encrypt(tokenData.access_token), encrypt(tokenData.refresh_token), newExpiresAt, shopId, userId]
     );
     
     return tokenData.access_token;
@@ -837,18 +840,20 @@ class TikTokService {
     }
     
     const shop = shops[0];
+    const accessToken = decrypt(shop.access_token);
+    const refreshToken = decrypt(shop.refresh_token);
     const now = new Date();
     const expiresAt = new Date(shop.token_expires_at);
     
     // Check if token is still valid (with 5-minute buffer)
     const bufferTime = 5 * 60 * 1000;
     if (expiresAt.getTime() - now.getTime() > bufferTime) {
-      return { shop_id: shop.shop_id, access_token: shop.access_token };
+      return { shop_id: shop.shop_id, access_token: accessToken };
     }
     
     // Token expired, refresh it
     console.log('Refreshing corporate TikTok shop access token');
-    const tokenData = await this.refreshAccessToken(shop.refresh_token);
+    const tokenData = await this.refreshAccessToken(refreshToken);
     
     // Update token in database
     const newExpiresAt = new Date(now.getTime() + (tokenData.expires_in * 1000));
@@ -856,7 +861,7 @@ class TikTokService {
       `UPDATE tiktok_user_shops 
        SET access_token = ?, refresh_token = ?, token_expires_at = ?, updated_at = CURRENT_TIMESTAMP 
        WHERE shop_id = ?`,
-      [tokenData.access_token, tokenData.refresh_token, newExpiresAt, shop.shop_id]
+      [encrypt(tokenData.access_token), encrypt(tokenData.refresh_token), newExpiresAt, shop.shop_id]
     );
     
     return { shop_id: shop.shop_id, access_token: tokenData.access_token };

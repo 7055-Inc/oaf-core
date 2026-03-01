@@ -18,6 +18,7 @@
 
 const path = require('path');
 const mysql = require('mysql2/promise');
+const { decrypt } = require('../src/utils/encryption');
 
 // Database configuration
 const dbConfig = {
@@ -107,6 +108,7 @@ class ExternalMarketplaceSync {
           // const newOrders = await this.fetchTikTokOrders(shop);
           // await this.processTikTokOrders(newOrders, shop);
           
+          const shopAccessToken = decrypt(shop.access_token);
           console.log(`[${new Date().toISOString()}] 📦 [PLACEHOLDER] Would import orders for shop ${shop.tiktok_shop_id} (user ${shop.user_id})`);
           
           if (!this.dryRun) {
@@ -143,6 +145,7 @@ class ExternalMarketplaceSync {
           // TODO: When TikTok API is approved, implement:
           // const newReturns = await this.fetchTikTokReturns(shop);
           // await this.processTikTokReturns(newReturns, shop);
+          const shopAccessToken = decrypt(shop.access_token);
           
           console.log(`[${new Date().toISOString()}] 🔄 [PLACEHOLDER] Would import returns for shop ${shop.tiktok_shop_id} (user ${shop.user_id})`);
           

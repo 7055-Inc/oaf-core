@@ -39,6 +39,7 @@ export default function PolicyPage() {
     'copyright': 'Copyright Policy',
     'terms': 'Terms of Service',
     'transparency': 'Marketplace Transparency',
+    'data-retention': 'Data Retention Policy',
     // Additional terms types
     'terms-verified': 'Verified Artist Terms',
     'terms-shipping': 'Shipping Services Terms',
@@ -68,7 +69,7 @@ export default function PolicyPage() {
       };
 
       // Check if it's a valid policy type
-      const validPolicies = ['shipping', 'returns', 'privacy', 'cookies', 'copyright', 'terms', 'transparency', ...Object.keys(termsTypeMap)];
+      const validPolicies = ['shipping', 'returns', 'privacy', 'cookies', 'copyright', 'terms', 'transparency', 'data-retention', ...Object.keys(termsTypeMap)];
       
       if (validPolicies.includes(policyType)) {
         try {
@@ -85,6 +86,7 @@ export default function PolicyPage() {
               case 'cookies':
               case 'copyright':
               case 'transparency':
+              case 'data-retention':
                 endpoint = `api/v2/system/policies/${policyType}/default`;
                 break;
               case 'terms':

@@ -9,6 +9,7 @@
 
 const db = require('../../../../config/db');
 const tiktokApiService = require('../../../services/tiktokService');
+const { encrypt } = require('../../../utils/encryption');
 
 /**
  * Get user's TikTok shop connections
@@ -306,8 +307,8 @@ async function handleOAuthCallback(authCode, state) {
       shopInfo.shop_id || shopInfo.id,
       shopInfo.shop_name || shopInfo.name,
       shopInfo.shop_region || shopInfo.region || 'US',
-      tokenData.access_token,
-      tokenData.refresh_token,
+      encrypt(tokenData.access_token),
+      encrypt(tokenData.refresh_token),
       expiresAt
     ]);
     

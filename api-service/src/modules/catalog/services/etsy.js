@@ -8,6 +8,7 @@
 
 const db = require('../../../../config/db');
 const etsyApiService = require('../../../services/etsyService');
+const { encrypt } = require('../../../utils/encryption');
 
 /**
  * Get user's Etsy shop connections
@@ -420,8 +421,8 @@ async function handleOAuthCallback(authCode, state) {
         shop.shop_id.toString(),
         shop.shop_name,
         shop.url,
-        tokens.access_token,
-        tokens.refresh_token,
+        encrypt(tokens.access_token),
+        encrypt(tokens.refresh_token),
         expiresAt
       ]);
       

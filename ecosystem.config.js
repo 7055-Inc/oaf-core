@@ -26,11 +26,9 @@ module.exports = {
       env_file: '.env',
       env: {
         NODE_ENV: 'production',
-        // Staging API on 3013 so nginx (staging-api.brakebee.com → 3013) and production/Leo (3003) stay separate
         API_GATEWAY_PORT: 3013,
         API_VERSION: '1.0.0',
         API_INSTANCE: 'staging',
-        // Allow self-signed DB certs (e.g. managed MySQL) to fix HANDSHAKE_SSL_ERROR on login
         DB_SSL_REJECT_UNAUTHORIZED: 'false'
       }
     },

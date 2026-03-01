@@ -12,7 +12,8 @@ const POLICY_TYPES = {
   privacy: { table: 'privacy_policies', label: 'Privacy Policy' },
   cookie: { table: 'cookie_policies', label: 'Cookie Policy' },
   copyright: { table: 'copyright_policies', label: 'Copyright Policy' },
-  transparency: { table: 'transparency_policies', label: 'Marketplace Transparency' }
+  transparency: { table: 'transparency_policies', label: 'Marketplace Transparency' },
+  'data-retention': { table: 'data_retention_policies', label: 'Data Retention Policy' }
 };
 
 /**

@@ -4,6 +4,7 @@
  */
 
 const { buildRoles, buildPermissions } = require('./permissions');
+const { encrypt } = require('../../../utils/encryption');
 
 /**
  * Find user by login provider (Google, email, etc.)
@@ -95,7 +96,7 @@ async function createUser(db, { email, emailVerified, provider, providerId, prov
   // Create login record
   await db.query(
     'INSERT INTO user_logins (user_id, provider, provider_id, provider_token, api_prefix) VALUES (?, ?, ?, ?, ?)',
-    [userId, provider, providerId, providerToken, 'BEE-']
+    [userId, provider, providerId, encrypt(providerToken), 'BEE-']
   );
   
   // Create all profile types
@@ -124,7 +125,7 @@ async function createUser(db, { email, emailVerified, provider, providerId, prov
 async function linkProviderToUser(db, userId, { provider, providerId, providerToken, emailVerified }) {
   await db.query(
     'INSERT INTO user_logins (user_id, provider, provider_id, provider_token, api_prefix) VALUES (?, ?, ?, ?, ?)',
-    [userId, provider, providerId, providerToken, 'BEE-']
+    [userId, provider, providerId, encrypt(providerToken), 'BEE-']
   );
   
   // Update email verification status

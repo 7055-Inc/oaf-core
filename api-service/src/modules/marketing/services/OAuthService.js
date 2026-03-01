@@ -10,6 +10,7 @@
 
 const db = require('../../../../config/db');
 const axios = require('axios');
+const { encrypt, decrypt } = require('../../../utils/encryption');
 
 class OAuthService {
   /**
@@ -394,8 +395,9 @@ class OAuthService {
       }
 
       const connection = connections[0];
+      const refreshTokenPlain = decrypt(connection.refresh_token);
 
-      if (!connection.refresh_token) {
+      if (!refreshTokenPlain) {
         return {
           success: false,
           error: 'No refresh token available'
@@ -406,15 +408,15 @@ class OAuthService {
 
       switch (connection.platform) {
         case 'twitter':
-          tokenData = await this._refreshTwitterToken(connection.refresh_token);
+          tokenData = await this._refreshTwitterToken(refreshTokenPlain);
           break;
 
         case 'tiktok':
-          tokenData = await this._refreshTikTokToken(connection.refresh_token);
+          tokenData = await this._refreshTikTokToken(refreshTokenPlain);
           break;
 
         case 'pinterest':
-          tokenData = await this._refreshPinterestToken(connection.refresh_token);
+          tokenData = await this._refreshPinterestToken(refreshTokenPlain);
           break;
 
         case 'facebook':
@@ -446,8 +448,8 @@ class OAuthService {
              updated_at = NOW()
          WHERE id = ?`,
         [
-          tokenData.data.access_token,
-          tokenData.data.refresh_token || connection.refresh_token,
+          encrypt(tokenData.data.access_token),
+          encrypt(tokenData.data.refresh_token || refreshTokenPlain),
           tokenData.data.token_expires_at,
           connectionId
         ]
@@ -621,8 +623,8 @@ class OAuthService {
            WHERE id = ?`,
           [
             account_name,
-            access_token,
-            refresh_token,
+            encrypt(access_token),
+            encrypt(refresh_token),
             token_expires_at,
             JSON.stringify(permissions),
             existing[0].id
@@ -652,8 +654,8 @@ class OAuthService {
             platform,
             account_id,
             account_name,
-            access_token,
-            refresh_token,
+            encrypt(access_token),
+            encrypt(refresh_token),
             token_expires_at,
             JSON.stringify(permissions)
           ]
@@ -697,6 +699,10 @@ class OAuthService {
       }
 
       const connection = connections[0];
+
+      // Decrypt tokens
+      if (connection.access_token) connection.access_token = decrypt(connection.access_token);
+      if (connection.refresh_token) connection.refresh_token = decrypt(connection.refresh_token);
 
       // Parse JSON fields
       if (connection.permissions) {

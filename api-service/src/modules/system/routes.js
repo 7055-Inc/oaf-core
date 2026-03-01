@@ -998,6 +998,261 @@ router.put('/policies/:type', verifyToken, requirePermission('manage_system'), a
 });
 
 // ============================================================================
+// DATA RETENTION CLEANUP
+// ============================================================================
+
+/**
+ * Preview what the data retention cleanup would delete
+ * @route POST /api/v2/system/data-retention/preview
+ * @access Private (requires manage_system permission)
+ */
+router.post('/data-retention/preview', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const mysql = require('mysql2/promise');
+    const { getPreviewCounts, dbConfig } = require('../../cron/data-retention-cleanup');
+    const db = await mysql.createConnection(dbConfig);
+    try {
+      const results = await getPreviewCounts(db);
+      res.json({ success: true, data: results });
+    } finally {
+      await db.end();
+    }
+  } catch (err) {
+    console.error('Error getting retention preview:', err);
+    res.status(500).json({ error: 'Failed to get cleanup preview' });
+  }
+});
+
+/**
+ * Run the data retention cleanup
+ * @route POST /api/v2/system/data-retention/run
+ * @access Private (requires manage_system permission)
+ */
+router.post('/data-retention/run', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const mysql = require('mysql2/promise');
+    const { runCleanupTasks, runUserDeletions, dbConfig } = require('../../cron/data-retention-cleanup');
+    const db = await mysql.createConnection(dbConfig);
+    try {
+      const cleanupResults = await runCleanupTasks(db);
+      const userResults = await runUserDeletions(db);
+      res.json({
+        success: true,
+        data: [...cleanupResults, ...userResults],
+        timestamp: new Date().toISOString()
+      });
+    } finally {
+      await db.end();
+    }
+  } catch (err) {
+    console.error('Error running retention cleanup:', err);
+    res.status(500).json({ error: 'Failed to run cleanup' });
+  }
+});
+
+/**
+ * Approve a user for deletion (GDPR)
+ * @route POST /api/v2/system/data-retention/approve-deletion/:userId
+ * @access Private (requires manage_system permission)
+ */
+router.post('/data-retention/approve-deletion/:userId', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const db = require('../../../config/db');
+    const targetUserId = req.params.userId;
+
+    const [users] = await db.execute(
+      "SELECT id, username, status FROM users WHERE id = ?",
+      [targetUserId]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (users[0].status !== 'deleted') {
+      return res.status(400).json({ error: 'User must have status "deleted" before deletion can be approved' });
+    }
+
+    await db.execute(
+      "UPDATE users SET deletion_approved_at = NOW(), deletion_approved_by = ? WHERE id = ?",
+      [req.userId, targetUserId]
+    );
+
+    res.json({ success: true, message: `Deletion approved for user ${targetUserId}. Data will be removed on next cleanup run.` });
+  } catch (err) {
+    console.error('Error approving deletion:', err);
+    res.status(500).json({ error: 'Failed to approve deletion' });
+  }
+});
+
+// ============================================================================
+// SECRETS MANAGER
+// ============================================================================
+
+const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
+const GCP_PROJECT_ID = 'onlineartfestival-com';
+
+function getSecretsClient() {
+  return new SecretManagerServiceClient();
+}
+
+async function getSecretJson(client, secretName) {
+  try {
+    const name = `projects/${GCP_PROJECT_ID}/secrets/${secretName}/versions/latest`;
+    const [version] = await client.accessSecretVersion({ name });
+    return JSON.parse(version.payload.data.toString('utf8'));
+  } catch (err) {
+    if (err.code === 5) return null;
+    throw err;
+  }
+}
+
+async function saveSecretJson(client, secretName, data) {
+  const parent = `projects/${GCP_PROJECT_ID}`;
+  const payload = JSON.stringify(data, null, 2);
+
+  try {
+    await client.getSecret({ name: `${parent}/secrets/${secretName}` });
+  } catch (err) {
+    if (err.code === 5) {
+      await client.createSecret({
+        parent,
+        secretId: secretName,
+        secret: { replication: { automatic: {} } },
+      });
+    } else {
+      throw err;
+    }
+  }
+
+  await client.addSecretVersion({
+    parent: `${parent}/secrets/${secretName}`,
+    payload: { data: Buffer.from(payload, 'utf8') },
+  });
+}
+
+/**
+ * List available environments and their secret counts
+ */
+router.get('/secrets/environments', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const client = getSecretsClient();
+    const currentInstance = process.env.API_INSTANCE || 'staging';
+    const envNames = ['staging', 'production'];
+    const results = [];
+
+    for (const name of envNames) {
+      const secretName = `${name}-env-secrets`;
+      const data = await getSecretJson(client, secretName);
+      results.push({
+        name,
+        secretName,
+        count: data ? Object.keys(data).length : 0,
+        exists: data !== null,
+        isCurrent: name === currentInstance,
+      });
+    }
+
+    res.json({ success: true, data: results });
+  } catch (err) {
+    console.error('Error listing environments:', err);
+    res.status(500).json({ error: 'Failed to list environments' });
+  }
+});
+
+/**
+ * List all secrets for an environment
+ */
+router.get('/secrets/list', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const envName = req.query.env || process.env.API_INSTANCE || 'staging';
+    const client = getSecretsClient();
+    const data = await getSecretJson(client, `${envName}-env-secrets`);
+    res.json({ success: true, data: data || {} });
+  } catch (err) {
+    console.error('Error listing secrets:', err);
+    res.status(500).json({ error: 'Failed to list secrets' });
+  }
+});
+
+/**
+ * Set (add or update) a single secret
+ */
+router.post('/secrets/set', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const { env, key, value } = req.body;
+    if (!env || !key || value === undefined) {
+      return res.status(400).json({ error: 'env, key, and value are required' });
+    }
+
+    const client = getSecretsClient();
+    const secretName = `${env}-env-secrets`;
+    const data = await getSecretJson(client, secretName) || {};
+    data[key] = value;
+    await saveSecretJson(client, secretName, data);
+
+    res.json({ success: true, message: `Set ${key} in ${env}` });
+  } catch (err) {
+    console.error('Error setting secret:', err);
+    res.status(500).json({ error: 'Failed to set secret' });
+  }
+});
+
+/**
+ * Delete a single secret key
+ */
+router.post('/secrets/delete', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const { env, key } = req.body;
+    if (!env || !key) {
+      return res.status(400).json({ error: 'env and key are required' });
+    }
+
+    const client = getSecretsClient();
+    const secretName = `${env}-env-secrets`;
+    const data = await getSecretJson(client, secretName);
+    if (!data || !(key in data)) {
+      return res.status(404).json({ error: `Key "${key}" not found in ${env}` });
+    }
+
+    delete data[key];
+    await saveSecretJson(client, secretName, data);
+
+    res.json({ success: true, message: `Removed ${key} from ${env}` });
+  } catch (err) {
+    console.error('Error deleting secret:', err);
+    res.status(500).json({ error: 'Failed to delete secret' });
+  }
+});
+
+/**
+ * Copy all secrets from one environment to another
+ */
+router.post('/secrets/copy', verifyToken, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const { fromEnv, toEnv } = req.body;
+    if (!fromEnv || !toEnv || fromEnv === toEnv) {
+      return res.status(400).json({ error: 'fromEnv and toEnv are required and must differ' });
+    }
+
+    const client = getSecretsClient();
+    const sourceData = await getSecretJson(client, `${fromEnv}-env-secrets`);
+    if (!sourceData) {
+      return res.status(404).json({ error: `No secrets found in ${fromEnv}` });
+    }
+
+    const targetData = await getSecretJson(client, `${toEnv}-env-secrets`) || {};
+    const merged = { ...targetData, ...sourceData };
+    await saveSecretJson(client, `${toEnv}-env-secrets`, merged);
+
+    res.json({ success: true, count: Object.keys(sourceData).length, message: `Copied ${Object.keys(sourceData).length} secrets from ${fromEnv} to ${toEnv}` });
+  } catch (err) {
+    console.error('Error copying secrets:', err);
+    res.status(500).json({ error: 'Failed to copy secrets' });
+  }
+});
+
+// ============================================================================
 // DASHBOARD WIDGETS
 // ============================================================================
 
@@ -1274,7 +1529,8 @@ const POLICY_TABLES = {
   'privacy': 'privacy_policies',
   'cookies': 'cookie_policies',
   'copyright': 'copyright_policies',
-  'transparency': 'transparency_policies'
+  'transparency': 'transparency_policies',
+  'data-retention': 'data_retention_policies'
 };
 
 /**

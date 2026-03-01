@@ -15,6 +15,7 @@
 const axios = require('axios');
 const crypto = require('crypto');
 const db = require('../../config/db');
+const { encrypt, decrypt } = require('../utils/encryption');
 
 class EtsyService {
   constructor() {
@@ -263,6 +264,8 @@ class EtsyService {
     }
     
     const shop = shops[0];
+    const accessToken = decrypt(shop.access_token);
+    const refreshToken = decrypt(shop.refresh_token);
     const expiresAt = new Date(shop.token_expires_at);
     const now = new Date();
     
@@ -271,7 +274,7 @@ class EtsyService {
       console.log('Etsy token expiring soon, refreshing...', { shopId });
       
       try {
-        const newTokens = await this.refreshAccessToken(shop.refresh_token);
+        const newTokens = await this.refreshAccessToken(refreshToken);
         
         // Update database with new tokens
         const newExpiresAt = new Date(Date.now() + newTokens.expires_in * 1000);
@@ -284,7 +287,7 @@ class EtsyService {
               last_token_refresh_at = NOW(),
               updated_at = CURRENT_TIMESTAMP
           WHERE shop_id = ? AND user_id = ?
-        `, [newTokens.access_token, newTokens.refresh_token, newExpiresAt, shopId, userId]);
+        `, [encrypt(newTokens.access_token), encrypt(newTokens.refresh_token), newExpiresAt, shopId, userId]);
         
         return newTokens.access_token;
       } catch (error) {
@@ -293,7 +296,7 @@ class EtsyService {
       }
     }
     
-    return shop.access_token;
+    return accessToken;
   }
 
   // ============================================

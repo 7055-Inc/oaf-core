@@ -1,8 +1,39 @@
 # Brakebee V2 API Reference
 
-Last updated: 2026-02-18
+Last updated: 2026-02-24
 
 All endpoints are mounted under `/api/v2/<module>/`. Authentication uses Firebase JWT tokens via `Authorization: Bearer <token>` header.
+
+## Secret Management
+
+All sensitive credentials (database passwords, API keys, encryption keys, OAuth secrets) are stored in **GCP Secret Manager** — not in `.env` files.
+
+**How it works:**
+- A single JSON secret called `staging-env-secrets` (or `production-env-secrets`) holds all ~58 secret key-value pairs
+- At startup, `loadSecrets.js` fetches from GCP and injects into `process.env`
+- `.env` files contain only non-sensitive config (hosts, ports, URLs, feature flags)
+- If GCP is unavailable (local dev), `.env` serves as a fallback
+
+**GCP Project:** `onlineartfestival-com`
+**Service Account:** `513917944286-compute@developer.gserviceaccount.com` (Secret Manager Secret Accessor)
+
+**Key files:**
+- `api-service/src/utils/loadSecrets.js` — bootstrap utility
+- `api-service/run-with-secrets.js` — cron/script wrapper
+- `api-service/scripts/seed-secrets.js` — one-time secret seeding tool
+- `api-service/.env.example` — template with non-secret config only
+
+**To add or rotate a secret:**
+1. Go to GCP Console > Secret Manager > `staging-env-secrets`
+2. Create a new version with the updated JSON
+3. Restart the affected PM2 service (`pm2 restart staging-api`)
+
+**To run a script with secrets:**
+```
+cd /var/www/main && node api-service/run-with-secrets.js <script-path>
+```
+
+---
 
 **Response envelope** (all v2 endpoints):
 ```
@@ -847,11 +878,33 @@ Platform administration: notifications, promotions, sales, coupons, hero, announ
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/policies/:type/default` | Public | Get default policy by type (shipping, returns, privacy, cookies, copyright, transparency) |
+| GET | `/policies/:type/default` | Public | Get default policy by type (shipping, returns, privacy, cookies, copyright, transparency, data-retention) |
 | GET | `/policies/types` | Permission (manage_system) | List policy types |
 | GET | `/policies` | Permission (manage_system) | List all policies |
 | GET | `/policies/:type` | Permission (manage_system) | Get policy by type |
 | PUT | `/policies/:type` | Permission (manage_system) | Update policy |
+
+### Secrets Manager — `/api/v2/system/secrets`
+
+Manage GCP Secret Manager credentials from the admin dashboard. Supports viewing, editing, adding, deleting, and copying secrets between environments.
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/environments` | Permission (manage_system) | List environments with secret counts |
+| GET | `/list?env=staging` | Permission (manage_system) | List all secrets for an environment |
+| POST | `/set` | Permission (manage_system) | Add or update a secret (body: env, key, value) |
+| POST | `/delete` | Permission (manage_system) | Remove a secret key (body: env, key) |
+| POST | `/copy` | Permission (manage_system) | Copy all secrets from one env to another (body: fromEnv, toEnv) |
+
+### Data Retention — `/api/v2/system/data-retention`
+
+Data retention enforcement: preview cleanup counts, run cleanup, approve user deletions (GDPR).
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/preview` | Permission (manage_system) | Preview what data would be deleted by retention rules |
+| POST | `/run` | Permission (manage_system) | Execute data retention cleanup (permanently deletes expired data) |
+| POST | `/approve-deletion/:userId` | Permission (manage_system) | Approve a user for GDPR deletion (user must have status "deleted") |
 
 ### Dashboard Widgets
 

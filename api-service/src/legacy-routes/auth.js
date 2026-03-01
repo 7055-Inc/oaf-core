@@ -11,6 +11,7 @@ const jwt = require('jsonwebtoken');
 const { secureLogger } = require('../middleware/secureLogger');
 const crypto = require('crypto');
 const verifyToken = require('../middleware/jwt');
+const { encrypt } = require('../utils/encryption');
 
 /**
  * POST /auth/exchange
@@ -137,7 +138,7 @@ router.post('/exchange', async (req, res) => {
         userId = userCheck[0].id;
         try {
           secureLogger.info('Creating user login record', { userId, provider });
-          await db.query('INSERT INTO user_logins (user_id, provider, provider_id, provider_token, api_prefix) VALUES (?, ?, ?, ?, ?)', [userId, provider, providerId, providerToken, 'BEE-']);
+          await db.query('INSERT INTO user_logins (user_id, provider, provider_id, provider_token, api_prefix) VALUES (?, ?, ?, ?, ?)', [userId, provider, providerId, encrypt(providerToken), 'BEE-']);
           await db.query('UPDATE users SET email_verified = ?, status = ? WHERE id = ?', [emailVerified, emailVerified === 'yes' ? 'active' : 'draft', userId]);
         } catch (dbError) {
           throw new Error('Database insert failed for user_logins: ' + dbError.message);
@@ -156,7 +157,7 @@ router.post('/exchange', async (req, res) => {
         userId = result.insertId;
         try {
           secureLogger.info('Creating new user with profiles', { userId, provider });
-          await db.query('INSERT INTO user_logins (user_id, provider, provider_id, provider_token, api_prefix) VALUES (?, ?, ?, ?, ?)', [userId, provider, providerId, providerToken, 'BEE-']);
+          await db.query('INSERT INTO user_logins (user_id, provider, provider_id, provider_token, api_prefix) VALUES (?, ?, ?, ?, ?)', [userId, provider, providerId, encrypt(providerToken), 'BEE-']);
           await db.query('INSERT INTO user_profiles (user_id) VALUES (?)', [userId]);
           await db.query('INSERT INTO artist_profiles (user_id) VALUES (?)', [userId]);
           await db.query('INSERT INTO promoter_profiles (user_id) VALUES (?)', [userId]);

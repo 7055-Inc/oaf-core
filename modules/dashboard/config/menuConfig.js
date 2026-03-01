@@ -467,6 +467,16 @@ const menuConfig = [
         href: '/dashboard/system/terms',
         adminOnly: true
       },
+      { 
+        label: 'Data Retention', 
+        href: '/dashboard/system/data-retention',
+        adminOnly: true
+      },
+      { 
+        label: 'Secrets Manager', 
+        href: '/dashboard/system/secrets',
+        adminOnly: true
+      },
     ]
   },
   {

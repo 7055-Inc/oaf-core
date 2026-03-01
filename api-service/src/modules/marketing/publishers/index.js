@@ -12,6 +12,7 @@ const PinterestPublisher = require('./PinterestPublisher');
 const GoogleAdsPublisher = require('./GoogleAdsPublisher');
 const BingAdsPublisher = require('./BingAdsPublisher');
 const OAuthService = require('../services/OAuthService');
+const { decrypt } = require('../../../utils/encryption');
 
 /**
  * Publisher Factory
@@ -103,6 +104,10 @@ async function getPublisherForContent(content, ownerType, ownerId) {
   }
 
   const connection = connections[0];
+
+  // Decrypt tokens
+  if (connection.access_token) connection.access_token = decrypt(connection.access_token);
+  if (connection.refresh_token) connection.refresh_token = decrypt(connection.refresh_token);
 
   // Parse JSON permissions
   if (connection.permissions && typeof connection.permissions === 'string') {
