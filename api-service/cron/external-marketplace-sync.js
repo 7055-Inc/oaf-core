@@ -17,8 +17,10 @@
  */
 
 const path = require('path');
+require('dotenv').config({ path: path.resolve(process.cwd(), 'api-service/.env') });
 const mysql = require('mysql2/promise');
 const { decrypt } = require('../src/utils/encryption');
+const tiktokApiService = require('../src/services/tiktokService');
 
 // Database configuration
 const dbConfig = {
@@ -92,36 +94,77 @@ class ExternalMarketplaceSync {
 
   async importOrdersFromAPI(marketplace) {
     if (marketplace === 'tiktok') {
-      // Get all connected TikTok shops that need order sync
       const [shops] = await this.db.execute(`
-        SELECT user_id, tiktok_shop_id, access_token, last_order_sync
-        FROM tiktok_user_shops 
-        WHERE access_token IS NOT NULL 
-        AND is_active = 1
+        SELECT user_id, shop_id, access_token, last_order_sync
+        FROM tiktok_user_shops
+        WHERE access_token IS NOT NULL AND is_active = 1
       `);
-      
-      console.log(`[${new Date().toISOString()}] 🏪 Found ${shops.length} TikTok shops to sync orders`);
-      
+
+      console.log(`[${new Date().toISOString()}] Found ${shops.length} TikTok shops to sync orders`);
+
       for (const shop of shops) {
         try {
-          // TODO: When TikTok API is approved, implement:
-          // const newOrders = await this.fetchTikTokOrders(shop);
-          // await this.processTikTokOrders(newOrders, shop);
-          
-          const shopAccessToken = decrypt(shop.access_token);
-          console.log(`[${new Date().toISOString()}] 📦 [PLACEHOLDER] Would import orders for shop ${shop.tiktok_shop_id} (user ${shop.user_id})`);
-          
-          if (!this.dryRun) {
-            // Update last sync timestamp
-            await this.db.execute(`
-              UPDATE tiktok_user_shops 
-              SET last_order_sync = NOW()
-              WHERE user_id = ? AND tiktok_shop_id = ?
-            `, [shop.user_id, shop.tiktok_shop_id]);
+          const sinceTs = shop.last_order_sync
+            ? Math.floor(new Date(shop.last_order_sync).getTime() / 1000)
+            : Math.floor((Date.now() - 30 * 86400000) / 1000);
+
+          const ordersData = await tiktokApiService.getOrders(shop.shop_id, shop.user_id, {
+            create_time_from: sinceTs,
+            page_size: 100
+          });
+
+          const orders = ordersData.orders || ordersData.order_list || [];
+          let imported = 0;
+
+          for (const order of orders) {
+            const orderId = order.order_id || order.id;
+            const [existing] = await this.db.execute(
+              'SELECT id FROM tiktok_orders WHERE tiktok_order_id = ?', [orderId]
+            );
+
+            if (existing.length === 0) {
+              const customerName = order.recipient_address?.name || null;
+              const shippingAddr = order.recipient_address || null;
+
+              if (!this.dryRun) {
+                await this.db.execute(`
+                  INSERT INTO tiktok_orders
+                    (user_id, tiktok_shop_id, tiktok_order_id, order_status, total_amount,
+                     customer_name, customer_email, shipping_address, order_data, created_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?))
+                `, [
+                  shop.user_id, shop.shop_id, orderId,
+                  order.order_status || order.status,
+                  order.payment?.total_amount || 0,
+                  customerName, order.buyer_email || null,
+                  shippingAddr ? JSON.stringify(shippingAddr) : null,
+                  JSON.stringify(order),
+                  order.create_time || Math.floor(Date.now() / 1000)
+                ]);
+                imported++;
+              }
+            } else {
+              if (!this.dryRun) {
+                await this.db.execute(
+                  'UPDATE tiktok_orders SET order_status = ?, order_data = ? WHERE tiktok_order_id = ?',
+                  [order.order_status || order.status, JSON.stringify(order), orderId]
+                );
+              }
+            }
           }
-          
+
+          if (!this.dryRun) {
+            await this.db.execute(
+              'UPDATE tiktok_user_shops SET last_order_sync = NOW() WHERE user_id = ? AND shop_id = ?',
+              [shop.user_id, shop.shop_id]
+            );
+          }
+
+          this.stats.ordersImported += imported;
+          console.log(`[${new Date().toISOString()}] Imported ${imported} orders for shop ${shop.shop_id}`);
+
         } catch (error) {
-          console.error(`[${new Date().toISOString()}] ❌ Error importing orders for shop ${shop.tiktok_shop_id}:`, error);
+          console.error(`[${new Date().toISOString()}] Error importing orders for shop ${shop.shop_id}:`, error.message);
           this.stats.errors++;
         }
       }
@@ -130,36 +173,63 @@ class ExternalMarketplaceSync {
 
   async importReturnsFromAPI(marketplace) {
     if (marketplace === 'tiktok') {
-      // Get all connected TikTok shops that need return sync
       const [shops] = await this.db.execute(`
-        SELECT user_id, tiktok_shop_id, access_token, last_return_sync
-        FROM tiktok_user_shops 
-        WHERE access_token IS NOT NULL 
-        AND is_active = 1
+        SELECT user_id, shop_id, access_token, last_return_sync
+        FROM tiktok_user_shops
+        WHERE access_token IS NOT NULL AND is_active = 1
       `);
-      
-      console.log(`[${new Date().toISOString()}] 🏪 Found ${shops.length} TikTok shops to sync returns`);
-      
+
+      console.log(`[${new Date().toISOString()}] Found ${shops.length} TikTok shops to sync returns`);
+
       for (const shop of shops) {
         try {
-          // TODO: When TikTok API is approved, implement:
-          // const newReturns = await this.fetchTikTokReturns(shop);
-          // await this.processTikTokReturns(newReturns, shop);
-          const shopAccessToken = decrypt(shop.access_token);
-          
-          console.log(`[${new Date().toISOString()}] 🔄 [PLACEHOLDER] Would import returns for shop ${shop.tiktok_shop_id} (user ${shop.user_id})`);
-          
-          if (!this.dryRun) {
-            // Update last sync timestamp
-            await this.db.execute(`
-              UPDATE tiktok_user_shops 
-              SET last_return_sync = NOW()
-              WHERE user_id = ? AND tiktok_shop_id = ?
-            `, [shop.user_id, shop.tiktok_shop_id]);
+          const sinceTs = shop.last_return_sync
+            ? Math.floor(new Date(shop.last_return_sync).getTime() / 1000)
+            : Math.floor((Date.now() - 30 * 86400000) / 1000);
+
+          const returnsData = await tiktokApiService.getReturns(shop.shop_id, shop.user_id, {
+            create_time_from: sinceTs,
+            page_size: 50
+          });
+
+          const returns = returnsData.reverse_order_list || returnsData.returns || [];
+          let imported = 0;
+
+          for (const ret of returns) {
+            const returnId = ret.reverse_order_id || ret.return_id || ret.id;
+            const [existing] = await this.db.execute(
+              'SELECT id FROM tiktok_returns WHERE tiktok_return_id = ?', [returnId]
+            );
+
+            if (existing.length === 0 && !this.dryRun) {
+              await this.db.execute(`
+                INSERT INTO tiktok_returns
+                  (user_id, tiktok_return_id, tiktok_order_id, return_data,
+                   return_reason, return_status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, NOW())
+              `, [
+                shop.user_id, returnId,
+                ret.order_id || null,
+                JSON.stringify(ret),
+                ret.reason || ret.cancel_reason || null,
+                ret.status || ret.reverse_order_status || 'pending'
+              ]);
+              imported++;
+            }
           }
-          
+
+          if (!this.dryRun) {
+            await this.db.execute(
+              'UPDATE tiktok_user_shops SET last_return_sync = NOW() WHERE user_id = ? AND shop_id = ?',
+              [shop.user_id, shop.shop_id]
+            );
+          }
+
+          this.stats.returnsImported += imported;
+          console.log(`[${new Date().toISOString()}] Imported ${imported} returns for shop ${shop.shop_id}`);
+
         } catch (error) {
-          console.error(`[${new Date().toISOString()}] ❌ Error importing returns for shop ${shop.tiktok_shop_id}:`, error);
+          console.error(`[${new Date().toISOString()}] Error importing returns for shop ${shop.shop_id}:`, error.message);
           this.stats.errors++;
         }
       }
@@ -168,48 +238,44 @@ class ExternalMarketplaceSync {
 
   async pushTrackingToAPI(marketplace) {
     if (marketplace === 'tiktok') {
-      // Find orders with tracking that needs to be pushed to TikTok API
       const [trackingUpdates] = await this.db.execute(`
         SELECT DISTINCT
           to_table.tiktok_order_id,
           to_table.user_id,
           oit.tracking_number,
           oit.carrier,
-          oit.last_status,
-          oit.updated_at,
-          tus.access_token,
-          tus.tiktok_shop_id
+          tus.shop_id
         FROM tiktok_orders to_table
         JOIN orders o ON to_table.main_order_id = o.id
         JOIN order_items oi ON o.id = oi.order_id
         JOIN order_item_tracking oit ON oi.id = oit.order_item_id
-        JOIN tiktok_user_shops tus ON to_table.user_id = tus.user_id
+        JOIN tiktok_user_shops tus ON to_table.user_id = tus.user_id AND tus.is_active = 1
         WHERE to_table.tracking_synced_at IS NOT NULL
-        AND (to_table.api_tracking_pushed_at IS NULL OR oit.updated_at > to_table.api_tracking_pushed_at)
+          AND oit.tracking_number IS NOT NULL
+          AND (to_table.api_tracking_pushed_at IS NULL OR oit.updated_at > to_table.api_tracking_pushed_at)
       `);
-      
-      console.log(`[${new Date().toISOString()}] 📤 Found ${trackingUpdates.length} tracking updates to push to TikTok API`);
-      
+
+      console.log(`[${new Date().toISOString()}] Found ${trackingUpdates.length} tracking updates to push to TikTok API`);
+
       for (const tracking of trackingUpdates) {
         try {
-          // TODO: When TikTok API is approved, implement:
-          // await this.pushTikTokTracking(tracking);
-          
-          console.log(`[${new Date().toISOString()}] 📤 [PLACEHOLDER] Would push tracking ${tracking.tracking_number} to TikTok order ${tracking.tiktok_order_id}`);
-          
           if (!this.dryRun) {
-            // Update API push timestamp
-            await this.db.execute(`
-              UPDATE tiktok_orders 
-              SET api_tracking_pushed_at = NOW()
-              WHERE tiktok_order_id = ?
-            `, [tracking.tiktok_order_id]);
+            await tiktokApiService.shipOrder(tracking.shop_id, tracking.user_id, tracking.tiktok_order_id, {
+              tracking_number: tracking.tracking_number,
+              shipping_provider_id: tracking.carrier || 'OTHER'
+            });
+
+            await this.db.execute(
+              'UPDATE tiktok_orders SET api_tracking_pushed_at = NOW() WHERE tiktok_order_id = ?',
+              [tracking.tiktok_order_id]
+            );
           }
-          
+
           this.stats.trackingPushed++;
-          
+          console.log(`[${new Date().toISOString()}] Pushed tracking ${tracking.tracking_number} to TikTok order ${tracking.tiktok_order_id}`);
+
         } catch (error) {
-          console.error(`[${new Date().toISOString()}] ❌ Error pushing tracking for order ${tracking.tiktok_order_id}:`, error);
+          console.error(`[${new Date().toISOString()}] Error pushing tracking for ${tracking.tiktok_order_id}:`, error.message);
           this.stats.errors++;
         }
       }
@@ -218,54 +284,46 @@ class ExternalMarketplaceSync {
 
   async pushInventoryToAPI(marketplace) {
     if (marketplace === 'tiktok') {
-      // Find products with inventory that needs to be pushed to TikTok API
       const [inventoryUpdates] = await this.db.execute(`
-        SELECT 
-          tpd.product_id,
-          tpd.user_id,
-          tpd.tiktok_product_id,
-          tia.allocated_quantity,
-          pi.qty_available,
-          tus.access_token,
-          tus.tiktok_shop_id
+        SELECT
+          tpd.product_id, tpd.user_id, tpd.tiktok_product_id, tpd.tiktok_sku_id,
+          tia.allocated_quantity, pi.qty_available,
+          tus.shop_id
         FROM tiktok_product_data tpd
         JOIN tiktok_inventory_allocations tia ON tpd.product_id = tia.product_id AND tpd.user_id = tia.user_id
         JOIN product_inventory pi ON tpd.product_id = pi.product_id
-        JOIN tiktok_user_shops tus ON tpd.user_id = tus.user_id
+        JOIN tiktok_user_shops tus ON tpd.user_id = tus.user_id AND tus.is_active = 1
         WHERE tpd.sync_status = 'synced'
-        AND tpd.tiktok_product_id IS NOT NULL
-        AND tpd.inventory_synced_at IS NOT NULL
-        AND (tpd.api_inventory_pushed_at IS NULL OR tpd.inventory_synced_at > tpd.api_inventory_pushed_at)
+          AND tpd.tiktok_product_id IS NOT NULL
+          AND tpd.inventory_synced_at IS NOT NULL
+          AND (tpd.api_inventory_pushed_at IS NULL OR tpd.inventory_synced_at > tpd.api_inventory_pushed_at)
       `);
-      
-      console.log(`[${new Date().toISOString()}] 📊 Found ${inventoryUpdates.length} inventory updates to push to TikTok API`);
-      
-      for (const inventory of inventoryUpdates) {
+
+      console.log(`[${new Date().toISOString()}] Found ${inventoryUpdates.length} inventory updates to push to TikTok API`);
+
+      for (const inv of inventoryUpdates) {
         try {
-          // Calculate available quantity for TikTok
-          const availableForTikTok = Math.min(
-            inventory.allocated_quantity || 0,
-            inventory.qty_available || 0
-          );
-          
-          // TODO: When TikTok API is approved, implement:
-          // await this.pushTikTokInventory(inventory.tiktok_product_id, availableForTikTok, inventory.access_token);
-          
-          console.log(`[${new Date().toISOString()}] 📊 [PLACEHOLDER] Would push inventory ${availableForTikTok} units to TikTok product ${inventory.tiktok_product_id}`);
-          
+          const qty = Math.min(inv.allocated_quantity || 0, inv.qty_available || 0);
+
           if (!this.dryRun) {
-            // Update API push timestamp
-            await this.db.execute(`
-              UPDATE tiktok_product_data 
-              SET api_inventory_pushed_at = NOW()
-              WHERE product_id = ? AND user_id = ?
-            `, [inventory.product_id, inventory.user_id]);
+            await tiktokApiService.updateInventory(
+              inv.shop_id, inv.user_id,
+              inv.tiktok_product_id,
+              inv.tiktok_sku_id || inv.tiktok_product_id,
+              qty
+            );
+
+            await this.db.execute(
+              'UPDATE tiktok_product_data SET api_inventory_pushed_at = NOW() WHERE product_id = ? AND user_id = ?',
+              [inv.product_id, inv.user_id]
+            );
           }
-          
+
           this.stats.inventoryPushed++;
-          
+          console.log(`[${new Date().toISOString()}] Pushed ${qty} units to TikTok product ${inv.tiktok_product_id}`);
+
         } catch (error) {
-          console.error(`[${new Date().toISOString()}] ❌ Error pushing inventory for product ${inventory.product_id}:`, error);
+          console.error(`[${new Date().toISOString()}] Error pushing inventory for product ${inv.product_id}:`, error.message);
           this.stats.errors++;
         }
       }
@@ -280,63 +338,66 @@ class ExternalMarketplaceSync {
 
   async pushProductUpdatesToAPI(marketplace) {
     if (marketplace === 'tiktok') {
-      // Find products ready for API sync
       const [productsToSync] = await this.db.execute(`
-        SELECT 
-          tpd.product_id,
-          tpd.user_id,
-          tpd.tiktok_product_id,
-          tpd.tiktok_title,
-          tpd.tiktok_description,
-          tpd.tiktok_price,
-          tpd.tiktok_tags,
-          tpd.tiktok_category_id,
-          tpd.is_active,
-          tus.access_token,
-          tus.tiktok_shop_id
+        SELECT
+          tpd.product_id, tpd.user_id, tpd.tiktok_product_id,
+          tpd.tiktok_title, tpd.tiktok_description, tpd.tiktok_price,
+          tpd.tiktok_tags, tpd.tiktok_category_id, tpd.is_active,
+          tus.shop_id
         FROM tiktok_product_data tpd
-        JOIN tiktok_user_shops tus ON tpd.user_id = tus.user_id
+        JOIN tiktok_user_shops tus ON tpd.user_id = tus.user_id AND tus.is_active = 1
         WHERE tpd.sync_status = 'ready_for_api_sync'
-        AND tus.access_token IS NOT NULL
+          AND tus.access_token IS NOT NULL
         ORDER BY tpd.updated_at ASC
       `);
-      
-      console.log(`[${new Date().toISOString()}] 🔄 Found ${productsToSync.length} TikTok products ready for API sync`);
-      
+
+      console.log(`[${new Date().toISOString()}] Found ${productsToSync.length} TikTok products ready for API sync`);
+
       for (const product of productsToSync) {
         try {
-          // TODO: When TikTok API is approved, implement:
-          // if (product.tiktok_product_id) {
-          //   await this.updateTikTokProduct(product);
-          // } else {
-          //   await this.createTikTokProduct(product);
-          // }
-          
-          console.log(`[${new Date().toISOString()}] 🔄 [PLACEHOLDER] Would sync product ${product.product_id} to TikTok`);
-          
+          const productData = {
+            title: product.tiktok_title,
+            description: product.tiktok_description,
+            category_id: product.tiktok_category_id,
+            skus: [{
+              price: { amount: Math.round((product.tiktok_price || 0) * 100), currency: 'USD' }
+            }]
+          };
+
           if (!this.dryRun) {
-            // Update sync status
-            await this.db.execute(`
-              UPDATE tiktok_product_data 
-              SET sync_status = 'synced', api_synced_at = NOW()
-              WHERE product_id = ? AND user_id = ?
-            `, [product.product_id, product.user_id]);
+            if (product.tiktok_product_id) {
+              await tiktokApiService.updateProduct(product.shop_id, product.user_id, product.tiktok_product_id, productData);
+            } else {
+              const result = await tiktokApiService.createProduct(product.shop_id, product.user_id, productData);
+              if (result.product_id) {
+                await this.db.execute(
+                  'UPDATE tiktok_product_data SET tiktok_product_id = ? WHERE product_id = ? AND user_id = ?',
+                  [result.product_id, product.product_id, product.user_id]
+                );
+              }
+            }
+
+            await this.db.execute(
+              'UPDATE tiktok_product_data SET sync_status = "synced", api_synced_at = NOW() WHERE product_id = ? AND user_id = ?',
+              [product.product_id, product.user_id]
+            );
           }
-          
+
           this.stats.productsPushed++;
-          
+          console.log(`[${new Date().toISOString()}] Synced product ${product.product_id} to TikTok`);
+
         } catch (error) {
-          console.error(`[${new Date().toISOString()}] ❌ Error syncing product ${product.product_id}:`, error);
+          console.error(`[${new Date().toISOString()}] Error syncing product ${product.product_id}:`, error.message);
+          if (!this.dryRun) {
+            await this.db.execute(
+              'UPDATE tiktok_product_data SET sync_status = "error", last_sync_error = ? WHERE product_id = ? AND user_id = ?',
+              [error.message?.substring(0, 500), product.product_id, product.user_id]
+            );
+          }
           this.stats.errors++;
         }
       }
     }
-    
-    // TODO: Add Amazon product sync
-    // if (marketplace === 'amazon') { ... }
-    
-    // TODO: Add Etsy product sync  
-    // if (marketplace === 'etsy') { ... }
   }
 
   printStats() {

@@ -11,7 +11,12 @@ const VALID_CONNECTOR_SLUGS = [
   'walmart-connector',
   'wayfair-connector',
   'tiktok-connector',
-  'etsy-connector'
+  'etsy-connector',
+  'shopify-connector',
+  'ebay-connector',
+  'amazon-connector',
+  'faire-connector',
+  'meta-connector'
 ];
 
 async function validateAddonSlug(addonSlug) {

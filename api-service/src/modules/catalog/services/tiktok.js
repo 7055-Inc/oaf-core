@@ -80,15 +80,13 @@ async function listProducts(userId) {
  * Save TikTok product data and optional allocation
  */
 async function saveProduct(productId, userId, body) {
-  const {
-    tiktok_title,
-    tiktok_description,
-    tiktok_price,
-    tiktok_tags,
-    tiktok_category_id,
-    allocated_quantity,
-    is_active
-  } = body;
+  const tiktok_title = body.tiktok_title || null;
+  const tiktok_description = body.tiktok_description || null;
+  const tiktok_price = body.tiktok_price != null ? parseFloat(body.tiktok_price) : null;
+  const tiktok_tags = body.tiktok_tags || null;
+  const tiktok_category_id = body.tiktok_category_id || null;
+  const is_active = body.is_active != null ? (body.is_active ? 1 : 0) : 1;
+  const allocated_quantity = body.allocated_quantity ?? body.allocation;
 
   const [productCheck] = await db.execute(
     'SELECT id FROM products WHERE id = ? AND vendor_id = ?',
@@ -97,7 +95,7 @@ async function saveProduct(productId, userId, body) {
   if (productCheck.length === 0) return { found: false };
 
   await db.execute(`
-    INSERT INTO tiktok_product_data 
+    INSERT INTO tiktok_product_data
     (user_id, product_id, tiktok_title, tiktok_description, tiktok_price, tiktok_tags, tiktok_category_id, is_active)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ON DUPLICATE KEY UPDATE
@@ -111,7 +109,7 @@ async function saveProduct(productId, userId, body) {
       updated_at = CURRENT_TIMESTAMP
   `, [userId, productId, tiktok_title, tiktok_description, tiktok_price, tiktok_tags, tiktok_category_id, is_active]);
 
-  if (allocated_quantity !== undefined && allocated_quantity !== '') {
+  if (allocated_quantity != null && allocated_quantity !== '') {
     const allocatedQty = parseInt(allocated_quantity) || 0;
     if (allocatedQty > 0) {
       await db.execute(`
@@ -181,8 +179,9 @@ async function bulkAllocations(userId, allocations) {
     throw new Error('allocations must be a non-empty array');
   }
   for (const a of allocations) {
-    if (!a.product_id || a.allocated_quantity === undefined) {
-      throw new Error('Each allocation must have product_id and allocated_quantity');
+    a.allocated_quantity = a.allocated_quantity ?? a.quantity;
+    if (!a.product_id || a.allocated_quantity == null) {
+      throw new Error('Each allocation must have product_id and quantity');
     }
   }
   const productIds = allocations.map(a => a.product_id);
@@ -236,8 +235,8 @@ async function getLogs(userId, options = {}) {
     query += ' AND status = ?';
     params.push(status);
   }
-  query += ' ORDER BY created_at DESC LIMIT ?';
-  params.push(parseInt(limit));
+  const limitInt = parseInt(limit) || 50;
+  query += ` ORDER BY created_at DESC LIMIT ${limitInt}`;
   const [logs] = await db.execute(query, params);
   return logs;
 }
@@ -455,19 +454,26 @@ async function syncOrdersFromTikTok(userId, shopId) {
       );
       
       if (existing.length === 0) {
-        // Insert new order
+        const customerName = order.recipient_address?.name || order.buyer_message?.name || null;
+        const customerEmail = order.buyer_email || null;
+        const shippingAddr = order.recipient_address || order.shipping_address || null;
+
         await db.execute(`
           INSERT INTO tiktok_orders 
-          (user_id, shop_id, tiktok_order_id, order_status, total_amount, created_at, order_data)
-          VALUES (?, ?, ?, ?, ?, FROM_UNIXTIME(?), ?)
+          (user_id, tiktok_shop_id, tiktok_order_id, order_status, total_amount,
+           customer_name, customer_email, shipping_address, order_data, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?))
         `, [
           userId,
           shopId,
           order.order_id || order.id,
           order.order_status || order.status,
           order.payment?.total_amount || 0,
-          order.create_time || order.created_at,
-          JSON.stringify(order)
+          customerName,
+          customerEmail,
+          shippingAddr ? JSON.stringify(shippingAddr) : null,
+          JSON.stringify(order),
+          order.create_time || order.created_at
         ]);
         syncCount++;
       } else {
@@ -885,61 +891,48 @@ async function adminListCorporateProducts(options = {}) {
  */
 async function adminActivateCorporate(productId, userId) {
   await db.execute(`
-    UPDATE tiktok_corporate_products 
-    SET listing_status = 'listed', 
-        is_active = 1, 
-        sync_status = 'pending', 
-        rejection_reason = NULL,
-        updated_at = CURRENT_TIMESTAMP 
+    UPDATE tiktok_corporate_products
+    SET listing_status = 'listed', is_active = 1, sync_status = 'pending',
+        rejection_reason = NULL, updated_at = CURRENT_TIMESTAMP
     WHERE product_id = ?
   `, [productId]);
-  
+
   await db.execute(`
     INSERT INTO tiktok_sync_logs (user_id, sync_type, operation, reference_id, status, message)
-    VALUES (?, 'product', 'update', ?, 'success', 'Admin activated corporate product for TikTok feed')
-  `, [userId, productId]);
-  
+    VALUES (NULL, 'product', 'update', ?, 'success', 'Admin activated corporate product for TikTok feed')
+  `, [productId]);
+
   return true;
 }
 
-/**
- * Admin: Pause product (remove from feed)
- */
 async function adminPauseCorporate(productId, userId) {
   await db.execute(`
-    UPDATE tiktok_corporate_products 
-    SET listing_status = 'paused', 
-        sync_status = 'pending', 
-        updated_at = CURRENT_TIMESTAMP 
+    UPDATE tiktok_corporate_products
+    SET listing_status = 'paused', sync_status = 'pending', updated_at = CURRENT_TIMESTAMP
     WHERE product_id = ?
   `, [productId]);
-  
+
   await db.execute(`
     INSERT INTO tiktok_sync_logs (user_id, sync_type, operation, reference_id, status, message)
-    VALUES (?, 'product', 'update', ?, 'success', 'Admin paused corporate product from TikTok feed')
-  `, [userId, productId]);
-  
+    VALUES (NULL, 'product', 'update', ?, 'success', 'Admin paused corporate product from TikTok feed')
+  `, [productId]);
+
   return true;
 }
 
-/**
- * Admin: Reject product with reason
- */
 async function adminRejectCorporate(productId, userId, reason) {
   await db.execute(`
-    UPDATE tiktok_corporate_products 
-    SET listing_status = 'rejected', 
-        rejection_reason = ?, 
-        sync_status = 'pending',
-        updated_at = CURRENT_TIMESTAMP 
+    UPDATE tiktok_corporate_products
+    SET listing_status = 'rejected', rejection_reason = ?, sync_status = 'pending',
+        updated_at = CURRENT_TIMESTAMP
     WHERE product_id = ?
   `, [reason || 'Product does not meet quality standards', productId]);
-  
+
   await db.execute(`
     INSERT INTO tiktok_sync_logs (user_id, sync_type, operation, reference_id, status, message)
-    VALUES (?, 'product', 'delete', ?, 'success', ?)
-  `, [userId, productId, `Admin rejected corporate product: ${reason}`]);
-  
+    VALUES (NULL, 'product', 'delete', ?, 'success', ?)
+  `, [productId, `Admin rejected corporate product: ${reason}`]);
+
   return true;
 }
 

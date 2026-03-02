@@ -99,8 +99,8 @@ router.get('/inventory', requireAuth, async (req, res) => {
 
 router.post('/inventory/:productId', requireAuth, async (req, res) => {
   try {
-    const { allocated_quantity } = req.body;
-    const result = await tiktokService.updateInventoryAllocation(req.params.productId, req.userId, allocated_quantity);
+    const allocated_quantity = req.body.allocated_quantity ?? req.body.quantity ?? 0;
+    const result = await tiktokService.updateInventoryAllocation(req.params.productId, req.userId, parseInt(allocated_quantity));
     if (!result.found) return res.status(404).json({ success: false, error: 'Product not found' });
     if (result.error) return res.status(400).json({ success: false, error: result.error });
     return res.json({ success: true, message: 'Inventory allocation updated' });

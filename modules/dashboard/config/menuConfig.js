@@ -156,6 +156,11 @@ const menuConfig = [
           { label: 'Wayfair Connector Admin', href: '/dashboard/catalog/addons/wayfair-admin', adminOnly: true },
           { label: 'TikTok Connector', href: '/dashboard/catalog/addons/tiktok' },
           { label: 'TikTok Connector Admin', href: '/dashboard/catalog/addons/tiktok-admin', adminOnly: true },
+          { label: 'Shopify Connector', href: '/dashboard/catalog/addons/shopify' },
+          { label: 'eBay Connector', href: '/dashboard/catalog/addons/ebay' },
+          { label: 'Amazon Connector', href: '/dashboard/catalog/addons/amazon' },
+          { label: 'Faire Connector', href: '/dashboard/catalog/addons/faire' },
+          { label: 'Meta Connector', href: '/dashboard/catalog/addons/meta' },
         ]
       },
       { 

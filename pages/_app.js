@@ -112,7 +112,8 @@ export default function MyApp({ Component, pageProps }) {
       router.pathname.startsWith('/makers') || 
       router.pathname.startsWith('/promoter') ||
       router.pathname.startsWith('/artist-storefront') ||
-      router.pathname.startsWith('/custom-sites')) {
+      router.pathname.startsWith('/custom-sites') ||
+      router.pathname.startsWith('/shopify')) {
     return (
       <>
         <Component {...pageProps} />

@@ -26,6 +26,7 @@
     "@editorjs/table": "^2.4.5",
     "@editorjs/underline": "^1.2.1",
     "@editorjs/warning": "^1.4.1",
+    "@shopify/app-bridge": "^3.7.11",
     "bcryptjs": "^3.0.2",
     "bull": "^4.16.5",
     "bull-arena": "^4.5.1",

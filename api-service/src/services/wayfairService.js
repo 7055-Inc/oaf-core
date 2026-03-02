@@ -12,23 +12,23 @@
  */
 
 const axios = require('axios');
+const { validateConnectorEnv } = require('../utils/connectorEnv');
 
 class WayfairService {
   constructor() {
-    // Determine base URL based on environment
+    validateConnectorEnv('wayfair');
+
     const isProduction = process.env.WAYFAIR_ENV === 'production';
     this.baseUrl = isProduction
       ? 'https://api.wayfair.com'
       : 'https://sandbox.api.wayfair.com';
     
     this.graphqlEndpoint = `${this.baseUrl}/v1/graphql`;
-    this.tokenEndpoint = `${this.baseUrl}/oauth/token`;
+    this.tokenEndpoint = 'https://sso.auth.wayfair.com/oauth/token';
     
-    // Client credentials
     this.clientId = process.env.WAYFAIR_CLIENT_ID;
     this.clientSecret = process.env.WAYFAIR_CLIENT_SECRET;
     
-    // Token cache
     this.accessToken = null;
     this.tokenExpiry = null;
   }
@@ -495,6 +495,95 @@ class WayfairService {
       console.error('Failed to parse JSON field:', e);
       return null;
     }
+  }
+
+  // =========================================================================
+  // SHIPPING REGISTRATION & LABELS
+  // =========================================================================
+
+  /**
+   * Register a purchase order for shipment. Wayfair generates prepaid labels,
+   * assigns carrier + tracking, and returns download URLs.
+   */
+  async registerOrder(poNumber, warehouseId, pickupDate, shippingUnits) {
+    const variables = {
+      registrationInput: {
+        poNumber,
+        ...(warehouseId && { warehouseId }),
+        ...(pickupDate && { requestForPickupDate: pickupDate }),
+        ...(shippingUnits && shippingUnits.length > 0 && { shippingUnits })
+      }
+    };
+
+    const query = `mutation register($registrationInput: RegistrationInput!) {
+      purchaseOrders {
+        register(registrationInput: $registrationInput) {
+          id
+          eventDate
+          pickupDate
+          poNumber
+          billOfLading { url }
+          consolidatedShippingLabel { url }
+          customsDocument { required url }
+          generatedShippingLabels {
+            poNumber fullPoNumber numberOfLabels
+            carrier carrierCode trackingNumber
+          }
+          shippingLabelInfo { carrier carrierCode trackingNumber }
+          purchaseOrder {
+            id poNumber packingSlipUrl
+            estimatedShipDate scheduledDeliveryDate
+            shippingInfo { shipSpeed carrierCode }
+          }
+          shippingUnits {
+            groupIdentifier sequenceIdentifier
+            part { supplierPartNumber }
+          }
+        }
+      }
+    }`;
+
+    const data = await this.graphqlRequest(query, variables);
+    return data.purchaseOrders.register;
+  }
+
+  /**
+   * Query label generation events. Used to check if a previously-failed
+   * registration actually succeeded on Wayfair's side.
+   */
+  async getLabelGenerationEvents(filters = [], limit = 10) {
+    const query = `query LabelGenerationEvents(
+      $filters: [LabelGenerationEventFilterInput!]
+      $limit: Int!
+    ) {
+      labelGenerationEvents(filters: $filters, limit: $limit) {
+        id eventDate pickupDate poNumber
+        billOfLading { url }
+        consolidatedShippingLabel { url }
+        generatedShippingLabels {
+          poNumber fullPoNumber numberOfLabels
+          carrier carrierCode trackingNumber
+        }
+        purchaseOrder { id poNumber packingSlipUrl }
+      }
+    }`;
+
+    const data = await this.graphqlRequest(query, { filters, limit });
+    return data.labelGenerationEvents || [];
+  }
+
+  /**
+   * Download a document (label PDF, packing slip, BOL) from Wayfair's REST
+   * endpoints. Requires Bearer auth. Returns the raw PDF buffer.
+   */
+  async downloadDocument(url) {
+    const token = await this.getAccessToken();
+    const response = await axios.get(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      responseType: 'arraybuffer',
+      timeout: 30000
+    });
+    return Buffer.from(response.data);
   }
 }
 

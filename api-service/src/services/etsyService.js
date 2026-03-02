@@ -665,6 +665,29 @@ class EtsyService {
       accessToken
     );
   }
+
+  // ============================================
+  // SHIPMENT / TRACKING
+  // ============================================
+
+  /**
+   * Create a shipment (tracking) entry on a receipt
+   * Etsy endpoint: POST /v3/application/shops/{shop_id}/receipts/{receipt_id}/tracking
+   * 
+   * @param {string} shopId - Etsy shop ID
+   * @param {string} receiptId - Etsy receipt ID
+   * @param {object} shipmentData - { tracking_code, carrier_name, send_bcc? }
+   * @param {string} accessToken - OAuth access token
+   * @returns {Promise<object>} Created shipment data
+   */
+  async createReceiptShipment(shopId, receiptId, shipmentData, accessToken) {
+    return await this.makeRequest(
+      'POST',
+      `/shops/${shopId}/receipts/${receiptId}/tracking`,
+      accessToken,
+      shipmentData
+    );
+  }
 }
 
 module.exports = new EtsyService();

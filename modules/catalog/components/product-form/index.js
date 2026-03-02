@@ -17,7 +17,14 @@ import VariationsSection, { getVariationsSummary } from './sections/VariationsSe
 // Connector sections (lazy loaded based on addons)
 import dynamic from 'next/dynamic';
 const WalmartSection = dynamic(() => import('./sections/connectors/WalmartSection'), { ssr: false });
+const WayfairSection = dynamic(() => import('./sections/connectors/WayfairSection'), { ssr: false });
 const TikTokSection = dynamic(() => import('./sections/connectors/TikTokSection'), { ssr: false });
+const ShopifySection = dynamic(() => import('./sections/connectors/ShopifySection'), { ssr: false });
+const EbaySection = dynamic(() => import('./sections/connectors/EbaySection'), { ssr: false });
+const EtsySection = dynamic(() => import('./sections/connectors/EtsySection'), { ssr: false });
+const AmazonSection = dynamic(() => import('./sections/connectors/AmazonSection'), { ssr: false });
+const FaireSection = dynamic(() => import('./sections/connectors/FaireSection'), { ssr: false });
+const MetaSection = dynamic(() => import('./sections/connectors/MetaSection'), { ssr: false });
 
 // Main form content (uses context)
 function ProductFormContent() {
@@ -118,7 +125,7 @@ function ProductFormContent() {
       component: SearchControlSection,
       getSummary: () => getSearchControlSummary(formData),
       show: true,
-      nextSection: hasAddon('wholesale-addon') ? 'wholesale' : (formData.product_type === 'variable' ? 'variations' : (hasAddon('walmart-connector') ? 'walmart' : (hasAddon('tiktok-connector') ? 'tiktok' : null))),
+      nextSection: hasAddon('wholesale-addon') ? 'wholesale' : (formData.product_type === 'variable' ? 'variations' : (hasAddon('walmart-connector') ? 'walmart' : (hasAddon('wayfair-connector') ? 'wayfair' : (hasAddon('tiktok-connector') ? 'tiktok' : (hasAddon('shopify-connector') ? 'shopify' : (hasAddon('ebay-connector') ? 'ebay' : (hasAddon('etsy-connector') ? 'etsy' : (hasAddon('amazon-connector') ? 'amazon' : (hasAddon('faire-connector') ? 'faire' : (hasAddon('meta-connector') ? 'meta' : null)))))))))),
       validate: () => true // Optional
     },
     {
@@ -128,7 +135,7 @@ function ProductFormContent() {
       component: WholesaleSection,
       getSummary: () => getWholesaleSummary(formData),
       show: hasAddon('wholesale-addon'),
-      nextSection: formData.product_type === 'variable' ? 'variations' : (hasAddon('walmart-connector') ? 'walmart' : (hasAddon('tiktok-connector') ? 'tiktok' : null)),
+      nextSection: formData.product_type === 'variable' ? 'variations' : (hasAddon('walmart-connector') ? 'walmart' : (hasAddon('wayfair-connector') ? 'wayfair' : (hasAddon('tiktok-connector') ? 'tiktok' : (hasAddon('shopify-connector') ? 'shopify' : (hasAddon('ebay-connector') ? 'ebay' : (hasAddon('etsy-connector') ? 'etsy' : (hasAddon('amazon-connector') ? 'amazon' : (hasAddon('faire-connector') ? 'faire' : (hasAddon('meta-connector') ? 'meta' : null))))))))),
       validate: () => true // Optional
     },
     {
@@ -138,7 +145,7 @@ function ProductFormContent() {
       component: VariationsSection,
       getSummary: () => getVariationsSummary(variations),
       show: formData.product_type === 'variable',
-      nextSection: hasAddon('walmart-connector') ? 'walmart' : (hasAddon('tiktok-connector') ? 'tiktok' : null),
+      nextSection: hasAddon('walmart-connector') ? 'walmart' : (hasAddon('wayfair-connector') ? 'wayfair' : (hasAddon('tiktok-connector') ? 'tiktok' : (hasAddon('shopify-connector') ? 'shopify' : (hasAddon('ebay-connector') ? 'ebay' : (hasAddon('etsy-connector') ? 'etsy' : (hasAddon('amazon-connector') ? 'amazon' : (hasAddon('faire-connector') ? 'faire' : (hasAddon('meta-connector') ? 'meta' : null)))))))),
       validate: () => variations.length > 0
     },
     // Connector sections - only show if user has addon
@@ -149,8 +156,18 @@ function ProductFormContent() {
       component: WalmartSection,
       getSummary: () => 'Configure Walmart listing',
       show: hasAddon('walmart-connector'),
-      nextSection: hasAddon('tiktok-connector') ? 'tiktok' : null,
-      validate: () => true // Optional
+      nextSection: hasAddon('wayfair-connector') ? 'wayfair' : (hasAddon('tiktok-connector') ? 'tiktok' : (hasAddon('shopify-connector') ? 'shopify' : (hasAddon('ebay-connector') ? 'ebay' : (hasAddon('etsy-connector') ? 'etsy' : (hasAddon('amazon-connector') ? 'amazon' : (hasAddon('faire-connector') ? 'faire' : (hasAddon('meta-connector') ? 'meta' : null))))))),
+      validate: () => true
+    },
+    {
+      id: 'wayfair',
+      title: 'Wayfair Marketplace',
+      icon: 'fa-couch',
+      component: WayfairSection,
+      getSummary: () => 'Configure Wayfair listing',
+      show: hasAddon('wayfair-connector'),
+      nextSection: hasAddon('tiktok-connector') ? 'tiktok' : (hasAddon('shopify-connector') ? 'shopify' : (hasAddon('ebay-connector') ? 'ebay' : (hasAddon('etsy-connector') ? 'etsy' : (hasAddon('amazon-connector') ? 'amazon' : (hasAddon('faire-connector') ? 'faire' : (hasAddon('meta-connector') ? 'meta' : null)))))),
+      validate: () => true
     },
     {
       id: 'tiktok',
@@ -159,8 +176,68 @@ function ProductFormContent() {
       component: TikTokSection,
       getSummary: () => 'Configure TikTok listing',
       show: hasAddon('tiktok-connector'),
+      nextSection: hasAddon('shopify-connector') ? 'shopify' : (hasAddon('ebay-connector') ? 'ebay' : (hasAddon('etsy-connector') ? 'etsy' : (hasAddon('amazon-connector') ? 'amazon' : (hasAddon('faire-connector') ? 'faire' : (hasAddon('meta-connector') ? 'meta' : null))))),
+      validate: () => true
+    },
+    {
+      id: 'shopify',
+      title: 'Shopify Store',
+      icon: 'fa-shopping-bag',
+      component: ShopifySection,
+      getSummary: () => 'Configure Shopify listing',
+      show: hasAddon('shopify-connector'),
+      nextSection: hasAddon('ebay-connector') ? 'ebay' : (hasAddon('etsy-connector') ? 'etsy' : (hasAddon('amazon-connector') ? 'amazon' : (hasAddon('faire-connector') ? 'faire' : (hasAddon('meta-connector') ? 'meta' : null)))),
+      validate: () => true
+    },
+    {
+      id: 'ebay',
+      title: 'eBay',
+      icon: 'fa-gavel',
+      component: EbaySection,
+      getSummary: () => 'Configure eBay listing',
+      show: hasAddon('ebay-connector'),
+      nextSection: hasAddon('etsy-connector') ? 'etsy' : (hasAddon('amazon-connector') ? 'amazon' : (hasAddon('faire-connector') ? 'faire' : (hasAddon('meta-connector') ? 'meta' : null))),
+      validate: () => true
+    },
+    {
+      id: 'etsy',
+      title: 'Etsy',
+      icon: 'fa-leaf',
+      component: EtsySection,
+      getSummary: () => 'Configure Etsy listing',
+      show: hasAddon('etsy-connector'),
+      nextSection: hasAddon('amazon-connector') ? 'amazon' : null,
+      validate: () => true
+    },
+    {
+      id: 'amazon',
+      title: 'Amazon',
+      icon: 'fa-amazon',
+      component: AmazonSection,
+      getSummary: () => 'Configure Amazon listing',
+      show: hasAddon('amazon-connector'),
+      nextSection: hasAddon('faire-connector') ? 'faire' : (hasAddon('meta-connector') ? 'meta' : null),
+      validate: () => true
+    },
+    {
+      id: 'faire',
+      title: 'Faire',
+      icon: 'fa-handshake',
+      component: FaireSection,
+      getSummary: () => 'Configure Faire wholesale listing',
+      show: hasAddon('faire-connector'),
+      nextSection: hasAddon('meta-connector') ? 'meta' : null,
+      validate: () => true
+    },
+    {
+      id: 'meta',
+      title: 'Meta / Facebook',
+      icon: 'fa-facebook',
+      component: MetaSection,
+      getSummary: () => 'Configure Meta listing',
+      show: hasAddon('meta-connector'),
       nextSection: null,
-      validate: () => true // Optional
+      validate: () => true
     }
   ];
 
