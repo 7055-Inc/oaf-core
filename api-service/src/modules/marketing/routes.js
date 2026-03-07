@@ -66,7 +66,7 @@ router.get('/subscription/my', requireAuth, async (req, res) => {
 
     // 1. Get subscription record
     const [subscriptions] = await db.query(
-      `SELECT id, status, tier, tier_price, stripe_customer_id, created_at
+      `SELECT id, status, tier, tier_price, stripe_customer_id, is_complimentary, cancel_at_period_end, current_period_end, created_at
        FROM user_subscriptions WHERE user_id = ? AND subscription_type = 'social' LIMIT 1`,
       [userId]
     );
@@ -102,8 +102,10 @@ router.get('/subscription/my', requireAuth, async (req, res) => {
     const [perms] = await db.query('SELECT leo_social FROM user_permissions WHERE user_id = ?', [userId]);
     let hasPermission = perms.length > 0 && perms[0].leo_social === 1;
 
-    // 5. Auto-activate if all requirements met
-    if (subscription && termsAccepted && cardLast4) {
+    // 5. Auto-activate if all requirements met (or complimentary)
+    const isComplimentary = subscription?.is_complimentary === 1;
+    const isFree = subscription?.tier === 'free' || Number(subscription?.tier_price) === 0;
+    if (subscription && (isComplimentary || (termsAccepted && (cardLast4 || isFree)))) {
       if (!hasPermission) {
         await db.query(
           'INSERT INTO user_permissions (user_id, leo_social) VALUES (?, 1) ON DUPLICATE KEY UPDATE leo_social = 1',
@@ -130,7 +132,10 @@ router.get('/subscription/my', requireAuth, async (req, res) => {
         tierPrice: subscription?.tier_price != null ? Number(subscription.tier_price) : null,
         termsAccepted: Boolean(termsAccepted),
         cardLast4: cardLast4 != null && String(cardLast4).trim() !== '' ? String(cardLast4).trim() : null,
-        application_status: 'approved',  // Social Central auto-approves
+        application_status: 'approved',
+        is_complimentary: isComplimentary,
+        cancel_at_period_end: subscription?.cancel_at_period_end === 1,
+        cancelAt: subscription?.current_period_end || null,
       },
       has_permission: hasPermission,
     });
@@ -275,14 +280,16 @@ router.post('/subscription/terms-accept', requireAuth, async (req, res) => {
 
 /**
  * POST /api/v2/marketing/subscription/cancel
- * Cancel the user's Social Central subscription
+ * Cancel the user's Social Central subscription at end of billing period.
+ * Complimentary subscriptions cannot be self-cancelled (admin must revoke).
  */
 router.post('/subscription/cancel', requireAuth, async (req, res) => {
   try {
     const userId = _uid(req);
 
     const [subscription] = await db.query(
-      `SELECT id, status FROM user_subscriptions
+      `SELECT id, status, current_period_end, cancel_at_period_end, is_complimentary
+       FROM user_subscriptions
        WHERE user_id = ? AND subscription_type = 'social' AND status IN ('active','incomplete')
        LIMIT 1`,
       [userId]
@@ -292,19 +299,22 @@ router.post('/subscription/cancel', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'No active Social Central subscription found' });
     }
 
-    // Cancel the subscription
+    const sub = subscription[0];
+
+    if (sub.is_complimentary) {
+      return res.status(400).json({ success: false, error: 'Complimentary subscriptions cannot be self-cancelled. Contact support.' });
+    }
+
+    if (sub.cancel_at_period_end === 1) {
+      return res.json({ success: true, message: 'Subscription is already set to cancel', cancelAt: sub.current_period_end });
+    }
+
     await db.query(
-      `UPDATE user_subscriptions SET status = 'cancelled', updated_at = NOW() WHERE id = ?`,
-      [subscription[0].id]
+      `UPDATE user_subscriptions SET cancel_at_period_end = 1, canceled_at = NOW() WHERE id = ?`,
+      [sub.id]
     );
 
-    // Remove leo_social permission
-    await db.query(
-      'UPDATE user_permissions SET leo_social = 0 WHERE user_id = ?',
-      [userId]
-    );
-
-    res.json({ success: true, message: 'Social Central subscription cancelled. You retain access until the end of your billing period.' });
+    res.json({ success: true, message: 'Your Social Central subscription will be canceled at the end of your billing period', cancelAt: sub.current_period_end });
   } catch (error) {
     console.error('Cancel social subscription error:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -3676,6 +3686,224 @@ router.put('/brand-voice', async (req, res) => {
   } catch (error) {
     console.error('[Marketing] Error saving brand voice:', error.message);
     res.status(500).json({ success: false, error: 'Failed to save brand voice' });
+  }
+});
+
+// =============================================================================
+// AUTO-BLOG ROUTES (admin-only)
+// =============================================================================
+
+const { getBlogGenerationService } = require('./services/ai/BlogGenerationService');
+
+/**
+ * GET /api/v2/marketing/auto-blog/config
+ * List all auto-blog magazine configs
+ */
+router.get('/auto-blog/config', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const [configs] = await db.query('SELECT * FROM auto_blog_config ORDER BY magazine');
+    res.json({ success: true, configs });
+  } catch (error) {
+    console.error('[Auto-Blog] Error fetching configs:', error.message);
+    res.status(500).json({ success: false, error: 'Failed to fetch configs' });
+  }
+});
+
+/**
+ * POST /api/v2/marketing/auto-blog/config
+ * Create a new auto-blog config for a magazine
+ */
+router.post('/auto-blog/config', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { magazine, enabled, posts_per_day, topics, tone, style_notes, target_word_count_min, target_word_count_max, content_type_ratios } = req.body;
+    if (!magazine) return res.status(400).json({ success: false, error: 'Magazine is required' });
+
+    const [result] = await db.query(`
+      INSERT INTO auto_blog_config (magazine, enabled, posts_per_day, topics, tone, style_notes, target_word_count_min, target_word_count_max, content_type_ratios)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      magazine,
+      enabled ? 1 : 0,
+      posts_per_day || 1,
+      topics ? JSON.stringify(topics) : null,
+      tone || null,
+      style_notes || null,
+      target_word_count_min || 800,
+      target_word_count_max || 1500,
+      content_type_ratios ? JSON.stringify(content_type_ratios) : null,
+    ]);
+
+    res.status(201).json({ success: true, id: result.insertId });
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ success: false, error: 'Config already exists for this magazine' });
+    }
+    console.error('[Auto-Blog] Error creating config:', error.message);
+    res.status(500).json({ success: false, error: 'Failed to create config' });
+  }
+});
+
+/**
+ * PUT /api/v2/marketing/auto-blog/config/:id
+ * Update an existing auto-blog config
+ */
+router.put('/auto-blog/config/:id', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const fields = [];
+    const params = [];
+
+    const allowedFields = ['enabled', 'posts_per_day', 'topics', 'tone', 'style_notes', 'target_word_count_min', 'target_word_count_max', 'content_type_ratios'];
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        const val = req.body[field];
+        if (field === 'topics' || field === 'content_type_ratios') {
+          fields.push(`${field} = ?`);
+          params.push(typeof val === 'string' ? val : JSON.stringify(val));
+        } else if (field === 'enabled') {
+          fields.push(`${field} = ?`);
+          params.push(val ? 1 : 0);
+        } else {
+          fields.push(`${field} = ?`);
+          params.push(val);
+        }
+      }
+    }
+
+    if (fields.length === 0) return res.status(400).json({ success: false, error: 'No fields to update' });
+
+    params.push(id);
+    await db.query(`UPDATE auto_blog_config SET ${fields.join(', ')} WHERE id = ?`, params);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Auto-Blog] Error updating config:', error.message);
+    res.status(500).json({ success: false, error: 'Failed to update config' });
+  }
+});
+
+/**
+ * GET /api/v2/marketing/auto-blog/queue
+ * List auto-generated article drafts for the queue page
+ */
+router.get('/auto-blog/queue', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const blogService = getBlogGenerationService();
+    const { magazine, status, page, limit } = req.query;
+    const result = await blogService.getQueueItems({
+      magazine,
+      status,
+      page: parseInt(page) || 1,
+      limit: parseInt(limit) || 20,
+    });
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('[Auto-Blog] Error fetching queue:', error.message);
+    res.status(500).json({ success: false, error: 'Failed to fetch queue' });
+  }
+});
+
+/**
+ * POST /api/v2/marketing/auto-blog/generate
+ * Manually trigger article generation for a magazine config
+ */
+router.post('/auto-blog/generate', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const blogService = getBlogGenerationService();
+    if (!blogService.isAvailable()) {
+      return res.status(503).json({ success: false, error: 'AI service not configured' });
+    }
+
+    const { configId, topic, contentType, angle } = req.body;
+    if (!configId) return res.status(400).json({ success: false, error: 'configId is required' });
+
+    const result = await blogService.generateArticle(configId, {
+      force: true,
+      topic,
+      contentType,
+      angle,
+    });
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('[Auto-Blog] Generation error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/v2/marketing/auto-blog/publish/:jobId
+ * Approve and publish an auto-generated article, trigger social drafts
+ */
+router.post('/auto-blog/publish/:jobId', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const { scheduledAt } = req.body;
+
+    const [jobs] = await db.query('SELECT * FROM auto_blog_jobs WHERE id = ?', [jobId]);
+    if (!jobs[0]) return res.status(404).json({ success: false, error: 'Job not found' });
+    if (!jobs[0].article_id) return res.status(400).json({ success: false, error: 'No article linked to this job' });
+
+    const publishAt = scheduledAt ? new Date(scheduledAt) : new Date();
+    const approverId = _uid(req);
+
+    await db.query(
+      'UPDATE articles SET status = ?, published_at = ?, author_id = ? WHERE id = ?',
+      ['published', publishAt, approverId, jobs[0].article_id]
+    );
+    await db.query(
+      'UPDATE auto_blog_jobs SET status = ? WHERE id = ?',
+      ['published', jobId]
+    );
+
+    // Generate social drafts
+    const blogService = getBlogGenerationService();
+    const socialResult = await blogService.generateSocialDrafts(jobs[0].article_id);
+
+    res.json({
+      success: true,
+      articleId: jobs[0].article_id,
+      publishedAt: publishAt,
+      socialDraftsCreated: socialResult.created || 0,
+    });
+  } catch (error) {
+    console.error('[Auto-Blog] Publish error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/v2/marketing/auto-blog/reject/:jobId
+ * Reject an auto-generated article
+ */
+router.post('/auto-blog/reject/:jobId', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const [jobs] = await db.query('SELECT * FROM auto_blog_jobs WHERE id = ?', [jobId]);
+    if (!jobs[0]) return res.status(404).json({ success: false, error: 'Job not found' });
+
+    await db.query('UPDATE auto_blog_jobs SET status = ? WHERE id = ?', ['rejected', jobId]);
+    if (jobs[0].article_id) {
+      await db.query('UPDATE articles SET status = ? WHERE id = ?', ['archived', jobs[0].article_id]);
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Auto-Blog] Reject error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/v2/marketing/auto-blog/stats
+ * Get auto-blog generation statistics
+ */
+router.get('/auto-blog/stats', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const blogService = getBlogGenerationService();
+    const stats = await blogService.getStats();
+    res.json({ success: true, stats });
+  } catch (error) {
+    console.error('[Auto-Blog] Stats error:', error.message);
+    res.status(500).json({ success: false, error: 'Failed to fetch stats' });
   }
 });
 

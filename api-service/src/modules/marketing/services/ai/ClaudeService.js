@@ -499,6 +499,153 @@ Respond with JSON only.`;
   }
 
   /**
+   * Generate a full blog article in Editor.js JSON block format
+   * 
+   * @param {Object} params
+   * @param {string} params.magazine - Target magazine (artist-news, promoter-news, community-news)
+   * @param {string} params.topic - Article topic
+   * @param {string} params.contentType - Content type (how-to, faq, listicle, pillar, news, spotlight, comparison, roundup)
+   * @param {string} [params.angle] - Specific angle or hook
+   * @param {Object} [params.context] - Platform context (recent articles, products, events)
+   * @param {Array} [params.linkableEntities] - Entities to link to: [{ name, url, type }]
+   * @param {string} [params.tone] - Desired tone
+   * @param {number} [params.targetWordCount] - Target word count
+   * @param {string[]} [params.existingTitles] - Recent titles for dedup
+   * @returns {Promise<Object>} { title, slug, content, excerpt, seoTitle, seoDescription, focusKeyword, suggestedTags, faqPairs, howToSteps }
+   */
+  async generateBlogArticle(params) {
+    const {
+      magazine,
+      topic,
+      contentType = 'how-to',
+      angle = '',
+      context = {},
+      linkableEntities = [],
+      tone = 'informative and engaging',
+      targetWordCount = 1000,
+      existingTitles = [],
+    } = params;
+
+    const magazineAudience = {
+      'artist-news': 'artists, makers, and creators who sell at art shows, craft fairs, and online. They care about growing their art business, selling more work, and presenting professionally.',
+      'promoter-news': 'event organizers and promoters who manage art shows, craft fairs, and festivals. They care about event logistics, vendor recruitment, marketing, and revenue.',
+      'community-news': 'art enthusiasts, collectors, and community members who attend events and buy art. They care about discovering art, finding events, collecting tips, and trends.',
+    };
+
+    const contentTypeInstructions = {
+      'how-to': `Write a step-by-step guide. Use numbered steps as separate header+paragraph block pairs. Structure: Plan > Setup > Execute > Validate. Each step should be actionable and specific. Return a "howToSteps" array in your JSON with [{name, text}] for each major step.`,
+      'faq': `Write a FAQ article. Use H3 headers for each question and a concise paragraph (2-4 sentences) for each answer. Do NOT write essay-length answers. Return a "faqPairs" array in your JSON with [{question, answer}] for each Q&A pair.`,
+      'listicle': `Write a numbered list article ("Top N" or "Best X for Y"). Each item gets an H3 header and a paragraph explaining why it belongs. Weave in product/entity links where relevant.`,
+      'pillar': `Write comprehensive, authoritative content (${Math.max(targetWordCount, 2000)}+ words). Include a table of contents at the start. Cover the topic thoroughly with H2 sections and H3 subsections. This is cornerstone content other articles will link to.`,
+      'news': `Write a timely, newsworthy article about current trends or developments. Lead with the most important information. Include context about why this matters now and what it means for the audience.`,
+      'spotlight': `Write a profile/spotlight piece about an artist, maker, or promoter. Focus on their unique story, process, and what makes their work distinctive. Use quotes and specific details. Frame it as inspiration for the audience.`,
+      'comparison': `Write a balanced comparison article ("X vs Y" or "Which is right for you?"). Use a structured format with clear criteria, pros/cons, and a recommendation. Include a summary table if appropriate.`,
+      'roundup': `Write a curated collection or roundup. Each item gets a brief description and why it's included. Link to specific products, events, or profiles on the platform. Good for seasonal or thematic collections.`,
+    };
+
+    const linkEntitiesSection = linkableEntities.length > 0
+      ? `\nLINKABLE ENTITIES (weave 3-8 of these as natural inline hyperlinks within paragraph text blocks — use <a href="URL">Name</a> format inside paragraph text):
+${linkableEntities.map((e, i) => `  ${i + 1}. ${e.name} (${e.type}) — ${e.url}`).join('\n')}`
+      : '';
+
+    const existingArticlesSection = context.recentArticles?.length > 0
+      ? `\nEXISTING ARTICLES (avoid overlapping these topics/angles — find a fresh take):
+${context.recentArticles.map((a, i) => `  ${i + 1}. "${a}"`).join('\n')}`
+      : '';
+
+    const productContext = context.products?.length > 0
+      ? `\nPLATFORM PRODUCTS (reference these naturally when relevant):
+${context.products.map((p, i) => `  ${i + 1}. "${p.name}" — $${p.price || 'N/A'}${p.category ? ` (${p.category})` : ''}`).join('\n')}`
+      : '';
+
+    const eventContext = context.events?.length > 0
+      ? `\nUPCOMING EVENTS (mention if timely and relevant):
+${context.events.map((e, i) => `  ${i + 1}. "${e.name}"${e.date ? ` — ${e.date}` : ''}${e.location ? ` in ${e.location}` : ''}`).join('\n')}`
+      : '';
+
+    const systemPrompt = `You are an expert blog writer for Brakebee, a platform connecting artists, event promoters, and art enthusiasts. You write for the ${magazine} magazine section.
+
+TARGET AUDIENCE: ${magazineAudience[magazine] || magazineAudience['community-news']}
+
+CONTENT TYPE: ${contentType}
+${contentTypeInstructions[contentType] || contentTypeInstructions['how-to']}
+
+RESEARCH & EXPERTISE:
+You are expected to supplement the platform data provided with your own expert knowledge. For every article:
+- Cite specific statistics, percentages, or dollar figures where they strengthen the point (e.g. "artists who display at 10+ shows per year report 40% higher annual revenue").
+- Reference well-known industry practices, frameworks, or methodologies by name.
+- Include expert tips that go beyond surface-level advice — the kind of insight that comes from years of experience in the field.
+- For how-to and pillar content, include common mistakes or pitfalls that beginners make.
+- For news and trends content, reference broader industry movements and explain their significance.
+- When you know relevant data points from your training (survey results, market trends, pricing benchmarks), include them naturally. If citing a specific study or source, mention it by name.
+Do NOT fabricate specific statistics you're uncertain about — use ranges or qualifiers ("studies suggest", "typically between X and Y") when exact figures aren't clear.
+
+WRITING RULES:
+1. Start with a direct answer block (50-80 words) that immediately addresses the topic. AI answer engines prioritize content that leads with the answer.
+2. Use clear H2/H3 heading hierarchy. Each section should be independently useful.
+3. Write in a ${tone} tone. Be specific — use real numbers, concrete examples, and actionable advice.
+4. NEVER use generic filler ("In today's world", "It's no secret that", "In this article we'll explore"). Get to the point.
+5. Target approximately ${targetWordCount} words (${contentType === 'pillar' ? 'minimum 2000' : 'minimum 800'}).
+6. Internal links must feel natural — don't force them. Only link entities that are genuinely relevant to the sentence.
+
+OUTPUT FORMAT:
+Return valid JSON with these exact keys:
+- "title": Compelling, SEO-friendly article title (max 70 chars)
+- "slug": URL-friendly slug derived from title (lowercase, hyphens, max 100 chars)
+- "content": Editor.js JSON block format — an object with a "blocks" array. Each block has "type" and "data". Supported types: "header" (data: {text, level: 2|3|4}), "paragraph" (data: {text}), "list" (data: {style: "ordered"|"unordered", items: [...]}), "delimiter" (data: {}), "quote" (data: {text, caption}), "warning" (data: {title, message}), "table" (data: {content: [[...], ...]}). Paragraph text may contain inline HTML: <b>, <i>, <a href="...">, <mark>.
+- "excerpt": 150-160 character summary for article cards
+- "seoTitle": 50-60 character title tag (may differ from article title)
+- "seoDescription": 150-160 character meta description with focus keyword
+- "focusKeyword": Primary SEO keyword phrase (2-4 words)
+- "suggestedTags": Array of 3-6 tag strings
+${contentType === 'faq' ? '- "faqPairs": Array of {question, answer} objects for FAQPage schema' : ''}
+${contentType === 'how-to' ? '- "howToSteps": Array of {name, text} objects for HowTo schema' : ''}
+
+Do not wrap in markdown code blocks. Return only the JSON object.`;
+
+    const userMessage = `Write a ${contentType} article for the ${magazine} magazine.
+
+TOPIC: ${topic}
+${angle ? `ANGLE/HOOK: ${angle}` : ''}
+TARGET WORD COUNT: ${targetWordCount}
+${linkEntitiesSection}
+${existingArticlesSection}
+${productContext}
+${eventContext}
+
+${existingTitles.length > 0 ? `AVOID THESE EXISTING TITLES (create something distinctly different):\n${existingTitles.slice(0, 20).map(t => `- "${t}"`).join('\n')}` : ''}
+
+Generate the article now. Respond with JSON only.`;
+
+    const response = await this._sendMessage(systemPrompt, userMessage, {
+      maxTokens: 8000,
+      temperature: 0.75,
+    });
+
+    try {
+      const cleaned = response.replace(/```json?\n?/g, '').replace(/```\n?/g, '').trim();
+      const parsed = JSON.parse(cleaned);
+
+      if (parsed.content && typeof parsed.content === 'object' && !parsed.content.blocks) {
+        parsed.content = { blocks: [] };
+      }
+
+      return parsed;
+    } catch {
+      return {
+        title: `${topic} - ${magazine}`,
+        slug: topic.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, 100),
+        content: { blocks: [{ type: 'paragraph', data: { text: response.trim() } }] },
+        excerpt: topic,
+        seoTitle: topic,
+        seoDescription: topic,
+        focusKeyword: topic.toLowerCase(),
+        suggestedTags: [],
+      };
+    }
+  }
+
+  /**
    * Reimagine a post — generate a completely different take
    * 
    * @param {Object} params

@@ -360,7 +360,7 @@ async function confirmTierChange(userId, body) {
 async function cancelSubscription(userId, body = {}) {
   const { preview } = body;
   const [subscription] = await db.query(
-    'SELECT id, status, tier FROM user_subscriptions WHERE user_id = ? AND subscription_type = ? LIMIT 1',
+    'SELECT id, status, tier, current_period_end, cancel_at_period_end, is_complimentary FROM user_subscriptions WHERE user_id = ? AND subscription_type = ? LIMIT 1',
     [userId, 'websites']
   );
   if (subscription.length === 0) {
@@ -368,6 +368,19 @@ async function cancelSubscription(userId, body = {}) {
     err.statusCode = 404;
     throw err;
   }
+
+  const sub = subscription[0];
+
+  if (sub.is_complimentary) {
+    const err = new Error('Complimentary subscriptions cannot be self-cancelled. Contact support.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (sub.cancel_at_period_end === 1) {
+    return { success: true, message: 'Subscription is already set to cancel', cancelAt: sub.current_period_end };
+  }
+
   const [perm] = await db.query('SELECT sites FROM user_permissions WHERE user_id = ?', [userId]);
   if (perm.length === 0 || !perm[0].sites) {
     const err = new Error('No active sites subscription found');
@@ -375,12 +388,12 @@ async function cancelSubscription(userId, body = {}) {
     throw err;
   }
 
-  // Get details of what will be affected
+  // Get details of what will be affected at period end
   const [activeSites] = await db.query(
     'SELECT id, site_name, created_at FROM sites WHERE user_id = ? AND status = "active"',
     [userId]
   );
-  
+
   const [activeAddons] = await db.query(`
     SELECT 
       sa.id as site_addon_id,
@@ -397,8 +410,9 @@ async function cancelSubscription(userId, body = {}) {
     return {
       success: false,
       requires_confirmation: true,
-      message: 'Cancelling will deactivate all your sites and disable all addons.',
-      current_tier: subscription[0].tier,
+      message: 'At the end of your billing period, all your sites will be deactivated and addons disabled.',
+      current_tier: sub.tier,
+      cancelAt: sub.current_period_end,
       sites_to_deactivate: activeSites.map(s => ({
         id: s.id,
         name: s.site_name,
@@ -413,70 +427,30 @@ async function cancelSubscription(userId, body = {}) {
     };
   }
 
-  // Proceed with actual cancellation
-  await db.query('UPDATE user_permissions SET sites = 0 WHERE user_id = ?', [userId]);
+  // Defer cancellation — access remains until current_period_end
   await db.query(
-    'UPDATE user_subscriptions SET status = ? WHERE id = ?',
-    ['canceled', subscription[0].id]
+    'UPDATE user_subscriptions SET cancel_at_period_end = 1, canceled_at = NOW() WHERE id = ?',
+    [sub.id]
   );
 
-  // Immediately enforce cancellation: deactivate ALL sites and addons
-  let sitesDeactivated = 0;
-  let addonsDisabled = 0;
-  try {
-    sitesDeactivated = activeSites.length;
-    
-    if (sitesDeactivated > 0) {
-      await db.query(
-        'UPDATE sites SET status = "draft" WHERE user_id = ? AND status = "active"',
-        [userId]
-      );
-    }
-
-    addonsDisabled = activeAddons.length;
-
-    if (addonsDisabled > 0) {
-      await db.query(`
-        UPDATE site_addons sa
-        JOIN sites s ON sa.site_id = s.id
-        SET sa.is_active = 0, sa.deactivated_at = CURRENT_TIMESTAMP
-        WHERE s.user_id = ? AND sa.is_active = 1
-      `, [userId]);
-    }
-  } catch (enforcementError) {
-    console.error('Cancellation enforcement error:', enforcementError);
-    // Don't fail the cancellation if enforcement fails
-  }
-
-  const response = {
+  return {
     success: true,
-    message: 'Website subscription cancelled successfully',
-    note: 'You will retain access until the end of your current billing period.'
+    message: 'Your website subscription will be canceled at the end of your billing period. Sites and addons remain active until then.',
+    cancelAt: sub.current_period_end,
+    sites_affected: activeSites.length,
+    addons_affected: activeAddons.length
   };
-
-  // Add enforcement details
-  if (sitesDeactivated > 0) {
-    response.sites_deactivated = sitesDeactivated;
-    response.deactivated_site_names = activeSites.map(s => s.site_name);
-  }
-  if (addonsDisabled > 0) {
-    response.addons_disabled = addonsDisabled;
-    response.disabled_addon_names = activeAddons.map(a => a.addon_name);
-  }
-
-  return response;
 }
 
 async function confirmCancellation(userId, body) {
   const { confirmed } = body;
-  
+
   if (!confirmed) {
     const err = new Error('Cancellation must be confirmed');
     err.statusCode = 400;
     throw err;
   }
 
-  // Execute the cancellation without preview
   return await cancelSubscription(userId, { confirmed: true });
 }
 

@@ -66,9 +66,10 @@ export default function ChecklistController({
 
   /**
    * CHECK 1: Has user selected a tier?
+   * Complimentary subscriptions always pass (admin already set tier).
    */
   const checkTier = (data) => {
-    // Check if subscription exists with a tier
+    if (data?.subscription?.is_complimentary) return true;
     return data?.subscription?.tier !== null && data?.subscription?.tier !== undefined;
   };
 
@@ -76,28 +77,30 @@ export default function ChecklistController({
    * CHECK 2: Is application approved?
    */
   const checkApplication = (data) => {
-    // If auto-approve (config), always pass
-    if (config?.autoApprove === true) {
-      return true;
-    }
-    
-    // Otherwise check application_status
+    if (data?.subscription?.is_complimentary) return true;
+    if (config?.autoApprove === true) return true;
     return data?.subscription?.application_status === 'approved';
   };
 
   /**
    * CHECK 3: Does user have valid card on file?
+   * Free tiers ($0) and complimentary subscriptions skip this requirement.
    */
   const checkCard = (data) => {
+    if (data?.subscription?.is_complimentary) return true;
+    const tier = data?.subscription?.tier;
+    const price = data?.subscription?.tierPrice;
+    if (tier === 'free' || price === 0 || price === '0') return true;
     const c = data?.subscription?.cardLast4;
     return c != null && String(c).trim() !== '';
   };
 
   /**
    * CHECK 4: Has user accepted latest terms?
+   * Complimentary subscriptions skip terms.
    */
   const checkTerms = (data) => {
-    // Check if terms are accepted
+    if (data?.subscription?.is_complimentary) return true;
     return data?.subscription?.termsAccepted === true;
   };
 

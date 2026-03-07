@@ -101,6 +101,14 @@ const COLOR_OPTIONS = [
   { value: '#FFFFFF', label: 'White', color: '#FFFFFF' }
 ];
 
+function safeJsonArray(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string' && value) {
+    try { const parsed = JSON.parse(value); if (Array.isArray(parsed)) return parsed; } catch {}
+  }
+  return [];
+}
+
 export default function ProfileEdit() {
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
@@ -188,7 +196,7 @@ export default function ProfileEdit() {
           birth_date: data.birth_date ? data.birth_date.split('T')[0] : '',
           gender: data.gender || '',
           nationality: data.nationality || '',
-          languages_known: data.languages_known || [],
+          languages_known: safeJsonArray(data.languages_known),
           job_title: data.job_title || '',
           education: data.education || '',
           awards: data.awards || '',
@@ -201,8 +209,8 @@ export default function ProfileEdit() {
           social_pinterest: data.social_pinterest || '',
           social_whatsapp: data.social_whatsapp || '',
           artist_biography: data.artist_biography || '',
-          art_categories: data.art_categories || [],
-          art_mediums: data.art_mediums || [],
+          art_categories: safeJsonArray(data.art_categories),
+          art_mediums: safeJsonArray(data.art_mediums),
           does_custom: data.does_custom || 'no',
           custom_details: data.custom_details || '',
           business_name: data.business_name || '',
@@ -221,7 +229,7 @@ export default function ProfileEdit() {
           founding_date: data.founding_date ? data.founding_date.split('T')[0] : '',
           logo_path: data.logo_path || '',
           art_style_preferences: data.art_style_preferences || '',
-          favorite_colors: data.favorite_colors || [],
+          favorite_colors: safeJsonArray(data.favorite_colors),
           art_interests: data.art_interests ? JSON.stringify(data.art_interests) : '[]',
           wishlist: data.wishlist ? JSON.stringify(data.wishlist) : '[]',
           upcoming_events: data.upcoming_events ? JSON.stringify(data.upcoming_events) : '[]',

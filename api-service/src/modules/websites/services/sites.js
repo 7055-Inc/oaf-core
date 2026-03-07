@@ -393,16 +393,29 @@ async function disableSiteAddon(userId, siteId, addonId) {
     err.statusCode = 404;
     throw err;
   }
-  const [result] = await db.execute(
-    'UPDATE site_addons SET is_active = 0, deactivated_at = CURRENT_TIMESTAMP WHERE site_id = ? AND addon_id = ?',
+  const [existing] = await db.execute(
+    'SELECT id, is_complimentary, cancel_at_period_end, current_period_end FROM site_addons WHERE site_id = ? AND addon_id = ? AND is_active = 1',
     [siteId, addonId]
   );
-  if (result.affectedRows === 0) {
+  if (existing.length === 0) {
     const err = new Error('Addon not found for this site');
     err.statusCode = 404;
     throw err;
   }
-  return { success: true, message: 'Addon deactivated successfully' };
+  const row = existing[0];
+  if (row.is_complimentary) {
+    const err = new Error('Complimentary addons cannot be self-cancelled. Contact support.');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (row.cancel_at_period_end === 1) {
+    return { success: true, message: 'Addon is already set to cancel', cancelAt: row.current_period_end };
+  }
+  await db.execute(
+    'UPDATE site_addons SET cancel_at_period_end = 1 WHERE id = ?',
+    [row.id]
+  );
+  return { success: true, message: 'Addon will be deactivated at the end of your billing period', cancelAt: row.current_period_end };
 }
 
 async function enableUserAddon(userId, addonId) {
@@ -442,16 +455,29 @@ async function disableUserAddon(userId, addonId) {
     err.statusCode = 404;
     throw err;
   }
-  const [result] = await db.execute(
-    'UPDATE user_addons SET is_active = 0, deactivated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND addon_slug = ?',
+  const [existing] = await db.execute(
+    'SELECT id, is_complimentary, cancel_at_period_end, current_period_end FROM user_addons WHERE user_id = ? AND addon_slug = ? AND is_active = 1',
     [userId, addon[0].addon_slug]
   );
-  if (result.affectedRows === 0) {
+  if (existing.length === 0) {
     const err = new Error('Addon not found');
     err.statusCode = 404;
     throw err;
   }
-  return { success: true, message: 'Addon deactivated successfully' };
+  const row = existing[0];
+  if (row.is_complimentary) {
+    const err = new Error('Complimentary addons cannot be self-cancelled. Contact support.');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (row.cancel_at_period_end === 1) {
+    return { success: true, message: 'Addon is already set to cancel', cancelAt: row.current_period_end };
+  }
+  await db.execute(
+    'UPDATE user_addons SET cancel_at_period_end = 1 WHERE id = ?',
+    [row.id]
+  );
+  return { success: true, message: 'Addon will be deactivated at the end of your billing period', cancelAt: row.current_period_end };
 }
 
 async function getAllSites(userId) {

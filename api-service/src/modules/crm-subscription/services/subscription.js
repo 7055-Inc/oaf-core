@@ -313,34 +313,39 @@ async function changeTier(userId, body) {
 
 async function cancelSubscription(userId) {
   const [subscription] = await db.query(`
-    SELECT id FROM user_subscriptions
-    WHERE user_id = ? AND subscription_type = 'crm' AND status = 'active'
+    SELECT id, current_period_end, cancel_at_period_end, is_complimentary
+    FROM user_subscriptions
+    WHERE user_id = ? AND subscription_type = 'crm' AND status IN ('active','incomplete')
     LIMIT 1
   `, [userId]);
-  
+
   if (subscription.length === 0) {
     const err = new Error('No active subscription found');
     err.statusCode = 404;
     throw err;
   }
-  
-  // TODO: Check if user has data (subscribers, campaigns) and require confirmation
-  // For now, allow immediate cancellation
-  
+
+  const sub = subscription[0];
+
+  if (sub.is_complimentary) {
+    const err = new Error('Complimentary subscriptions cannot be self-cancelled. Contact support.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (sub.cancel_at_period_end === 1) {
+    return { success: true, message: 'Subscription is already set to cancel', cancelAt: sub.current_period_end };
+  }
+
   await db.query(
-    'UPDATE user_subscriptions SET status = ? WHERE id = ?',
-    ['cancelled', subscription[0].id]
+    'UPDATE user_subscriptions SET cancel_at_period_end = 1, canceled_at = NOW() WHERE id = ?',
+    [sub.id]
   );
-  
-  // Remove permission
-  await db.query(
-    'UPDATE user_permissions SET crm = 0 WHERE user_id = ?',
-    [userId]
-  );
-  
+
   return {
     success: true,
-    message: 'Subscription cancelled successfully'
+    message: 'Your CRM subscription will be canceled at the end of your billing period',
+    cancelAt: sub.current_period_end
   };
 }
 

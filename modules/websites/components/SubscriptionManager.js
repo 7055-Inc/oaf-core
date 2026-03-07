@@ -119,8 +119,10 @@ export default function SubscriptionManager() {
         setCancelInfo(result);
         setShowCancelModal(true);
       } else if (result.success) {
-        // Subscription cancelled successfully
-        setSuccess('Subscription cancelled successfully.');
+        const cancelDate = result.cancelAt ? new Date(result.cancelAt).toLocaleDateString() : null;
+        setSuccess(cancelDate
+          ? `Subscription will cancel on ${cancelDate}. You retain full access until then.`
+          : 'Subscription set to cancel at end of billing period.');
         await loadSubscriptionData();
       }
     } catch (err) {
@@ -141,7 +143,10 @@ export default function SubscriptionManager() {
 
       if (result.success) {
         setShowCancelModal(false);
-        setSuccess(`Subscription cancelled. ${result.sites_deactivated || 0} site(s) deactivated, ${result.addons_disabled || 0} addon(s) disabled.`);
+        const cancelDate = result.cancelAt ? new Date(result.cancelAt).toLocaleDateString() : null;
+        setSuccess(cancelDate
+          ? `Subscription will cancel on ${cancelDate}. Your ${result.sites_affected || 0} site(s) and ${result.addons_affected || 0} addon(s) remain active until then.`
+          : 'Subscription set to cancel at end of billing period.');
         await loadSubscriptionData();
       }
     } catch (err) {
@@ -285,7 +290,7 @@ export default function SubscriptionManager() {
       <div className="form-card">
         <h3 style={{ marginBottom: '15px', color: '#dc3545' }}>Danger Zone</h3>
         <p className="form-help" style={{ marginBottom: '15px' }}>
-          Cancel your subscription. This will deactivate all your sites and disable all addons.
+          Cancel your subscription. Your sites and addons will remain active until the end of your billing period.
         </p>
         <button
           onClick={handleCancelSubscription}

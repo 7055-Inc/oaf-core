@@ -41,7 +41,7 @@ export default function AdditionalInfoSection() {
         <span className="form-help-text">
           Hold Ctrl/Cmd to select multiple languages
         </span>
-        {formData.languages_known?.length > 0 && (
+        {Array.isArray(formData.languages_known) && formData.languages_known.length > 0 && (
           <div className="form-selected-items">
             Selected: {formData.languages_known.join(', ')}
           </div>
@@ -70,7 +70,7 @@ export default function AdditionalInfoSection() {
         <span className="form-help-text">
           Hold Ctrl/Cmd to select multiple levels
         </span>
-        {formData.education?.length > 0 && (
+        {Array.isArray(formData.education) && formData.education.length > 0 && (
           <div className="form-selected-items">
             Selected: {formData.education.join(', ')}
           </div>

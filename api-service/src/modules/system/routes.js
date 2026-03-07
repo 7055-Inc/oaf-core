@@ -1565,4 +1565,225 @@ router.get('/policies/:type/default', async (req, res) => {
   }
 });
 
+// ============================================================================
+// COMPLIMENTARY ACCESS (admin-only)
+// ============================================================================
+
+const SUBSCRIPTION_PERMISSION_MAP = {
+  'websites': 'sites',
+  'shipping_labels': 'shipping',
+  'verified': 'verified',
+  'social': 'leo_social',
+  'crm': 'crm'
+};
+
+const SUBSCRIPTION_TOP_TIERS = {
+  'websites': 'professional',
+  'social': 'pro',
+  'crm': 'pro',
+  'verified': 'Verified Artist',
+  'shipping_labels': null
+};
+
+/**
+ * POST /api/v2/system/complimentary-access
+ * Grant or revoke complimentary (free-for-life) access to a subscription or addon.
+ * Admin only.
+ *
+ * Body: { action: 'grant'|'revoke', user_id, type: 'subscription'|'user_addon'|'site_addon'|'crm_addon',
+ *         subscription_type?, tier?, addon_slug?, site_id?, addon_id?, addon_type? }
+ */
+router.post('/complimentary-access', requireAuth, requirePermission('manage_system'), async (req, res) => {
+  const db = require('../../../config/db');
+  try {
+    const { action, user_id, type } = req.body;
+
+    if (!action || !user_id || !type) {
+      return res.status(400).json({ success: false, error: 'action, user_id, and type are required' });
+    }
+
+    if (action === 'grant') {
+      if (type === 'subscription') {
+        const { subscription_type, tier } = req.body;
+        if (!subscription_type) {
+          return res.status(400).json({ success: false, error: 'subscription_type is required' });
+        }
+        const tierToSet = tier || SUBSCRIPTION_TOP_TIERS[subscription_type] || null;
+
+        const [existing] = await db.query(
+          'SELECT id FROM user_subscriptions WHERE user_id = ? AND subscription_type = ? LIMIT 1',
+          [user_id, subscription_type]
+        );
+
+        if (existing.length > 0) {
+          await db.query(
+            `UPDATE user_subscriptions SET is_complimentary = 1, status = 'active', tier = ?, tier_price = 0,
+             cancel_at_period_end = 0, canceled_at = NULL, current_period_end = NULL WHERE id = ?`,
+            [tierToSet, existing[0].id]
+          );
+        } else {
+          await db.query(
+            `INSERT INTO user_subscriptions (user_id, subscription_type, tier, tier_price, status, is_complimentary)
+             VALUES (?, ?, ?, 0, 'active', 1)`,
+            [user_id, subscription_type, tierToSet]
+          );
+        }
+
+        // Grant permission
+        const permCol = SUBSCRIPTION_PERMISSION_MAP[subscription_type];
+        if (permCol) {
+          await db.query(
+            `INSERT INTO user_permissions (user_id, ${permCol}) VALUES (?, 1)
+             ON DUPLICATE KEY UPDATE ${permCol} = 1`,
+            [user_id]
+          );
+        }
+
+        return res.json({ success: true, message: `Complimentary ${subscription_type} (${tierToSet}) granted to user ${user_id}` });
+
+      } else if (type === 'user_addon') {
+        const { addon_slug } = req.body;
+        if (!addon_slug) return res.status(400).json({ success: false, error: 'addon_slug is required' });
+
+        await db.query(
+          `INSERT INTO user_addons (user_id, addon_slug, is_active, is_complimentary, subscription_source)
+           VALUES (?, ?, 1, 1, 'manual')
+           ON DUPLICATE KEY UPDATE is_active = 1, is_complimentary = 1, deactivated_at = NULL, cancel_at_period_end = 0`,
+          [user_id, addon_slug]
+        );
+        return res.json({ success: true, message: `Complimentary addon '${addon_slug}' granted to user ${user_id}` });
+
+      } else if (type === 'site_addon') {
+        const { site_id, addon_id } = req.body;
+        if (!site_id || !addon_id) return res.status(400).json({ success: false, error: 'site_id and addon_id are required' });
+
+        await db.query(
+          `INSERT INTO site_addons (site_id, addon_id, is_active, is_complimentary)
+           VALUES (?, ?, 1, 1)
+           ON DUPLICATE KEY UPDATE is_active = 1, is_complimentary = 1, deactivated_at = NULL, cancel_at_period_end = 0`,
+          [site_id, addon_id]
+        );
+        return res.json({ success: true, message: `Complimentary site addon granted` });
+
+      } else if (type === 'crm_addon') {
+        const { addon_type, quantity } = req.body;
+        if (!addon_type) return res.status(400).json({ success: false, error: 'addon_type is required' });
+
+        await db.query(
+          `INSERT INTO crm_subscription_addons (user_id, addon_type, quantity, monthly_price, is_active, is_complimentary)
+           VALUES (?, ?, ?, 0, 1, 1)`,
+          [user_id, addon_type, quantity || 1]
+        );
+        return res.json({ success: true, message: `Complimentary CRM addon '${addon_type}' granted to user ${user_id}` });
+      }
+
+      return res.status(400).json({ success: false, error: `Unknown type: ${type}` });
+
+    } else if (action === 'revoke') {
+      if (type === 'subscription') {
+        const { subscription_type } = req.body;
+        if (!subscription_type) return res.status(400).json({ success: false, error: 'subscription_type is required' });
+
+        await db.query(
+          `UPDATE user_subscriptions SET is_complimentary = 0, status = 'canceled', canceled_at = NOW()
+           WHERE user_id = ? AND subscription_type = ? AND is_complimentary = 1`,
+          [user_id, subscription_type]
+        );
+
+        const permCol = SUBSCRIPTION_PERMISSION_MAP[subscription_type];
+        if (permCol) {
+          await db.query(`UPDATE user_permissions SET ${permCol} = 0 WHERE user_id = ?`, [user_id]);
+        }
+
+        return res.json({ success: true, message: `Complimentary ${subscription_type} revoked from user ${user_id}` });
+
+      } else if (type === 'user_addon') {
+        const { addon_slug } = req.body;
+        if (!addon_slug) return res.status(400).json({ success: false, error: 'addon_slug is required' });
+
+        await db.query(
+          `UPDATE user_addons SET is_active = 0, is_complimentary = 0, deactivated_at = NOW()
+           WHERE user_id = ? AND addon_slug = ? AND is_complimentary = 1`,
+          [user_id, addon_slug]
+        );
+        return res.json({ success: true, message: `Complimentary addon '${addon_slug}' revoked from user ${user_id}` });
+
+      } else if (type === 'site_addon') {
+        const { site_id, addon_id } = req.body;
+        if (!site_id || !addon_id) return res.status(400).json({ success: false, error: 'site_id and addon_id are required' });
+
+        await db.query(
+          `UPDATE site_addons SET is_active = 0, is_complimentary = 0, deactivated_at = NOW()
+           WHERE site_id = ? AND addon_id = ? AND is_complimentary = 1`,
+          [site_id, addon_id]
+        );
+        return res.json({ success: true, message: `Complimentary site addon revoked` });
+
+      } else if (type === 'crm_addon') {
+        const { addon_id } = req.body;
+        if (!addon_id) return res.status(400).json({ success: false, error: 'addon_id is required' });
+
+        await db.query(
+          `UPDATE crm_subscription_addons SET is_active = 0, is_complimentary = 0, deactivated_at = NOW()
+           WHERE id = ? AND is_complimentary = 1`,
+          [addon_id]
+        );
+        return res.json({ success: true, message: `Complimentary CRM addon revoked` });
+      }
+
+      return res.status(400).json({ success: false, error: `Unknown type: ${type}` });
+
+    } else {
+      return res.status(400).json({ success: false, error: `Unknown action: ${action}. Use 'grant' or 'revoke'.` });
+    }
+  } catch (error) {
+    console.error('Complimentary access error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/v2/system/complimentary-access/:userId
+ * List all complimentary subscriptions and addons for a user. Admin only.
+ */
+router.get('/complimentary-access/:userId', requireAuth, requirePermission('manage_system'), async (req, res) => {
+  const db = require('../../../config/db');
+  try {
+    const userId = req.params.userId;
+
+    const [subscriptions] = await db.query(
+      `SELECT id, subscription_type, tier, status FROM user_subscriptions WHERE user_id = ? AND is_complimentary = 1`,
+      [userId]
+    );
+
+    const [userAddons] = await db.query(
+      `SELECT id, addon_slug, is_active FROM user_addons WHERE user_id = ? AND is_complimentary = 1`,
+      [userId]
+    );
+
+    const [siteAddons] = await db.query(
+      `SELECT sa.id, sa.site_id, wa.addon_name, sa.is_active
+       FROM site_addons sa
+       JOIN website_addons wa ON sa.addon_id = wa.id
+       JOIN sites s ON sa.site_id = s.id
+       WHERE s.user_id = ? AND sa.is_complimentary = 1`,
+      [userId]
+    );
+
+    const [crmAddons] = await db.query(
+      `SELECT id, addon_type, quantity, is_active FROM crm_subscription_addons WHERE user_id = ? AND is_complimentary = 1`,
+      [userId]
+    );
+
+    res.json({
+      success: true,
+      user_id: userId,
+      complimentary: { subscriptions, userAddons, siteAddons, crmAddons }
+    });
+  } catch (error) {
+    console.error('Error fetching complimentary access:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 module.exports = router;

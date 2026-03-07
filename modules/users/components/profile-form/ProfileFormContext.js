@@ -226,6 +226,14 @@ export function ProfileFormProvider({ children, userData, initialData = null }) 
   );
 }
 
+function safeJsonArray(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string' && value) {
+    try { const parsed = JSON.parse(value); if (Array.isArray(parsed)) return parsed; } catch {}
+  }
+  return [];
+}
+
 // Initialize form data from user data
 function initializeFormData(userData) {
   if (!userData) return getEmptyFormData();
@@ -247,9 +255,9 @@ function initializeFormData(userData) {
     birth_date: userData.birth_date ? userData.birth_date.split('T')[0] : '',
     gender: userData.gender || '',
     nationality: userData.nationality || '',
-    languages_known: userData.languages_known || [],
+    languages_known: safeJsonArray(userData.languages_known),
     job_title: userData.job_title || '',
-    education: userData.education || [],
+    education: safeJsonArray(userData.education),
     awards: typeof userData.awards === 'string' ? userData.awards : (Array.isArray(userData.awards) ? userData.awards.join('\n') : ''),
     memberships: typeof userData.memberships === 'string' ? userData.memberships : (Array.isArray(userData.memberships) ? userData.memberships.join('\n') : ''),
     timezone: userData.timezone || '',
@@ -269,8 +277,8 @@ function initializeFormData(userData) {
     
     // Artist profile fields
     artist_biography: userData.artist_biography || '',
-    art_categories: userData.art_categories || [],
-    art_mediums: userData.art_mediums || [],
+    art_categories: safeJsonArray(userData.art_categories),
+    art_mediums: safeJsonArray(userData.art_mediums),
     does_custom: userData.does_custom || 'no',
     custom_details: userData.custom_details || '',
     artist_business_name: userData.business_name || '',
@@ -314,10 +322,10 @@ function initializeFormData(userData) {
     promoter_founding_date: userData.founding_date ? userData.founding_date.split('T')[0] : '',
     
     // Community profile fields
-    art_style_preferences: userData.art_style_preferences || [],
-    favorite_colors: userData.favorite_colors || [],
-    art_interests: userData.art_interests || [],
-    wishlist: userData.wishlist || []
+    art_style_preferences: safeJsonArray(userData.art_style_preferences),
+    favorite_colors: safeJsonArray(userData.favorite_colors),
+    art_interests: safeJsonArray(userData.art_interests),
+    wishlist: safeJsonArray(userData.wishlist)
   };
 }
 

@@ -109,6 +109,20 @@ async function getFullProfile(userId) {
   userData.addons = userAddons || [];
   userData.addon_slugs = userAddons ? userAddons.map(a => a.addon_slug) : [];
   
+  // Get permissions as an array of granted permission names
+  const [permRows] = await db.query(
+    'SELECT * FROM user_permissions WHERE user_id = ?',
+    [userId]
+  );
+  if (permRows[0]) {
+    const skip = ['user_id', 'created_at', 'updated_at'];
+    userData.permissions = Object.entries(permRows[0])
+      .filter(([key, val]) => !skip.includes(key) && val === 1)
+      .map(([key]) => key);
+  } else {
+    userData.permissions = [];
+  }
+  
   // Enhance with media URLs
   return enhanceUserProfileWithMedia(userData);
 }

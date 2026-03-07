@@ -135,7 +135,7 @@ async function purchaseExtraDripCampaign(userId, quantity = 1) {
 }
 
 /**
- * Remove extra drip campaign addon
+ * Remove extra drip campaign addon (deferred to end of billing period)
  * @param {number} userId - User ID
  * @param {number} addonId - Addon ID to remove
  * @returns {Promise<Object>} Result
@@ -146,7 +146,6 @@ async function removeExtraDripCampaign(userId, addonId) {
   try {
     await connection.beginTransaction();
     
-    // Get addon
     const [addons] = await connection.execute(
       `SELECT * FROM crm_subscription_addons 
        WHERE id = ? AND user_id = ? AND addon_type = 'extra_drip_campaign' AND is_active = 1`,
@@ -158,22 +157,29 @@ async function removeExtraDripCampaign(userId, addonId) {
     }
     
     const addon = addons[0];
-    
-    // Remove from Stripe if exists
+
+    if (addon.is_complimentary) {
+      throw new Error('Complimentary addons cannot be self-cancelled. Contact support.');
+    }
+
+    if (addon.cancel_at_period_end === 1) {
+      await connection.commit();
+      return { success: true, message: 'Addon is already set to cancel', cancelAt: addon.current_period_end };
+    }
+
+    // Cancel Stripe subscription item at period end if exists
     if (addon.stripe_subscription_item_id) {
       try {
-        await stripeService.stripe.subscriptionItems.del(addon.stripe_subscription_item_id);
+        await stripeService.stripe.subscriptionItems.update(addon.stripe_subscription_item_id, {
+          metadata: { cancel_at_period_end: 'true' }
+        });
       } catch (stripeError) {
-        console.error('Stripe error removing drip campaign addon:', stripeError);
-        // Continue anyway
+        console.error('Stripe error marking drip campaign addon for cancellation:', stripeError);
       }
     }
     
-    // Deactivate addon
     await connection.execute(
-      `UPDATE crm_subscription_addons 
-       SET is_active = 0, deactivated_at = NOW() 
-       WHERE id = ?`,
+      `UPDATE crm_subscription_addons SET cancel_at_period_end = 1 WHERE id = ?`,
       [addonId]
     );
     
@@ -181,7 +187,8 @@ async function removeExtraDripCampaign(userId, addonId) {
     
     return {
       success: true,
-      message: `Removed ${addon.quantity} extra drip campaign${addon.quantity > 1 ? 's' : ''}`
+      message: `${addon.quantity} extra drip campaign${addon.quantity > 1 ? 's' : ''} will be removed at the end of your billing period`,
+      cancelAt: addon.current_period_end
     };
   } catch (error) {
     await connection.rollback();

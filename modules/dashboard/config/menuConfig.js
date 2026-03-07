@@ -305,6 +305,19 @@ const menuConfig = [
         href: '/dashboard/marketing/cold-call-promoters',
         adminOnly: true
       },
+      {
+        label: 'Social Central',
+        items: [
+          { label: 'Dashboard', href: '/dashboard/marketing/social-central' },
+          { label: 'Build-a-Post', href: '/dashboard/marketing/social-central/post' },
+          { label: 'AI Campaigns', href: '/dashboard/marketing/social-central/campaigns' },
+          { label: 'Media Library', href: '/dashboard/marketing/social-central/library' },
+          { label: 'Brand Voice', href: '/dashboard/marketing/social-central/brand-voice' },
+          { label: 'Connections', href: '/dashboard/marketing/social-central/connections' },
+          { label: 'Subscription', href: '/dashboard/marketing/social-central/subscription' },
+          { label: 'Admin Connections', href: '/dashboard/marketing/social-central/admin-connections', adminOnly: true },
+        ]
+      },
     ]
   },
   {
@@ -480,6 +493,11 @@ const menuConfig = [
       { 
         label: 'Secrets Manager', 
         href: '/dashboard/system/secrets',
+        adminOnly: true
+      },
+      { 
+        label: 'Auto-Blog', 
+        href: '/dashboard/system/auto-blog',
         adminOnly: true
       },
     ]

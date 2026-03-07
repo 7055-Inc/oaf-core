@@ -31,7 +31,9 @@ const dbConfig = {
 const SUBSCRIPTION_PERMISSION_MAP = {
   'websites': 'sites',
   'shipping_labels': 'shipping',
-  'verification': 'verified' // Special handling for marketplace
+  'verification': 'verified',
+  'social': 'leo_social',
+  'crm': 'crm'
 };
 
 async function processSubscriptionCancellations() {
@@ -40,11 +42,16 @@ async function processSubscriptionCancellations() {
   try {
     console.log(`[${new Date().toISOString()}] Starting subscription cancellation processor...`);
     
-    // Create database connection
     connection = await mysql.createConnection(dbConfig);
     
-    // Find subscriptions that should be canceled
-    console.log('Finding subscriptions to cancel...');
+    let totalSuccess = 0;
+    let totalErrors = 0;
+
+    // ========================================================================
+    // PHASE 1: Process subscription cancellations
+    // ========================================================================
+    console.log('\n--- Phase 1: Subscription cancellations ---');
+
     const [subscriptions] = await connection.execute(`
       SELECT 
         us.id,
@@ -55,93 +62,195 @@ async function processSubscriptionCancellations() {
         us.canceled_at
       FROM user_subscriptions us
       WHERE us.cancel_at_period_end = 1
+        AND us.is_complimentary = 0
         AND us.status = 'active'
         AND us.current_period_end < NOW()
     `);
     
     console.log(`Found ${subscriptions.length} subscriptions to cancel`);
     
-    if (subscriptions.length === 0) {
-      console.log('No subscriptions to process. Exiting.');
-      return;
-    }
-    
-    let successCount = 0;
-    let errorCount = 0;
-    
-    // Process each subscription
     for (const subscription of subscriptions) {
       try {
         console.log(`\nProcessing subscription ${subscription.id} (user ${subscription.user_id}, type: ${subscription.subscription_type})`);
         
-        // Start transaction
         await connection.beginTransaction();
         
-        // 1. Update subscription status to canceled
-        await connection.execute(`
-          UPDATE user_subscriptions 
-          SET status = 'canceled'
-          WHERE id = ?
-        `, [subscription.id]);
+        await connection.execute(
+          `UPDATE user_subscriptions SET status = 'canceled' WHERE id = ?`,
+          [subscription.id]
+        );
+        console.log(`  - Set subscription status to 'canceled'`);
         
-        console.log(`  ✓ Set subscription status to 'canceled'`);
-        
-        // 2. Revoke permissions based on subscription type
-        const permissionColumn = SUBSCRIPTION_PERMISSION_MAP[subscription.subscription_type];
-        
+        // Revoke permissions based on subscription type
         if (subscription.subscription_type === 'verification') {
-          // Special handling for verification - check tier
-          // If tier is "Marketplace Seller", remove both verified and marketplace
-          // If tier is "Verified Artist", remove only verified
-          
           if (subscription.tier === 'Marketplace Seller') {
-            await connection.execute(`
-              UPDATE user_permissions 
-              SET verified = 0, marketplace = 0
-              WHERE user_id = ?
-            `, [subscription.user_id]);
-            console.log(`  ✓ Revoked 'verified' and 'marketplace' permissions`);
+            await connection.execute(
+              `UPDATE user_permissions SET verified = 0, marketplace = 0 WHERE user_id = ?`,
+              [subscription.user_id]
+            );
+            console.log(`  - Revoked 'verified' and 'marketplace' permissions`);
           } else {
-            await connection.execute(`
-              UPDATE user_permissions 
-              SET verified = 0
-              WHERE user_id = ?
-            `, [subscription.user_id]);
-            console.log(`  ✓ Revoked 'verified' permission`);
+            await connection.execute(
+              `UPDATE user_permissions SET verified = 0 WHERE user_id = ?`,
+              [subscription.user_id]
+            );
+            console.log(`  - Revoked 'verified' permission`);
           }
-        } else if (permissionColumn) {
-          // Standard permission revocation
-          await connection.execute(`
-            UPDATE user_permissions 
-            SET ${permissionColumn} = 0
-            WHERE user_id = ?
-          `, [subscription.user_id]);
-          console.log(`  ✓ Revoked '${permissionColumn}' permission`);
         } else {
-          console.log(`  ⚠ Warning: No permission mapping for subscription type '${subscription.subscription_type}'`);
+          const permissionColumn = SUBSCRIPTION_PERMISSION_MAP[subscription.subscription_type];
+          if (permissionColumn) {
+            await connection.execute(
+              `UPDATE user_permissions SET ${permissionColumn} = 0 WHERE user_id = ?`,
+              [subscription.user_id]
+            );
+            console.log(`  - Revoked '${permissionColumn}' permission`);
+          } else {
+            console.log(`  ! Warning: No permission mapping for '${subscription.subscription_type}'`);
+          }
+        }
+
+        // Websites-specific: deactivate sites and site addons
+        if (subscription.subscription_type === 'websites') {
+          const [sitesResult] = await connection.execute(
+            `UPDATE sites SET status = 'draft' WHERE user_id = ? AND status = 'active'`,
+            [subscription.user_id]
+          );
+          console.log(`  - Deactivated ${sitesResult.affectedRows} site(s)`);
+
+          const [siteAddonsResult] = await connection.execute(
+            `UPDATE site_addons sa
+             JOIN sites s ON sa.site_id = s.id
+             SET sa.is_active = 0, sa.deactivated_at = NOW(), sa.cancel_at_period_end = 0
+             WHERE s.user_id = ? AND sa.is_active = 1`,
+            [subscription.user_id]
+          );
+          console.log(`  - Disabled ${siteAddonsResult.affectedRows} site addon(s)`);
+
+          const [userAddonsResult] = await connection.execute(
+            `UPDATE user_addons SET is_active = 0, deactivated_at = NOW(), cancel_at_period_end = 0
+             WHERE user_id = ? AND is_active = 1 AND is_complimentary = 0`,
+            [subscription.user_id]
+          );
+          console.log(`  - Disabled ${userAddonsResult.affectedRows} user addon(s)`);
         }
         
-        // Commit transaction
         await connection.commit();
-        
-        console.log(`  ✅ Successfully canceled subscription ${subscription.id}`);
-        successCount++;
+        console.log(`  OK: Subscription ${subscription.id} canceled`);
+        totalSuccess++;
         
       } catch (error) {
-        // Rollback transaction on error
         await connection.rollback();
-        console.error(`  ❌ Error processing subscription ${subscription.id}:`, error.message);
-        errorCount++;
+        console.error(`  ERROR processing subscription ${subscription.id}:`, error.message);
+        totalErrors++;
       }
     }
-    
+
+    // ========================================================================
+    // PHASE 2: Process site addon cancellations
+    // ========================================================================
+    console.log('\n--- Phase 2: Site addon cancellations ---');
+
+    const [siteAddons] = await connection.execute(`
+      SELECT sa.id, sa.site_id, s.user_id
+      FROM site_addons sa
+      JOIN sites s ON sa.site_id = s.id
+      WHERE sa.cancel_at_period_end = 1
+        AND sa.is_complimentary = 0
+        AND sa.is_active = 1
+        AND sa.current_period_end IS NOT NULL
+        AND sa.current_period_end < NOW()
+    `);
+
+    console.log(`Found ${siteAddons.length} site addons to deactivate`);
+
+    for (const addon of siteAddons) {
+      try {
+        await connection.execute(
+          `UPDATE site_addons SET is_active = 0, deactivated_at = NOW(), cancel_at_period_end = 0 WHERE id = ?`,
+          [addon.id]
+        );
+        console.log(`  OK: Site addon ${addon.id} (user ${addon.user_id}) deactivated`);
+        totalSuccess++;
+      } catch (error) {
+        console.error(`  ERROR deactivating site addon ${addon.id}:`, error.message);
+        totalErrors++;
+      }
+    }
+
+    // ========================================================================
+    // PHASE 3: Process user addon cancellations
+    // ========================================================================
+    console.log('\n--- Phase 3: User addon cancellations ---');
+
+    const [userAddons] = await connection.execute(`
+      SELECT id, user_id, addon_slug
+      FROM user_addons
+      WHERE cancel_at_period_end = 1
+        AND is_complimentary = 0
+        AND is_active = 1
+        AND current_period_end IS NOT NULL
+        AND current_period_end < NOW()
+    `);
+
+    console.log(`Found ${userAddons.length} user addons to deactivate`);
+
+    for (const addon of userAddons) {
+      try {
+        await connection.execute(
+          `UPDATE user_addons SET is_active = 0, deactivated_at = NOW(), cancel_at_period_end = 0 WHERE id = ?`,
+          [addon.id]
+        );
+        console.log(`  OK: User addon ${addon.id} (${addon.addon_slug}, user ${addon.user_id}) deactivated`);
+        totalSuccess++;
+      } catch (error) {
+        console.error(`  ERROR deactivating user addon ${addon.id}:`, error.message);
+        totalErrors++;
+      }
+    }
+
+    // ========================================================================
+    // PHASE 4: Process CRM addon cancellations
+    // ========================================================================
+    console.log('\n--- Phase 4: CRM addon cancellations ---');
+
+    const [crmAddons] = await connection.execute(`
+      SELECT id, user_id, addon_type
+      FROM crm_subscription_addons
+      WHERE cancel_at_period_end = 1
+        AND is_complimentary = 0
+        AND is_active = 1
+        AND current_period_end IS NOT NULL
+        AND current_period_end < NOW()
+    `);
+
+    console.log(`Found ${crmAddons.length} CRM addons to deactivate`);
+
+    for (const addon of crmAddons) {
+      try {
+        await connection.execute(
+          `UPDATE crm_subscription_addons SET is_active = 0, deactivated_at = NOW(), cancel_at_period_end = 0 WHERE id = ?`,
+          [addon.id]
+        );
+        console.log(`  OK: CRM addon ${addon.id} (${addon.addon_type}, user ${addon.user_id}) deactivated`);
+        totalSuccess++;
+      } catch (error) {
+        console.error(`  ERROR deactivating CRM addon ${addon.id}:`, error.message);
+        totalErrors++;
+      }
+    }
+
+    // ========================================================================
     // Summary
+    // ========================================================================
     console.log(`\n${'='.repeat(60)}`);
-    console.log(`Subscription Cancellation Summary`);
+    console.log(`Cancellation Processor Summary`);
     console.log(`${'='.repeat(60)}`);
-    console.log(`Total found:     ${subscriptions.length}`);
-    console.log(`Successful:      ${successCount}`);
-    console.log(`Errors:          ${errorCount}`);
+    console.log(`Subscriptions:   ${subscriptions.length}`);
+    console.log(`Site addons:     ${siteAddons.length}`);
+    console.log(`User addons:     ${userAddons.length}`);
+    console.log(`CRM addons:      ${crmAddons.length}`);
+    console.log(`Successful:      ${totalSuccess}`);
+    console.log(`Errors:          ${totalErrors}`);
     console.log(`${'='.repeat(60)}\n`);
     
   } catch (error) {

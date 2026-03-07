@@ -94,6 +94,33 @@ export default function SubscriptionOverview({ userData }) {
         });
       }
 
+      // Social Central
+      if (userData?.user_type === 'artist' || userData?.user_type === 'admin') {
+        subs.push({
+          id: 'social',
+          name: 'Social Central',
+          description: 'AI-powered social media marketing — campaigns, scheduling & analytics',
+          type: 'subscription',
+          monthlyFee: 0,
+          tiered: true,
+          isActive: userData?.permissions?.includes('social') || false,
+          badge: null
+        });
+      }
+
+      // CRM / Email Marketing
+      if (userData?.user_type === 'artist' || userData?.user_type === 'admin') {
+        subs.push({
+          id: 'crm',
+          name: 'CRM & Email Marketing',
+          description: 'Manage subscribers, forms, and email campaigns',
+          type: 'subscription',
+          monthlyFee: 0,
+          isActive: userData?.permissions?.includes('crm') || false,
+          badge: null
+        });
+      }
+
       // Map addons
       const addonItems = availableAddons.map(addon => ({
         id: `addon_${addon.id}`,
@@ -151,13 +178,24 @@ export default function SubscriptionOverview({ userData }) {
       case 'verification':
         window.location.href = '/dashboard/users/verified';
         break;
+      case 'social':
+        window.location.href = '/dashboard/marketing/social-central/subscription';
+        break;
+      case 'crm':
+        window.location.href = '/dashboard/crm';
+        break;
       default:
         break;
     }
   };
 
   const handleCancel = async (item) => {
-    if (!confirm('Are you sure you want to cancel this?')) return;
+    if (item.isComplimentary) {
+      alert('Complimentary subscriptions cannot be cancelled here. Please contact support.');
+      return;
+    }
+
+    if (!confirm('Are you sure? Your access will continue until the end of your current billing period.')) return;
     
     try {
       // Handle addon cancellation
@@ -167,11 +205,12 @@ export default function SubscriptionOverview({ userData }) {
         });
         
         if (response.ok) {
-          alert('Addon deactivated successfully');
+          const data = await response.json();
+          alert(data.message || 'Addon will be deactivated at the end of your billing period');
           loadSubscriptions();
         } else {
           const data = await response.json();
-          alert(data.error || 'Failed to deactivate addon');
+          alert(data.error || 'Failed to cancel addon');
         }
         return;
       }
@@ -185,17 +224,26 @@ export default function SubscriptionOverview({ userData }) {
         case 'website':
           endpoint = 'api/v2/websites/subscription/cancel';
           break;
+        case 'social':
+          endpoint = 'api/v2/marketing/subscription/cancel';
+          break;
+        case 'crm':
+          endpoint = 'api/v2/crm-subscription/subscription/cancel';
+          break;
         default:
           alert('Cannot cancel this subscription from here');
           return;
       }
       
       const response = await authApiRequest(endpoint, { method: 'POST' });
+      const data = await response.json();
       if (response.ok) {
-        alert('Subscription cancelled successfully');
+        const cancelDate = data.cancelAt ? new Date(data.cancelAt).toLocaleDateString() : null;
+        alert(cancelDate
+          ? `Your subscription will cancel on ${cancelDate}. You retain full access until then.`
+          : data.message || 'Subscription set to cancel at end of billing period');
         loadSubscriptions();
       } else {
-        const data = await response.json();
         alert(data.error || 'Failed to cancel subscription');
       }
     } catch (err) {
@@ -270,6 +318,18 @@ export default function SubscriptionOverview({ userData }) {
                       ACTIVE
                     </span>
                   )}
+                  {item.isComplimentary && (
+                    <span style={{
+                      backgroundColor: '#0d6efd',
+                      color: 'white',
+                      padding: '2px 6px',
+                      borderRadius: '3px',
+                      fontSize: '11px',
+                      marginLeft: '8px'
+                    }}>
+                      COMPLIMENTARY
+                    </span>
+                  )}
                   {item.type === 'addon' && (
                     <span style={{
                       backgroundColor: '#6c757d',
@@ -301,20 +361,24 @@ export default function SubscriptionOverview({ userData }) {
               {/* Action Button */}
               <div style={{ textAlign: 'center', alignSelf: 'center' }}>
                 {item.isActive ? (
-                  <button
-                    onClick={() => handleCancel(item)}
-                    style={{ 
-                      background: '#dc3545',
-                      color: 'white',
-                      border: 'none',
-                      padding: '8px 16px',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      minWidth: '100px'
-                    }}
-                  >
-                    Cancel
-                  </button>
+                  item.isComplimentary ? (
+                    <span style={{ fontSize: '12px', color: '#0d6efd', fontWeight: 600 }}>Gifted</span>
+                  ) : (
+                    <button
+                      onClick={() => handleCancel(item)}
+                      style={{ 
+                        background: '#dc3545',
+                        color: 'white',
+                        border: 'none',
+                        padding: '8px 16px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        minWidth: '100px'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  )
                 ) : (
                   <button
                     className="secondary"

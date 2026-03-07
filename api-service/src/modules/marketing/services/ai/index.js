@@ -16,6 +16,7 @@
 
 const { getClaudeService } = require('./ClaudeService');
 const { getContentGenerationService } = require('./ContentGenerationService');
+const { getBlogGenerationService } = require('./BlogGenerationService');
 const { getMediaMatcherService } = require('./MediaMatcherService');
 const { getMediaComposerService } = require('./MediaComposerService');
 const { getRunwayService } = require('./RunwayService');
@@ -27,6 +28,7 @@ module.exports = {
   // Active - AI Content Generation
   getClaudeService,
   getContentGenerationService,
+  getBlogGenerationService,
 
   // Active - Media Intelligence
   getMediaMatcherService,
