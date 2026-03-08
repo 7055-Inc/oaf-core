@@ -119,9 +119,8 @@ export default function Artists({ initialArtists = [], initialHasMore = true }) 
           }}
         />
       </Head>
-      
       <div className={styles.pageContainer}>
-      
+        
         <main className={styles.main}>
 
           {/* Page Header for SEO */}
@@ -133,7 +132,7 @@ export default function Artists({ initialArtists = [], initialHasMore = true }) 
           </section>
 
           {/* Artists Grid Section */}
-          <section className={styles.artistsSection}>
+        <section className={styles.artistsSection}>
           <div className={styles.container}>
             
             {error && (

@@ -1,8 +1,10 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Head from 'next/head';
 import styles from './Edit.module.css';
 import { authApiRequest } from '../../lib/apiUtils';
+import { getCurrentUser } from '../../lib/users/api';
 import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
 
 // Available art categories for dropdown
@@ -99,6 +101,14 @@ const COLOR_OPTIONS = [
   { value: '#FFFFFF', label: 'White', color: '#FFFFFF' }
 ];
 
+function safeJsonArray(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string' && value) {
+    try { const parsed = JSON.parse(value); if (Array.isArray(parsed)) return parsed; } catch {}
+  }
+  return [];
+}
+
 export default function ProfileEdit() {
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
@@ -168,14 +178,7 @@ export default function ProfileEdit() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await authApiRequest('users/me', {
-          method: 'GET'
-        });
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.error || 'Failed to fetch user profile');
-        }
-        const data = await res.json();
+        const data = await getCurrentUser();
         setUser(data);
         setFormData({
           first_name: data.first_name || '',
@@ -193,7 +196,7 @@ export default function ProfileEdit() {
           birth_date: data.birth_date ? data.birth_date.split('T')[0] : '',
           gender: data.gender || '',
           nationality: data.nationality || '',
-          languages_known: data.languages_known || [],
+          languages_known: safeJsonArray(data.languages_known),
           job_title: data.job_title || '',
           education: data.education || '',
           awards: data.awards || '',
@@ -206,8 +209,8 @@ export default function ProfileEdit() {
           social_pinterest: data.social_pinterest || '',
           social_whatsapp: data.social_whatsapp || '',
           artist_biography: data.artist_biography || '',
-          art_categories: data.art_categories || [],
-          art_mediums: data.art_mediums || [],
+          art_categories: safeJsonArray(data.art_categories),
+          art_mediums: safeJsonArray(data.art_mediums),
           does_custom: data.does_custom || 'no',
           custom_details: data.custom_details || '',
           business_name: data.business_name || '',
@@ -226,7 +229,7 @@ export default function ProfileEdit() {
           founding_date: data.founding_date ? data.founding_date.split('T')[0] : '',
           logo_path: data.logo_path || '',
           art_style_preferences: data.art_style_preferences || '',
-          favorite_colors: data.favorite_colors || [],
+          favorite_colors: safeJsonArray(data.favorite_colors),
           art_interests: data.art_interests ? JSON.stringify(data.art_interests) : '[]',
           wishlist: data.wishlist ? JSON.stringify(data.wishlist) : '[]',
           upcoming_events: data.upcoming_events ? JSON.stringify(data.upcoming_events) : '[]',
@@ -444,7 +447,7 @@ export default function ProfileEdit() {
         formDataToSend.append('logo_image', logoImage);
       }
 
-      const res = await authApiRequest('users/me', {
+      const res = await authApiRequest('/api/v2/users/me', {
         method: 'PATCH',
         body: formDataToSend
       });
@@ -490,12 +493,17 @@ export default function ProfileEdit() {
   }
 
   return (
-    <div>
-      <div className={styles.container}>
-        <div className={styles.header}>
-          <h1 className={styles.title}>Edit Profile</h1>
-          <p className={styles.subtitle}>Update your profile information and preferences</p>
-        </div>
+    <>
+      <Head>
+        <title>Edit Profile | Brakebee</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Head>
+      <div>
+        <div className={styles.container}>
+          <div className={styles.header}>
+            <h1 className={styles.title}>Edit Profile</h1>
+            <p className={styles.subtitle}>Update your profile information and preferences</p>
+          </div>
 
         {error && (
           <div className={styles.errorAlert}>
@@ -1471,6 +1479,7 @@ export default function ProfileEdit() {
           </div>
         </form>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

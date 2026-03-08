@@ -16,8 +16,9 @@ export default function TopicsPage() {
   const fetchTopics = async () => {
     try {
       setLoading(true);
-      const response = await fetch(getApiUrl('api/articles/topics'));
-      const data = await response.json();
+      const response = await fetch(getApiUrl('api/v2/content/articles/topics'));
+      const envelope = await response.json();
+      const data = envelope.data || envelope;
       setTopics(data.topics || []);
     } catch (err) {
       console.error('Error fetching topics:', err);
@@ -59,18 +60,18 @@ export default function TopicsPage() {
   return (
     <>
       <Head>
-        <title>Article Topics - Online Art Festival</title>
+        <title>Article Topics | Brakebee</title>
         <meta name="description" content="Explore our article topics covering art techniques, tutorials, artist spotlights, platform updates, and community stories." />
         <meta name="keywords" content="art topics, article categories, art tutorials, artist spotlights, art techniques, art community" />
         <link rel="canonical" href={getFrontendUrl('/topics')} />
         
-        <meta property="og:title" content="Article Topics - Online Art Festival" />
+        <meta property="og:title" content="Article Topics | Brakebee" />
         <meta property="og:description" content="Explore our article topics covering art techniques, tutorials, artist spotlights, and more." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="/topics" />
         
         <meta name="twitter:card" content="summary" />
-        <meta name="twitter:title" content="Article Topics - Online Art Festival" />
+        <meta name="twitter:title" content="Article Topics | Brakebee" />
         <meta name="twitter:description" content="Explore our article topics covering art techniques, tutorials, artist spotlights, and more." />
       </Head>
 

@@ -1,0 +1,315 @@
+/* Vertical Story Template
+ * Version: 1.0.0
+ * Description: Vertical scrolling storytelling with timeline
+ * Target: Story-driven portfolios, narrative presentations
+ * Tier: Professional (JavaScript-Enhanced)
+ */
+
+/* ========================================
+   BASE - VERTICAL NARRATIVE
+   ======================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.storefront {
+  min-height: 100vh;
+  font-family: var(--body-font, Georgia, serif);
+  color: var(--text-color, #2a2a2a);
+  background-color: var(--background-color, #fafafa);
+  line-height: 1.8;
+}
+
+/* ========================================
+   TIMELINE - VERTICAL LINE
+   ======================================== */
+
+.timeline {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.storefront[data-timeline-position="left"] .timeline {
+  left: 100px;
+  transform: none;
+}
+
+.storefront[data-timeline-position="right"] .timeline {
+  left: auto;
+  right: 100px;
+}
+
+.timeline-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 0%;
+  background: var(--timeline-color, #1a1a1a);
+  transition: height 0.1s ease;
+}
+
+/* ========================================
+   HEADER - TITLE CARD
+   ======================================== */
+
+.header {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: calc(4rem * var(--spacing-scale, 1));
+  background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+}
+
+.headerContent {
+  max-width: 800px;
+}
+
+.artistName {
+  font-size: calc(5rem * var(--spacing-scale, 1));
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  margin-bottom: calc(2rem * var(--spacing-scale, 1));
+  color: var(--text-color, #2a2a2a);
+}
+
+.tagline {
+  font-size: calc(1.5rem * var(--spacing-scale, 1));
+  font-style: italic;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+/* ========================================
+   STORY CHAPTERS - ALTERNATING
+   ======================================== */
+
+.chapter {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  padding: calc(6rem * var(--spacing-scale, 1));
+  position: relative;
+  opacity: 0;
+  transform: translateY(60px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.chapter.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.storefront[data-scroll-reveal="no"] .chapter {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Alternating layout */
+.storefront[data-chapter-style="alternating"] .chapter:nth-child(even) {
+  justify-content: flex-start;
+}
+
+.storefront[data-chapter-style="alternating"] .chapter:nth-child(odd) {
+  justify-content: flex-end;
+}
+
+/* Centered layout */
+.storefront[data-chapter-style="centered"] .chapter {
+  justify-content: center;
+}
+
+/* ========================================
+   CHAPTER CONTENT
+   ======================================== */
+
+.chapterContent {
+  max-width: 600px;
+  background: #ffffff;
+  padding: calc(3rem * var(--spacing-scale, 1));
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  border-radius: calc(8px * var(--spacing-scale, 1));
+}
+
+.chapterTitle {
+  font-size: calc(2.5rem * var(--spacing-scale, 1));
+  font-weight: 400;
+  margin-bottom: calc(1.5rem * var(--spacing-scale, 1));
+  color: var(--text-color, #2a2a2a);
+}
+
+.chapterText {
+  font-size: 1.1rem;
+  line-height: 1.8;
+  margin-bottom: calc(2rem * var(--spacing-scale, 1));
+  color: rgba(0, 0, 0, 0.8);
+}
+
+/* ========================================
+   PRODUCTS AS STORY ELEMENTS
+   ======================================== */
+
+.productsGrid,
+.addon-products-grid {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: calc(6rem * var(--spacing-scale, 1));
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: calc(8rem * var(--spacing-scale, 1));
+}
+
+.productCard,
+.addon-product-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: calc(3rem * var(--spacing-scale, 1));
+  background: #ffffff;
+  padding: calc(3rem * var(--spacing-scale, 1));
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  border-radius: calc(8px * var(--spacing-scale, 1));
+  align-items: center;
+  opacity: 0;
+  transform: translateY(60px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.productCard.visible,
+.addon-product-card.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Alternate image position */
+.productCard:nth-child(even),
+.addon-product-card:nth-child(even) {
+  grid-template-columns: 1fr 1fr;
+}
+
+.productCard:nth-child(even) .productImage,
+.addon-product-card:nth-child(even) .addon-product-image-wrapper {
+  order: 2;
+}
+
+.productImage,
+.addon-product-image-wrapper {
+  width: 100%;
+  aspect-ratio: 4/5;
+  background: #f0f0f0;
+  border-radius: calc(8px * var(--spacing-scale, 1));
+  overflow: hidden;
+}
+
+.productImage img,
+.addon-product-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.productInfo,
+.addon-product-info {
+  padding: calc(2rem * var(--spacing-scale, 1));
+}
+
+.productName,
+.addon-product-name {
+  font-size: 2rem;
+  font-weight: 400;
+  margin-bottom: calc(1rem * var(--spacing-scale, 1));
+}
+
+.productPrice,
+.addon-product-price {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--main-color, #1a1a1a);
+}
+
+/* ========================================
+   ADDON SECTIONS
+   ======================================== */
+
+.addon-blog-cards {
+  max-width: 800px;
+  margin: calc(8rem * var(--spacing-scale, 1)) auto;
+  padding: calc(4rem * var(--spacing-scale, 1));
+}
+
+.addon-blog-grid-small {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: calc(6rem * var(--spacing-scale, 1));
+}
+
+.addon-blog-card-small {
+  background: #ffffff;
+  padding: calc(3rem * var(--spacing-scale, 1));
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  border-radius: calc(8px * var(--spacing-scale, 1));
+}
+
+/* ========================================
+   FOOTER
+   ======================================== */
+
+.footer {
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: calc(4rem * var(--spacing-scale, 1));
+  background: linear-gradient(180deg, #fafafa 0%, #ffffff 100%);
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 768px) {
+  .artistName {
+    font-size: calc(3rem * var(--spacing-scale, 1));
+  }
+  
+  .chapter {
+    justify-content: center !important;
+  }
+  
+  .productCard,
+  .addon-product-card {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .productCard:nth-child(even) .productImage,
+  .addon-product-card:nth-child(even) .addon-product-image-wrapper {
+    order: 1;
+  }
+  
+  .timeline {
+    left: 20px !important;
+    transform: none !important;
+  }
+}
+
+.loading, .error {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media print {
+  .timeline { display: none; }
+  .chapter { page-break-after: always; }
+}

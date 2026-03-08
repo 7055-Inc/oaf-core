@@ -797,3 +797,77 @@ header {
   outline: 3px solid var(--secondary-color);
   outline-offset: 2px;
 }
+
+/* ==========================================================================
+   Breadcrumb Navigation
+   ========================================================================== */
+
+.breadcrumb {
+  padding: 1rem 0;
+  font-size: 0.875rem;
+}
+
+.breadcrumb-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 0.25rem;
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.breadcrumb-link {
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.breadcrumb-link:hover {
+  color: var(--secondary-color);
+  text-decoration: underline;
+}
+
+.breadcrumb-current {
+  color: #666;
+  font-weight: 500;
+}
+
+.breadcrumb-separator {
+  color: #999;
+  margin: 0 0.25rem;
+}
+
+@media (max-width: 768px) {
+  .breadcrumb {
+    font-size: 0.8rem;
+  }
+  
+  .breadcrumb-link,
+  .breadcrumb-current {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* ─── Social Central responsive helpers ─── */
+@media (max-width: 900px) {
+  /* Post Queue: stack media + content */
+  .sc-post-grid { grid-template-columns: 1fr !important; }
+  .sc-post-media { max-height: 200px; }
+
+  /* Build-a-Post: stack editor + preview */
+  .sc-composer-grid { grid-template-columns: 1fr !important; }
+  .sc-composer-preview { position: static !important; }
+
+  /* Calendar: smaller cells */
+  .sc-calendar-cell { min-height: 50px !important; font-size: 10px !important; }
+}

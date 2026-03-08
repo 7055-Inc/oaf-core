@@ -46,20 +46,20 @@ router.get('/:id', async (req, res) => {
 
 ### Example 2: Add to Events Endpoint
 
-In `/api-service/src/routes/events.js`:
+In `/api-service/src/modules/events/routes.js` (v2 GET `/:id`):
 
 ```javascript
-const { getReviewSummary } = require('../utils/reviewHelpers');
+const { getReviewSummary } = require('../../utils/reviewHelpers');
 
 router.get('/:id', async (req, res) => {
   try {
-    // ... your existing event fetch code ...
+    // ... your existing event fetch code (eventsService.getEventWithImages) ...
     
     const review_summary = await getReviewSummary('event', event.id);
     
     res.json({
-      ...event,
-      review_summary
+      success: true,
+      data: { ...event, review_summary }
     });
   } catch (error) {
     // ... error handling ...

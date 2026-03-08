@@ -53,15 +53,15 @@ export default function EventPayment() {
       setError(null);
 
       // Get payment intent and application details
-      const response = await authApiRequest(`api/applications/payment-intent/${payment_intent_id}`, {
+      const response = await authApiRequest(`api/v2/applications/payment-intent/${payment_intent_id}`, {
         method: 'GET'
       });
 
       if (response.ok) {
-        const data = await response.json();
+        const json = await response.json();
+        const data = json.data || json;
         setPaymentData(data);
         
-        // Pre-fill billing details if available
         if (data.artist_email) {
           setBillingDetails(prev => ({
             ...prev,
@@ -71,7 +71,7 @@ export default function EventPayment() {
         }
       } else {
         const errorData = await response.json();
-        setError(errorData.error || 'Payment not found');
+        setError(errorData.error?.message || 'Payment not found');
       }
     } catch (err) {
       console.error('Error loading payment data:', err);

@@ -23,7 +23,7 @@ export default function GenerateAPIKey({ userData, onKeyGenerated }) {
         throw new Error('Please log in to generate API keys');
       }
 
-      const response = await fetch(getApiUrl('api-keys'), {
+      const response = await fetch(getApiUrl('api/v2/auth/keys'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

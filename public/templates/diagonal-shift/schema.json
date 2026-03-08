@@ -1,0 +1,48 @@
+{
+  "template_slug": "diagonal-shift",
+  "template_name": "Diagonal Shift",
+  "description": "Everything at a 15° angle with counter-rotated text. Dynamic, unconventional, and visually striking.",
+  "version": "1.0.0",
+  "author": "Artist Sites",
+  "custom_fields": [
+    {
+      "key": "angle_direction",
+      "label": "Diagonal Angle Direction",
+      "type": "select",
+      "description": "Tilt direction for the entire layout",
+      "required": false,
+      "default_value": "right",
+      "tier_required": "pro",
+      "options": [
+        { "value": "right", "label": "Tilt Right (15°)" },
+        { "value": "left", "label": "Tilt Left (-15°)" }
+      ]
+    },
+    {
+      "key": "scroll_direction",
+      "label": "Scroll Direction",
+      "type": "select",
+      "description": "Direction content scrolls",
+      "required": false,
+      "default_value": "diagonal",
+      "tier_required": "pro",
+      "options": [
+        { "value": "diagonal", "label": "Diagonal Scroll" },
+        { "value": "vertical", "label": "Normal Vertical" }
+      ]
+    },
+    {
+      "key": "text_rotation",
+      "label": "Text Rotation",
+      "type": "select",
+      "description": "Keep text readable or also rotate it",
+      "required": false,
+      "default_value": "counter",
+      "tier_required": "pro",
+      "options": [
+        { "value": "counter", "label": "Counter-Rotate (Readable)" },
+        { "value": "match", "label": "Match Angle (Diagonal)" }
+      ]
+    }
+  ]
+}

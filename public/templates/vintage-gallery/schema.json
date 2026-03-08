@@ -1,0 +1,52 @@
+{
+  "template_slug": "vintage-gallery",
+  "template_name": "Vintage Gallery",
+  "description": "Classic, timeless design with elegant serif typography and traditional art presentation",
+  "version": "1.0.0",
+  "author": "Artist Sites",
+  "custom_fields": [
+    {
+      "key": "frame_style",
+      "label": "Artwork Frame Style",
+      "type": "select",
+      "description": "Visual frame treatment for artwork",
+      "required": false,
+      "default_value": "classic",
+      "tier_required": "basic",
+      "options": [
+        { "value": "classic", "label": "Classic Frame" },
+        { "value": "ornate", "label": "Ornate Frame" },
+        { "value": "simple", "label": "Simple Border" },
+        { "value": "none", "label": "No Frame" }
+      ]
+    },
+    {
+      "key": "color_tone",
+      "label": "Color Tone",
+      "type": "select",
+      "description": "Overall color tone of the template",
+      "required": false,
+      "default_value": "warm",
+      "tier_required": "basic",
+      "options": [
+        { "value": "warm", "label": "Warm Sepia" },
+        { "value": "neutral", "label": "Neutral Cream" },
+        { "value": "cool", "label": "Cool Gray" }
+      ]
+    },
+    {
+      "key": "layout_density",
+      "label": "Layout Density",
+      "type": "select",
+      "description": "Spacing and density of gallery layout",
+      "required": false,
+      "default_value": "comfortable",
+      "tier_required": "basic",
+      "options": [
+        { "value": "spacious", "label": "Spacious (Museum-style)" },
+        { "value": "comfortable", "label": "Comfortable (Balanced)" },
+        { "value": "compact", "label": "Compact (Salon-style)" }
+      ]
+    }
+  ]
+}

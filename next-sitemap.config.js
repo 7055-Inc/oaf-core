@@ -7,22 +7,37 @@ module.exports = {
   siteUrl: SITE_URL,
   generateRobotsTxt: true,
   
-  // Exclude dashboard and internal pages from sitemap
+  // Exclude dashboard, auth, internal, and low-value pages from sitemap
   exclude: [
     '/dashboard/*',
     '/dashboard',
     '/api/*',
     '/api-keys',
     '/logout',
+    '/login',
+    '/signup',
+    '/forgot-password',
     '/profile-completion',
+    '/profile/edit',
+    '/profile/setup',
     '/terms-acceptance',
     '/announcement-acknowledgment',
     '/custom-sites/*',
     '/checkout/*',
     '/cart/*',
+    '/cart',
     '/event-payment/*',
     '/vendor/*',
     '/promoters/*',
+    '/maintenance',
+    '/events/new',
+    '/products/new',
+    '/user-type-selection',
+    // Partial/component pages that shouldn't be indexed
+    '/makers/footer',
+    '/makers/header',
+    '/promoter/footer',
+    '/promoter/header',
   ],
   
   // robots.txt configuration
@@ -36,8 +51,16 @@ module.exports = {
           '/api/',
           '/checkout/',
           '/cart/',
+          '/login',
+          '/signup',
+          '/forgot-password',
           '/profile-completion',
+          '/profile/edit',
+          '/profile/setup',
           '/terms-acceptance',
+          '/event-payment/',
+          '/maintenance',
+          '/user-type-selection',
         ],
       },
     ],
@@ -50,9 +73,10 @@ module.exports = {
     
     try {
       // Fetch events
-      const eventsRes = await fetch(`${API_URL}/api/events/upcoming?limit=500`);
+      const eventsRes = await fetch(`${API_URL}/api/v2/events/upcoming?limit=500`);
       if (eventsRes.ok) {
-        const events = await eventsRes.json();
+        const body = await eventsRes.json();
+        const events = body?.data && Array.isArray(body.data) ? body.data : [];
         events.forEach(event => {
           paths.push({
             loc: `/events/${event.id}`,
@@ -95,8 +119,8 @@ module.exports = {
             paths.push({
               loc: `/articles/${article.slug}`,
               lastmod: article.updated_at || new Date().toISOString(),
-              changefreq: 'monthly',
-              priority: 0.6,
+              changefreq: 'weekly',
+              priority: 0.8,
             });
           });
         }
@@ -125,20 +149,28 @@ module.exports = {
     }
     
     try {
-      // Fetch products
-      const productsRes = await fetch(`${API_URL}/products/all?limit=1000&status=active`);
+      // Fetch products - only active parent products (exclude child/variation products)
+      const productsRes = await fetch(`${API_URL}/api/v2/catalog/public/products?limit=2000`);
       if (productsRes.ok) {
         const data = await productsRes.json();
-        const products = data.products || data;
+        const products = data.data || [];
         if (Array.isArray(products)) {
-          products.forEach(product => {
-            paths.push({
-              loc: `/products/${product.id}`,
-              lastmod: product.updated_at || new Date().toISOString(),
-              changefreq: 'weekly',
-              priority: 0.8,
+          products
+            .filter(product => 
+              // Only include parent products (no parent_id)
+              !product.parent_id &&
+              // Exclude draft placeholders
+              product.name && 
+              product.name.toLowerCase() !== 'new product draft'
+            )
+            .forEach(product => {
+              paths.push({
+                loc: `/products/${product.id}`,
+                lastmod: product.updated_at || new Date().toISOString(),
+                changefreq: 'weekly',
+                priority: 0.8,
+              });
             });
-          });
         }
       }
     } catch (err) {

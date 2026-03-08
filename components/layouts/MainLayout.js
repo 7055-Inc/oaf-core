@@ -1,7 +1,7 @@
 'use client';
 import Header from '../Header';
 import Footer from '../Footer';
-import ExitIntentPopup from '../ExitIntentPopup';
+import { ExitIntentPopup } from '../../modules/marketing/components';
 
 /**
  * MainLayout - Persistent layout for main site pages

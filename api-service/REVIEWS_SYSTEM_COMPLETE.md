@@ -142,10 +142,10 @@ return { ...product, review_summary };
 
 ### 2. Add to Event Pages
 
-In `/api-service/src/routes/events.js`:
+In `/api-service/src/modules/events/routes.js` (v2 event GET `/:id` handler):
 
 ```javascript
-const { getReviewSummary } = require('../utils/reviewHelpers');
+const { getReviewSummary } = require('../../utils/reviewHelpers');
 
 const review_summary = await getReviewSummary('event', event.id);
 return { ...event, review_summary };

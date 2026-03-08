@@ -17,6 +17,7 @@ export default function ChecklistController({
 }) {
   
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [checkState, setCheckState] = useState({
     tier: false,
     terms: false,
@@ -32,21 +33,20 @@ export default function ChecklistController({
   }, [userData, subscriptionType, reloadTrigger]);
 
   /**
-   * THE LOOP - Run all checks in sequence
+   * Fetch subscription status and set checks. First failed check = step shown (tier → terms → card → application).
    */
   const runChecklist = async () => {
     setLoading(true);
-    
+    setLoadError(false);
     try {
-      // Fetch subscription data from API
-      const apiEndpoint = `api/subscriptions/${subscriptionType}/my`;
+      const apiEndpoint = config?.subscriptionApiBase
+        ? `${config.subscriptionApiBase}/subscription/my`
+        : `api/subscriptions/${subscriptionType}/my`;
       const response = await authApiRequest(apiEndpoint);
-      
+
       if (response.ok) {
         const data = await response.json();
         setSubscriptionData(data);
-        
-        // Run checks based on API response
         setCheckState({
           tier: checkTier(data),
           application: checkApplication(data),
@@ -54,24 +54,11 @@ export default function ChecklistController({
           terms: checkTerms(data)
         });
       } else {
-        // API failed - assume nothing is set up
-        setCheckState({
-          tier: false,
-          application: false,
-          card: false,
-          terms: false
-        });
+        setLoadError(true);
       }
-      
     } catch (error) {
       console.error('Error running checklist:', error);
-      // On error, show tier step (start from beginning)
-      setCheckState({
-        tier: false,
-        application: false,
-        card: false,
-        terms: false
-      });
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -79,9 +66,10 @@ export default function ChecklistController({
 
   /**
    * CHECK 1: Has user selected a tier?
+   * Complimentary subscriptions always pass (admin already set tier).
    */
   const checkTier = (data) => {
-    // Check if subscription exists with a tier
+    if (data?.subscription?.is_complimentary) return true;
     return data?.subscription?.tier !== null && data?.subscription?.tier !== undefined;
   };
 
@@ -89,28 +77,30 @@ export default function ChecklistController({
    * CHECK 2: Is application approved?
    */
   const checkApplication = (data) => {
-    // If auto-approve (config), always pass
-    if (config?.autoApprove === true) {
-      return true;
-    }
-    
-    // Otherwise check application_status
+    if (data?.subscription?.is_complimentary) return true;
+    if (config?.autoApprove === true) return true;
     return data?.subscription?.application_status === 'approved';
   };
 
   /**
    * CHECK 3: Does user have valid card on file?
+   * Free tiers ($0) and complimentary subscriptions skip this requirement.
    */
   const checkCard = (data) => {
-    // Check if subscription has valid payment method
-    return data?.subscription?.cardLast4 !== null && data?.subscription?.cardLast4 !== undefined;
+    if (data?.subscription?.is_complimentary) return true;
+    const tier = data?.subscription?.tier;
+    const price = data?.subscription?.tierPrice;
+    if (tier === 'free' || price === 0 || price === '0') return true;
+    const c = data?.subscription?.cardLast4;
+    return c != null && String(c).trim() !== '';
   };
 
   /**
    * CHECK 4: Has user accepted latest terms?
+   * Complimentary subscriptions skip terms.
    */
   const checkTerms = (data) => {
-    // Check if terms are accepted
+    if (data?.subscription?.is_complimentary) return true;
     return data?.subscription?.termsAccepted === true;
   };
 
@@ -123,16 +113,16 @@ export default function ChecklistController({
   };
 
   /**
-   * RENDER LOGIC - Show first failed step or dashboard
+   * RENDER LOGIC - Loading, then error (retry), then first failed step (tier → terms → card → application), then dashboard
    */
   if (loading) {
     return (
-      <div style={{ 
-        padding: '40px', 
+      <div style={{
+        padding: '40px',
         textAlign: 'center',
         color: '#6c757d'
       }}>
-        <div style={{ 
+        <div style={{
           display: 'inline-block',
           width: '40px',
           height: '40px',
@@ -152,7 +142,29 @@ export default function ChecklistController({
     );
   }
 
-  // STEP 1: Check Tier
+  if (loadError) {
+    return (
+      <div style={{
+        padding: '40px',
+        textAlign: 'center',
+        maxWidth: '480px',
+        margin: '0 auto'
+      }}>
+        <p style={{ color: '#856404', marginBottom: '16px' }}>
+          Could not load your subscription status. Please try again.
+        </p>
+        <button
+          type="button"
+          className="primary"
+          onClick={() => runChecklist()}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  // STEP 1: Tier – only show when we have data and tier is not done
   if (!checkState.tier) {
     return (
       <TierStep 
@@ -160,15 +172,18 @@ export default function ChecklistController({
         onTierSelect={async (tier) => {
           console.log('Tier selected:', tier);
           
-          // Save tier to database via API
+          // Save tier to database via API (v2 websites use api/v2/websites/subscription/select-tier)
           try {
-            const response = await authApiRequest(`api/subscriptions/${subscriptionType}/select-tier`, {
+            const selectTierUrl = config?.subscriptionApiBase
+              ? `${config.subscriptionApiBase}/subscription/select-tier`
+              : `api/subscriptions/${subscriptionType}/select-tier`;
+            const response = await authApiRequest(selectTierUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 subscription_type: subscriptionType,
-                tier_name: tier.name || subscriptionType,
-                tier_price: typeof tier.price === 'string' ? 0 : tier.price
+                tier_name: tier.id || tier.name || subscriptionType,
+                tier_price: typeof tier.price === 'string' ? 0 : (tier.price || 0)
               })
             });
             

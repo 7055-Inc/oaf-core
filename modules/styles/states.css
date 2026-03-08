@@ -1,0 +1,323 @@
+/**
+ * Global State Styles (loading, empty, error, badges)
+ * Imported by global.css
+ */
+
+/* =============================================================================
+   LIST STATES
+   ============================================================================= */
+
+.loading-state,
+.empty-state,
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  gap: 12px;
+}
+
+.loading-state,
+.empty-state {
+  color: #888;
+}
+
+.loading-state p,
+.empty-state p {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.empty-state i {
+  font-size: 48px;
+  margin-bottom: 16px;
+  display: block;
+  color: #ccc;
+}
+
+.empty-state p {
+  font-style: italic;
+}
+
+.error-state {
+  color: #dc2626;
+}
+
+/* =============================================================================
+   SPINNER
+   ============================================================================= */
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e5e5e5;
+  border-top: 3px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.spinner.small {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+}
+
+.spinner.large {
+  width: 40px;
+  height: 40px;
+  border-width: 4px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* =============================================================================
+   STATUS BADGES
+   ============================================================================= */
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  gap: 4px;
+}
+
+.status-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Status variants */
+.status-badge.in-stock,
+.status-badge.active,
+.status-badge.verified,
+.status-badge.success {
+  background-color: #ecfdf5;
+  color: #059669;
+}
+
+.status-badge.low-stock,
+.status-badge.warning,
+.status-badge.pending {
+  background-color: #fffbeb;
+  color: #d97706;
+}
+
+.status-badge.out-of-stock,
+.status-badge.error,
+.status-badge.rejected,
+.status-badge.danger {
+  background-color: #fef2f2;
+  color: #dc2626;
+}
+
+.status-badge.inactive,
+.status-badge.muted {
+  background-color: #f3f4f6;
+  color: #6b7280;
+}
+
+.status-badge.info {
+  background-color: #eff6ff;
+  color: #2563eb;
+}
+
+/* =============================================================================
+   STATUS INDICATORS (larger block displays)
+   ============================================================================= */
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--border-radius-sm, 8px);
+  font-weight: 500;
+}
+
+.status-indicator.verified,
+.status-indicator.connected,
+.status-indicator.success {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-indicator.verified i,
+.status-indicator.connected i,
+.status-indicator.success i {
+  color: #10b981;
+  font-size: 20px;
+}
+
+.status-indicator.unverified,
+.status-indicator.disconnected,
+.status-indicator.inactive {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.status-indicator.unverified i,
+.status-indicator.disconnected i,
+.status-indicator.inactive i {
+  color: #9ca3af;
+  font-size: 20px;
+}
+
+.status-indicator.stripe-connected {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.status-indicator.stripe-connected i {
+  font-size: 24px;
+  color: #635bff;
+}
+
+/* =============================================================================
+   STAT DISPLAY (key-value pairs)
+   ============================================================================= */
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stat-value {
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.stat-value.code {
+  font-family: monospace;
+  font-size: 13px;
+  background: #f3f4f6;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+/* =============================================================================
+   ACCORDION/EXPANSION SECTIONS
+   ============================================================================= */
+
+.expansion-section {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: var(--border-radius-sm, 8px);
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.expansion-section:last-child {
+  margin-bottom: 0;
+}
+
+.expansion-section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  font-weight: 500;
+  color: #374151;
+}
+
+.expansion-section-header:hover {
+  background-color: #f9fafb;
+}
+
+.expansion-section-header i:first-child {
+  color: #9ca3af;
+  width: 16px;
+  text-align: center;
+}
+
+.expansion-section-icon {
+  color: var(--primary-color);
+}
+
+.expansion-section-badge {
+  margin-left: auto;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  background: #e5e7eb;
+  color: #6b7280;
+  border-radius: 12px;
+}
+
+.expansion-section-badge.badge-success {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.expansion-section-badge.badge-muted {
+  background: #f3f4f6;
+  color: #9ca3af;
+}
+
+.expansion-section-content {
+  padding: 16px;
+  border-top: 1px solid #e5e7eb;
+  background: #fafafa;
+}
+
+/* =============================================================================
+   LOADING INLINE (within content areas)
+   ============================================================================= */
+
+.loading-inline {
+  padding: 20px;
+  text-align: center;
+  color: #6b7280;
+}
+
+/* =============================================================================
+   QUICK LINKS (action button groups)
+   ============================================================================= */
+
+.quick-links {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+/* =============================================================================
+   RESPONSIVE (states)
+   ============================================================================= */
+
+@media (max-width: 1024px) {
+  .expansion-section-header {
+    flex-wrap: wrap;
+  }
+}

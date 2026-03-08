@@ -10,14 +10,14 @@ class MyDocument extends Document {
           <link rel="apple-touch-icon" href="/static_media/brakebee-logo.png" />
           <link rel="manifest" href="/manifest.json" />
           <meta name="theme-color" content="#055474" />
-          <meta name="apple-mobile-web-app-capable" content="yes" />
+          <meta name="mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-status-bar-style" content="default" />
           <meta name="apple-mobile-web-app-title" content="Brakebee" />
           
           {/* DNS Prefetch and Preconnect for faster loading */}
           {/* API - 300ms savings per PageSpeed */}
-          <link rel="preconnect" href="https://api.brakebee.com" />
-          <link rel="dns-prefetch" href="https://api.brakebee.com" />
+          <link rel="preconnect" href={process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.brakebee.com'} />
+          <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.brakebee.com'} />
           
           {/* Fonts */}
           <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -32,6 +32,14 @@ class MyDocument extends Document {
           {/* Third-party services */}
           <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
           <link rel="dns-prefetch" href="https://diffuser-cdn.app-us1.com" />
+          <link rel="dns-prefetch" href="https://widget.trustpilot.com" />
+          
+          {/* TrustPilot Widget Bootstrap */}
+          <script 
+            type="text/javascript" 
+            src="//widget.trustpilot.com/bootstrap/v5/tp.widget.bootstrap.min.js" 
+            async 
+          />
           
           {/* 
             OPTIMIZED FONT LOADING

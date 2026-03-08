@@ -1,0 +1,51 @@
+{
+  "template_slug": "portfolio-grid",
+  "template_name": "Portfolio Grid",
+  "description": "Masonry-style image grid with lightbox view, perfect for showcasing artwork",
+  "version": "1.0.0",
+  "author": "Artist Sites",
+  "custom_fields": [
+    {
+      "key": "grid_style",
+      "label": "Grid Style",
+      "type": "select",
+      "description": "Choose your gallery grid layout style",
+      "required": false,
+      "default_value": "masonry",
+      "tier_required": "basic",
+      "options": [
+        { "value": "masonry", "label": "Masonry (Pinterest-style)" },
+        { "value": "uniform", "label": "Uniform Grid" },
+        { "value": "justified", "label": "Justified Rows" }
+      ]
+    },
+    {
+      "key": "grid_gap",
+      "label": "Grid Gap Size",
+      "type": "select",
+      "description": "Spacing between grid items",
+      "required": false,
+      "default_value": "medium",
+      "tier_required": "basic",
+      "options": [
+        { "value": "compact", "label": "Compact (Minimal Gap)" },
+        { "value": "medium", "label": "Medium (Balanced)" },
+        { "value": "spacious", "label": "Spacious (Wide Gap)" }
+      ]
+    },
+    {
+      "key": "show_captions",
+      "label": "Show Image Captions",
+      "type": "select",
+      "description": "Display artwork titles on grid items",
+      "required": false,
+      "default_value": "on-hover",
+      "tier_required": "basic",
+      "options": [
+        { "value": "always", "label": "Always Show" },
+        { "value": "on-hover", "label": "Show on Hover" },
+        { "value": "never", "label": "Never Show" }
+      ]
+    }
+  ]
+}

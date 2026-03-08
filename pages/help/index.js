@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
-import Breadcrumb from '../../components/Breadcrumb';
+import { Breadcrumb } from '../../modules/shared';
 import styles from './Help.module.css';
 
 // Quick links configuration - links to help sections
@@ -17,6 +17,10 @@ const QUICK_LINKS = [
   { icon: 'fa-credit-card', label: 'Payments & Billing', href: '/help/payments-billing', description: 'Payment methods, invoices' },
   { icon: 'fa-wrench', label: 'Technical Support', href: '/help/technical', description: 'Troubleshooting, browser support' },
 ];
+
+export async function getServerSideProps() {
+  return { props: {} };
+}
 
 export default function HelpCenterPage() {
   const router = useRouter();

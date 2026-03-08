@@ -7,11 +7,11 @@ import path from 'path';
 
 // Import components with SSR enabled for SEO
 import FeaturedArtist from '../components/FeaturedArtist';
-import EventsCarousel from '../components/EventsCarousel';
-import ArtistCarousel from '../components/ArtistCarousel';
+import { EventsCarousel } from '../modules/events';
+import { ArtistCarousel } from '../modules/shared';
 
 // LoginModal can stay client-side only (not SEO relevant)
-const LoginModal = dynamic(() => import('../components/login/LoginModal'), {
+const LoginModal = dynamic(() => import('../modules/auth/components/LoginModal'), {
   ssr: false,
   loading: () => null
 });
@@ -46,9 +46,7 @@ export default function Home({ heroData, featuredArtist, featuredProducts, event
         <meta key="description" name="description" content={heroData?.h3Text || 'Discover and shop unique handmade art from talented artists. Browse paintings, sculptures, photography, jewelry, and more from independent creators.'} />
         <meta key="og:title" property="og:title" content={heroData?.h1Text || 'Brakebee - Discover Unique Handmade Art'} />
         <meta key="og:description" property="og:description" content={heroData?.h3Text || 'Discover and shop unique handmade art from talented artists.'} />
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://brakebee.com" />
-        {/* canonical tag is set by _app.js for static pages */}
+        {/* og:type, og:url, and canonical are set by _app.js */}
       </Head>
 
       {/* === NEW HOMEPAGE SECTIONS === */}
@@ -179,7 +177,7 @@ export default function Home({ heroData, featuredArtist, featuredProducts, event
             </div>
           ) : (
             <div>
-              <h1>Welcome to Online Art Festival</h1>
+              <h1>Welcome to Brakebee</h1>
               <p>Login to access your dashboard.</p>
               <LoginModal />
             </div>
@@ -218,7 +216,7 @@ export async function getServerSideProps() {
       // Artists for carousel
       fetch(`${apiUrl}/users/artists?limit=50&random=true`).catch(() => null),
       // Events for carousel
-      fetch(`${apiUrl}/api/events/upcoming?limit=10`).catch(() => null),
+      fetch(`${apiUrl}/api/v2/events/upcoming?limit=10`).catch(() => null),
       // Vendors for featured artist
       fetch(`${apiUrl}/users/artists?has_permission=vendor&limit=50`).catch(() => null),
     ]);
@@ -229,9 +227,10 @@ export async function getServerSideProps() {
       artists = Array.isArray(artistsData) ? artistsData : [];
     }
 
-    // Process events
+    // Process events (v2 returns { success, data })
     if (eventsRes?.ok) {
-      events = await eventsRes.json();
+      const eventsJson = await eventsRes.json();
+      events = eventsJson?.data && Array.isArray(eventsJson.data) ? eventsJson.data : [];
     }
 
     // Process featured artist
@@ -246,10 +245,10 @@ export async function getServerSideProps() {
         // Fetch their products
         if (featuredArtist?.id) {
           try {
-            const productsRes = await fetch(`${apiUrl}/products/all?vendor_id=${featuredArtist.id}&include=images`);
+            const productsRes = await fetch(`${apiUrl}/api/v2/catalog/public/products?vendor_id=${featuredArtist.id}`);
             if (productsRes.ok) {
               const productsData = await productsRes.json();
-              const allProducts = productsData.products || [];
+              const allProducts = productsData.data || [];
               
               // Filter to active parent products only
               featuredProducts = allProducts

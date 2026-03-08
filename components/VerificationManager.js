@@ -42,7 +42,7 @@ export default function VerificationManager() {
       const token = localStorage.getItem('token');
       
       // Fetch verification status from subscriptions endpoint
-      const statusResponse = await fetch(getApiUrl('api/subscriptions/verified/my'), {
+      const statusResponse = await fetch(getApiUrl('api/v2/commerce/subscriptions/verified/my'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -57,7 +57,7 @@ export default function VerificationManager() {
       }
 
       // Fetch all applications history from marketplace applications
-      const appsResponse = await fetch(getApiUrl('api/subscriptions/verified/marketplace-applications'), {
+      const appsResponse = await fetch(getApiUrl('api/v2/commerce/subscriptions/verified/marketplace-applications'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -112,7 +112,7 @@ export default function VerificationManager() {
       const token = localStorage.getItem('token');
       
       // Create the application
-      const response = await fetch(getApiUrl('api/subscriptions/verified/marketplace-applications/submit'), {
+      const response = await fetch(getApiUrl('api/v2/commerce/subscriptions/verified/marketplace-applications/submit'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -129,7 +129,7 @@ export default function VerificationManager() {
       const result = await response.json();
 
       // Submit the application immediately (simplified for demo - in production, would handle payment first)
-      const submitResponse = await fetch(getApiUrl(`api/subscriptions/verified/marketplace-applications/${result.id}/submit`), {
+      const submitResponse = await fetch(getApiUrl(`api/v2/commerce/subscriptions/verified/marketplace-applications/${result.id}/submit`), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

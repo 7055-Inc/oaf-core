@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, Linking } from 'react-native';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword } from 'firebase/auth';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import firebaseApp from '../lib/firebase';
-import { setupAutoRefresh } from '../lib/auth';
+import { setupAutoRefresh, storeAuthTokens } from '../lib/auth';
+import { config, getApiUrl, getFrontendUrl } from '../lib/config';
 
 export default function LoginScreen({ onLogin, onSwitchToSignup }) {
   const [email, setEmail] = useState('');
@@ -50,28 +50,27 @@ export default function LoginScreen({ onLogin, onSwitchToSignup }) {
     }
   };
 
-  const authenticateWithBackend = async (provider, token, email) => {
+  const authenticateWithBackend = async (provider, idToken, email) => {
     try {
-      const response = await fetch('https://api.beemeeart.com/auth/exchange', {
+      // Use v2 auth endpoint
+      const response = await fetch(getApiUrl(config.AUTH_LOGIN), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ provider, token, email })
+        body: JSON.stringify({ idToken, provider, email })
       });
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Authentication failed');
+        throw new Error(errorData.error?.message || 'Authentication failed');
       }
       
-      const data = await response.json();
+      const result = await response.json();
       
-      if (data.token && data.refreshToken) {
-        // Store tokens in AsyncStorage (mobile equivalent of localStorage)
-        await AsyncStorage.setItem('token', data.token);
-        await AsyncStorage.setItem('refreshToken', data.refreshToken);
-        await AsyncStorage.setItem('userId', data.userId?.toString() || '');
+      // Handle v2 response format: { success, data: { accessToken, refreshToken, user } }
+      if (result.success && result.data?.accessToken) {
+        await storeAuthTokens(result.data);
         
         console.log('Authentication successful, tokens stored');
         
@@ -145,21 +144,21 @@ export default function LoginScreen({ onLogin, onSwitchToSignup }) {
         <TouchableOpacity 
           onPress={async () => {
             try {
-              const url = 'https://beemeeart.com/forgot-password';
+              const url = getFrontendUrl('/forgot-password');
               const supported = await Linking.canOpenURL(url);
               if (supported) {
                 await Linking.openURL(url);
               } else {
                 Alert.alert(
                   'Cannot Open Link', 
-                  'Unable to open the password reset page. Please visit beemeeart.com/forgot-password in your browser.',
+                  `Unable to open the password reset page. Please visit ${url} in your browser.`,
                   [{ text: 'OK' }]
                 );
               }
             } catch (error) {
               Alert.alert(
                 'Error', 
-                'Unable to open the password reset page. Please visit beemeeart.com/forgot-password in your browser.',
+                `Unable to open the password reset page. Please visit ${getFrontendUrl('/forgot-password')} in your browser.`,
                 [{ text: 'OK' }]
               );
             }

@@ -1,15 +1,11 @@
-'use client';
-import styles from './DashboardFooter.module.css';
+/**
+ * DashboardFooter - WRAPPER
+ * Re-exports from new module location for backward compatibility.
+ * 
+ * New location: modules/dashboard/components/layout/DashboardFooter.js
+ * 
+ * TODO: Update imports to use new location directly, then delete this wrapper.
+ */
 
-export default function DashboardFooter() {
-  return (
-    <footer className={styles.dashboardFooter}>
-      <div className={styles.footerContainer}>
-        <p className={styles.copyright}>
-          © {new Date().getFullYear()} Brakebee & Online Art Festival LLC
-        </p>
-      </div>
-    </footer>
-  );
-}
+export { default } from '../../modules/dashboard/components/layout/DashboardFooter';
 

@@ -23,16 +23,16 @@ export default function EventPaymentSuccess() {
       setLoading(true);
       setError(null);
 
-      const response = await authApiRequest(`api/applications/payment-intent/${payment_intent}`, {
+      const response = await authApiRequest(`api/v2/applications/payment-intent/${payment_intent}`, {
         method: 'GET'
       });
 
       if (response.ok) {
-        const data = await response.json();
-        setPaymentData(data);
+        const json = await response.json();
+        setPaymentData(json.data || json);
       } else {
         const errorData = await response.json();
-        setError(errorData.error || 'Failed to load payment confirmation');
+        setError(errorData.error?.message || 'Failed to load payment confirmation');
       }
     } catch (err) {
       console.error('Error loading payment confirmation:', err);
@@ -238,7 +238,7 @@ export default function EventPaymentSuccess() {
             <div className={styles.supportInfo}>
               <p>
                 Need help? Contact support at 
-                <a href="mailto:support@beemeeart.com"> support@beemeeart.com</a>
+                <a href="mailto:support@brakebee.com"> support@brakebee.com</a>
               </p>
             </div>
           </div>

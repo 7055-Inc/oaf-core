@@ -1,0 +1,109 @@
+/* Widget Renderer Container */
+.widgetRenderer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.widgetActions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: #fafbfc;
+  border-bottom: 1px solid #e9ecef;
+  min-height: 40px;
+}
+
+.refreshButton {
+  background: none;
+  border: 1px solid #dee2e6;
+  color: #055474;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s ease;
+}
+
+.refreshButton:hover:not(:disabled) {
+  background: #e8f5f3;
+  border-color: #055474;
+}
+
+.refreshButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.lastRefresh {
+  font-size: 0.75rem;
+  color: #6c757d;
+}
+
+.widgetBody {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Widget States */
+.loadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #6c757d;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.errorState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #dc3545;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 1rem;
+}
+
+.retryButton {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #adb5bd;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.unknownWidget {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #ffc107;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 1rem;
+} 

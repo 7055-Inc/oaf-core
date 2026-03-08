@@ -19,8 +19,8 @@ export default function TagArchivePage() {
     setLoading(true);
     
     Promise.all([
-      fetch(getApiUrl(`api/articles/tags/${slug}`)).then(res => res.json()),
-      fetch(`api/articles?tag=${slug}&limit=${pagination.limit}&page=${pagination.page}`).then(res => res.json())
+      fetch(getApiUrl(`api/v2/content/articles/tags/${slug}`)).then(res => res.json()).then(e => e.data || e),
+      fetch(getApiUrl(`api/v2/content/articles?tag=${slug}&limit=${pagination.limit}&page=${pagination.page}`)).then(res => res.json()).then(e => e.data || e)
     ])
       .then(([tagData, articlesData]) => {
         setTag(tagData.tag || { name: slug, slug });
@@ -73,8 +73,8 @@ export default function TagArchivePage() {
   );
 
   // SEO meta tags
-  const metaTitle = `${tag.name} Articles - Online Art Festival`;
-  const metaDescription = `Explore articles tagged with "${tag.name}" on Online Art Festival. Discover insights, techniques, and stories from our community of artists.`;
+  const metaTitle = `${tag.name} Articles | Brakebee`;
+  const metaDescription = `Explore articles tagged with "${tag.name}" on Brakebee. Discover insights, techniques, and stories from our community of artists.`;
   const canonicalUrl = getFrontendUrl(`/articles/tag/${tag.slug}`);
 
   // Generate JSON-LD structured data
@@ -99,8 +99,8 @@ export default function TagArchivePage() {
         "keywords": tag.name,
         "publisher": {
           "@type": "Organization",
-          "name": "Online Art Festival",
-          "url": ""
+          "name": "Brakebee",
+          "url": "https://brakebee.com"
         }
       }))
     };
@@ -113,7 +113,7 @@ export default function TagArchivePage() {
       <Head>
         <title>{metaTitle}</title>
         <meta name="description" content={metaDescription} />
-        <meta name="keywords" content={`${tag.name}, articles, art, online art festival`} />
+        <meta name="keywords" content={`${tag.name}, articles, art, brakebee`} />
         <link rel="canonical" href={canonicalUrl} />
         
         <meta property="og:title" content={metaTitle} />

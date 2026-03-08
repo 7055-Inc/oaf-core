@@ -1,0 +1,159 @@
+{
+  "template_slug": "luxury-brand",
+  "template_name": "Luxury Brand",
+  "description": "Premium dark-themed template with modern commerce styling and video support",
+  "version": "1.0.0",
+  "author": "Artist Sites",
+  "custom_fields": [
+    {
+      "key": "hero_label",
+      "label": "Hero Label Text",
+      "type": "text",
+      "placeholder": "$$26 STATEMENT PIECES",
+      "max_length": 50,
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "Small label text above hero title"
+    },
+    {
+      "key": "hero_title",
+      "label": "Hero Main Title",
+      "type": "text",
+      "placeholder": "Bold by design",
+      "max_length": 100,
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "Main heading for hero section"
+    },
+    {
+      "key": "hero_button_text",
+      "label": "Hero Button Text",
+      "type": "text",
+      "placeholder": "DISCOVER MORE",
+      "max_length": 30,
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "Text for hero CTA button"
+    },
+    {
+      "key": "hero_button_url",
+      "label": "Hero Button URL",
+      "type": "text",
+      "placeholder": "#products",
+      "max_length": 200,
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "URL or anchor for hero button"
+    },
+    {
+      "key": "hero_background_image",
+      "label": "Hero Background Image",
+      "type": "image_url",
+      "placeholder": "https://example.com/hero.jpg",
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "Full-screen hero background image (recommended: 1920x1080px)"
+    },
+    {
+      "key": "products_section_title",
+      "label": "Products Section Title",
+      "type": "text",
+      "placeholder": "Just arrived",
+      "max_length": 50,
+      "required": false,
+      "default_value": "Featured Works",
+      "tier_required": "pro",
+      "help_text": "Title for products/gallery section"
+    },
+    {
+      "key": "video_section_tagline",
+      "label": "Video Section Tagline",
+      "type": "text",
+      "placeholder": "YOUR BRAND TAGLINE",
+      "max_length": 100,
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "Small text above video section title"
+    },
+    {
+      "key": "video_section_title",
+      "label": "Video Section Title",
+      "type": "text",
+      "placeholder": "Transform your look this season",
+      "max_length": 150,
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "Main title for video hero section"
+    },
+    {
+      "key": "video_section_url",
+      "label": "Video Section Background",
+      "type": "video_url",
+      "placeholder": "https://example.com/video.mp4",
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "Video URL for video hero section (MP4 recommended, under 10MB)"
+    },
+    {
+      "key": "video_button_primary_text",
+      "label": "Video Section Primary Button",
+      "type": "text",
+      "placeholder": "SHOP NOW",
+      "max_length": 30,
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "Text for first video section button"
+    },
+    {
+      "key": "video_button_primary_url",
+      "label": "Primary Button URL",
+      "type": "text",
+      "placeholder": "#shop",
+      "max_length": 200,
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "URL for primary button"
+    },
+    {
+      "key": "video_button_secondary_text",
+      "label": "Video Section Secondary Button",
+      "type": "text",
+      "placeholder": "EXPLORE",
+      "max_length": 30,
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "Text for second video section button"
+    },
+    {
+      "key": "video_button_secondary_url",
+      "label": "Secondary Button URL",
+      "type": "text",
+      "placeholder": "/about",
+      "max_length": 200,
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "URL for secondary button"
+    },
+    {
+      "key": "blog_section_title",
+      "label": "Blog Section Title",
+      "type": "text",
+      "placeholder": "Blog",
+      "max_length": 50,
+      "required": false,
+      "default_value": "Latest Articles",
+      "tier_required": "pro",
+      "help_text": "Title for blog/articles section"
+    },
+    {
+      "key": "footer_description",
+      "label": "Footer Description",
+      "type": "textarea",
+      "placeholder": "Your brand is a premium official theme designed by...",
+      "max_length": 300,
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "Brief description in footer below logo"
+    }
+  ]
+}

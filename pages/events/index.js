@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import styles from './Events.module.css';
-import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
+import { getSmartMediaUrl } from '../../lib/config';
+import { fetchUpcomingEvents } from '../../lib/events/api';
 
 export default function Events() {
   const [events, setEvents] = useState([]);
@@ -24,15 +25,7 @@ export default function Events() {
       setError(null);
       
       const offset = (page - 1) * EVENTS_PER_PAGE;
-      const response = await fetch(
-        getApiUrl(`api/events/upcoming?limit=${EVENTS_PER_PAGE}&offset=${offset}`)
-      );
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch events');
-      }
-      
-      const eventsData = await response.json();
+      const eventsData = await fetchUpcomingEvents({ limit: EVENTS_PER_PAGE, offset });
       
       if (reset) {
         setEvents(eventsData);
@@ -111,9 +104,11 @@ export default function Events() {
       <Head>
         <title>Art Events & Exhibitions | Brakebee</title>
         <meta name="description" content="Discover upcoming art events, exhibitions, and festivals near you. Connect with artists, attend live shows, and experience unique artwork in person." />
+        <link rel="canonical" href="https://brakebee.com/events" />
         <meta property="og:title" content="Art Events & Exhibitions | Brakebee" />
         <meta property="og:description" content="Discover upcoming art events, exhibitions, and festivals. Connect with artists and experience unique artwork." />
         <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://brakebee.com/events" />
       </Head>
       
       <div className={styles.pageContainer}>
@@ -187,7 +182,7 @@ export default function Events() {
                         
                         <div className={styles.cardFooter}>
                           <span className={styles.viewEvent}>View Details →</span>
-                          {event.allow_applications && event.application_status === 'open' && (
+                          {!!event.allow_applications && event.application_status === 'open' && (
                             <span className={styles.applicationsBadge}>Applications Open</span>
                           )}
                         </div>

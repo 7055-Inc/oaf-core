@@ -1,0 +1,44 @@
+{
+  "template_slug": "japanese-zen",
+  "template_name": "Japanese Zen",
+  "description": "Minimalist with Eastern aesthetics - vertical text, asymmetric balance, natural textures. Wabi-sabi philosophy.",
+  "version": "1.0.0",
+  "author": "Artist Sites",
+  "custom_fields": [
+    {
+      "key": "text_orientation",
+      "label": "Text Orientation",
+      "type": "select",
+      "description": "Horizontal or vertical text layout",
+      "required": false,
+      "default_value": "horizontal",
+      "tier_required": "pro",
+      "options": [
+        { "value": "horizontal", "label": "Horizontal (Western)" },
+        { "value": "vertical", "label": "Vertical (Traditional)" }
+      ]
+    },
+    {
+      "key": "balance_style",
+      "label": "Balance Style",
+      "type": "select",
+      "description": "Layout asymmetry",
+      "required": false,
+      "default_value": "asymmetric",
+      "tier_required": "pro",
+      "options": [
+        { "value": "symmetric", "label": "Symmetric" },
+        { "value": "asymmetric", "label": "Asymmetric (Traditional)" }
+      ]
+    },
+    {
+      "key": "nature_accent",
+      "label": "Nature Accent Color",
+      "type": "color",
+      "required": false,
+      "default_value": "#8b4513",
+      "tier_required": "pro",
+      "help_text": "Earthy accent color (bamboo, stone, wood tones)"
+    }
+  ]
+}

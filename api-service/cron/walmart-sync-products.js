@@ -71,7 +71,7 @@ async function syncProductsToWalmart() {
       
       WHERE wcp.sync_status = 'pending'
         AND wcp.is_active = 1
-        AND wcp.listing_status IN ('pending', 'active')
+        AND wcp.listing_status IN ('pending', 'listed')
         AND p.status = 'active'
       
       ORDER BY wcp.created_at ASC
@@ -90,8 +90,7 @@ async function syncProductsToWalmart() {
     
     for (const product of pendingProducts) {
       try {
-        // Calculate price using our pricing utility
-        const walmartPrice = product.walmart_price || 
+        const walmartPrice = parseFloat(product.walmart_price) || 
           calculateWalmartPrice({ price: product.retail_price, wholesale_price: product.wholesale_price });
         
         // Build Walmart item structure

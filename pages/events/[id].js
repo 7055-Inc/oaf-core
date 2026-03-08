@@ -3,13 +3,14 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Script from 'next/script';
 import Link from 'next/link';
-import Breadcrumb from '../../components/Breadcrumb';
+import { Breadcrumb } from '../../modules/shared';
 import { getFrontendUrl, getApiUrl, getSmartMediaUrl } from '../../lib/config';
-import ApplicationForm from '../../components/applications/ApplicationForm';
-import ApplicationStatus from '../../components/applications/ApplicationStatus';
-import EventReviews from '../../components/EventReviews';
+import { getCurrentUser } from '../../lib/users/api';
+import { ApplicationForm, ApplicationStatus, EventReviews } from '../../modules/events';
+import { fetchMyApplications, getEventApplicationStats, updateApplication } from '../../lib/applications/api';
+import { fetchEvent, fetchEventCategories, fetchEventArtists, requestExhibiting } from '../../lib/events/api';
 import styles from './styles/EventView.module.css';
-import TicketPurchaseModal from '../../components/TicketPurchaseModal';
+import { TicketPurchaseModal } from '../../modules/events';
 
 // Helper function: Calculate event duration
 const calculateEventDuration = (startDate, endDate) => {
@@ -144,11 +145,7 @@ const generatePerformerSchema = (artists, event) => {
     "description": artist.artist_statement || `Professional artist exhibiting at ${event.title}`,
     "url": `/artists/${artist.user_id}`,
     "sameAs": artist.portfolio_url || null,
-    "knowsAbout": artist.art_medium || "Visual Arts",
-    "memberOf": {
-      "@type": "Organization",
-      "name": "Online Art Festival Artists"
-    }
+    "knowsAbout": artist.art_medium || "Visual Arts"
   })).filter(performer => performer.sameAs || performer.description);
 };
 
@@ -250,9 +247,9 @@ const generateEventRating = (reviewSummary) => {
 // Helper function: Generate social media links
 const generateSocialLinks = (event, id) => {
   const links = [
-    `/events/${id}`,
-    "https://facebook.com/onlineartfestival", // Update with actual social links
-    "https://instagram.com/onlineartfestival"
+    `https://brakebee.com/events/${id}`,
+    "https://facebook.com/brakebee",
+    "https://instagram.com/brakebee"
   ];
   
   return links;
@@ -367,15 +364,24 @@ const generateAdvancedEventSchema = (event, id, exhibitingArtists, eventCategori
     // Location with rich venue data
     "location": generateVenueSchema(event),
     
-    // Organizer and contact
+    // Organizer - the event promoter (actual event organizer)
     "organizer": {
+      "@type": event.promoter_business_name ? "Organization" : "Person",
+      "name": event.promoter_business_name || 
+              (event.promoter_first_name && event.promoter_last_name 
+                ? `${event.promoter_first_name} ${event.promoter_last_name}` 
+                : "Event Organizer"),
+      "url": event.promoter_website || null
+    },
+    
+    // Publisher - Brakebee hosts the event listing
+    "publisher": {
       "@type": "Organization",
-      "name": "Online Art Festival",
-      "url": "",
-      "contactPoint": {
-        "@type": "ContactPoint",
-        "contactType": "Event Information",
-        "url": `/events/${id}`
+      "name": "Brakebee",
+      "url": "https://brakebee.com",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://brakebee.com/static_media/logo.png"
       }
     },
     
@@ -408,9 +414,9 @@ const generateAdvancedEventSchema = (event, id, exhibitingArtists, eventCategori
     
     // Related events and series
     "isPartOf": {
-      "@type": "EventSeries",
-      "name": "Online Art Festival Events",
-      "url": "/events"
+      "@type": "WebSite",
+      "name": "Brakebee Events",
+      "url": "https://brakebee.com/events"
     },
     
     // Social media and sharing
@@ -488,6 +494,10 @@ export default function EventPage({
   // Ticket modal state
   const [showTicketModal, setShowTicketModal] = useState(false);
 
+  // Exhibiting request state
+  const [exhibitingRequestStatus, setExhibitingRequestStatus] = useState(null);
+  const [exhibitingRequestLoading, setExhibitingRequestLoading] = useState(false);
+
   // Helper function for image URLs (needed for schema)
   const getSchemaImageUrl = (imagePath) => {
     if (!imagePath) return null;
@@ -534,70 +544,40 @@ export default function EventPage({
     if (!id) return;
     setLoading(true);
     
-    // Use ?include= parameter to get all data in one call (new API)
-    // Falls back to separate calls if API doesn't support ?include= (old API)
-    fetch(getApiUrl(`api/events/${id}?include=images,categories,artists`))
-      .then(res => res.json())
-      .then(async (eventData) => {
-        // Extract related data if API supports ?include= (new API)
-        let images = eventData.images || [];
-        let categories = eventData.categories || [];
-        let artists = eventData.artists || [];
-        
-        // Remove from event object to keep it clean
-        delete eventData.images;
-        delete eventData.categories;
-        delete eventData.artists;
-        
-        // Fallback: If no related data, try separate endpoints (old API)
-        if (images.length === 0 && categories.length === 0 && artists.length === 0) {
-          try {
-            const [imagesRes, categoriesRes, artistsRes] = await Promise.all([
-              fetch(getApiUrl(`api/events/${id}/images`)).then(r => r.json()).catch(() => ({ images: [] })),
-              fetch(getApiUrl(`api/events/${id}/categories`)).then(r => r.json()).catch(() => ({ categories: [] })),
-              fetch(getApiUrl(`api/events/${id}/artists`)).then(r => r.json()).catch(() => ({ artists: [] }))
-            ]);
-            images = imagesRes.images || [];
-            categories = categoriesRes.categories || [];
-            artists = artistsRes.artists || [];
-          } catch (e) { /* ignore fallback errors */ }
-        }
-        
+    // v2: event (with images), categories, artists
+    (async () => {
+      try {
+        const [eventData, categories, artists] = await Promise.all([
+          fetchEvent(id),
+          fetchEventCategories(id),
+          fetchEventArtists(id)
+        ]);
+        const images = eventData?.images || [];
         setEvent(eventData || null);
         setEventImages(images);
-        setEventCategories(categories);
-        setExhibitingArtists(artists);
-        setLoading(false);
-        setArtistsLoading(false);
-      })
-      .catch(err => {
+        setEventCategories(categories || []);
+        setExhibitingArtists(artists || []);
+      } catch (err) {
         console.error('Error loading event data:', err);
         setError('Failed to load event details');
+      } finally {
         setLoading(false);
-      });
+        setArtistsLoading(false);
+      }
+    })();
   }, [id, initialEvent]);
 
   // Check user authentication and load application data
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      // Fetch current user
-      fetch(getApiUrl('users/me'), {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-        .then(res => {
-          if (res.ok) return res.json();
-          throw new Error('Failed to fetch user data');
-        })
+      getCurrentUser()
         .then(userData => {
           setUser(userData);
           
           // If event is loaded and user is authenticated, check for existing application
           if (id) {
-            loadUserApplication(token);
+            loadUserApplication();
           }
         })
         .catch(err => {
@@ -611,20 +591,11 @@ export default function EventPage({
     }
   }, [id]);
 
-  const loadUserApplication = async (token) => {
+  const loadUserApplication = async () => {
     try {
-      const response = await fetch(getApiUrl('api/applications/'), {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const eventApplications = (data.applications || []).filter(app => app.event_id == id);
-        setUserApplication(eventApplications); // Array of applications for this event
-      }
+      const list = await fetchMyApplications({});
+      const eventApplications = (list || []).filter(app => String(app.event_id) === String(id));
+      setUserApplication(eventApplications);
     } catch (err) {
       console.error('Error loading user application:', err);
     }
@@ -632,11 +603,8 @@ export default function EventPage({
 
   const loadApplicationStats = async () => {
     try {
-      const response = await fetch(getApiUrl(`api/applications/events/${id}/stats`));
-      if (response.ok) {
-        const stats = await response.json();
-        setApplicationStats(stats);
-      }
+      const stats = await getEventApplicationStats(id);
+      setApplicationStats(stats);
     } catch (err) {
       console.error('Error loading application stats:', err);
     }
@@ -799,9 +767,7 @@ export default function EventPage({
     if (!event || !event.allow_applications) return false;
     if (event.application_status !== 'accepting') return false;
     if (!user) return false;
-    // Removed userApplication check - users can apply multiple times with different personas
     
-    // Check if application deadline has passed
     if (event.application_deadline) {
       const deadline = new Date(event.application_deadline);
       const now = new Date();
@@ -809,6 +775,32 @@ export default function EventPage({
     }
     
     return true;
+  };
+
+  const handleExhibitingRequest = async () => {
+    if (!user || !id) return;
+    setExhibitingRequestLoading(true);
+    try {
+      await requestExhibiting(id);
+      setExhibitingRequestStatus('sent');
+    } catch (err) {
+      if (err.message.includes('already')) {
+        setExhibitingRequestStatus('already');
+      } else {
+        setExhibitingRequestStatus('error');
+      }
+    } finally {
+      setExhibitingRequestLoading(false);
+    }
+  };
+
+  const isAlreadyExhibiting = () => {
+    if (!user || !exhibitingArtists) return false;
+    return exhibitingArtists.some(a => a.user_id === user.id || a.artist_id === user.id);
+  };
+
+  const isPromoter = () => {
+    return user && event && event.promoter_id === user.id;
   };
 
   if (loading) {
@@ -854,7 +846,7 @@ export default function EventPage({
   }
 
   // SEO meta tags
-  const metaTitle = event.seo_title || `${event.title} - Online Art Festival`;
+  const metaTitle = event.seo_title || `${event.title} | Brakebee`;
   const metaDescription = event.meta_description || event.short_description || event.description?.substring(0, 160) || `Join us for ${event.title} in ${event.venue_city}, ${event.venue_state}`;
   const canonicalUrl = `/events/${id}`;
   const eventImageUrl = eventImages.length > 0 ? getImageUrl(eventImages[0].image_url) : null;
@@ -862,7 +854,7 @@ export default function EventPage({
   return (
     <>
       <Head>
-        <title>{event ? `${event.title} - Online Art Festival` : 'Loading Event...'}</title>
+        <title>{event ? `${event.title} | Brakebee` : 'Loading Event...'}</title>
         <meta name="description" content={event?.meta_description || event?.description || 'Art festival event details'} />
         <meta name="keywords" content={event?.event_keywords || 'art, festival, event'} />
         <meta property="og:title" content={event?.seo_title || event?.title} />
@@ -880,14 +872,14 @@ export default function EventPage({
         )}
       </Head>
 
-      {/* Floating Edit Buttons for Promoters */}
+      {/* Floating Edit Buttons for Promoters (new dashboard Events) */}
       {user && event && user.id === event.promoter_id && (
         <div className={styles.floatingEditButtons}>
-          <a href={`/dashboard?tab=my-events&action=edit&eventId=${event.id}`} className={styles.floatingEditLink}>
+          <a href={`/dashboard/events/new?edit_event_id=${event.id}`} className={styles.floatingEditLink}>
             <i className="fa-solid fa-edit"></i>
             Edit Event
           </a>
-          <a href="/dashboard?tab=my-events" className={styles.floatingManageLink}>
+          <a href="/dashboard/events/own" className={styles.floatingManageLink}>
             <i className="fa-solid fa-calendar"></i>
             Manage Events
           </a>
@@ -1329,6 +1321,52 @@ export default function EventPage({
             />
           </div>
 
+          {/* "I'm Exhibiting Here" Section */}
+          {user && !isPromoter() && !isAlreadyExhibiting() && (
+            <div className={styles.sectionSeparator}>
+              <hr className={styles.separator} />
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                {exhibitingRequestStatus === 'sent' ? (
+                  <p style={{ color: '#28a745', fontWeight: 500 }}>
+                    <i className="fas fa-check-circle"></i> Your request has been sent to the event promoter.
+                  </p>
+                ) : exhibitingRequestStatus === 'already' ? (
+                  <p style={{ color: '#666' }}>
+                    <i className="fas fa-info-circle"></i> You've already submitted a request for this event.
+                  </p>
+                ) : exhibitingRequestStatus === 'error' ? (
+                  <p style={{ color: '#dc3545' }}>
+                    <i className="fas fa-exclamation-circle"></i> Something went wrong. Please try again.
+                  </p>
+                ) : (
+                  <>
+                    <p style={{ marginBottom: '12px', color: '#555' }}>Are you an artist exhibiting at this event?</p>
+                    <button
+                      onClick={handleExhibitingRequest}
+                      disabled={exhibitingRequestLoading}
+                      style={{
+                        background: '#055474',
+                        color: '#fff',
+                        border: 'none',
+                        padding: '10px 24px',
+                        borderRadius: '4px',
+                        cursor: exhibitingRequestLoading ? 'wait' : 'pointer',
+                        fontWeight: 600,
+                        fontSize: '14px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                    >
+                      <i className="fas fa-hand-paper"></i>
+                      {exhibitingRequestLoading ? 'Sending...' : "I'm Exhibiting Here"}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* HR Separator */}
           {!!event.allow_applications && (
             <div className={styles.sectionSeparator}>
@@ -1553,13 +1591,7 @@ export default function EventPage({
                       setSaving(true);
                       setSaveError('');
                       try {
-                        const token = localStorage.getItem('token');
-                        const res = await fetch(getApiUrl(`api/applications/${selectedApplication.id}`), {
-                          method: 'PATCH',
-                          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                          body: JSON.stringify(editData)
-                        });
-                        if (!res.ok) throw new Error('Failed to save');
+                        await updateApplication(selectedApplication.id, editData);
                         setUserApplication(prev => prev.map(app => 
                           app.id === selectedApplication.id ? { ...app, ...editData } : app
                         ));
@@ -1596,20 +1628,8 @@ export async function getServerSideProps(context) {
   const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.brakebee.com';
 
   try {
-    // Fetch event with ?include= parameter (new API) plus reviews
-    // Backward compatible: if API doesn't support ?include=, fetch related data separately
-    const fetchOptions = {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    };
-    
-    const [eventRes, reviewsRes, reviewSummaryRes] = await Promise.all([
-      fetch(`${apiUrl}/api/events/${id}?include=images,categories,artists`, fetchOptions).catch(() => null),
-      fetch(`${apiUrl}/api/reviews?type=event&id=${id}&sort=recent&limit=10`, fetchOptions).catch(() => null),
-      fetch(`${apiUrl}/api/reviews/summary?type=event&id=${id}`, fetchOptions).catch(() => null)
-    ]);
-
-    // Parse responses (don't let failures break the page)
+    // v2: event (with images), categories, artists; plus reviews (legacy)
+    const fetchOptions = { method: 'GET', headers: { 'Content-Type': 'application/json' } };
     let initialEvent = null;
     let initialImages = [];
     let initialCategories = [];
@@ -1617,55 +1637,35 @@ export async function getServerSideProps(context) {
     let initialReviews = [];
     let initialReviewSummary = null;
 
-    if (eventRes?.ok) {
-      try { 
-        const eventData = await eventRes.json();
-        // Extract related data if API supports ?include= (new API)
-        if (eventData.images) {
-          initialImages = eventData.images;
-          delete eventData.images;
-        }
-        if (eventData.categories) {
-          initialCategories = eventData.categories;
-          delete eventData.categories;
-        }
-        if (eventData.artists) {
-          initialArtists = eventData.artists;
-          delete eventData.artists;
-        }
-        initialEvent = eventData;
-        
-        // Fallback: If API doesn't support ?include= (old API), fetch related data separately
-        if (initialImages.length === 0 && initialCategories.length === 0 && initialArtists.length === 0) {
-          const [imagesRes, categoriesRes, artistsRes] = await Promise.all([
-            fetch(`${apiUrl}/api/events/${id}/images`, fetchOptions).catch(() => null),
-            fetch(`${apiUrl}/api/events/${id}/categories`, fetchOptions).catch(() => null),
-            fetch(`${apiUrl}/api/events/${id}/artists`, fetchOptions).catch(() => null)
-          ]);
-          
-          if (imagesRes?.ok) {
-            try { const data = await imagesRes.json(); initialImages = data.images || []; } catch (e) { /* ignore */ }
-          }
-          if (categoriesRes?.ok) {
-            try { const data = await categoriesRes.json(); initialCategories = data.categories || []; } catch (e) { /* ignore */ }
-          }
-          if (artistsRes?.ok) {
-            try { const data = await artistsRes.json(); initialArtists = data.artists || []; } catch (e) { /* ignore */ }
-          }
-        }
-      } catch (e) { /* ignore */ }
-    }
+    try {
+      const [eventData, categories, artists] = await Promise.all([
+        fetchEvent(id),
+        fetchEventCategories(id),
+        fetchEventArtists(id)
+      ]);
+      initialEvent = eventData || null;
+      initialImages = eventData?.images || [];
+      initialCategories = categories || [];
+      initialArtists = artists || [];
+    } catch (e) { /* event load failed, leave initial* null/empty */ }
+
+    const [reviewsRes, reviewSummaryRes] = await Promise.all([
+      fetch(`${apiUrl}/api/v2/content/reviews?type=event&id=${id}&sort=recent&limit=10`, fetchOptions).catch(() => null),
+      fetch(`${apiUrl}/api/v2/content/reviews/summary?type=event&id=${id}`, fetchOptions).catch(() => null)
+    ]);
     
     if (reviewsRes?.ok) {
       try { 
-        const data = await reviewsRes.json(); 
+        const envelope = await reviewsRes.json(); 
+        const data = envelope.data || envelope;
         initialReviews = Array.isArray(data) ? data : [];
       } catch (e) { /* ignore */ }
     }
     
     if (reviewSummaryRes?.ok) {
       try { 
-        initialReviewSummary = await reviewSummaryRes.json();
+        const envelope = await reviewSummaryRes.json();
+        initialReviewSummary = envelope.data || envelope;
       } catch (e) { /* ignore */ }
     }
 

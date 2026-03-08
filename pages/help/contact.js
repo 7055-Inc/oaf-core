@@ -3,8 +3,9 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import Breadcrumb from '../../components/Breadcrumb';
+import { Breadcrumb } from '../../modules/shared';
 import { authApiRequest, apiRequest } from '../../lib/apiUtils';
+import { getCurrentUser } from '../../lib/users/api';
 import { getAuthToken } from '../../lib/csrf';
 import styles from './Help.module.css';
 
@@ -52,14 +53,9 @@ export default function ContactPage() {
         const token = getAuthToken();
         if (!token) return;
 
-        const response = await authApiRequest('users/me', {
-          method: 'GET'
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setIsLoggedIn(true);
-          setUserEmail(data.username || '');
-        }
+        const data = await getCurrentUser();
+        setIsLoggedIn(true);
+        setUserEmail(data.username || '');
       } catch (err) {
         // Not logged in, that's fine
       }
@@ -93,7 +89,7 @@ export default function ContactPage() {
 
       // Use authApiRequest if logged in, apiRequest if guest
       const requestFn = isLoggedIn ? authApiRequest : apiRequest;
-      const response = await requestFn('api/tickets', {
+      const response = await requestFn('api/v2/system/tickets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(ticketData)
@@ -101,11 +97,11 @@ export default function ContactPage() {
 
       const data = await response.json();
 
-      if (response.ok && data.success) {
-        setTicketNumber(data.ticket_number);
+      if (data.success) {
+        setTicketNumber(data.data.ticket_number);
         setSubmitted(true);
       } else {
-        throw new Error(data.error || 'Failed to create ticket');
+        throw new Error(data.error?.message || 'Failed to create ticket');
       }
 
     } catch (err) {

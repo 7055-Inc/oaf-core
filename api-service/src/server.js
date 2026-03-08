@@ -4,17 +4,16 @@ const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const db = require('../config/db');
 const path = require('path');
-const { 
+const {
   loginLimiter,
   tokenValidationLimiter,
-  authLimiter, 
+  authLimiter,
   refreshLimiter,
-  paymentLimiter, 
-  apiKeyLimiter, 
-  apiLimiter, 
-  adminLimiter, 
-  uploadLimiter 
-} = require('./middleware/rateLimiter');
+  paymentLimiter,
+  apiLimiter,
+  adminLimiter,
+  uploadLimiter
+} = require('./modules/shared/middleware/rateLimiter');
 // const { secureLogger, requestLogger } = require('./middleware/secureLogger');
 // Temporarily disable secure logger for debugging
 const secureLogger = {
@@ -104,7 +103,7 @@ app.use(cookieParser());
 
 // IMPORTANT: Webhooks need raw body access for Stripe signature verification
 // Load webhook routes BEFORE JSON parsing middleware
-app.use('/webhooks', require('./routes/webhooks/stripe'));
+app.use('/webhooks', require('./modules/webhooks/stripe/stripe'));
 
 // Parse JSON bodies for all other routes
 app.use(express.json());
@@ -121,8 +120,8 @@ app.use((err, req, res, next) => {
 // Serve static files from temp_images
 app.use('/temp_images', express.static(path.join(__dirname, '../temp_images')));
 
-// Apply general API rate limiting to all routes
-secureLogger.info('Applying rate limiting');
+// Apply shared API rate limiting once (RESTful: one limit for all /api/v2/* and legacy routes)
+secureLogger.info('Applying shared rate limiting');
 app.use(apiLimiter);
 
 // Apply secure request logging
@@ -149,10 +148,185 @@ const smartAuthLimiter = (req, res, next) => {
 // Load authentication routes first (no CSRF protection needed for login)
 secureLogger.info('Loading authentication routes');
 try {
-  app.use('/auth', smartAuthLimiter, require('./routes/auth'));
+  // Legacy v1 auth routes (for backward compatibility)
+  // Legacy auth routes disabled. Use v2 at /api/v2/auth.
+  // app.use('/auth', smartAuthLimiter, require('./routes/auth'));
+  
+  // New v2 modular auth routes
+  app.use('/api/v2/auth', smartAuthLimiter, require('./modules/auth').router);
+  secureLogger.info('Loaded v2 auth module');
 } catch (err) {
   secureLogger.error('Error loading auth routes', err);
   process.exit(1);
+}
+
+// Users module (v2)
+secureLogger.info('Loading users module');
+try {
+  app.use('/api/v2/users', require('./modules/users').router);
+  secureLogger.info('Loaded v2 users module');
+} catch (err) {
+  secureLogger.error('Error loading users module', err);
+  // Don't exit - users module is not critical for startup
+}
+
+// Catalog module (v2)
+secureLogger.info('Loading catalog module');
+try {
+  app.use('/api/v2/catalog', require('./modules/catalog').router);
+  secureLogger.info('Loaded v2 catalog module');
+} catch (err) {
+  secureLogger.error('Error loading catalog module', err);
+  // Don't exit - catalog module is not critical for startup
+}
+
+// Load CSV module (with integrated worker)
+secureLogger.info('Loading CSV module');
+try {
+  const csvModule = require('./modules/csv');
+  app.use('/api/v2/csv', csvModule.router);
+  // Initialize the worker to process background jobs
+  csvModule.initWorker();
+  secureLogger.info('Loaded v2 CSV module with worker');
+} catch (err) {
+  secureLogger.error('Error loading CSV module', err);
+}
+
+// Load Commerce module (orders and returns)
+secureLogger.info('Loading Commerce module');
+try {
+  app.use('/api/v2/commerce', apiLimiter, require('./modules/commerce').routes);
+  secureLogger.info('Loaded v2 Commerce module');
+} catch (err) {
+  secureLogger.error('Error loading Commerce module', err);
+}
+
+// Load Finances module
+secureLogger.info('Loading Finances module');
+try {
+  app.use('/api/v2/finances', require('./modules/finances').routes);
+  secureLogger.info('Loaded v2 Finances module');
+} catch (err) {
+  secureLogger.error('Error loading Finances module', err);
+}
+
+// Load Communications module
+secureLogger.info('Loading Communications module');
+try {
+  app.use('/api/v2/communications', require('./modules/communications').routes);
+  secureLogger.info('Loaded v2 Communications module');
+} catch (err) {
+  secureLogger.error('Error loading Communications module', err);
+}
+
+// Load Content module (articles, topics, tags, series - v2 mount)
+secureLogger.info('Loading Content module');
+try {
+  app.use('/api/v2/content', require('./modules/content').router);
+  secureLogger.info('Loaded v2 Content module at /api/v2/content/articles');
+} catch (err) {
+  secureLogger.error('Error loading Content module', err);
+}
+
+// Load Events module
+secureLogger.info('Loading Events module');
+try {
+  app.use('/api/v2/events', require('./modules/events').routes);
+  secureLogger.info('Loaded v2 Events module');
+} catch (err) {
+  secureLogger.error('Error loading Events module', err);
+}
+
+// Load Applications module
+secureLogger.info('Loading Applications module');
+try {
+  app.use('/api/v2/applications', require('./modules/applications').routes);
+  secureLogger.info('Loaded v2 Applications module');
+} catch (err) {
+  secureLogger.error('Error loading Applications module', err);
+}
+
+// Load Media module (worker API + public proxy; v2 and legacy /api/media)
+secureLogger.info('Loading Media module');
+try {
+  const mediaModule = require('./modules/media');
+  app.use('/api/v2/media', mediaModule.router);
+  app.use('/api/media', mediaModule.router);
+  secureLogger.info('Loaded v2 Media module (worker + proxy at /api/v2/media and /api/media)');
+} catch (err) {
+  secureLogger.error('Error loading Media module', err);
+}
+
+// Load Websites module (sites, subscription, domains - v2 at /api/v2/websites)
+secureLogger.info('Loading Websites module');
+try {
+  app.use('/api/v2/websites', require('./modules/websites').router);
+  secureLogger.info('Loaded v2 Websites module at /api/v2/websites');
+} catch (err) {
+  secureLogger.error('Error loading Websites module', err);
+}
+
+// Load System module (hero settings, announcements - v2 at /api/v2/system)
+secureLogger.info('Loading System module');
+try {
+  app.use('/api/v2/system', require('./modules/system').routes);
+  secureLogger.info('Loaded v2 System module at /api/v2/system');
+} catch (err) {
+  secureLogger.error('Error loading System module', err);
+}
+
+// Load Leo AI module (search, recommendations, ingestion - v2 at /api/v2/leo)
+secureLogger.info('Loading Leo AI module');
+try {
+  app.use('/api/v2/leo', require('./modules/leo').router);
+  secureLogger.info('Loaded v2 Leo AI module at /api/v2/leo');
+} catch (err) {
+  secureLogger.error('Error loading Leo AI module', err);
+}
+
+// Load Marketing Core module (Leo marketing automation - v2 at /api/v2/marketing)
+secureLogger.info('Loading Marketing Core module');
+try {
+  app.use('/api/v2/marketing', uploadLimiter, require('./modules/marketing').router);
+  secureLogger.info('Loaded v2 Marketing Core module at /api/v2/marketing');
+} catch (err) {
+  secureLogger.error('Error loading Marketing Core module', err);
+}
+
+// Load Email module (admin email management - v2 at /api/v2/email)
+secureLogger.info('Loading Email module');
+try {
+  app.use('/api/v2/email', require('./modules/email').routes);
+  secureLogger.info('Loaded v2 Email module at /api/v2/email');
+} catch (err) {
+  secureLogger.error('Error loading Email module', err);
+}
+
+// Load Drip Campaigns module (automated email campaigns - v2 at /api/v2/drip-campaigns)
+secureLogger.info('Loading Drip Campaigns module');
+try {
+  app.use('/api/v2/drip-campaigns', require('./modules/drip-campaigns').router);
+  secureLogger.info('Loaded v2 Drip Campaigns module at /api/v2/drip-campaigns');
+} catch (err) {
+  secureLogger.error('Error loading Drip Campaigns module', err);
+}
+
+// Load Email Marketing module (subscriber lists, forms, campaigns - v2 at /api/v2/email-marketing)
+secureLogger.info('Loading Email Marketing module');
+try {
+  app.use('/api/v2/email-marketing', require('./modules/email-marketing').router);
+  secureLogger.info('Loaded v2 Email Marketing module at /api/v2/email-marketing');
+} catch (err) {
+  secureLogger.error('Error loading Email Marketing module', err);
+}
+
+// Load Addons module (connector addon subscription flow - v2 at /api/v2/addons)
+secureLogger.info('Loading Addons module');
+try {
+  app.use('/api/v2/addons', require('./modules/addons').router);
+  secureLogger.info('Loaded v2 Addons module at /api/v2/addons');
+} catch (err) {
+  secureLogger.error('Error loading Addons module', err);
 }
 
 // Apply CSRF token provider for all requests
@@ -162,187 +336,130 @@ app.use(csrfTokenProvider);
 // Add CSRF token endpoint for frontend
 app.get('/csrf-token', csrfTokenRoute);
 
-// Apply CSRF protection to different route groups
-// Regular CSRF protection for products, cart, events, articles
-app.use('/products', csrfProtection());
-app.use('/cart', csrfProtection());
-app.use('/events', csrfProtection());
-app.use('/api/articles', csrfProtection());
-    // Series and tags routes consolidated into articles.js
-app.use('/api/sites', csrfProtection());
-app.use('/api/terms', csrfProtection());
-app.use('/api/announcements', csrfProtection());
-app.use('/inventory', csrfProtection());
+// Apply CSRF protection to v2 route groups only
+// Legacy CSRF path guards are disabled with legacy route mounts.
+app.use('/api/v2/content', csrfProtection());
+app.use('/api/v2/websites', csrfProtection());
+app.use('/api/v2/system', csrfProtection());
+app.use('/api/v2/marketing', csrfProtection());
+app.use('/api/v2/email', csrfProtection());
+app.use('/api/v2/drip-campaigns', csrfProtection());
+app.use('/api/v2/email-marketing', csrfProtection());
+app.use('/api/v2/addons', csrfProtection());
 
 // Strict CSRF protection for financial and sensitive operations
-app.use('/checkout', csrfProtection({ strict: true }));
-app.use('/payments', csrfProtection({ strict: true }));
-app.use('/admin', csrfProtection({ strict: true }));
-app.use('/vendor', csrfProtection({ strict: true }));
 app.use('/api/keys', csrfProtection({ strict: true }));
 
 // Load remaining routes with error handling and logging
 secureLogger.info('Loading other routes');
 try {
   
-  // API key management (sensitive operations)
-  app.use('/api-keys', apiKeyLimiter, require('./routes/api-keys'));
+  // API keys: v2 only at /api/v2/auth/keys (auth module)
+
+  // Legacy route mounts disabled (v2-only mode for migration testing).
+  // app.use('/admin', adminLimiter, require('./routes/admin'));
   
-  // Admin routes (critical operations)
-  app.use('/admin', adminLimiter, require('./routes/admin'));
+  // Legacy users routes disabled. Use v2 at /api/v2/users.
+  // app.use('/users', csrfProtection(), require('./routes/users'));
   
-  // User management (with CSRF protection)
-  app.use('/users', csrfProtection(), require('./routes/users'));
+  // app.use('/products', require('./routes/products'));
   
-  // Product management (rate limiting applied within the route after auth)
-  app.use('/products', require('./routes/products'));
+  // app.use('/api/curated', require('./routes/curated'));
   
-  // Curated marketplace routes
-  app.use('/api/curated', require('./routes/curated'));
+  // Categories - now handled by v2 catalog module at /api/v2/catalog/categories
   
-  // Categories (safe for now, mostly read operations)
-  app.use('/categories', require('./routes/categories'));
+  // app.use('/', require('./routes/policies'));
   
-  // Public policies (shipping, returns, etc.)
-  app.use('/', require('./routes/policies'));
+  // app.use('/cart', require('./routes/carts'));
   
-  // Cart operations
-  app.use('/cart', require('./routes/carts'));
+  // const checkoutRouter = require('./routes/checkout');
+  // app.use('/checkout', (req, res, next) => {
+  //   if (req.path === '/orders/my') {
+  //     return next();
+  //   }
+  //   return paymentLimiter(req, res, next);
+  // }, checkoutRouter);
   
-  // Checkout and payments (with selective payment rate limiting)
-  const checkoutRouter = require('./routes/checkout');
+  // app.use('/vendor', require('./routes/vendor'));
   
-  // Apply payment limiter to most checkout routes, but skip order history
-  app.use('/checkout', (req, res, next) => {
-    // Skip payment rate limiting for order history endpoints
-    if (req.path === '/orders/my') {
-      return next();
-    }
-    // Apply payment rate limiting to all other checkout endpoints
-    return paymentLimiter(req, res, next);
-  }, checkoutRouter);
+  // app.use('/admin', adminLimiter, require('./routes/admin-financial'));
   
-  // Vendor management
-  app.use('/vendor', require('./routes/vendor'));
+  // app.use('/api/admin/marketplace', adminLimiter, require('./routes/admin-marketplace'));
   
-  // Admin financial operations
-  app.use('/admin', adminLimiter, require('./routes/admin-financial'));
+  // app.use('/api/admin/verified', adminLimiter, require('./routes/admin-verified'));
   
-  // Admin marketplace operations
-  app.use('/api/admin/marketplace', adminLimiter, require('./routes/admin-marketplace'));
+  // app.use('/api/vendor-financials', require('./routes/vendor-financials'));
   
-  // Admin verified operations
-  app.use('/api/admin/verified', adminLimiter, require('./routes/admin-verified'));
+  // Finance operations migrated to /api/v2/finances (modules/finances)
   
-  // Vendor financial operations
-  app.use('/api/vendor-financials', require('./routes/vendor-financials'));
+  // app.use('/api/leo', require('./routes/leo'));
   
-  // Finance operations (isolated financial data)
-  app.use('/api/finance', adminLimiter, require('./routes/finance'));
+  // app.use('/api/shipping', csrfProtection(), require('./routes/shipping'));
   
-  // Leo AI routes (search, recommendations, and future features)
-  app.use('/api/leo', require('./routes/leo'));
+  // app.use('/api', require('./routes/payment-methods'));
   
-  // Shipping services
-  app.use('/api/shipping', csrfProtection(), require('./routes/shipping'));
+  // app.use('/api/subscriptions/shipping', require('./routes/subscriptions/shipping'));
+  // app.use('/api/subscriptions/shipping_labels', require('./routes/subscriptions/shipping'));
   
-  // Payment methods management (card on file)
-  app.use('/api', require('./routes/payment-methods'));
+  // Websites subscription: v2 only at /api/v2/websites (legacy /api/subscriptions/sites|websites removed)
+
+  // app.use('/api/subscriptions/marketplace', require('./routes/subscriptions/marketplace'));
   
-  // Shipping subscription services (note: uses shipping_labels as the type)
-  app.use('/api/subscriptions/shipping', require('./routes/subscriptions/shipping'));
-  app.use('/api/subscriptions/shipping_labels', require('./routes/subscriptions/shipping'));
+  // app.use('/api/subscriptions/verified', require('./routes/subscriptions/verified'));
   
-  // Sites subscription services
-  app.use('/api/subscriptions/sites', require('./routes/subscriptions/websites'));
-  app.use('/api/subscriptions/websites', require('./routes/subscriptions/websites')); // Alias for universal flow
+  // app.use('/api/subscriptions/wholesale', require('./routes/subscriptions/wholesale'));
   
-  // Marketplace subscription services
-  app.use('/api/subscriptions/marketplace', require('./routes/subscriptions/marketplace'));
+  // app.use('/api/tiktok', require('./routes/tiktok'));
   
-  // Verified subscription services
-  app.use('/api/subscriptions/verified', require('./routes/subscriptions/verified'));
+  // app.use('/api/walmart', require('./routes/walmart'));
   
-  // Wholesale subscription services
-  app.use('/api/subscriptions/wholesale', require('./routes/subscriptions/wholesale'));
+  // app.use('/api/artist-contact', require('./routes/artist-contact'));
+  // app.use('/api/applications', require('./routes/applications'));
   
-  // TikTok marketplace connector
-  app.use('/api/tiktok', require('./routes/tiktok'));
+  // app.use('/api/promoters', require('./routes/promoter-claim'));
   
-  // Walmart marketplace connector (Brakebee-as-seller)
-  app.use('/api/walmart', require('./routes/walmart'));
+  // app.use('/api/series', require('./routes/series'));
   
-  // Event management
-  app.use('/api/events', require('./routes/events'));
-  // Event types route consolidated into events.js
-  app.use('/api/artist-contact', require('./routes/artist-contact'));
-  app.use('/api/applications', require('./routes/applications'));
+  // app.use('/api/dashboard-widgets', require('./routes/dashboard-widgets'));
   
-  // Promoter claim routes (public - no auth required, token is auth)
-  app.use('/api/promoters', require('./routes/promoter-claim'));
+  // app.use('/api/jury-packets', require('./routes/jury-packets'));
   
-  // Event series management and automation
-  app.use('/api/series', require('./routes/series'));
+  // app.use('/api/personas', require('./routes/personas'));
   
-  // Dashboard widgets system
-  app.use('/api/dashboard-widgets', require('./routes/dashboard-widgets'));
+  // app.use('/csv', require('./routes/csv'));
   
-  // Jury packets management
-  app.use('/api/jury-packets', require('./routes/jury-packets'));
-  
-  // Artist personas management
-  app.use('/api/personas', require('./routes/personas'));
-  
-  // CSV processing (no CSRF needed - internal backend process)
-  app.use('/csv', require('./routes/csv'));
-  
-  // Media processing (no CSRF needed - server-to-server API key auth)
-  app.use('/api/media', require('./routes/media'));
-  
-  // Media proxy (no CSRF needed - public file serving)
-  app.use('/api/media', require('./routes/media-proxy'));
+  // Media: served by v2 module at /api/v2/media and /api/media (see above)
   
   // Serve temp images directly (fallback when processing fails/pending)
   app.use('/temp_images', express.static(path.join(__dirname, '../temp_images')));
   
 
   
-  // Articles management - all routes fixed
-  app.use('/api/articles', require('./routes/articles'));
-    // Series and tags routes consolidated into articles.js
+  // app.use('/api/articles', require('./routes/articles'));
   
-  // Sites management (multisite functionality)
-  app.use('/api/sites', require('./routes/sites'));
+  // Sites management - LEGACY DISABLED, now using /api/v2/websites
+  // app.use('/api/sites', require('./routes/sites'));
   
-  // Custom domain management
-  app.use('/api/domains', csrfProtection(), require('./routes/domains'));
+  // Custom domain management - LEGACY DISABLED, now using /api/v2/websites/domains
+  // app.use('/api/domains', csrfProtection(), require('./routes/domains'));
   
-  // Terms and conditions management
-  app.use('/api/terms', require('./routes/terms'));
+  // app.use('/api/terms', require('./routes/terms'));
   
-  // Announcements management
-  app.use('/api/announcements', require('./routes/announcements'));
+  // Announcements: now using v2 at /api/v2/system/announcements (legacy route removed)
   
-  // Dashboard API (consolidates vendor, admin, and permission-based functionality)
-  app.use('/dashboard', require('./routes/dashboard'));
+  // app.use('/dashboard', require('./routes/dashboard'));
   
-  // Email system routes
-  app.use('/emails', require('./routes/emails'));
+  // app.use('/emails', require('./routes/emails'));
   
-  // Website addons (contact forms, email collection, etc.)
-  app.use('/api/addons', require('./routes/addons'));
+  // app.use('/api/addons', require('./routes/addons'));
   
-  // Inventory management
-  app.use('/inventory', csrfProtection(), require('./routes/inventory'));
+  // app.use('/inventory', csrfProtection(), require('./routes/inventory'));
 
-  // Returns management
-  app.use('/api/returns', csrfProtection(), require('./routes/returns'));
+  // app.use('/api/returns', csrfProtection(), require('./routes/returns'));
 
-  // Reviews system
-  app.use('/api/reviews', csrfProtection(), require('./routes/reviews'));
+  // app.use('/api/reviews', csrfProtection(), require('./routes/reviews'));
 
-  // Support tickets
-  app.use('/api/tickets', csrfProtection(), require('./routes/tickets'));
+  // app.use('/api/tickets', csrfProtection(), require('./routes/tickets'));
 
   // Shared Library file uploads (with CSRF protection)
   app.use('/files', csrfProtection(), require('./routes/file-uploads'));

@@ -175,7 +175,7 @@ export default function AnnouncementAcknowledgment() {
     return (
       <div className={styles.container}>
         <Head>
-          <title>Announcements - Online Art Festival</title>
+          <title>Announcements | Brakebee</title>
         </Head>
         <div className={styles.loading}>
           <div className={styles.spinner}></div>
@@ -189,7 +189,7 @@ export default function AnnouncementAcknowledgment() {
     return (
       <div className={styles.container}>
         <Head>
-          <title>Announcements - Online Art Festival</title>
+          <title>Announcements | Brakebee</title>
         </Head>
         <div className={styles.error}>
           <h2>Error</h2>
@@ -212,7 +212,7 @@ export default function AnnouncementAcknowledgment() {
     return (
       <div className={styles.container}>
         <Head>
-          <title>No Announcements - Online Art Festival</title>
+          <title>No Announcements | Brakebee</title>
         </Head>
         <div className={styles.modal}>
           <div className={styles.header}>
@@ -227,7 +227,7 @@ export default function AnnouncementAcknowledgment() {
   return (
     <div className={styles.container}>
       <Head>
-        <title>Important Announcement - Online Art Festival</title>
+        <title>Important Announcement | Brakebee</title>
       </Head>
       
       <div className={styles.modal}>

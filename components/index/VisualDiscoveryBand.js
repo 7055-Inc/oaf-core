@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getApiUrl } from '../../lib/config';
+import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
 import styles from './VisualDiscoveryBand.module.css';
 
 const VisualDiscoveryBand = () => {
@@ -31,7 +31,7 @@ const VisualDiscoveryBand = () => {
 
       // Try Leo AI smart recommendations first
       try {
-        const smartResponse = await fetch(getApiUrl('api/leo/search'), {
+        const smartResponse = await fetch(getApiUrl('api/v2/leo/search'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -159,23 +159,21 @@ const VisualDiscoveryBand = () => {
             if (productData.image_url) {
               if (productData.image_url.startsWith('http')) {
                 imageUrl = productData.image_url;
+              } else if (productData.image_url.startsWith('/temp_images/')) {
+                imageUrl = `${getApiUrl()}${productData.image_url}`;
               } else {
-                // Remove leading slash if present and use proper media endpoint
-                const cleanPath = productData.image_url.replace(/^\//, '');
-                imageUrl = getApiUrl(`api/media/serve/${cleanPath}`);
+                imageUrl = getSmartMediaUrl(productData.image_url);
               }
             }
-            // Check for images array as fallback
             else if (productData.images && productData.images.length > 0) {
               const image = productData.images[0];
-              // Handle new format: {url, is_primary} or old format: string
               const img = typeof image === 'string' ? image : image.url;
               if (img.startsWith('http')) {
                 imageUrl = img;
+              } else if (img.startsWith('/temp_images/')) {
+                imageUrl = `${getApiUrl()}${img}`;
               } else {
-                // Remove leading slash if present and use proper media endpoint
-                const cleanPath = img.replace(/^\//, '');
-                imageUrl = getApiUrl(`api/media/serve/${cleanPath}`);
+                imageUrl = getSmartMediaUrl(img);
               }
             }
             

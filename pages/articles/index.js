@@ -41,8 +41,9 @@ export default function ArticlesPage() {
         queryParams.append('search', filters.search);
       }
       
-      const response = await fetch(getApiUrl(`api/articles?${queryParams}`));
-      const data = await response.json();
+      const response = await fetch(getApiUrl(`api/v2/content/articles?${queryParams}`));
+      const envelope = await response.json();
+      const data = envelope.data || envelope;
       
       if (data.articles) {
         setArticles(data.articles);
@@ -60,8 +61,9 @@ export default function ArticlesPage() {
 
   const fetchTopics = async () => {
     try {
-      const response = await fetch('api/articles/topics');
-      const data = await response.json();
+      const response = await fetch(getApiUrl('api/v2/content/articles/topics'));
+      const envelope = await response.json();
+      const data = envelope.data || envelope;
       setTopics(data.topics || []);
     } catch (err) {
       console.error('Error fetching topics:', err);
@@ -99,18 +101,18 @@ export default function ArticlesPage() {
   return (
     <>
       <Head>
-        <title>Art & Culture Articles - Online Art Festival</title>
+        <title>Art & Culture Articles | Brakebee</title>
         <meta name="description" content="Explore our collection of art and culture articles, tutorials, and insights. Stay updated with the latest trends, techniques, and stories from the art world." />
                   <meta name="keywords" content="art articles, culture articles, art tutorials, artist stories, art techniques, creative insights, art news" />
         <link rel="canonical" href={getFrontendUrl('/articles')} />
         
-        <meta property="og:title" content="Art & Culture Articles - Online Art Festival" />
+        <meta property="og:title" content="Art & Culture Articles | Brakebee" />
         <meta property="og:description" content="Explore our collection of art and culture articles, tutorials, and insights from the art world." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content={getFrontendUrl('/articles')} />
         
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Art & Culture Articles - Online Art Festival" />
+        <meta name="twitter:title" content="Art & Culture Articles | Brakebee" />
         <meta name="twitter:description" content="Explore our collection of art and culture articles, tutorials, and insights from the art world." />
       </Head>
 

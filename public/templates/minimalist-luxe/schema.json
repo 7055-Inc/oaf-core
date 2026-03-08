@@ -1,0 +1,50 @@
+{
+  "template_slug": "minimalist-luxe",
+  "template_name": "Minimalist Luxe",
+  "description": "Maximum whitespace with ultra-refined presentation. Less is more taken to the extreme.",
+  "version": "1.0.0",
+  "author": "Artist Sites",
+  "custom_fields": [
+    {
+      "key": "luxury_accent",
+      "label": "Luxury Accent",
+      "type": "select",
+      "description": "Subtle metallic accent color",
+      "required": false,
+      "default_value": "none",
+      "tier_required": "pro",
+      "options": [
+        { "value": "none", "label": "Pure Monochrome" },
+        { "value": "gold", "label": "Gold Accent" },
+        { "value": "rose-gold", "label": "Rose Gold Accent" }
+      ]
+    },
+    {
+      "key": "spacing_intensity",
+      "label": "Spacing Intensity",
+      "type": "select",
+      "description": "How much whitespace to use",
+      "required": false,
+      "default_value": "extreme",
+      "tier_required": "pro",
+      "options": [
+        { "value": "generous", "label": "Generous" },
+        { "value": "extreme", "label": "Extreme" },
+        { "value": "maximum", "label": "Maximum" }
+      ]
+    },
+    {
+      "key": "typography_size",
+      "label": "Typography Size",
+      "type": "select",
+      "description": "Scale of typography",
+      "required": false,
+      "default_value": "tiny",
+      "tier_required": "pro",
+      "options": [
+        { "value": "tiny", "label": "Tiny (Ultra refined)" },
+        { "value": "small", "label": "Small (Elegant)" }
+      ]
+    }
+  ]
+}

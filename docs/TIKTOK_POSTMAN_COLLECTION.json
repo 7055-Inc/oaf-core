@@ -1,0 +1,355 @@
+{
+  "info": {
+    "name": "TikTok Shop Integration - Staging Tests",
+    "description": "Complete test collection for TikTok Shop OAuth and Corporate integrations",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://staging-api.brakebee.com",
+      "type": "string"
+    },
+    {
+      "key": "vendor_token",
+      "value": "REPLACE_WITH_VENDOR_JWT",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "REPLACE_WITH_ADMIN_JWT",
+      "type": "string"
+    },
+    {
+      "key": "test_product_id",
+      "value": "4093",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. OAuth Shop Endpoints (Personal Shops)",
+      "item": [
+        {
+          "name": "Get OAuth Authorization URL",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendor_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v2/catalog/tiktok/oauth/authorize",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "catalog", "tiktok", "oauth", "authorize"]
+            }
+          }
+        },
+        {
+          "name": "List Connected Shops",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendor_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v2/catalog/tiktok/shops",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "catalog", "tiktok", "shops"]
+            }
+          }
+        },
+        {
+          "name": "Test API Connection",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendor_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v2/catalog/tiktok/test",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "catalog", "tiktok", "test"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Corporate Vendor Endpoints",
+      "item": [
+        {
+          "name": "List My Corporate Products",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendor_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v2/catalog/tiktok/corporate/products",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "catalog", "tiktok", "corporate", "products"]
+            }
+          }
+        },
+        {
+          "name": "Get Single Corporate Product",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendor_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v2/catalog/tiktok/corporate/products/{{test_product_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "catalog", "tiktok", "corporate", "products", "{{test_product_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Submit Product for Corporate Shop",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendor_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"corporate_title\": \"Test Product for TikTok Corporate\",\n  \"corporate_description\": \"This is a test product listing for Brakebee TikTok Shop\",\n  \"corporate_short_description\": \"Test product for corporate shop\",\n  \"corporate_key_features\": [\n    \"Feature 1\",\n    \"Feature 2\",\n    \"Feature 3\",\n    \"Feature 4\",\n    \"Feature 5\"\n  ],\n  \"corporate_price\": \"29.99\",\n  \"corporate_brand\": \"Test Brand\",\n  \"corporate_category_id\": \"home_decor\",\n  \"terms_accepted\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v2/catalog/tiktok/corporate/products/{{test_product_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "catalog", "tiktok", "corporate", "products", "{{test_product_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Corporate Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendor_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"corporate_title\": \"Updated Product Title\",\n  \"corporate_price\": \"34.99\",\n  \"terms_accepted\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v2/catalog/tiktok/corporate/products/{{test_product_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "catalog", "tiktok", "corporate", "products", "{{test_product_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Remove Corporate Product",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendor_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v2/catalog/tiktok/corporate/products/{{test_product_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "catalog", "tiktok", "corporate", "products", "{{test_product_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Corporate Admin Endpoints",
+      "item": [
+        {
+          "name": "List All Corporate Products (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v2/catalog/tiktok/admin/corporate/products?status=pending&page=1&limit=25",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "catalog", "tiktok", "admin", "corporate", "products"],
+              "query": [
+                {"key": "status", "value": "pending"},
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "25"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Activate Product (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v2/catalog/tiktok/admin/corporate/products/{{test_product_id}}/activate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "catalog", "tiktok", "admin", "corporate", "products", "{{test_product_id}}", "activate"]
+            }
+          }
+        },
+        {
+          "name": "Pause Product (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v2/catalog/tiktok/admin/corporate/products/{{test_product_id}}/pause",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "catalog", "tiktok", "admin", "corporate", "products", "{{test_product_id}}", "pause"]
+            }
+          }
+        },
+        {
+          "name": "Reject Product (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Product does not meet quality standards\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v2/catalog/tiktok/admin/corporate/products/{{test_product_id}}/reject",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "catalog", "tiktok", "admin", "corporate", "products", "{{test_product_id}}", "reject"]
+            }
+          }
+        },
+        {
+          "name": "Update Product (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"corporate_title\": \"Admin Updated Title\",\n  \"corporate_price\": \"39.99\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v2/catalog/tiktok/admin/corporate/products/{{test_product_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "catalog", "tiktok", "admin", "corporate", "products", "{{test_product_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Error Testing",
+      "item": [
+        {
+          "name": "401 - No Auth Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v2/catalog/tiktok/corporate/products",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "catalog", "tiktok", "corporate", "products"]
+            }
+          }
+        },
+        {
+          "name": "403 - Permission Denied",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendor_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v2/catalog/tiktok/admin/corporate/products",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "catalog", "tiktok", "admin", "corporate", "products"]
+            }
+          }
+        },
+        {
+          "name": "404 - Product Not Found",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendor_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v2/catalog/tiktok/corporate/products/999999",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "catalog", "tiktok", "corporate", "products", "999999"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

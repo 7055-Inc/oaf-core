@@ -42,7 +42,7 @@ async function syncInventoryToWalmart() {
           FROM walmart_order_items woi
           JOIN walmart_orders wo ON woi.walmart_order_id = wo.id
           WHERE woi.product_id = wcp.product_id
-            AND wo.status IN ('created', 'acknowledged', 'shipped')
+            AND wo.order_status IN ('created', 'acknowledged', 'shipped')
         ), 0) as sold_quantity
         
       FROM walmart_corporate_products wcp
@@ -50,7 +50,7 @@ async function syncInventoryToWalmart() {
       LEFT JOIN walmart_inventory_allocations wia ON wcp.product_id = wia.product_id
       
       WHERE wcp.is_active = 1
-        AND wcp.listing_status = 'active'
+        AND wcp.listing_status = 'listed'
         AND wcp.sync_status = 'synced'
         AND p.status = 'active'
       

@@ -5,12 +5,11 @@ import Link from 'next/link';
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
 import { authApiRequest } from '../../lib/apiUtils';
-import DashboardHeader from '../../components/dashboard/DashboardHeader';
-import DashboardFooter from '../../components/dashboard/DashboardFooter';
+import { getCurrentUser } from '../../lib/users/api';
+import DashboardShell from '../../modules/dashboard/components/layout/DashboardShell';
 
 
 
-import ManageEvents from '../../components/dashboard/admin/components/ManageEvents';
 
 
 
@@ -18,90 +17,54 @@ import ManageEvents from '../../components/dashboard/admin/components/ManageEven
 // import SitesManagement from '../../components/SitesManagement'; // REMOVED - functionality moved to subscription dashboard
 
 
-import ManageCommissions from '../../components/dashboard/admin/components/ManageCommissions';
-import ManageUsers from '../../components/dashboard/admin/components/ManageUsers';
-import ManagePermissions from '../../components/dashboard/admin/components/ManagePermissions';
-import ManageAnnouncements from '../../components/dashboard/manage-system/components/ManageAnnouncements';
-import ManageHeroSettings from '../../components/dashboard/manage-system/components/ManageHeroSettings';
-import ManageEmailCore from '../../components/dashboard/manage-system/components/ManageEmailCore';
-import ManageTermsCore from '../../components/dashboard/manage-system/components/ManageTermsCore';
-import ManageCategories from '../../components/dashboard/manage-system/components/ManageCategories';
-import WalmartFeedManagement from '../../components/dashboard/manage-system/components/WalmartFeedManagement';
-import ManageCustomPolicies from '../../components/dashboard/manage-system/components/ManageCustomPolicies';
-import AddPromoter from '../../components/dashboard/manage-system/components/AddPromoter';
-import UnclaimedEvents from '../../components/dashboard/manage-system/components/UnclaimedEvents';
+// CommissionManagement migrated to /dashboard/users/commissions (modules/users/CommissionManagement)
+// ManageUsers migrated to /dashboard/users/manage (modules/users/UserManagement)
+// ManagePermissions migrated to /dashboard/users/manage (permissions tab in UserManagement)
+// ManageAnnouncements and ManageHeroSettings migrated to /dashboard/system/homepage (modules/system)
+// ManageEmailCore migrated to /dashboard/system/email (modules/system/email)
+// ManageTermsCore migrated to /dashboard/system/terms (modules/system/terms)
+// ManageCustomPolicies migrated to /dashboard/system/terms (Policies tab)
+// UnclaimedEvents migrated to /dashboard/events/unclaimed (modules/events)
+// ManageCategories migrated to /dashboard/catalog/categories (modules/catalog)
+import { AddPromoter } from '../../modules/marketing';
 import DashboardGrid from '../../components/dashboard/DashboardGrid';
 import OnboardingBanner from '../../components/dashboard/widgets/OnboardingWidget';
-import MagazineLink from '../../components/dashboard/MagazineLink';
+import { MagazineLink } from '../../modules/communications/components';
 import { getAuthToken, authenticatedApiRequest } from '../../lib/csrf';
 import styles from './Dashboard.module.css';
 import '../../components/dashboard/SlideIn.module.css';
 
 
-import MyAccountMenu from '../../components/dashboard/my-account/MyAccountMenu';
-import EditProfile from '../../components/dashboard/my-account/components/EditProfile';
-import ViewProfile from '../../components/dashboard/my-account/components/ViewProfile';
-import MyOrders from '../../components/dashboard/my-account/components/MyOrders';
-import MyWallet from '../../components/dashboard/my-account/components/MyWallet';
-import EmailPreferences from '../../components/dashboard/my-account/components/EmailPreferences';
-import PaymentSettings from '../../components/dashboard/my-account/components/PaymentSettings';
-import ShippingSettings from '../../components/dashboard/my-account/components/ShippingSettings';
-import ManageMyStoreMenu from '../../components/dashboard/manage-my-store/ManageMyStoreMenu';
-import MyEventsMenu from '../../components/dashboard/my-events/MyEventsMenu';
-import MyApplications from '../../components/dashboard/my-events/components/MyApplications';
-import ManageJuryPackets from '../../components/dashboard/my-events/components/ManageJuryPackets';
-import FindNew from '../../components/dashboard/my-events/components/FindNew';
-import MyCalendar from '../../components/dashboard/my-events/components/MyCalendar';
-import EventsIOwn from '../../components/dashboard/my-events/components/EventsIOwn';
-import AddNew from '../../components/dashboard/my-events/components/AddNew';
-import ApplicationsReceived from '../../components/dashboard/my-events/components/ApplicationsReceived';
-import MyProducts from '../../components/dashboard/manage-my-store/components/MyProducts';
-import AddProduct from '../../components/dashboard/manage-my-store/components/AddProduct';
-import MyPolicies from '../../components/dashboard/manage-my-store/components/MyPolicies';
-import ManageInventory from '../../components/dashboard/manage-my-store/components/ManageInventory';
-import InventoryLog from '../../components/dashboard/manage-my-store/components/InventoryLog';
-import CatalogManager from '../../components/dashboard/manage-my-store/components/CatalogManager';
-import ManageOrders from '../../components/dashboard/manage-my-store/components/ManageOrders';
-import TikTokConnector from '../../components/dashboard/manage-my-store/components/TikTokConnector';
-import WalmartConnector from '../../components/dashboard/manage-my-store/components/WalmartConnector';
-import ManagePromotions from '../../components/dashboard/manage-my-store/components/ManagePromotions';
-import MyFinancesMenu from '../../components/dashboard/my-finances/MyFinancesMenu';
-import TransactionHistory from '../../components/dashboard/my-finances/components/TransactionHistory';
-import PayoutsEarnings from '../../components/dashboard/my-finances/components/PayoutsEarnings';
-import MySubscriptionsMenu from '../../components/dashboard/my-subscriptions/MySubscriptionsMenu';
-import ManageSubscriptions from '../../components/dashboard/my-subscriptions/components/ManageSubscriptions';
-import MarketplaceSubscriptions from '../../components/dashboard/my-subscriptions/components/MarketplaceSubscriptions'; // OLD
-import MarketplaceSellerSubscription from '../../components/dashboard/my-subscriptions/components/MarketplaceSellerSubscription'; // NEW
-import VerifiedSubscriptions from '../../components/dashboard/my-subscriptions/components/VerifiedSubscriptions'; // OLD
-import VerifiedArtistSubscription from '../../components/dashboard/my-subscriptions/components/VerifiedArtistSubscription'; // NEW
-import WebsitesSubscription from '../../components/dashboard/my-subscriptions/components/WebsitesSubscription';
-import ShippingLabelsSubscription from '../../components/dashboard/my-subscriptions/components/ShippingLabelsSubscription';
-import AdminMenu from '../../components/dashboard/admin/AdminMenu';
-import ManageSystemMenu from '../../components/dashboard/manage-system/ManageSystemMenu';
-import DevelopersMenu from '../../components/dashboard/developers/DevelopersMenu';
-import APIKeys from '../../components/dashboard/developers/components/APIKeys';
-import MyArticles from '../../components/dashboard/manage-my-store/components/MyArticles';
-import ManageArticles from '../../components/dashboard/admin/components/ManageArticles';
-import MarketplaceProducts from '../../components/dashboard/admin/components/MarketplaceProducts';
-import MarketplaceApplications from '../../components/dashboard/admin/components/MarketplaceApplications';
-import VerifiedApplications from '../../components/dashboard/admin/components/VerifiedApplications';
-import WholesaleApplications from '../../components/dashboard/admin/components/WholesaleApplications';
-import AdminReturns from '../../components/dashboard/admin/components/AdminReturns';
-import ApplicationRefunds from '../../components/dashboard/admin/components/ApplicationRefunds';
-import SupportTickets from '../../components/dashboard/admin/components/SupportTickets';
-import AdminPromotions from '../../components/dashboard/admin/components/AdminPromotions';
-import AdminEventReviews from '../../components/dashboard/admin/AdminEventReviews';
-import MaintenanceControl from '../../components/dashboard/admin/components/MaintenanceControl';
-import SharedLibrary from '../../components/dashboard/my-account/components/SharedLibrary';
-import AdminSharedLibrary from '../../components/dashboard/admin/components/AdminSharedLibrary';
-import AffiliateAdmin from '../../components/dashboard/admin/components/AffiliateAdmin';
-import AffiliatesMenu from '../../components/dashboard/affiliates/AffiliatesMenu';
-import AffiliateOverview from '../../components/dashboard/affiliates/components/AffiliateOverview';
-import AffiliateLinks from '../../components/dashboard/affiliates/components/AffiliateLinks';
-import AffiliateCommissions from '../../components/dashboard/affiliates/components/AffiliateCommissions';
-import AffiliatePayouts from '../../components/dashboard/affiliates/components/AffiliatePayouts';
-import GiftCardAdmin from '../../components/dashboard/admin/components/GiftCardAdmin';
-import AffiliateEnroll from '../../components/dashboard/affiliates/components/AffiliateEnroll';
+// MyAccountMenu removed - migrated to Communications module (/dashboard/communications/tickets)
+// MyOrders migrated to /dashboard/commerce/orders
+// Manage My Store section removed; all items moved to new menu (Catalog, Business Center, Communications)
+import { MyApplications } from '../../modules/events';
+// ManageJuryPackets migrated to /dashboard/events/jury-packets
+// FindNew migrated to /dashboard/events/find
+// MyCalendar migrated to /dashboard/events/mine (My Events = calendar: applied + custom)
+// EventsIOwn migrated to /dashboard/events/own
+// Applications Received removed; use Business Center > My Applicants /dashboard/commerce/applicants
+// Migrated to new modular system: MyProducts, AddProduct, ManageInventory, InventoryLog, CatalogManager, ManageOrders
+// Now available at /dashboard/catalog/* and /dashboard/commerce/*
+// ManagePromotions migrated to Business Center > Promotions (/dashboard/commerce/promotions)
+// Migrated to new modular system: MyFinancesMenu, TransactionHistory, PayoutsEarnings
+// Now available at /dashboard/commerce/finances/*
+// Migrated: MySubscriptionsMenu, ManageSubscriptions → /dashboard/subscriptions
+// Individual subscription flows still use slide-ins until full page migration
+import { MarketplaceSubscription } from '../../modules/commerce/components/marketplace';
+import { VerifiedSubscription } from '../../modules/users/components/verified';
+import { ShippingLabelsSubscription } from '../../modules/commerce/components/shipping';
+// AdminMenu removed - All items migrated to new module pages
+// ManageSystemMenu removed - Categories migrated to /dashboard/catalog/categories
+// MarketplaceProducts migrated to /dashboard/system/curate (modules/catalog/ProductCuration)
+// MarketplaceApplications migrated to /dashboard/commerce/marketplace-applications (modules/commerce/AdminMarketplace)
+// VerifiedApplications migrated to /dashboard/commerce/marketplace-applications?type=verified (same component, different tab)
+// WholesaleApplications migrated to /dashboard/commerce/marketplace-applications?type=wholesale (same component, Wholesale tab)
+// AdminReturns migrated to /dashboard/commerce/returns-admin (modules/commerce/AdminReturns)
+// ApplicationRefunds migrated to /dashboard/service/refunds (modules/finances/AdminRefunds)
+// SupportTickets migrated to /dashboard/communications/admin
+// AdminPromotions migrated to /dashboard/marketing/admin-promotions (modules/marketing/AdminPromotions)
+// MaintenanceControl removed - not needed for staging workflow
 
 
 
@@ -115,13 +78,10 @@ export default function Dashboard() {
   const [collapsedSections, setCollapsedSections] = useState({ 
     account: true, 
     'my-account': true,
-    'manage-my-store': true,
     'my-events': true,
     'my-finances': true,
     'my-subscriptions': true,
-    'affiliates': true,
     admin: true,
-    developers: true,
     'manage-system': true,
     finance: true 
   }); // Default sections to closed
@@ -159,20 +119,8 @@ export default function Dashboard() {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         
-        authApiRequest('users/me', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        })
-          .then(res => {
-            if (!res.ok) {
-              throw new Error('Failed to fetch user data');
-            }
-            return res.json();
-          })
+        getCurrentUser()
           .then(data => {
-            // Add permissions from JWT to user data
             const userData = {
               ...data,
               permissions: payload.permissions || []
@@ -220,15 +168,16 @@ export default function Dashboard() {
     
     const fetchAdminNotifications = async () => {
       try {
-        const response = await authApiRequest('admin/notifications', {
+        const response = await authApiRequest('/api/v2/system/admin/notifications', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' }
         });
         
         if (response.ok) {
           const data = await response.json();
-          if (data.notifications) {
-            setAdminNotifications(data.notifications);
+          const notifs = data.data?.notifications || data.notifications;
+          if (notifs) {
+            setAdminNotifications(notifs);
           }
         }
       } catch (err) {
@@ -249,16 +198,14 @@ export default function Dashboard() {
     
     const fetchUserNotifications = async () => {
       try {
-        const response = await authApiRequest('api/tickets/my/notifications', {
+        const response = await authApiRequest('api/v2/system/tickets/my/notifications', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' }
         });
         
-        if (response.ok) {
-          const data = await response.json();
-          if (data.notifications) {
-            setUserNotifications(data.notifications);
-          }
+        const data = await response.json();
+        if (data.success && data.data?.notifications) {
+          setUserNotifications(data.data.notifications);
         }
       } catch (err) {
         // Silently fail - notifications are non-critical
@@ -293,24 +240,22 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <div>
-        <DashboardHeader />
+      <DashboardShell>
         <div className={styles.container}>
           <h1>Error</h1>
           <p>{error}</p>
         </div>
-      </div>
+      </DashboardShell>
     );
   }
 
   if (!userData) {
     return (
-      <div>
-        <DashboardHeader />
+      <DashboardShell>
         <div className={styles.container}>
           <h1>Loading...</h1>
         </div>
-      </div>
+      </DashboardShell>
     );
   }
 
@@ -319,8 +264,7 @@ export default function Dashboard() {
   const hasVendorPermission = userData.permissions?.includes('vendor');
   const canManageProducts = isAdmin || hasVendorPermission;
   const canManageEvents = isAdmin || isPromoter;
-  const canManageArticles = isAdmin || userData.permissions?.includes('manage_content');
-
+  
 
 
   const renderContent = () => {
@@ -329,16 +273,14 @@ export default function Dashboard() {
         return (
           <div className={styles.contentSection}>
             {/* Top Row: Magazine Link + Onboarding Banner */}
-            {/* TODO: Uncomment MagazineLink when news content is ready */}
-            {/* <div className={styles.topBannerRow}>
+            <div className={styles.topBannerRow}>
               <div className={styles.magazineLinkWrapper}>
                 <MagazineLink userData={userData} />
               </div>
               <div className={styles.onboardingWrapper}>
                 <OnboardingBanner userData={userData} openSlideIn={openSlideIn} />
               </div>
-            </div> */}
-            <OnboardingBanner userData={userData} openSlideIn={openSlideIn} />
+            </div>
             <DashboardGrid />
           </div>
         );
@@ -408,209 +350,75 @@ export default function Dashboard() {
 
 
     // Handle My Account slide-ins
-    if (slideInContent.type === 'edit-profile') {
-      return (
-        <EditProfile
-          userData={userData}
-        />
-      );
-    }
-    
-    if (slideInContent.type === 'view-profile') {
-      return (
-        <ViewProfile
-          userData={userData}
-        />
-      );
-    }
+    // Note: edit-profile, view-profile, email-settings, payment-settings, shipping-settings
+    // have been migrated to page-based navigation at /dashboard/users/*
     
     if (slideInContent.type === 'my-orders') {
-      return (
-        <MyOrders
-          userData={userData}
-        />
-      );
+      window.location.href = '/dashboard/commerce/orders';
+      return <div className="loading-state"><div className="spinner"></div><p>Redirecting...</p></div>;
     }
     
-    if (slideInContent.type === 'my-wallet') {
-      return (
-        <MyWallet
-          userData={userData}
-        />
-      );
-    }
-    
-    if (slideInContent.type === 'email-settings') {
-      return (
-        <EmailPreferences
-          userId={userData.id}
-        />
-      );
-    }
-    
-    if (slideInContent.type === 'payment-settings') {
-      return (
-        <PaymentSettings
-          userData={userData}
-        />
-      );
-    }
-    
-    if (slideInContent.type === 'shipping-settings') {
-      return (
-        <ShippingSettings
-          userData={userData}
-        />
-      );
-    }
-
-    // Affiliate slide-ins
-    if (slideInContent.type === 'affiliate-overview') {
-      return (
-        <AffiliateOverview
-          userData={userData}
-          affiliateData={slideInContent.props?.affiliateData}
-        />
-      );
-    }
-
-    if (slideInContent.type === 'affiliate-links') {
-      return (
-        <AffiliateLinks
-          userData={userData}
-          affiliateData={slideInContent.props?.affiliateData}
-        />
-      );
-    }
-
-    if (slideInContent.type === 'affiliate-commissions') {
-      return (
-        <AffiliateCommissions
-          userData={userData}
-          affiliateData={slideInContent.props?.affiliateData}
-        />
-      );
-    }
-
-    if (slideInContent.type === 'affiliate-payouts') {
-      return (
-        <AffiliatePayouts
-          userData={userData}
-          affiliateData={slideInContent.props?.affiliateData}
-        />
-      );
-    }
-
-    if (slideInContent.type === 'affiliate-enroll') {
-      return (
-        <AffiliateEnroll
-          userData={userData}
-          onEnroll={slideInContent.props?.onEnroll}
-        />
-      );
-    }
-    
-    // Handle Manage My Store slide-ins
+    // Migrated slide-ins - redirect to new pages
     if (slideInContent.type === 'my-products') {
-      return (
-        <MyProducts
-          userData={userData}
-        />
-      );
+      window.location.href = '/dashboard/catalog/products';
+      return <div className="loading-state"><div className="spinner"></div><p>Redirecting...</p></div>;
     }
     
     if (slideInContent.type === 'catalog-manager') {
-      return (
-        <CatalogManager
-          userData={userData}
-        />
-      );
+      window.location.href = '/dashboard/catalog/import-export';
+      return <div className="loading-state"><div className="spinner"></div><p>Redirecting...</p></div>;
     }
     
     if (slideInContent.type === 'add-product') {
-      return (
-        <AddProduct
-          userData={userData}
-        />
-      );
-    }
-    
-    if (slideInContent.type === 'my-policies') {
-      return (
-        <MyPolicies
-          userData={userData}
-        />
-      );
+      window.location.href = '/dashboard/catalog/products/new';
+      return <div className="loading-state"><div className="spinner"></div><p>Redirecting...</p></div>;
     }
     
     if (slideInContent.type === 'manage-inventory') {
-      return (
-        <ManageInventory
-          userData={userData}
-        />
-      );
+      window.location.href = '/dashboard/catalog/inventory';
+      return <div className="loading-state"><div className="spinner"></div><p>Redirecting...</p></div>;
     }
     
     if (slideInContent.type === 'inventory-log') {
-      return (
-        <InventoryLog
-          userData={userData}
-        />
-      );
+      window.location.href = '/dashboard/catalog/inventory/log';
+      return <div className="loading-state"><div className="spinner"></div><p>Redirecting...</p></div>;
     }
     
     if (slideInContent.type === 'manage-orders') {
-      return (
-        <ManageOrders
-          userData={userData}
-        />
-      );
+      window.location.href = '/dashboard/commerce/sales';
+      return <div className="loading-state"><div className="spinner"></div><p>Redirecting...</p></div>;
     }
     
     if (slideInContent.type === 'tiktok-connector') {
-      return (
-        <TikTokConnector
-          userData={userData}
-        />
-      );
+      window.location.href = '/dashboard/catalog/addons/tiktok';
+      return <div className="loading-state"><div className="spinner"></div><p>Redirecting...</p></div>;
     }
     
     if (slideInContent.type === 'walmart-connector') {
-      return (
-        <WalmartConnector
-          userData={userData}
-        />
-      );
+      window.location.href = '/dashboard/catalog/addons/walmart';
+      return <div className="loading-state"><div className="spinner"></div><p>Redirecting...</p></div>;
     }
     
     if (slideInContent.type === 'transaction-history') {
-      return (
-        <TransactionHistory
-          userData={userData}
-        />
-      );
+      window.location.href = '/dashboard/commerce/finances/transactions';
+      return <div className="loading-state"><div className="spinner"></div><p>Redirecting...</p></div>;
     }
     
     if (slideInContent.type === 'payouts-earnings') {
-      return (
-        <PayoutsEarnings
-          userData={userData}
-        />
-      );
+      window.location.href = '/dashboard/commerce/finances';
+      return <div className="loading-state"><div className="spinner"></div><p>Redirecting...</p></div>;
     }
     
     // Handle My Subscriptions slide-ins
+    // manage-subscriptions migrated to /dashboard/subscriptions
     if (slideInContent.type === 'manage-subscriptions') {
-      return (
-        <ManageSubscriptions
-          userData={userData}
-        />
-      );
+      window.location.href = '/dashboard/subscriptions';
+      return <div className="loading-state"><div className="spinner"></div><p>Redirecting...</p></div>;
     }
     
     if (slideInContent.type === 'marketplace-subscriptions') {
       return (
-        <MarketplaceSellerSubscription
+        <MarketplaceSubscription
           userData={userData}
         />
       );
@@ -618,15 +426,7 @@ export default function Dashboard() {
     
     if (slideInContent.type === 'verified-subscriptions') {
       return (
-        <VerifiedArtistSubscription
-          userData={userData}
-        />
-      );
-    }
-    
-    if (slideInContent.type === 'website-subscriptions') {
-      return (
-        <WebsitesSubscription
+        <VerifiedSubscription
           userData={userData}
         />
       );
@@ -642,100 +442,62 @@ export default function Dashboard() {
 
     // Handle Admin slide-ins
     if (slideInContent.type === 'marketplace-products') {
-      return (
-        <MarketplaceProducts
-          userData={userData}
-        />
-      );
+      // Redirect to new System > Curate page
+      window.location.href = '/dashboard/system/curate';
+      return <div className="loading-state"><div className="spinner"></div><p>Redirecting...</p></div>;
     }
     
     if (slideInContent.type === 'marketplace-applications') {
-      return (
-        <MarketplaceApplications
-          userData={userData}
-        />
-      );
+      // Redirect to new marketplace applications page
+      window.location.href = '/dashboard/commerce/marketplace-applications';
+      return <div className="loading-state"><div className="spinner"></div><p>Redirecting...</p></div>;
     }
     
     if (slideInContent.type === 'verified-applications') {
-      return (
-        <VerifiedApplications
-          userData={userData}
-        />
-      );
+      // Redirect to marketplace applications (has Verified tab)
+      window.location.href = '/dashboard/commerce/marketplace-applications?type=verified';
+      return <div className="loading-state"><div className="spinner"></div><p>Redirecting...</p></div>;
     }
     
     if (slideInContent.type === 'wholesale-applications') {
-      return (
-        <WholesaleApplications
-          userData={userData}
-        />
-      );
+      // Migrated to /dashboard/commerce/marketplace-applications?type=wholesale
+      window.location.href = '/dashboard/commerce/marketplace-applications?type=wholesale';
+      return <div className="loading-state"><div className="spinner"></div><p>Redirecting...</p></div>;
     }
     
     if (slideInContent.type === 'support-tickets') {
-      return (
-        <SupportTickets
-          userData={userData}
-        />
-      );
+      window.location.href = '/dashboard/communications/admin';
+      return <div className="loading-state"><div className="spinner"></div><p>Redirecting...</p></div>;
     }
     
     if (slideInContent.type === 'admin-refunds') {
-      return (
-        <ApplicationRefunds
-          userData={userData}
-        />
-      );
+      // Redirect to new refunds page
+      router.push('/dashboard/service/refunds');
+      return null;
     }
     
     if (slideInContent.type === 'admin-returns') {
-      return (
-        <AdminReturns
-          userData={userData}
-        />
-      );
+      // Redirect to new returns admin page
+      router.push('/dashboard/commerce/returns-admin');
+      return null;
     }
     
     if (slideInContent.type === 'manage-commissions') {
-      return (
-        <ManageCommissions
-          userData={userData}
-        />
-      );
+      // Migrated to /dashboard/users/commissions
+      window.location.href = '/dashboard/users/commissions';
+      return <div className="loading-state"><div className="spinner"></div><p>Redirecting...</p></div>;
     }
     
     if (slideInContent.type === 'manage-users') {
-      return (
-        <ManageUsers
-          userData={userData}
-        />
-      );
+      // Redirect to new user management page
+      window.location.href = '/dashboard/users/manage';
+      return <div className="loading-state"><div className="spinner"></div><p>Redirecting...</p></div>;
     }
     
     if (slideInContent.type === 'manage-permissions') {
-      return (
-        <ManagePermissions
-          userData={userData}
-        />
-      );
-    }
-    
-    if (slideInContent.type === 'manage-events') {
-      return (
-        <ManageEvents
-          userData={userData}
-        />
-      );
-    }
-    
-    if (slideInContent.type === 'add-new') {
-      return (
-        <AddNew
-          userData={userData}
-          eventId={slideInContent.props?.eventId || null}
-        />
-      );
+      // Redirect to user management page (permissions are managed there)
+      window.location.href = '/dashboard/users/manage';
+      return <div className="loading-state"><div className="spinner"></div><p>Redirecting...</p></div>;
     }
     
     if (slideInContent.type === 'my-applications') {
@@ -747,204 +509,114 @@ export default function Dashboard() {
     }
     
     if (slideInContent.type === 'manage-jury-packets') {
-      return (
-        <ManageJuryPackets
-          userData={userData}
-        />
-      );
+      window.location.href = '/dashboard/events/jury-packets';
+      return null;
     }
     
     if (slideInContent.type === 'find-new') {
-      return (
-        <FindNew
-          userData={userData}
-        />
-      );
+      window.location.href = '/dashboard/events/find';
+      return null;
     }
     
     if (slideInContent.type === 'my-calendar') {
-      return (
-        <MyCalendar
-          userData={userData}
-        />
-      );
+      if (typeof window !== 'undefined') {
+        window.location.href = '/dashboard/events/mine';
+      }
+      return null;
     }
     
     if (slideInContent.type === 'events-i-own') {
-      return (
-        <EventsIOwn
-          userData={userData}
-          onEdit={(eventId) => openSlideIn('add-new', { title: 'Edit Event', eventId })}
-        />
-      );
+      if (typeof window !== 'undefined') {
+        window.location.href = '/dashboard/events/own';
+      }
+      return null;
     }
     
     if (slideInContent.type === 'applications-received') {
-      return (
-        <ApplicationsReceived
-          userData={userData}
-        />
-      );
-    }
-    
-    if (slideInContent.type === 'api-keys') {
-      return (
-        <APIKeys
-          userData={userData}
-        />
-      );
+      if (typeof window !== 'undefined') {
+        window.location.href = '/dashboard/commerce/applicants';
+      }
+      return null;
     }
     
     if (slideInContent.type === 'my-articles') {
-      return (
-        <MyArticles
-          userData={userData}
-        />
-      );
+      if (typeof window !== 'undefined') {
+        window.location.href = '/dashboard/communications/articles';
+      }
+      return null;
     }
     
     if (slideInContent.type === 'manage-promotions') {
-      return (
-        <ManagePromotions
-          userData={userData}
-        />
-      );
+      if (typeof window !== 'undefined') {
+        window.location.href = '/dashboard/commerce/promotions';
+      }
+      return null;
     }
     
     if (slideInContent.type === 'manage-articles') {
-      return (
-        <ManageArticles
-          userData={userData}
-        />
-      );
+      if (typeof window !== 'undefined') {
+        window.location.href = '/dashboard/communications/articles';
+      }
+      return null;
     }
     
-    if (slideInContent.type === 'manage-announcements') {
-      return (
-        <ManageAnnouncements
-          userData={userData}
-        />
-      );
-    }
-    
-    if (slideInContent.type === 'manage-hero-settings') {
-      return (
-        <ManageHeroSettings
-          userData={userData}
-        />
-      );
+    if (slideInContent.type === 'manage-announcements' || slideInContent.type === 'manage-hero-settings') {
+      // Migrated to /dashboard/system/homepage (modules/system)
+      if (typeof window !== 'undefined') {
+        window.location.href = '/dashboard/system/homepage';
+      }
+      return null;
     }
     
     if (slideInContent.type === 'manage-email-core') {
-      return (
-        <ManageEmailCore
-          userData={userData}
-        />
-      );
+      // Redirect to new email management page
+      if (typeof window !== 'undefined') {
+        window.location.href = '/dashboard/system/email';
+      }
+      return null;
     }
     
     if (slideInContent.type === 'manage-terms-core') {
-      return (
-        <ManageTermsCore
-          userData={userData}
-        />
-      );
+      // Redirect to new terms management page
+      if (typeof window !== 'undefined') {
+        window.location.href = '/dashboard/system/terms';
+      }
+      return null;
     }
     
     if (slideInContent.type === 'manage-categories') {
-      return (
-        <ManageCategories
-          userData={userData}
-        />
-      );
+      // Redirect to new category management page
+      window.location.href = '/dashboard/catalog/categories';
+      return <div className="loading-state"><div className="spinner"></div><p>Redirecting...</p></div>;
     }
     
     if (slideInContent.type === 'walmart-feed') {
-      return (
-        <WalmartFeedManagement
-          userData={userData}
-        />
-      );
+      window.location.href = '/dashboard/catalog/addons/walmart-admin';
+      return <div className="loading-state"><div className="spinner"></div><p>Redirecting...</p></div>;
     }
     
     if (slideInContent.type === 'admin-promotions') {
-      return (
-        <AdminPromotions
-          userData={userData}
-        />
-      );
+      // Migrated to /dashboard/marketing/admin-promotions
+      window.location.href = '/dashboard/marketing/admin-promotions';
+      return <div className="loading-state"><div className="spinner"></div><p>Redirecting...</p></div>;
     }
     
-    if (slideInContent.type === 'event-reviews') {
-      return (
-        <AdminEventReviews
-          userData={userData}
-        />
-      );
-    }
-    
-    if (slideInContent.type === 'maintenance-control') {
-      return (
-        <MaintenanceControl
-          userData={userData}
-        />
-      );
-    }
+    // maintenance-control removed - not needed for staging workflow
     
     if (slideInContent.type === 'manage-custom-policies') {
-      return (
-        <ManageCustomPolicies
-          userData={userData}
-        />
-      );
-    }
-    
-    if (slideInContent.type === 'add-promoter') {
-      return (
-        <AddPromoter
-          userData={userData}
-        />
-      );
+      // Redirect to new terms/policies page
+      if (typeof window !== 'undefined') {
+        window.location.href = '/dashboard/system/terms';
+      }
+      return null;
     }
     
     if (slideInContent.type === 'unclaimed-events') {
-      return (
-        <UnclaimedEvents
-          userData={userData}
-        />
-      );
-    }
-    
-    if (slideInContent.type === 'shared-library') {
-      return (
-        <SharedLibrary
-          userData={userData}
-        />
-      );
-    }
-    
-    if (slideInContent.type === 'admin-shared-library') {
-      return (
-        <AdminSharedLibrary
-          userData={userData}
-        />
-      );
-    }
-    
-    if (slideInContent.type === 'admin-affiliates') {
-      return (
-        <AffiliateAdmin
-          userData={userData}
-        />
-      );
-    }
-
-    if (slideInContent.type === 'admin-gift-cards') {
-      return (
-        <GiftCardAdmin
-          userData={userData}
-        />
-      );
+      // Redirect to new events page
+      if (typeof window !== 'undefined') {
+        window.location.href = '/dashboard/events/unclaimed';
+      }
+      return null;
     }
 
     // Handle other slide-in types here (for future menu sections)
@@ -956,174 +628,34 @@ export default function Dashboard() {
       <Head>
         <script src="https://js.stripe.com/v3/" async></script>
       </Head>
-      <div className={styles.dashboardContainer}>
-        {/* Collapsible Header */}
-      {headerCollapsed ? (
-        <div className={styles.collapsedHeader}>
-          <button 
-            onClick={() => setHeaderCollapsed(false)}
-            className={styles.expandButton}
-          >
-            ☰ Click here to open menu
-          </button>
-        </div>
-      ) : (
-        <DashboardHeader />
-      )}
+      <DashboardShell userData={userData}>
+        <div className={styles.dashboardContent}>
+          {/* Widget Grid / Content Area */}
+          <div className={styles.contentArea}>
+            {renderContent()}
+          </div>
 
-      <div className={styles.mainContent}>
-        {/* Left Sidebar */}
-        <div className={styles.sidebar}>
-          {/* My Account Section */}
-          {userData && (
-            <MyAccountMenu
-              userData={userData}
-              collapsedSections={collapsedSections}
-              toggleSection={toggleSection}
-              openSlideIn={openSlideIn}
-              notifications={userNotifications}
-            />
-          )}
-
-
-
-          {/* NEW Manage My Store Section - Skeleton for migration */}
-          {userData && (
-            <ManageMyStoreMenu
-              userData={userData}
-              collapsedSections={collapsedSections}
-              toggleSection={toggleSection}
-              openSlideIn={openSlideIn}
-            />
-          )}
-
-          {/* NEW My Events Section */}
-          {userData && (
-            <MyEventsMenu
-              userData={userData}
-              collapsedSections={collapsedSections}
-              toggleSection={toggleSection}
-              openSlideIn={openSlideIn}
-            />
-          )}
-
-          {/* NEW My Finances Section - Clean architecture */}
-          {userData && (
-            <MyFinancesMenu
-              userData={userData}
-              collapsedSections={collapsedSections}
-              toggleSection={toggleSection}
-              openSlideIn={openSlideIn}
-            />
-          )}
-
-          {/* NEW My Subscriptions Section - Clean architecture */}
-          {userData && (
-            <MySubscriptionsMenu
-              userData={userData}
-              collapsedSections={collapsedSections}
-              toggleSection={toggleSection}
-              openSlideIn={openSlideIn}
-            />
-          )}
-
-          {/* Affiliates Section - Earn by sharing */}
-          {userData && (
-            <AffiliatesMenu
-              userData={userData}
-              collapsedSections={collapsedSections}
-              toggleSection={toggleSection}
-              openSlideIn={openSlideIn}
-            />
-          )}
-
-          {/* Developers Section - Clean architecture */}
-          {userData && (
-            <DevelopersMenu
-              userData={userData}
-              collapsedSections={collapsedSections}
-              toggleSection={toggleSection}
-              openSlideIn={openSlideIn}
-            />
-          )}
-
-          {/* Admin Section - Clean architecture */}
-          {userData && (
-            <AdminMenu
-              userData={userData}
-              collapsedSections={collapsedSections}
-              toggleSection={toggleSection}
-              openSlideIn={openSlideIn}
-              notifications={adminNotifications}
-            />
-          )}
-
-          {/* Manage System Section - Clean architecture */}
-          {userData && (
-            <ManageSystemMenu
-              userData={userData}
-              collapsedSections={collapsedSections}
-              toggleSection={toggleSection}
-              openSlideIn={openSlideIn}
-            />
-          )}
-
-
-          {/* Service Management Section - Admin only */}
-          {/* {userData && (
-            <ServiceManagementMenu
-              userData={userData}
-              collapsedSections={collapsedSections}
-              toggleSection={toggleSection}
-              openSlideIn={openSlideIn}
-            />
-          )} */}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        </div>
-
-        {/* Right Content Area */}
-        <div className={styles.contentArea}>
-          {renderContent()}
-        </div>
-
-        {/* Slide-In Overlay */}
-        {slideInContent && (
-          <div className={styles.slideInOverlay}>
-            <div className={styles.slideInPanel}>
-              <div className={styles.slideInContainer}>
-                <div className={styles.slideInHeader}>
-                  <button className={styles.backButton} onClick={closeSlideIn}>
-                    <i className="fas fa-arrow-left"></i>
-                    Back to Dashboard
-                  </button>
-                  <h2 className={styles.slideInTitle}>{slideInContent.title || 'Slide-In Title'}</h2>
-                </div>
-                <div className={styles.slideInContent}>
-                  {renderSlideInContent()}
+          {/* Slide-In Overlay */}
+          {slideInContent && (
+            <div className={styles.slideInOverlay}>
+              <div className={styles.slideInPanel}>
+                <div className={styles.slideInContainer}>
+                  <div className={styles.slideInHeader}>
+                    <button className={styles.backButton} onClick={closeSlideIn}>
+                      <i className="fas fa-arrow-left"></i>
+                      Back to Dashboard
+                    </button>
+                    <h2 className={styles.slideInTitle}>{slideInContent.title || 'Slide-In Title'}</h2>
+                  </div>
+                  <div className={styles.slideInContent}>
+                    {renderSlideInContent()}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
-      </div>
-    </div>
-    <DashboardFooter />
+          )}
+        </div>
+      </DashboardShell>
     </>
   );
 } 
@@ -1131,4 +663,8 @@ export default function Dashboard() {
 
 
 
-// REMOVED: ApplicationManagementSection, ApplicationCard, BulkAcceptanceInterface, and PaymentDashboard functions - migrated to ApplicationsReceived component
+// Applications Received (old) removed; My Applicants at /dashboard/commerce/applicants uses ApplicationCard, BulkAcceptanceInterface, PaymentDashboard from applications-received/
+
+export async function getServerSideProps() {
+  return { props: {} };
+}

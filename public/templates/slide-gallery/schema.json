@@ -1,0 +1,94 @@
+{
+  "template_slug": "slide-gallery",
+  "template_name": "Slide Gallery",
+  "description": "Flash-inspired single-page template with smooth horizontal slide transitions",
+  "version": "1.0.0",
+  "author": "Artist Sites",
+  "custom_fields": [
+    {
+      "key": "hero_title",
+      "label": "Hero Section Title",
+      "type": "text",
+      "placeholder": "Welcome to My Gallery",
+      "max_length": 100,
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "Main title displayed on your landing hero section"
+    },
+    {
+      "key": "hero_text",
+      "label": "Hero Section Description",
+      "type": "textarea",
+      "placeholder": "Explore my collection of contemporary artworks...",
+      "max_length": 500,
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "Description text displayed below the hero title"
+    },
+    {
+      "key": "hero_button_text",
+      "label": "Hero Button Text",
+      "type": "text",
+      "placeholder": "View Gallery",
+      "max_length": 30,
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "Text for the optional call-to-action button (leave empty to hide button)"
+    },
+    {
+      "key": "hero_button_url",
+      "label": "Hero Button URL",
+      "type": "text",
+      "placeholder": "#gallery",
+      "max_length": 200,
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "URL or anchor link for the button (e.g., #gallery, /shop, or external URL)"
+    },
+    {
+      "key": "hero_background_color",
+      "label": "Hero Background Color",
+      "type": "color",
+      "required": false,
+      "default_value": "#667eea",
+      "tier_required": "pro",
+      "help_text": "Background color for the hero section"
+    },
+    {
+      "key": "hero_focus_image",
+      "label": "Hero Focus Image URL",
+      "type": "image_url",
+      "placeholder": "https://example.com/hero-image.jpg",
+      "required": false,
+      "tier_required": "pro",
+      "help_text": "Main hero image displayed prominently (recommended: 1200x800px or larger)"
+    },
+    {
+      "key": "transition_speed",
+      "label": "Slide Transition Speed",
+      "type": "select",
+      "description": "Speed of the slide animations",
+      "required": false,
+      "default_value": "medium",
+      "tier_required": "pro",
+      "options": [
+        { "value": "fast", "label": "Fast (0.3s)" },
+        { "value": "medium", "label": "Medium (0.5s)" },
+        { "value": "slow", "label": "Slow (0.8s)" }
+      ]
+    },
+    {
+      "key": "mobile_behavior",
+      "label": "Mobile Layout Behavior",
+      "type": "select",
+      "description": "How the template behaves on mobile devices",
+      "required": false,
+      "default_value": "stack",
+      "tier_required": "pro",
+      "options": [
+        { "value": "stack", "label": "Stack Vertically (Traditional Scroll)" },
+        { "value": "slide", "label": "Keep Slide Navigation" }
+      ]
+    }
+  ]
+}

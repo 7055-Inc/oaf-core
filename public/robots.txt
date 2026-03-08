@@ -5,8 +5,16 @@ Disallow: /dashboard/
 Disallow: /api/
 Disallow: /checkout/
 Disallow: /cart/
+Disallow: /login
+Disallow: /signup
+Disallow: /forgot-password
 Disallow: /profile-completion
+Disallow: /profile/edit
+Disallow: /profile/setup
 Disallow: /terms-acceptance
+Disallow: /event-payment/
+Disallow: /maintenance
+Disallow: /user-type-selection
 
 # Host
 Host: https://staging.brakebee.com

@@ -20,14 +20,22 @@ const WholesalePricing = ({
   price, 
   wholesalePrice, 
   isWholesaleCustomer = false,
+  tiers = null,
   size = 'medium',
   layout = 'inline',
   className = ''
 }) => {
   const regularPrice = parseFloat(price || 0);
   const wholesale = parseFloat(wholesalePrice || 0);
+
+  const parsedTiers = (() => {
+    if (!tiers) return [];
+    try {
+      const arr = typeof tiers === 'string' ? JSON.parse(tiers) : tiers;
+      return Array.isArray(arr) ? arr.filter(t => t.min_qty && t.price) : [];
+    } catch { return []; }
+  })();
   
-  // If no wholesale price is set, show regular price for everyone
   if (!wholesale || wholesale <= 0) {
     return (
       <div className={`${styles.pricing} ${styles[size]} ${className}`}>
@@ -38,7 +46,6 @@ const WholesalePricing = ({
     );
   }
   
-  // For wholesale customers: show wholesale price prominently with MSRP reference
   if (isWholesaleCustomer) {
     const savingsPercent = Math.round(((regularPrice - wholesale) / regularPrice) * 100);
     
@@ -61,11 +68,20 @@ const WholesalePricing = ({
             </span>
           )}
         </div>
+
+        {parsedTiers.length > 0 && (
+          <div className={styles.tierSchedule}>
+            {parsedTiers.map((tier, i) => (
+              <span key={i} className={styles.tierBadge}>
+                {tier.label || `${tier.min_qty}+`} ({tier.min_qty}+): ${parseFloat(tier.price).toFixed(2)}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
   
-  // For regular customers: show regular price only (don't reveal wholesale pricing)
   return (
     <div className={`${styles.pricing} ${styles[size]} ${className}`}>
       <span className={styles.regularPrice}>

@@ -52,3 +52,4 @@ public/static_media/
 
 node_modules
 node_modules
+api-service/clickhouse

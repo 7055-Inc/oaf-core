@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { SearchResults } from '../components/search';
 import { getAuthToken } from '../lib/csrf';
-import { authApiRequest, API_ENDPOINTS } from '../lib/apiUtils';
+import { getCurrentUser } from '../lib/users/api';
 
 export default function SearchPage() {
   const router = useRouter();
@@ -15,13 +15,9 @@ export default function SearchPage() {
   useEffect(() => {
     const token = getAuthToken();
     if (token) {
-      authApiRequest(API_ENDPOINTS.USERS_ME, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      })
-      .then(res => res.ok ? res.json() : null)
-      .then(data => data && setUserId(data.id))
-      .catch(() => {}); // Silent fail for anonymous users
+      getCurrentUser()
+        .then(data => data && setUserId(data.id))
+        .catch(() => {});
     }
   }, []);
 

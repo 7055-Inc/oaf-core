@@ -1,4 +1,4 @@
-# Brakebee Platform Architecture
+ so it works correctly!# Brakebee Platform Architecture
 
 ## Overview
 
@@ -50,14 +50,13 @@ Brakebee is a multi-tenant marketplace platform connecting artists with art love
 │   ├─ maintenanceMode    │     │   ├─ Route mounting                         │
 │   ├─ subdomainRouter    │     │   └─ Health check                           │
 │   └─ checklist          │     │                                             │
-│                         │     │  src/routes/                                │
-│  pages/_app.js          │     │   ├─ auth.js                                │
-│   ├─ Layout selection   │     │   ├─ users.js                               │
-│   ├─ SEO defaults       │     │   ├─ products.js                            │
-│   └─ GTM/Analytics      │     │   ├─ checkout.js                            │
-│                         │     │   ├─ events.js                              │
-│  lib/config.js          │     │   ├─ sites.js                               │
-│   └─ Env configuration  │     │   └─ ... (40+ route files)                  │
+│                         │     │  src/modules/ (v2: auth, events, media…)     │
+│  pages/_app.js          │     │  src/routes/ (legacy + mounted modules)      │
+│   ├─ Layout selection   │     │   ├─ auth.js, users.js, products.js         │
+│   ├─ SEO defaults       │     │   ├─ checkout.js, sites.js                   │
+│   └─ GTM/Analytics      │     │   └─ … (see MODULE_ARCHITECTURE.md)         │
+│  lib/config.js          │     │                                             │
+│   └─ Env configuration  │     │                                             │
 │                         │     │                                             │
 └───────────┬─────────────┘     └───────────────────┬─────────────────────────┘
             │                                       │
@@ -165,11 +164,21 @@ artist.brakebee.com → NGINX → Next.js → subdomainRouter.js
 │   ├── custom-sites/        # Subdomain custom pages
 │   └── ...
 │
-├── components/               # React components
-│   ├── layouts/             # Layout components
-│   ├── dashboard/           # Dashboard-specific components
+├── components/               # React components (public + legacy wrappers)
+│   ├── layouts/             # Layout components (MainLayout, DashboardLayout)
+│   ├── dashboard/           # Dashboard wrappers → modules/dashboard/
 │   ├── Header.js            # Main header
 │   ├── Footer.js            # Main footer
+│   └── ...                  # Domain components moved to modules/
+│
+├── modules/                  # Frontend modules (see MODULE_ARCHITECTURE.md)
+│   ├── styles/              # Global CSS (forms, buttons, tables, etc.)
+│   ├── dashboard/           # Dashboard UI shell
+│   ├── catalog/             # Product management
+│   ├── commerce/            # Orders, sales, shipping
+│   ├── events/              # Event management
+│   ├── applications/        # Event applications
+│   ├── shared/              # Cross-module UI (ArtistCarousel, ProfileDisplay)
 │   └── ...
 │
 ├── middleware/               # Next.js middleware modules
@@ -177,15 +186,13 @@ artist.brakebee.com → NGINX → Next.js → subdomainRouter.js
 │   ├── subdomainRouter.js   # Artist subdomain routing
 │   └── maintenanceMode.js   # Maintenance mode handler
 │
-├── lib/                      # Shared utilities
+├── lib/                      # Shared utilities (API clients)
 │   ├── config.js            # Environment configuration
-│   ├── csrf.js              # CSRF utilities
-│   ├── firebase.js          # Firebase initialization
-│   └── ...
-│
-├── styles/                   # CSS files
-│   ├── global.css           # Global styles
-│   └── *.module.css         # Component-specific styles
+│   ├── auth/                # Auth utilities (tokens, refresh)
+│   ├── users/               # User API client
+│   ├── catalog/             # Catalog API client
+│   ├── commerce/            # Commerce API client
+│   └── ...                  # Other domain API clients
 │
 ├── public/                   # Static assets
 │   ├── static_media/        # Uploaded media files
@@ -274,9 +281,11 @@ API_GATEWAY_PORT              # Server port
 
 ### General
 
-- **40+ route files** in api-service/src/routes/ - candidates for module consolidation
-- **No API versioning** - Current routes are unversioned (`/products` vs `/api/v2/products`)
-- **Inconsistent route prefixes** - Some use `/api/`, some don't
+- **Mixed v2 and legacy** - v2 modules exist (auth, events, media, applications, commerce, etc.) under `api-service/src/modules/`; many routes still in `src/routes/`. See [MODULE_ARCHITECTURE.md](./MODULE_ARCHITECTURE.md).
+- **Inconsistent route prefixes** - Some use `/api/`, some `/api/v2/`.
+- **Old dashboard "Manage My Store" section removed** - All items moved to the new sidebar: Articles & Pages → Communications > Articles & Blogs (content v2); Promotions (coupons, promotion invitations) → Marketing > Promotions (commerce v2); Manage Orders → Business Center > My Sales. `ManageMyStoreMenu.js` deleted.
+- **Old AdminMenu significantly cleaned up** - Most admin slide-ins migrated to dedicated pages: Users, Commissions, Promotions, Wholesale, Articles, Support Tickets. Only Refunds, Marketplace Products, and Returns Management remain as slide-ins.
+- **Websites section in new menu** - Dashboard > Websites: My Sites (card list with Visit, Manage, Deactivate), Payment Settings (Stripe card on file via `StripeCardSetup`), Site Settings, All Sites (admin). Manage opens `/dashboard/websites/manage/[id]` (Activate/Deactivate, settings, custom domain, customize, templates, addons). Add Site at `/dashboard/websites/new`. Legacy subscription flow still shows `WebsitesDashboard` in slide-in; new entry is sidebar Websites > My Sites.
 
 ---
 
@@ -294,7 +303,7 @@ api-service/src/
 │   ├── commerce/       # Cart, checkout, orders, payments
 │   ├── websites/       # Sites, subdomains, customization
 │   ├── events/         # Event listings & applications
-│   ├── content/        # Articles, help center
+│   ├── content/        # Articles, help center (v2 at /api/v2/content/articles/*; dashboard: Communications > Articles & Blogs)
 │   ├── marketing/      # Affiliates, promoters, coupons
 │   └── admin/          # Admin tools & reports
 ├── shared/
@@ -308,6 +317,7 @@ api-service/src/
 
 ## Related Documentation
 
+- [MODULE_ARCHITECTURE.md](./MODULE_ARCHITECTURE.md) - v2 modules, dashboard, catalog addons (Walmart, TikTok connectors), API keys, rate limiting
 - [REFACTOR_WORKFLOW.md](./REFACTOR_WORKFLOW.md) - Development workflow for refactoring
 - [database/schema.sql](../database/schema.sql) - Current database schema
 - [api-service/README.md](../api-service/README.md) - API service documentation

@@ -15,7 +15,7 @@ export async function subdomainRouter(req) {
     isCustomDomain = true;
     try {
       // Check if this is a verified custom domain
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sites/resolve-custom-domain/${hostname}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v2/websites/resolve-custom-domain/${hostname}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -67,7 +67,7 @@ export async function subdomainRouter(req) {
     // }
     
     // Check if this subdomain corresponds to an active artist site
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sites/resolve/${subdomain}`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v2/websites/resolve/${subdomain}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'

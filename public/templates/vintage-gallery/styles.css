@@ -1,0 +1,499 @@
+/* Vintage Gallery Template
+ * Version: 1.0.0
+ * Author: Artist Sites
+ * Description: Classic, timeless design with elegant typography and traditional presentation
+ * Target: Traditional artists, classical art, fine art galleries
+ * Tier: Basic
+ */
+
+/* ========================================
+   RESET & BASE STYLES
+   ======================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.storefront {
+  /* Template-specific variables */
+  /* --frame-style, --color-tone, --layout-density */
+  
+  min-height: 100vh;
+  font-family: var(--body-font, 'Garamond', 'Georgia', 'Times New Roman', serif);
+  color: var(--text-color, #3a2f2f);
+  line-height: 1.7;
+}
+
+/* ========================================
+   COLOR TONE VARIANTS
+   ======================================== */
+
+/* Warm Sepia (default) */
+.storefront[data-color-tone="warm"],
+.storefront:not([data-color-tone]) {
+  background-color: #f8f5f0;
+  background-image: 
+    linear-gradient(0deg, rgba(139, 111, 78, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139, 111, 78, 0.02) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Neutral Cream */
+.storefront[data-color-tone="neutral"] {
+  background-color: #fafaf8;
+  background-image: 
+    linear-gradient(0deg, rgba(0, 0, 0, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Cool Gray */
+.storefront[data-color-tone="cool"] {
+  background-color: #f5f5f7;
+  background-image: 
+    linear-gradient(0deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* ========================================
+   TYPOGRAPHY
+   ======================================== */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--header-font, 'Garamond', 'Georgia', serif);
+  font-weight: 400;
+  line-height: 1.4;
+  margin-bottom: calc(1.5rem * var(--spacing-scale, 1));
+  color: var(--text-color, #2a2a2a);
+}
+
+h1 {
+  font-size: calc(3.5rem * var(--spacing-scale, 1));
+  letter-spacing: 0.05em;
+  text-align: center;
+  font-variant: small-caps;
+}
+
+h2 {
+  font-size: calc(2.5rem * var(--spacing-scale, 1));
+  letter-spacing: 0.03em;
+  font-variant: small-caps;
+}
+
+h3 {
+  font-size: calc(1.75rem * var(--spacing-scale, 1));
+}
+
+p {
+  margin-bottom: calc(1.5rem * var(--spacing-scale, 1));
+  line-height: 1.8;
+}
+
+/* Decorative initial caps */
+.about p:first-of-type::first-letter {
+  font-size: 3.5em;
+  line-height: 1;
+  float: left;
+  margin: 0 0.1em 0 0;
+  font-family: var(--header-font, 'Garamond', serif);
+  color: var(--main-color, #8b6f4e);
+}
+
+/* ========================================
+   LOADING & ERROR STATES
+   ======================================== */
+
+.loading, .error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: calc(2rem * var(--spacing-scale, 1));
+}
+
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid rgba(139, 111, 78, 0.2);
+  border-top: 3px solid var(--main-color, #8b6f4e);
+  border-radius: 50%;
+  animation: spin 1.2s linear infinite;
+  margin-bottom: calc(2rem * var(--spacing-scale, 1));
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ========================================
+   HEADER & NAVIGATION
+   ======================================== */
+
+.header {
+  background-color: rgba(255, 255, 255, 0.95);
+  border-bottom: 3px double rgba(0, 0, 0, 0.2);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(5px);
+}
+
+.headerContent {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: calc(1.5rem * var(--spacing-scale, 1)) calc(3rem * var(--spacing-scale, 1));
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: calc(1.5rem * var(--spacing-scale, 1));
+}
+
+.artistName {
+  font-size: calc(2rem * var(--spacing-scale, 1));
+  font-family: var(--header-font, 'Garamond', serif);
+  font-weight: 400;
+  color: var(--text-color, #2a2a2a);
+  letter-spacing: 0.1em;
+  font-variant: small-caps;
+  text-align: center;
+}
+
+.navigation {
+  display: flex;
+  gap: calc(2rem * var(--spacing-scale, 1));
+  align-items: center;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  padding-top: calc(1rem * var(--spacing-scale, 1));
+}
+
+.navLink {
+  color: var(--text-color, #555);
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  transition: color 0.3s ease;
+  font-family: var(--header-font, 'Garamond', serif);
+}
+
+.navLink:hover {
+  color: var(--main-color, #8b6f4e);
+}
+
+/* ========================================
+   HERO SECTION
+   ======================================== */
+
+.hero, .hero-section {
+  padding: calc(5rem * var(--spacing-scale, 1)) calc(3rem * var(--spacing-scale, 1)) calc(4rem * var(--spacing-scale, 1));
+  text-align: center;
+  background-color: rgba(255, 255, 255, 0.6);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.heroTitle, .hero-title {
+  font-size: calc(4rem * var(--spacing-scale, 1));
+  font-variant: small-caps;
+  letter-spacing: 0.1em;
+  margin-bottom: calc(1.5rem * var(--spacing-scale, 1));
+}
+
+.heroDescription, .hero-description {
+  font-size: calc(1.2rem * var(--spacing-scale, 1));
+  font-style: italic;
+  color: var(--text-color, #555);
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+/* ========================================
+   GALLERY / PRODUCTS GRID
+   ======================================== */
+
+.gallery, .product-section {
+  padding: calc(5rem * var(--spacing-scale, 1)) calc(3rem * var(--spacing-scale, 1));
+}
+
+/* Layout Density Variants */
+.productsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Spacious (Museum-style) */
+.storefront[data-layout-density="spacious"] .productsGrid {
+  gap: calc(5rem * var(--spacing-scale, 1));
+}
+
+/* Comfortable (default) */
+.storefront[data-layout-density="comfortable"] .productsGrid,
+.storefront:not([data-layout-density]) .productsGrid {
+  gap: calc(3.5rem * var(--spacing-scale, 1));
+}
+
+/* Compact (Salon-style) */
+.storefront[data-layout-density="compact"] .productsGrid {
+  gap: calc(2rem * var(--spacing-scale, 1));
+}
+
+/* ========================================
+   PRODUCT CARDS WITH FRAMES
+   ======================================== */
+
+.productCard {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  transition: transform 0.3s ease;
+  position: relative;
+}
+
+.productCard:hover {
+  transform: translateY(-4px);
+}
+
+.productImage {
+  width: 100%;
+  position: relative;
+  background-color: #fff;
+  padding: calc(2rem * var(--spacing-scale, 1));
+}
+
+/* Classic Frame */
+.storefront[data-frame-style="classic"] .productImage,
+.storefront:not([data-frame-style]) .productImage {
+  border: 12px solid #d4c4a8;
+  box-shadow: 
+    inset 0 0 0 2px #8b6f4e,
+    0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Ornate Frame */
+.storefront[data-frame-style="ornate"] .productImage {
+  border: 16px solid #d4c4a8;
+  border-image: repeating-linear-gradient(
+    45deg,
+    #d4c4a8,
+    #d4c4a8 10px,
+    #8b6f4e 10px,
+    #8b6f4e 20px
+  ) 16;
+  box-shadow: 
+    inset 0 0 0 3px #8b6f4e,
+    0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* Simple Border */
+.storefront[data-frame-style="simple"] .productImage {
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: calc(1rem * var(--spacing-scale, 1));
+}
+
+/* No Frame */
+.storefront[data-frame-style="none"] .productImage {
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 0;
+}
+
+.productImage img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* ========================================
+   PRODUCT INFO
+   ======================================== */
+
+.productInfo {
+  padding: calc(1.5rem * var(--spacing-scale, 1)) calc(1rem * var(--spacing-scale, 1));
+  text-align: center;
+  background: #fff;
+}
+
+.productName {
+  font-size: calc(1.25rem * var(--spacing-scale, 1));
+  font-family: var(--header-font, 'Garamond', serif);
+  font-weight: 400;
+  color: var(--text-color, #2a2a2a);
+  margin-bottom: calc(0.5rem * var(--spacing-scale, 1));
+  font-style: italic;
+}
+
+.productPrice {
+  font-size: calc(1.1rem * var(--spacing-scale, 1));
+  color: var(--main-color, #8b6f4e);
+  margin-bottom: calc(0.75rem * var(--spacing-scale, 1));
+  font-family: var(--header-font, 'Garamond', serif);
+}
+
+.productDescription {
+  font-size: 0.95rem;
+  color: var(--text-color, #666);
+  line-height: 1.6;
+}
+
+/* ========================================
+   ABOUT SECTION
+   ======================================== */
+
+.about {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: calc(5rem * var(--spacing-scale, 1)) calc(3rem * var(--spacing-scale, 1));
+  background-color: rgba(255, 255, 255, 0.7);
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.about h2 {
+  text-align: center;
+  margin-bottom: calc(2.5rem * var(--spacing-scale, 1));
+  font-size: calc(2.5rem * var(--spacing-scale, 1));
+}
+
+.about p {
+  font-size: 1.1rem;
+  line-height: 1.9;
+  text-align: justify;
+}
+
+/* ========================================
+   FOOTER
+   ======================================== */
+
+.footer {
+  background-color: rgba(255, 255, 255, 0.8);
+  border-top: 3px double rgba(0, 0, 0, 0.2);
+  padding: calc(3rem * var(--spacing-scale, 1));
+  text-align: center;
+  margin-top: calc(5rem * var(--spacing-scale, 1));
+}
+
+.footerContent {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.footerSection h4 {
+  font-family: var(--header-font, 'Garamond', serif);
+  font-size: 1rem;
+  font-variant: small-caps;
+  letter-spacing: 0.15em;
+  margin-bottom: calc(1rem * var(--spacing-scale, 1));
+}
+
+.socialLinks {
+  display: flex;
+  gap: calc(2rem * var(--spacing-scale, 1));
+  justify-content: center;
+  margin-top: calc(1.5rem * var(--spacing-scale, 1));
+}
+
+.socialLinks a {
+  color: var(--text-color, #555);
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-family: var(--header-font, 'Garamond', serif);
+  letter-spacing: 0.1em;
+  transition: color 0.3s ease;
+}
+
+.socialLinks a:hover {
+  color: var(--main-color, #8b6f4e);
+}
+
+/* ========================================
+   DECORATIVE ELEMENTS
+   ======================================== */
+
+/* Section dividers */
+.section-divider {
+  text-align: center;
+  margin: calc(3rem * var(--spacing-scale, 1)) auto;
+  color: var(--main-color, #8b6f4e);
+  font-size: 1.5rem;
+}
+
+.section-divider::before {
+  content: '❦';
+}
+
+/* ========================================
+   RESPONSIVE DESIGN
+   ======================================== */
+
+@media (max-width: 1024px) {
+  .productsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  h1, .heroTitle, .hero-title {
+    font-size: calc(2.5rem * var(--spacing-scale, 1));
+  }
+  
+  .headerContent {
+    padding: calc(1.5rem * var(--spacing-scale, 1));
+  }
+  
+  .navigation {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: calc(1rem * var(--spacing-scale, 1));
+  }
+  
+  .productsGrid {
+    grid-template-columns: 1fr;
+    gap: calc(3rem * var(--spacing-scale, 1));
+  }
+  
+  .about p {
+    text-align: left;
+  }
+}
+
+@media (max-width: 480px) {
+  .productImage {
+    padding: calc(1rem * var(--spacing-scale, 1));
+  }
+  
+  .storefront[data-frame-style="classic"] .productImage,
+  .storefront:not([data-frame-style]) .productImage {
+    border-width: 8px;
+  }
+  
+  .storefront[data-frame-style="ornate"] .productImage {
+    border-width: 12px;
+  }
+}
+
+/* ========================================
+   PRINT STYLES
+   ======================================== */
+
+@media print {
+  .header, .navigation, .footer {
+    display: none;
+  }
+  
+  .storefront {
+    background: #fff;
+  }
+  
+  .productCard {
+    page-break-inside: avoid;
+  }
+}

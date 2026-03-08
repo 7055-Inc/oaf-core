@@ -29,8 +29,9 @@ export default function TopicPage() {
   const fetchTopic = async () => {
     try {
       setLoading(true);
-      const response = await fetch(getApiUrl(`api/articles/topics/${slug}`));
-      const data = await response.json();
+      const response = await fetch(getApiUrl(`api/v2/content/articles/topics/${slug}`));
+      const envelope = await response.json();
+      const data = envelope.data || envelope;
       
       if (data.topic) {
         setTopic(data.topic);
@@ -47,12 +48,13 @@ export default function TopicPage() {
 
   const fetchArticles = async () => {
     try {
-      const response = await fetch(`api/articles/topics/${topic.id}/articles?page=${pagination.page}&limit=${pagination.limit}&status=published`);
-      const data = await response.json();
+      const response = await fetch(getApiUrl(`api/v2/content/articles/topics/${topic.id}/articles?page=${pagination.page}&limit=${pagination.limit}&status=published`));
+      const envelope = await response.json();
+      const data = envelope.data || envelope;
       
       if (data.articles) {
         setArticles(data.articles);
-        setPagination(prev => ({ ...prev, total: data.total || 0 }));
+        setPagination(prev => ({ ...prev, total: data.pagination?.total || 0 }));
       } else {
         setArticles([]);
       }
@@ -96,17 +98,17 @@ export default function TopicPage() {
   return (
     <>
       <Head>
-        <title>{topic.meta_title || `${topic.name} - Online Art Festival`}</title>
+        <title>{topic.meta_title || `${topic.name} | Brakebee`}</title>
         <meta name="description" content={topic.meta_description || topic.description} />
         <link rel="canonical" href={getFrontendUrl(`/topics/${topic.slug}`)} />
         
-        <meta property="og:title" content={topic.meta_title || `${topic.name} - Online Art Festival`} />
+        <meta property="og:title" content={topic.meta_title || `${topic.name} | Brakebee`} />
         <meta property="og:description" content={topic.meta_description || topic.description} />
         <meta property="og:type" content="website" />
         <meta property="og:url" content={`/topics/${topic.slug}`} />
         
         <meta name="twitter:card" content="summary" />
-        <meta name="twitter:title" content={topic.meta_title || `${topic.name} - Online Art Festival`} />
+        <meta name="twitter:title" content={topic.meta_title || `${topic.name} | Brakebee`} />
         <meta name="twitter:description" content={topic.meta_description || topic.description} />
       </Head>
 

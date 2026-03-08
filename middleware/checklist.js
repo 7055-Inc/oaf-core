@@ -53,36 +53,42 @@ export async function checklist(req) {
   }
 
   try {
-    // Call API service to verify token
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/exchange`, {
-      method: 'POST',
+    // Call v2 auth service to validate token
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v2/auth/validate`, {
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        provider: 'validate',
-        token: token
-      })
+      }
     });
 
     if (!response.ok) {
       return loginRedirect();
     }
 
-    const { roles, permissions } = await response.json();
+    const result = await response.json();
+    
+    // Handle v2 response format: { success, data: { valid, user: { roles, permissions } } }
+    if (!result.success || !result.data?.valid) {
+      return loginRedirect();
+    }
+    
+    const { roles, permissions } = result.data.user;
+    
+    // Roles are validated by the v2 endpoint, but double-check
     if (!roles || !roles.length) {
       return loginRedirect();
     }
 
     // Check if user is Draft and needs to select user type
     if (roles.includes('Draft')) {
-      return NextResponse.redirect(new URL('/user-type-selection', req.url));
+      const userTypeUrl = new URL('/user-type-selection', req.url);
+      userTypeUrl.searchParams.set('redirect', path);
+      return NextResponse.redirect(userTypeUrl);
     }
 
     // Check if user has accepted current terms
     try {
-    const termsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/terms/check-acceptance?t=${Date.now()}`, {
+    const termsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v2/system/terms/check-acceptance?t=${Date.now()}`, {
       method: 'GET',
       headers: {
           'Authorization': `Bearer ${token}`,
@@ -101,7 +107,8 @@ export async function checklist(req) {
           return NextResponse.next();
         }
 
-      const termsData = await termsResponse.json();
+      const termsJson = await termsResponse.json();
+      const termsData = termsJson.data || termsJson;
       
         // Validate response structure
         if (typeof termsData.requiresAcceptance === 'boolean' && termsData.requiresAcceptance) {
@@ -150,7 +157,7 @@ export async function checklist(req) {
     if (!path.startsWith('/cart') && !path.startsWith('/checkout')) {
       // Check if user has pending announcements to acknowledge with proper error handling
       try {
-      const announcementsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/announcements/check-pending`, {
+      const announcementsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v2/system/announcements/check-pending`, {
         method: 'GET',
         headers: {
             'Authorization': `Bearer ${token}`,

@@ -1,0 +1,1 @@
+(function() { 'use strict'; function init() { console.log('Japanese Zen: Template initialized'); } if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); } })();

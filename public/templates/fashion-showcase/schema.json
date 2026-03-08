@@ -1,0 +1,120 @@
+{
+  "template_slug": "fashion-showcase",
+  "template_name": "Fashion Showcase",
+  "description": "Modern fashion template with circular category showcase and modular addon sections",
+  "version": "1.0.0",
+  "author": "Artist Sites",
+  "custom_fields": [
+    {
+      "key": "show_category_names",
+      "label": "Show Category Names",
+      "type": "select",
+      "description": "Display category names below circular images",
+      "required": false,
+      "default_value": "yes",
+      "tier_required": "basic",
+      "options": [
+        { "value": "yes", "label": "Show Names" },
+        { "value": "no", "label": "Hide Names" }
+      ]
+    },
+    {
+      "key": "category_circles_count",
+      "label": "Number of Category Circles",
+      "type": "select",
+      "description": "How many category circles to display",
+      "required": false,
+      "default_value": "8",
+      "tier_required": "basic",
+      "options": [
+        { "value": "6", "label": "6 Circles" },
+        { "value": "8", "label": "8 Circles" },
+        { "value": "10", "label": "10 Circles" }
+      ]
+    },
+    {
+      "key": "hero_video_url",
+      "label": "Hero Video URL (Left Side)",
+      "type": "video_url",
+      "placeholder": "https://example.com/hero-video.mp4",
+      "required": false,
+      "tier_required": "basic",
+      "help_text": "Vertical video for left side of split hero (recommended: 9:16 aspect ratio)"
+    },
+    {
+      "key": "hero_video_text",
+      "label": "Hero Video Text",
+      "type": "text",
+      "placeholder": "Shop the look",
+      "max_length": 50,
+      "required": false,
+      "tier_required": "basic",
+      "help_text": "Main text overlay on hero video"
+    },
+    {
+      "key": "hero_video_discount",
+      "label": "Hero Discount Text",
+      "type": "text",
+      "placeholder": "50% off",
+      "max_length": 30,
+      "required": false,
+      "tier_required": "basic",
+      "help_text": "Discount/promotion text on hero video"
+    },
+    {
+      "key": "hero_image_url",
+      "label": "Hero Image URL (Right Side)",
+      "type": "image_url",
+      "placeholder": "https://example.com/hero-image.jpg",
+      "required": false,
+      "tier_required": "basic",
+      "help_text": "Main image for right side of split hero"
+    },
+    {
+      "key": "hero_image_alt_url",
+      "label": "Hero Secondary Image",
+      "type": "image_url",
+      "placeholder": "https://example.com/hero-image-2.jpg",
+      "required": false,
+      "tier_required": "basic",
+      "help_text": "Optional second image (displays below first)"
+    },
+    {
+      "key": "blog_card_style",
+      "label": "Blog Card Style",
+      "type": "select",
+      "description": "Layout style for blog cards in addon section",
+      "required": false,
+      "default_value": "wide",
+      "tier_required": "basic",
+      "options": [
+        { "value": "small", "label": "Small Cards (Grid)" },
+        { "value": "wide", "label": "Wide Cards (Full Width)" }
+      ]
+    },
+    {
+      "key": "instagram_columns",
+      "label": "Instagram Feed Columns",
+      "type": "select",
+      "description": "Number of columns for Instagram feed addon",
+      "required": false,
+      "default_value": "4",
+      "tier_required": "basic",
+      "options": [
+        { "value": "3", "label": "3 Columns" },
+        { "value": "4", "label": "4 Columns" },
+        { "value": "5", "label": "5 Columns" }
+      ]
+    },
+    {
+      "key": "quote_text",
+      "label": "Featured Quote",
+      "type": "textarea",
+      "placeholder": "This season is full of exceptional pieces which can be worn at every occasion.",
+      "max_length": 300,
+      "required": false,
+      "tier_required": "basic",
+      "help_text": "Optional quote/tagline displayed in content area"
+    }
+  ]
+}

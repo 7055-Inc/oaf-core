@@ -9,7 +9,7 @@ export default async function handler(req, res) {
 
   try {
     // Forward the request to API service Leo search endpoint
-    const apiResponse = await fetch('http://localhost:3001/api/leo/search', {
+    const apiResponse = await fetch('http://localhost:3001/api/v2/leo/search', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

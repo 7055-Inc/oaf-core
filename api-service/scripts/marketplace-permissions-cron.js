@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 
 /**
- * Marketplace Permissions Cron Job
+ * Product Channel Permissions Cron Job
  * 
  * Runs every 6 hours to:
  * 1. Enable marketplace for approved users
  * 2. Disable marketplace for non-approved users
  * 3. Auto-assign categories for new products based on user preference
+ * 4. Enable website catalog for users with sites permission
+ * 5. Disable website catalog for users without sites permission
  * 
  * Usage: node api-service/scripts/marketplace-permissions-cron.js
  * 
@@ -76,12 +78,36 @@ async function runMarketplacePermissionsCron() {
     
     console.log(`Auto-assigned categories for ${categoryResult.affectedRows} products`);
     
-    // 4. Get summary statistics
-    console.log('Step 4: Generating summary statistics...');
+    // 4. Enable website catalog for users with sites permission
+    console.log('Step 4: Enabling website catalog for users with sites permission...');
+    const [websiteEnableResult] = await connection.execute(`
+      UPDATE products p
+      JOIN user_permissions up ON p.vendor_id = up.user_id
+      SET p.website_catalog_enabled = TRUE
+      WHERE up.sites = 1
+        AND p.website_catalog_enabled = FALSE
+    `);
+    console.log(`Enabled website catalog for ${websiteEnableResult.affectedRows} products from site-subscribed users`);
+
+    // 5. Disable website catalog for users without sites permission
+    console.log('Step 5: Disabling website catalog for users without sites permission...');
+    const [websiteDisableResult] = await connection.execute(`
+      UPDATE products p
+      JOIN user_permissions up ON p.vendor_id = up.user_id
+      SET p.website_catalog_enabled = FALSE
+      WHERE up.sites = 0
+        AND p.website_catalog_enabled = TRUE
+    `);
+    console.log(`Disabled website catalog for ${websiteDisableResult.affectedRows} products from non-subscribed users`);
+
+    // 6. Get summary statistics
+    console.log('Step 6: Generating summary statistics...');
     const [stats] = await connection.execute(`
       SELECT 
         COUNT(*) as total_products,
         COUNT(CASE WHEN marketplace_enabled = TRUE THEN 1 END) as marketplace_enabled_count,
+        COUNT(CASE WHEN website_catalog_enabled = TRUE THEN 1 END) as website_enabled_count,
+        COUNT(CASE WHEN marketplace_enabled = FALSE AND website_catalog_enabled = FALSE THEN 1 END) as catalog_only_count,
         COUNT(CASE WHEN marketplace_enabled = TRUE AND marketplace_category = 'art' THEN 1 END) as art_products,
         COUNT(CASE WHEN marketplace_enabled = TRUE AND marketplace_category = 'crafts' THEN 1 END) as crafts_products,
         COUNT(CASE WHEN marketplace_enabled = TRUE AND marketplace_category = 'unsorted' THEN 1 END) as unsorted_products
@@ -92,11 +118,13 @@ async function runMarketplacePermissionsCron() {
     console.log('Summary Statistics:');
     console.log(`  Total products: ${summary.total_products}`);
     console.log(`  Marketplace enabled: ${summary.marketplace_enabled_count}`);
+    console.log(`  Website catalog enabled: ${summary.website_enabled_count}`);
+    console.log(`  Catalog only (no channel): ${summary.catalog_only_count}`);
     console.log(`  Art category: ${summary.art_products}`);
     console.log(`  Crafts category: ${summary.crafts_products}`);
     console.log(`  Unsorted: ${summary.unsorted_products}`);
     
-    // 5. Get user permission statistics
+    // 7. Get user permission statistics
     const [userStats] = await connection.execute(`
       SELECT 
         status,

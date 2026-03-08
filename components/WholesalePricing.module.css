@@ -144,6 +144,39 @@
   padding: 3px 8px;
 }
 
+/* Volume Pricing Tier Schedule */
+.tierSchedule {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+  width: 100%;
+}
+
+.tierBadge {
+  background: #e8f5e9;
+  color: #2e7d32;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.small .tierSchedule {
+  gap: 3px;
+}
+
+.small .tierBadge {
+  font-size: 9px;
+  padding: 1px 5px;
+}
+
+.large .tierBadge {
+  font-size: 11px;
+  padding: 3px 10px;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .inline {

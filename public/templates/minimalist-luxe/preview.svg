@@ -1,0 +1,16 @@
+<svg width="1200" height="800" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="800" fill="#fefefe"/>
+  
+  <!-- Tiny header -->
+  <text x="600" y="100" font-family="Helvetica, Arial, sans-serif" font-size="9" font-weight="300" fill="#1a1a1a" text-anchor="middle" letter-spacing="6">MINIMALIST LUXE</text>
+  
+  <!-- Single product with massive spacing -->
+  <rect x="400" y="250" width="400" height="300" fill="#f8f8f8"/>
+  
+  <!-- Tiny text below -->
+  <text x="600" y="580" font-family="Helvetica, Arial, sans-serif" font-size="8" font-weight="300" fill="rgba(26,26,26,0.6)" text-anchor="middle" letter-spacing="4">ARTWORK TITLE</text>
+  
+  <!-- Label -->
+  <rect x="980" y="20" width="200" height="30" rx="4" fill="#1a1a1a"/>
+  <text x="1080" y="41" font-family="Helvetica, Arial, sans-serif" font-size="10" font-weight="300" fill="#fefefe" text-anchor="middle" letter-spacing="3">PRO " ULTRA REFINED</text>
+</svg>

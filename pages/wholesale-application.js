@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { authenticatedApiRequest } from '../lib/csrf';
 import { getApiUrl } from '../lib/config';
+import { getCurrentUser } from '../lib/users/api';
 import styles from '../styles/WholesaleApplication.module.css';
 
 export default function WholesaleApplication() {
@@ -46,26 +47,22 @@ export default function WholesaleApplication() {
       setLoading(true);
 
       // Get user data
-      const userResponse = await authenticatedApiRequest(getApiUrl('api/users/me'));
-      if (userResponse.ok) {
-        const user = await userResponse.json();
-        setUserData(user);
-
-        // Pre-fill form with user data
-        setFormData(prev => ({
-          ...prev,
-          business_email: user.username || '',
-          contact_name: `${user.first_name || ''} ${user.last_name || ''}`.trim()
-        }));
-      }
+      const user = await getCurrentUser();
+      setUserData(user);
+      setFormData(prev => ({
+        ...prev,
+        business_email: user.username || '',
+        contact_name: `${user.first_name || ''} ${user.last_name || ''}`.trim()
+      }));
 
       // Check wholesale terms
       try {
-        const termsResponse = await authenticatedApiRequest('api/subscriptions/wholesale/terms-check');
+        const termsResponse = await authenticatedApiRequest('api/v2/commerce/subscriptions/wholesale/terms-check');
         if (termsResponse.ok) {
           const terms = await termsResponse.json();
-          setTermsData(terms.latestTerms);
-          setTermsAccepted(terms.termsAccepted);
+          const payload = terms.data || terms;
+          setTermsData(payload.latestTerms);
+          setTermsAccepted(payload.termsAccepted);
         }
       } catch (termsError) {
         console.log('Wholesale terms endpoint not available yet');
@@ -91,7 +88,7 @@ export default function WholesaleApplication() {
 
     try {
       setProcessing(true);
-      const response = await authenticatedApiRequest('api/subscriptions/wholesale/terms-accept', {
+      const response = await authenticatedApiRequest('api/v2/commerce/subscriptions/wholesale/terms-accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ terms_version_id: termsData.id })
@@ -124,7 +121,7 @@ export default function WholesaleApplication() {
     try {
       setProcessing(true);
 
-      const response = await authenticatedApiRequest('api/subscriptions/wholesale/apply', {
+      const response = await authenticatedApiRequest('api/v2/commerce/subscriptions/wholesale/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)

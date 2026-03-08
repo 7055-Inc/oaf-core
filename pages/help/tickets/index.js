@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import Breadcrumb from '../../../components/Breadcrumb';
+import { Breadcrumb } from '../../../modules/shared';
 import { authApiRequest } from '../../../lib/apiUtils';
 import { getAuthToken } from '../../../lib/csrf';
 import styles from '../Help.module.css';
@@ -61,15 +61,15 @@ export default function TicketsPage() {
         ticketParams.append('status', filter);
       }
 
-      const ticketResponse = await authApiRequest(`api/tickets/my?${ticketParams}`, {
+      const ticketResponse = await authApiRequest(`api/v2/system/tickets/my?${ticketParams}`, {
         method: 'GET'
       });
 
-      if (ticketResponse.ok) {
-        const data = await ticketResponse.json();
-        setTickets(data.tickets || []);
+      const data = await ticketResponse.json();
+      if (data.success) {
+        setTickets(data.data?.tickets || []);
       } else {
-        throw new Error('Failed to fetch tickets');
+        throw new Error(data.error?.message || 'Failed to fetch tickets');
       }
 
     } catch (err) {

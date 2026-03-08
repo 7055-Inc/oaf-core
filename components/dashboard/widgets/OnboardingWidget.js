@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { authApiRequest } from '../../../lib/apiUtils';
+import { getCurrentUser } from '../../../lib/users/api';
 import CompleteProfileSuggestion from './onboarding/CompleteProfileSuggestion';
 import WebsiteSuggestion from './onboarding/WebsiteSuggestion';
 import MarketplaceSuggestion from './onboarding/MarketplaceSuggestion';
 import VerifiedSuggestion from './onboarding/VerifiedSuggestion';
 import ShippingSuggestion from './onboarding/ShippingSuggestion';
+import EventsSuggestion from './onboarding/EventsSuggestion';
 import styles from './onboarding/onboarding.module.css';
 
 /**
@@ -53,6 +54,14 @@ const SUGGESTIONS = [
     Component: CompleteProfileSuggestion,
     getData: (user) => ({ missingFields: getMissingFields(user) }),
     needsSlideIn: true
+  },
+  {
+    id: 'events-calendar',
+    // Show to artists and admins - encourage adding events
+    condition: (user) => ['artist', 'admin'].includes(user.user_type),
+    cooldownHours: 168, // 1 week
+    Component: EventsSuggestion,
+    needsSlideIn: false
   },
   {
     id: 'website-subscription',
@@ -126,14 +135,7 @@ export default function OnboardingBanner({ userData: dashboardUserData, openSlid
 
   const loadProfileData = async () => {
     try {
-      // Fetch full user profile from /users/me (for profile fields)
-      const response = await authApiRequest('users/me');
-
-      if (!response.ok) {
-        throw new Error('Failed to load user data');
-      }
-
-      const data = await response.json();
+      const data = await getCurrentUser();
       setProfileData(data);
     } catch (err) {
       console.error('OnboardingBanner - Error:', err);

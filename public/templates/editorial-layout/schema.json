@@ -1,0 +1,51 @@
+{
+  "template_slug": "editorial-layout",
+  "template_name": "Editorial Layout",
+  "description": "Magazine-style layout with large featured images and story-driven content blocks",
+  "version": "1.0.0",
+  "author": "Artist Sites",
+  "custom_fields": [
+    {
+      "key": "featured_layout",
+      "label": "Featured Section Layout",
+      "type": "select",
+      "description": "Layout style for featured artwork section",
+      "required": false,
+      "default_value": "hero",
+      "tier_required": "basic",
+      "options": [
+        { "value": "hero", "label": "Full-Width Hero" },
+        { "value": "split", "label": "Split Screen" },
+        { "value": "grid", "label": "Featured Grid" }
+      ]
+    },
+    {
+      "key": "content_width",
+      "label": "Content Width",
+      "type": "select",
+      "description": "Maximum width of content sections",
+      "required": false,
+      "default_value": "standard",
+      "tier_required": "basic",
+      "options": [
+        { "value": "narrow", "label": "Narrow (For Readability)" },
+        { "value": "standard", "label": "Standard (Balanced)" },
+        { "value": "wide", "label": "Wide (Full Bleed)" }
+      ]
+    },
+    {
+      "key": "typography_style",
+      "label": "Typography Style",
+      "type": "select",
+      "description": "Editorial typography treatment",
+      "required": false,
+      "default_value": "classic",
+      "tier_required": "basic",
+      "options": [
+        { "value": "classic", "label": "Classic Editorial" },
+        { "value": "modern", "label": "Modern Sans-Serif" },
+        { "value": "luxury", "label": "Luxury Serif" }
+      ]
+    }
+  ]
+}

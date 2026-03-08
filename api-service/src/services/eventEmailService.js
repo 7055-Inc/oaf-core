@@ -1,6 +1,6 @@
 /**
  * Event Email Service
- * Specialized email service for event-related communications in the Beemeeart platform
+ * Specialized email service for event-related communications in the Brakebee platform
  * Handles booth fee invoices, reminders, confirmations, and automated event email workflows
  */
 
@@ -45,13 +45,14 @@ class EventEmailService extends EmailService {
           e.venue_name,
           e.venue_city,
           e.venue_state,
-          u.first_name,
-          u.last_name,
-          u.email,
+          up.first_name,
+          up.last_name,
+          u.username as email,
           ebf.payment_intent_id
         FROM event_applications ea
         JOIN events e ON ea.event_id = e.id
         JOIN users u ON ea.artist_id = u.id
+        LEFT JOIN user_profiles up ON u.id = up.user_id
         LEFT JOIN event_booth_fees ebf ON ea.id = ebf.application_id
         WHERE ea.id = ?
       `, [applicationId]);
@@ -73,14 +74,14 @@ class EventEmailService extends EmailService {
 
       // Prepare template data
       const templateData = {
-        artist_name: `${app.first_name} ${app.last_name}`,
+        artist_name: app.first_name ? `${app.first_name} ${app.last_name}` : app.email,
         event_title: app.event_title,
         event_dates: eventDates,
         event_location: eventLocation,
         booth_fee_amount: boothFeeAmount,
         due_date: dueDate,
         payment_url: paymentUrl,
-        contact_email: 'support@beemeeart.com'
+        contact_email: 'support@brakebee.com'
       };
 
       // Send email
@@ -117,13 +118,14 @@ class EventEmailService extends EmailService {
           ea.booth_fee_due_date,
           ea.booth_fee_paid,
           e.title as event_title,
-          u.first_name,
-          u.last_name,
-          u.email,
+          up.first_name,
+          up.last_name,
+          u.username as email,
           ebf.payment_intent_id
         FROM event_applications ea
         JOIN events e ON ea.event_id = e.id
         JOIN users u ON ea.artist_id = u.id
+        LEFT JOIN user_profiles up ON u.id = up.user_id
         LEFT JOIN event_booth_fees ebf ON ea.id = ebf.application_id
         WHERE ea.id = ? AND ea.booth_fee_paid = 0
       `, [applicationId]);
@@ -142,12 +144,12 @@ class EventEmailService extends EmailService {
       // Determine template and prepare data
       let templateKey = 'booth_fee_reminder';
       let templateData = {
-        artist_name: `${app.first_name} ${app.last_name}`,
+        artist_name: app.first_name ? `${app.first_name} ${app.last_name}` : app.email,
         event_title: app.event_title,
         booth_fee_amount: this.formatCurrency(app.booth_fee_amount),
         due_date: this.formatDate(app.booth_fee_due_date),
         payment_url: `${process.env.FRONTEND_URL}/event-payment/${app.payment_intent_id}`,
-        contact_email: 'support@beemeeart.com'
+        contact_email: 'support@brakebee.com'
       };
 
       if (daysDiff < 0) {
@@ -192,15 +194,16 @@ class EventEmailService extends EmailService {
           ea.artist_id,
           ea.booth_fee_amount,
           e.title as event_title,
-          u.first_name,
-          u.last_name,
-          u.email,
+          up.first_name,
+          up.last_name,
+          u.username as email,
           ebp.amount_paid,
           ebp.stripe_payment_intent_id,
           ebp.payment_date
         FROM event_applications ea
         JOIN events e ON ea.event_id = e.id
         JOIN users u ON ea.artist_id = u.id
+        LEFT JOIN user_profiles up ON u.id = up.user_id
         LEFT JOIN event_booth_payments ebp ON ea.id = ebp.application_id
         WHERE ea.id = ? AND ebp.stripe_payment_intent_id = ?
       `, [applicationId, paymentIntentId]);
@@ -213,12 +216,12 @@ class EventEmailService extends EmailService {
       
       // Prepare template data
       const templateData = {
-        artist_name: `${app.first_name} ${app.last_name}`,
+        artist_name: app.first_name ? `${app.first_name} ${app.last_name}` : app.email,
         event_title: app.event_title,
         amount_paid: this.formatCurrency(app.amount_paid || app.booth_fee_amount),
         transaction_id: app.stripe_payment_intent_id,
         payment_date: this.formatDate(app.payment_date || new Date()),
-        contact_email: 'support@beemeeart.com'
+        contact_email: 'support@brakebee.com'
       };
 
       // Send email

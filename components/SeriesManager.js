@@ -29,11 +29,12 @@ export default function SeriesManager() {
   const fetchSeries = async () => {
     try {
       setLoading(true);
-      const response = await authApiRequest('api/series');
+      const response = await authApiRequest('api/v2/events/series');
       
       if (response.ok) {
         const data = await response.json();
-        setSeries(data.series || []);
+        const payload = data.data || data;
+        setSeries(payload.series || []);
       } else {
         setError('Failed to fetch series');
       }
@@ -49,7 +50,7 @@ export default function SeriesManager() {
     setLoading(true);
     
     try {
-      const response = await authApiRequest('api/series', {
+      const response = await authApiRequest('api/v2/events/series', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -70,7 +71,7 @@ export default function SeriesManager() {
         await fetchSeries();
       } else {
         const errorData = await response.json();
-        setError(errorData.error || 'Failed to create series');
+        setError(errorData.error?.message || errorData.error || 'Failed to create series');
       }
     } catch (err) {
       setError('Error creating series');
@@ -81,17 +82,18 @@ export default function SeriesManager() {
 
   const handleGenerateNextEvent = async (seriesId) => {
     try {
-      const response = await authenticatedApiRequest(`api/series/${seriesId}/generate`, {
+      const response = await authenticatedApiRequest(`api/v2/events/series/${seriesId}/generate`, {
         method: 'POST'
       });
 
       if (response.ok) {
         const data = await response.json();
-        alert(`✅ Next event generated successfully! Event ID: ${data.event_id}`);
+        const payload = data.data || data;
+        alert(`✅ Next event generated successfully! Event ID: ${payload.event_id}`);
         await fetchSeries();
       } else {
         const errorData = await response.json();
-        alert(`❌ Error: ${errorData.error}`);
+        alert(`❌ Error: ${errorData.error?.message || errorData.error}`);
       }
     } catch (err) {
       alert('❌ Error generating event');

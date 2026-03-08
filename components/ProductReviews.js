@@ -31,8 +31,9 @@ export default function ProductReviews({ productId, currentUserId }) {
 
   const loadReviews = async () => {
     try {
-      const response = await apiRequest(`/api/reviews?type=product&id=${productId}&sort=recent&limit=50`);
-      const data = await response.json();
+      const response = await apiRequest(`/api/v2/content/reviews?type=product&id=${productId}&sort=recent&limit=50`);
+      const envelope = await response.json();
+      const data = envelope.data || envelope;
       setReviews(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error loading reviews:', error);
@@ -44,9 +45,9 @@ export default function ProductReviews({ productId, currentUserId }) {
 
   const loadReviewSummary = async () => {
     try {
-      const response = await apiRequest(`/api/reviews/summary?type=product&id=${productId}`);
-      const data = await response.json();
-      setReviewSummary(data);
+      const response = await apiRequest(`/api/v2/content/reviews/summary?type=product&id=${productId}`);
+      const envelope = await response.json();
+      setReviewSummary(envelope.data || envelope);
     } catch (error) {
       console.error('Error loading review summary:', error);
     }
@@ -55,11 +56,12 @@ export default function ProductReviews({ productId, currentUserId }) {
   const checkEligibility = async () => {
     try {
       const token = getAuthToken();
-      const response = await authApiRequest(`/api/reviews/check-eligibility?type=product&id=${productId}`, {
+      const response = await authApiRequest(`/api/v2/content/reviews/check-eligibility?type=product&id=${productId}`, {
         method: 'GET',
         token
       });
-      const data = await response.json();
+      const envelope = await response.json();
+      const data = envelope.data || envelope;
       setCanReview(data.canReview);
       setEligibilityMessage(data.reason || '');
     } catch (error) {
@@ -92,7 +94,7 @@ export default function ProductReviews({ productId, currentUserId }) {
 
     try {
       const token = getAuthToken();
-      const response = await authApiRequest('/api/reviews', {
+      const response = await authApiRequest('/api/v2/content/reviews', {
         method: 'POST',
         token,
         body: JSON.stringify({
@@ -108,7 +110,8 @@ export default function ProductReviews({ productId, currentUserId }) {
         }
       });
 
-      const newReview = await response.json();
+      const envelope = await response.json();
+      const newReview = envelope.data || envelope;
 
       // Reset form
       setRating(0);
@@ -139,7 +142,7 @@ export default function ProductReviews({ productId, currentUserId }) {
 
     try {
       const token = getAuthToken();
-      await authApiRequest(`/api/reviews/${reviewId}/helpful`, {
+      await authApiRequest(`/api/v2/content/reviews/${reviewId}/helpful`, {
         method: 'POST',
         token,
         body: JSON.stringify({ vote: voteType }),

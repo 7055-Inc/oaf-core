@@ -1,11 +1,12 @@
 /**
  * Email Service
- * Comprehensive email management system for the Beemeeart platform
+ * Comprehensive email management system for the Brakebee platform
  * Handles template rendering, user preferences, bounce management, and queue processing
  */
 
 const nodemailer = require('nodemailer');
 const db = require('../../config/db');
+const emailTemplateConfig = require('../../config/email-templates');
 
 /**
  * EmailService Class
@@ -86,7 +87,7 @@ class EmailService {
 
       // Render template
       const renderedSubject = this.renderTemplate(template.subject_template, templateData);
-      const renderedBodyContent = this.renderTemplate(template.body_template, templateData);
+      const renderedBodyContent = this.renderTemplate(template.body_template, templateData, true);
       const renderedBody = await this.renderEmailWithLayout(renderedBodyContent, templateData, template);
 
       // Send email
@@ -168,7 +169,8 @@ class EmailService {
   // ===== TEMPLATE MANAGEMENT =====
 
   /**
-   * Get email template by key from database
+   * Get email template by key from database with config defaults
+   * If body_template or subject_template is null in DB, loads from config file
    * 
    * @param {string} templateKey - Template identifier
    * @returns {Promise<Object|null>} Template object or null if not found
@@ -176,27 +178,166 @@ class EmailService {
    */
   async getTemplate(templateKey) {
     try {
+      const configTemplate = emailTemplateConfig.getTemplate(templateKey);
+
+      // Config takes priority -- if it exists, use it with DB metadata as fallback
+      if (configTemplate) {
+        const [rows] = await db.execute(
+          'SELECT * FROM email_templates WHERE template_key = ?',
+          [templateKey]
+        );
+        const dbTemplate = rows[0];
+
+        return {
+          id: dbTemplate?.id || null,
+          template_key: configTemplate.template_key,
+          name: configTemplate.name || dbTemplate?.name,
+          subject_template: configTemplate.subject_template,
+          body_template: typeof configTemplate.body_template === 'object'
+            ? JSON.stringify(configTemplate.body_template)
+            : configTemplate.body_template,
+          is_transactional: configTemplate.is_transactional ? 1 : (dbTemplate?.is_transactional || 0),
+          priority_level: configTemplate.priority_level || dbTemplate?.priority_level,
+          layout_key: configTemplate.layout_key || dbTemplate?.layout_key || 'default',
+          can_compile: dbTemplate?.can_compile || 0,
+          from_config: true
+        };
+      }
+
+      // No config template -- fall back to database
       const [rows] = await db.execute(
         'SELECT * FROM email_templates WHERE template_key = ?',
         [templateKey]
       );
+
       return rows[0] || null;
     } catch (error) {
       console.error('Template fetch error:', error);
       throw error;
     }
   }
+  
+  /**
+   * Get template config default (for UI to show what the default is)
+   * 
+   * @param {string} templateKey - Template identifier
+   * @returns {Object|null} Config template or null
+   */
+  getTemplateDefault(templateKey) {
+    return emailTemplateConfig.getTemplate(templateKey);
+  }
+
+  /**
+   * Convert Editor.js blocks to email-safe HTML
+   * @param {Object} blocksData - Editor.js data object with blocks array
+   * @returns {string} Email-safe HTML string
+   */
+  blocksToEmailHtml(blocksData) {
+    if (!blocksData || !blocksData.blocks || !Array.isArray(blocksData.blocks)) {
+      return '';
+    }
+    
+    return blocksData.blocks.map(block => {
+      const { type, data: blockData } = block;
+      
+      switch (type) {
+        case 'paragraph':
+          return `<p style="margin: 0 0 16px 0; line-height: 1.6; color: #333;">${blockData.text || ''}</p>`;
+        
+        case 'header':
+          const level = blockData.level || 2;
+          const sizes = { 2: '24px', 3: '20px', 4: '18px' };
+          return `<h${level} style="margin: 24px 0 12px 0; font-size: ${sizes[level]}; color: #1a1a1a;">${blockData.text || ''}</h${level}>`;
+        
+        case 'list':
+          const tag = blockData.style === 'ordered' ? 'ol' : 'ul';
+          const items = (blockData.items || []).map(item => {
+            const text = typeof item === 'string' ? item : item.content || '';
+            return `<li style="margin: 8px 0;">${text}</li>`;
+          }).join('');
+          return `<${tag} style="margin: 16px 0; padding-left: 24px;">${items}</${tag}>`;
+        
+        case 'image':
+          const imgUrl = blockData.file?.url || blockData.url || '';
+          const caption = blockData.caption || '';
+          return `<div style="margin: 24px 0; text-align: center;">
+            <img src="${imgUrl}" alt="${caption}" style="max-width: 100%; height: auto; border-radius: 8px;" />
+            ${caption ? `<p style="font-size: 14px; color: #666; margin-top: 8px;">${caption}</p>` : ''}
+          </div>`;
+        
+        case 'quote':
+          return `<blockquote style="margin: 24px 0; padding: 16px 24px; border-left: 4px solid #055474; background: #f8f9fa;">
+            <p style="font-style: italic; color: #444; margin: 0;">${blockData.text || ''}</p>
+            ${blockData.caption ? `<cite style="display: block; margin-top: 8px; font-size: 14px; color: #666;">— ${blockData.caption}</cite>` : ''}
+          </blockquote>`;
+        
+        case 'delimiter':
+          return `<hr style="border: none; border-top: 1px solid #e0e0e0; margin: 32px 0;" />`;
+        
+        case 'warning':
+          return `<div style="margin: 24px 0; padding: 16px; background: #fff8e1; border-left: 4px solid #ff9800;">
+            ${blockData.title ? `<strong style="color: #e65100;">${blockData.title}</strong><br />` : ''}
+            <span style="color: #333;">${blockData.message || ''}</span>
+          </div>`;
+        
+        case 'table':
+          if (!blockData.content) return '';
+          const rows = blockData.content.map((row, idx) => {
+            const cells = row.map((cell, cidx) => {
+              const cellTag = idx === 0 && blockData.withHeadings ? 'th' : 'td';
+              const style = idx === 0 && blockData.withHeadings 
+                ? 'padding: 12px; border: 1px solid #e0e0e0; background: #f5f5f5; font-weight: 600;'
+                : 'padding: 12px; border: 1px solid #e0e0e0;';
+              return `<${cellTag} style="${style}">${cell}</${cellTag}>`;
+            }).join('');
+            return `<tr>${cells}</tr>`;
+          }).join('');
+          return `<table style="width: 100%; border-collapse: collapse; margin: 24px 0;"><tbody>${rows}</tbody></table>`;
+        
+        default:
+          if (blockData?.text) {
+            return `<p style="margin: 0 0 16px 0; line-height: 1.6;">${blockData.text}</p>`;
+          }
+          return '';
+      }
+    }).join('\n');
+  }
+
+  /**
+   * Parse template body - handles both legacy HTML and Editor.js blocks format
+   * @param {string} bodyTemplate - Template body (can be HTML string or JSON blocks)
+   * @returns {string} HTML string ready for rendering
+   */
+  parseTemplateBody(bodyTemplate) {
+    if (!bodyTemplate) return '';
+    
+    // Try to parse as JSON blocks format
+    try {
+      const parsed = JSON.parse(bodyTemplate);
+      if (parsed.blocks && Array.isArray(parsed.blocks)) {
+        return this.blocksToEmailHtml(parsed);
+      }
+    } catch (e) {
+      // Not JSON, treat as legacy HTML
+    }
+    
+    // Return as-is (legacy HTML)
+    return bodyTemplate;
+  }
 
   /**
    * Render template with variable substitution
    * Uses #{variable} syntax for template variables
+   * Handles both legacy HTML and Editor.js blocks format
    * 
-   * @param {string} template - Template string with variables
+   * @param {string} template - Template string with variables (HTML or JSON blocks)
    * @param {Object} data - Data object for variable substitution
+   * @param {boolean} isBody - Whether this is the body template (needs block parsing)
    * @returns {string} Rendered template string
    */
-  renderTemplate(template, data) {
-    let rendered = template;
+  renderTemplate(template, data, isBody = false) {
+    // If this is a body template, check for blocks format
+    let rendered = isBody ? this.parseTemplateBody(template) : template;
     
     // Simple template variable replacement: #{variable}
     for (const [key, value] of Object.entries(data)) {
@@ -282,8 +423,8 @@ class EmailService {
       console.error('Error fetching company data:', error);
       // Return defaults if company data fails
       return {
-        company_name: 'Beemeeart',
-        contact_email: 'hello@beemeeart.com',
+        company_name: 'Brakebee',
+        contact_email: 'hello@brakebee.com',
         address_city: 'Harris',
         address_state: 'Iowa',
         address_postal_code: '51345'
@@ -668,12 +809,12 @@ class EmailService {
       // Generate site URL using environment variables
       const siteUrl = site.custom_domain 
         ? `https://${site.custom_domain}` 
-        : `https://${site.subdomain}.beemeeart.com`;
+        : `https://${site.subdomain}.brakebee.com`;
 
       // Generate logo URL with fallback using environment variables
       const logoUrl = site.logo_path 
         ? `${process.env.SMART_MEDIA_BASE_URL}/${site.logo_path.replace(/^\/temp_images\//, '').replace(/^\//, '')}`
-        : `${process.env.FRONTEND_URL}/static_media/logo.png`; // Fallback to Beemeeart logo
+        : `${process.env.FRONTEND_URL}/static_media/logo.png`; // Fallback to Brakebee logo
 
       return {
         artist_business_name: site.business_name || `${site.first_name} ${site.last_name}` || 'Artist',
@@ -729,7 +870,7 @@ class EmailService {
 
       // Render template
       const renderedSubject = this.renderTemplate(template.subject_template, templateData);
-      const renderedBodyContent = this.renderTemplate(template.body_template, templateData);
+      const renderedBodyContent = this.renderTemplate(template.body_template, templateData, true);
       const renderedBody = await this.renderEmailWithLayout(renderedBodyContent, templateData, template);
 
       // Send email

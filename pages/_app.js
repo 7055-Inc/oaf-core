@@ -1,9 +1,10 @@
-import '../styles/global.css';
+import '../modules/styles/global.css';
+import '../modules/dashboard/styles/dashboard.css';
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { MainLayout } from '../components/layouts';
-import CookieBanner, { hasFullCookieConsent } from '../components/CookieBanner';
+import { CookieBanner, hasFullCookieConsent } from '../modules/shared';
 import WelcomeBanner from '../components/WelcomeBanner';
 
 // Google Tag Manager ID
@@ -39,10 +40,17 @@ const ORGANIZATION_SCHEMA = {
   "@context": "https://schema.org",
   "@type": "Organization",
   "name": "Brakebee",
-  "alternateName": "Brakebee Arts",
+  "legalName": "Online Art Festival LLC DBA Brakebee",
+  "alternateName": ["Brakebee Arts"],
   "url": "https://brakebee.com",
   "logo": "https://brakebee.com/static_media/brakebee-logo.png",
   "description": "Brakebee connects art lovers with independent artists. Discover unique artwork, attend live events, and support creators directly.",
+  "foundingDate": "2020",
+  "parentOrganization": {
+    "@type": "Organization",
+    "name": "7055 Inc",
+    "description": "Parent holding company and IP rights holder"
+  },
   "sameAs": [
     "https://www.facebook.com/BrakebeeArt",
     "https://www.instagram.com/brakebeeart/",
@@ -54,6 +62,7 @@ const ORGANIZATION_SCHEMA = {
   "contactPoint": {
     "@type": "ContactPoint",
     "contactType": "customer service",
+    "email": "support@brakebee.com",
     "url": "https://brakebee.com/contact"
   }
 };
@@ -103,7 +112,8 @@ export default function MyApp({ Component, pageProps }) {
       router.pathname.startsWith('/makers') || 
       router.pathname.startsWith('/promoter') ||
       router.pathname.startsWith('/artist-storefront') ||
-      router.pathname.startsWith('/custom-sites')) {
+      router.pathname.startsWith('/custom-sites') ||
+      router.pathname.startsWith('/shopify')) {
     return (
       <>
         <Component {...pageProps} />
@@ -117,7 +127,9 @@ export default function MyApp({ Component, pageProps }) {
   // Dynamic pages (containing [param]) should set their own canonical with resolved IDs
   const isDynamicRoute = router.pathname.includes('[');
   const canonicalPath = router.asPath.split('?')[0]; // Remove query params
-  const canonicalUrl = !isDynamicRoute ? DEFAULT_SEO.url + canonicalPath : null;
+  // Normalize to no trailing slash (root "/" becomes empty string)
+  const normalizedPath = canonicalPath === '/' ? '' : canonicalPath.replace(/\/$/, '');
+  const canonicalUrl = !isDynamicRoute ? DEFAULT_SEO.url + normalizedPath : null;
   
   // Don't set default meta description for dynamic routes - they set their own
   const useDefaultMeta = !isDynamicRoute;
@@ -132,8 +144,8 @@ export default function MyApp({ Component, pageProps }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         {useDefaultMeta && <meta key="og:title" property="og:title" content={DEFAULT_SEO.title} />}
         {useDefaultMeta && <meta key="og:description" property="og:description" content={DEFAULT_SEO.description} />}
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content={DEFAULT_SEO.url} />
+        <meta key="og:type" property="og:type" content="website" />
+        <meta key="og:url" property="og:url" content={canonicalUrl || DEFAULT_SEO.url} />
         <meta property="og:image" content="https://brakebee.com/static_media/brakebee-logo.png" />
         <meta name="twitter:card" content="summary_large_image" />
         {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}

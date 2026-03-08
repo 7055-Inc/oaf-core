@@ -47,12 +47,12 @@ export default function StripeOnboardingComplete() {
 
   const checkAccountStatus = async () => {
     try {
-      const response = await authApiRequest('vendor/settings');
+      const response = await authApiRequest('/api/v2/commerce/vendor/settings');
       if (!response.ok) {
         throw new Error('Failed to fetch account status');
       }
       const data = await response.json();
-      setAccountStatus(data.settings);
+      setAccountStatus(data.data.settings);
     } catch (err) {
       setError('Unable to verify account status');
     } finally {

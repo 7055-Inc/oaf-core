@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import Breadcrumb from '../../../components/Breadcrumb';
+import { Breadcrumb } from '../../../modules/shared';
 import { apiRequest } from '../../../lib/apiUtils';
 import styles from '../Help.module.css';
 
@@ -78,8 +78,9 @@ export default function HelpSectionPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiRequest(`api/articles?page_type=help_article&section=${section}&status=published`);
-      const data = await response.json();
+      const response = await apiRequest(`api/v2/content/articles?page_type=help_article&section=${section}&status=published`);
+      const envelope = await response.json();
+      const data = envelope.data || envelope;
       setArticles(data.articles || []);
     } catch (err) {
       setError('Failed to load articles');

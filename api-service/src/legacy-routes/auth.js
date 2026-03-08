@@ -1,0 +1,605 @@
+/**
+ * Authentication Routes
+ * Handles user authentication, token exchange, refresh tokens, and cookie consent
+ * Supports Google OAuth, email authentication, and JWT token management
+ */
+
+const express = require('express');
+const router = express.Router();
+const db = require('../../config/db');
+const jwt = require('jsonwebtoken');
+const { secureLogger } = require('../middleware/secureLogger');
+const crypto = require('crypto');
+const verifyToken = require('../middleware/jwt');
+const { encrypt } = require('../utils/encryption');
+
+/**
+ * POST /auth/exchange
+ * Exchange OAuth tokens or validate existing JWT tokens
+ * Supports Google OAuth, email authentication, and token validation
+ * 
+ * @route POST /auth/exchange
+ * @param {string} provider - Authentication provider ('google', 'email', 'validate')
+ * @param {string} token - OAuth token or JWT token to exchange/validate
+ * @param {string} [email] - Email address (required for email provider)
+ * @returns {Object} Access token, refresh token, and user ID
+ */
+router.post('/exchange', async (req, res) => {
+  try {
+    secureLogger.info('Starting /auth/exchange route');
+    const { provider, token, email } = req.body;
+
+    if (!provider || !token) {
+      secureLogger.warn('Validation failed: Missing required fields');
+      return res.status(400).json({ error: 'Missing required fields: provider and token' });
+    }
+
+    if (provider === 'validate') {
+      secureLogger.info('Handling validate provider request');
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const userId = decoded.userId;
+        secureLogger.info('Fetching user data for validation', { userId });
+        
+        const [user] = await db.query('SELECT user_type FROM users WHERE id = ?', [userId]);
+        if (!user[0]) {
+          secureLogger.warn('User not found during validation', { userId });
+          throw new Error('User not found');
+        }
+        
+        const [types] = await db.query('SELECT type FROM user_types WHERE user_id = ?', [userId]);
+        const roles = [user[0]?.user_type, ...(types?.map(t => t.type) || [])].filter(Boolean);
+        
+        // Fetch permissions - updated for logical permission groups
+        const [userPermissions] = await db.query('SELECT * FROM user_permissions WHERE user_id = ?', [userId]);
+        const permissions = [];
+        if (userPermissions[0]) {
+          if (userPermissions[0].vendor) permissions.push('vendor');
+          if (userPermissions[0].events) permissions.push('events');
+          if (userPermissions[0].stripe_connect) permissions.push('stripe_connect');
+          if (userPermissions[0].manage_sites) permissions.push('manage_sites');
+          if (userPermissions[0].manage_content) permissions.push('manage_content');
+          if (userPermissions[0].manage_system) permissions.push('manage_system');
+          if (userPermissions[0].verified) permissions.push('verified');
+          if (userPermissions[0].marketplace) permissions.push('marketplace');
+          if (userPermissions[0].shipping) permissions.push('shipping');
+          if (userPermissions[0].sites) permissions.push('sites');
+          if (userPermissions[0].professional_sites) permissions.push('professional_sites');
+        }
+        
+        // Admin users get all permissions automatically
+        if (roles.includes('admin')) {
+          const allPermissions = ['vendor', 'events', 'stripe_connect', 'manage_sites', 'manage_content', 'manage_system', 'verified', 'marketplace', 'shipping', 'sites', 'professional_sites'];
+          for (const permission of allPermissions) {
+            if (!permissions.includes(permission)) {
+              permissions.push(permission);
+            }
+          }
+        }
+        
+        secureLogger.audit('Token validation successful', { userId, roleCount: roles.length, permissionCount: permissions.length });
+        res.json({ roles, permissions });
+        return;
+      } catch (err) {
+        secureLogger.error('Token validation error', err);
+        return res.status(400).json({ error: 'Invalid token' });
+      }
+    }
+
+    if (provider === 'email' && !email) {
+      secureLogger.warn('Validation failed: Missing email for email provider');
+      return res.status(400).json({ error: 'Missing required field: email (for email provider)' });
+    }
+
+    let providerId;
+    let providerToken = token;
+    let emailVerified = 'no';
+    if (provider === 'google') {
+      const decodedToken = jwt.decode(token);
+      if (!decodedToken || !decodedToken.sub) {
+        throw new Error('Invalid Google ID token: missing sub claim');
+      }
+      providerId = decodedToken.sub;
+      emailVerified = decodedToken.email_verified ? 'yes' : 'no';
+      secureLogger.info('Google authentication processed', { providerIdLength: providerId.length });
+    } else if (provider === 'email') {
+      providerId = email;
+      const decodedToken = jwt.decode(token);
+      if (!decodedToken) {
+        secureLogger.error('Failed to decode email token', { tokenLength: token?.length });
+        throw new Error('Invalid email token: failed to decode');
+      }
+      emailVerified = decodedToken.email_verified ? 'yes' : 'no';
+    } else {
+      secureLogger.warn('Validation failed: Invalid provider');
+      return res.status(400).json({ error: 'Invalid provider' });
+    }
+
+    let existingLogin;
+    try {
+      [existingLogin] = await db.query('SELECT user_id FROM user_logins WHERE provider = ? AND provider_id = ?', [provider, providerId]);
+    } catch (dbError) {
+      throw new Error('Database query failed for user_logins: ' + dbError.message);
+    }
+
+    let userId;
+    if (existingLogin.length) {
+      userId = existingLogin[0].user_id;
+      await db.query('UPDATE users SET email_verified = ?, status = ? WHERE id = ?', [emailVerified, emailVerified === 'yes' ? 'active' : 'draft', userId]);
+    } else {
+      let userCheck;
+      try {
+        [userCheck] = await db.query('SELECT id FROM users WHERE username = ?', [email]);
+      } catch (dbError) {
+        throw new Error('Database query failed for users check: ' + dbError.message);
+      }
+
+      if (userCheck.length) {
+        userId = userCheck[0].id;
+        try {
+          secureLogger.info('Creating user login record', { userId, provider });
+          await db.query('INSERT INTO user_logins (user_id, provider, provider_id, provider_token, api_prefix) VALUES (?, ?, ?, ?, ?)', [userId, provider, providerId, encrypt(providerToken), 'BEE-']);
+          await db.query('UPDATE users SET email_verified = ?, status = ? WHERE id = ?', [emailVerified, emailVerified === 'yes' ? 'active' : 'draft', userId]);
+        } catch (dbError) {
+          throw new Error('Database insert failed for user_logins: ' + dbError.message);
+        }
+      } else {
+        const apiId = `BEE-${Math.random().toString(36).slice(2, 10)}`;
+        let result;
+        try {
+          [result] = await db.query('INSERT INTO users (username, email_verified, status, user_type) VALUES (?, ?, ?, ?)', [email, emailVerified, emailVerified === 'yes' ? 'active' : 'draft', 'Draft']);
+        } catch (err) {
+          secureLogger.error('Insert into users failed', err);
+          await db.query('INSERT INTO error_logs (user_id, error_message, stack) VALUES (?, ?, ?)', [null, 'Token exchange failed: ' + err.message, err.stack]);
+          res.status(500).json({ error: 'Token exchange failed' });
+          return;
+        }
+        userId = result.insertId;
+        try {
+          secureLogger.info('Creating new user with profiles', { userId, provider });
+          await db.query('INSERT INTO user_logins (user_id, provider, provider_id, provider_token, api_prefix) VALUES (?, ?, ?, ?, ?)', [userId, provider, providerId, encrypt(providerToken), 'BEE-']);
+          await db.query('INSERT INTO user_profiles (user_id) VALUES (?)', [userId]);
+          await db.query('INSERT INTO artist_profiles (user_id) VALUES (?)', [userId]);
+          await db.query('INSERT INTO promoter_profiles (user_id) VALUES (?)', [userId]);
+          await db.query('INSERT INTO community_profiles (user_id) VALUES (?)', [userId]);
+          await db.query('INSERT INTO admin_profiles (user_id) VALUES (?)', [userId]);
+        } catch (dbError) {
+          throw new Error('Database insert failed for profiles: ' + dbError.message);
+        }
+      }
+    }
+
+    let user;
+    try {
+      [user] = await db.query('SELECT user_type FROM users WHERE id = ?', [userId]);
+    } catch (dbError) {
+      throw new Error('Database query failed for user type: ' + dbError.message);
+    }
+
+    let types;
+    try {
+      [types] = await db.query('SELECT type FROM user_types WHERE user_id = ?', [userId]);
+    } catch (dbError) {
+      throw new Error('Database query failed for user types: ' + dbError.message);
+    }
+
+    const roles = [user[0]?.user_type, ...(types?.map(t => t.type) || [])].filter(Boolean);
+    
+    // Fetch permissions - updated for logical permission groups
+    let userPermissions;
+    try {
+      [userPermissions] = await db.query('SELECT * FROM user_permissions WHERE user_id = ?', [userId]);
+    } catch (dbError) {
+      throw new Error('Database query failed for user permissions: ' + dbError.message);
+    }
+    
+    const permissions = [];
+    if (userPermissions[0]) {
+      if (userPermissions[0].vendor) permissions.push('vendor');
+      if (userPermissions[0].events) permissions.push('events');
+      if (userPermissions[0].stripe_connect) permissions.push('stripe_connect');
+      if (userPermissions[0].manage_sites) permissions.push('manage_sites');
+      if (userPermissions[0].manage_content) permissions.push('manage_content');
+      if (userPermissions[0].manage_system) permissions.push('manage_system');
+      if (userPermissions[0].verified) permissions.push('verified');
+      if (userPermissions[0].marketplace) permissions.push('marketplace');
+      if (userPermissions[0].shipping) permissions.push('shipping');
+      if (userPermissions[0].sites) permissions.push('sites');
+      if (userPermissions[0].professional_sites) permissions.push('professional_sites');
+    }
+    
+    // Admin users get all permissions automatically
+    if (roles.includes('admin')) {
+      const allPermissions = ['vendor', 'events', 'stripe_connect', 'manage_sites', 'manage_content', 'manage_system', 'verified', 'marketplace', 'shipping', 'sites', 'professional_sites'];
+      for (const permission of allPermissions) {
+        if (!permissions.includes(permission)) {
+          permissions.push(permission);
+        }
+      }
+    }
+    
+    // Permission embedding/inheritance in the token
+    // All vendors implicitly have shipping and stripe_connect access
+    if (permissions.includes('vendor')) {
+      if (!permissions.includes('shipping')) {
+        permissions.push('shipping');
+      }
+      if (!permissions.includes('stripe_connect')) {
+        permissions.push('stripe_connect');
+      }
+    }
+    
+    // Generate 1-hour access token instead of 7-day token
+    const accessToken = jwt.sign({ userId, roles, permissions }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    
+    // Generate refresh token (7 days)
+    const refreshToken = crypto.randomBytes(64).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    
+    // Store refresh token in database
+    try {
+      await db.query(
+        'INSERT INTO refresh_tokens (user_id, token_hash, expires_at, device_info) VALUES (?, ?, ?, ?)',
+        [userId, tokenHash, expiresAt, req.get('User-Agent') || 'Unknown']
+      );
+    } catch (dbError) {
+      secureLogger.error('Failed to store refresh token', dbError);
+      // Continue anyway - user still gets access token
+    }
+    
+    secureLogger.audit('Token exchange successful', { 
+      userId, 
+      provider,
+      roleCount: roles.length,
+      permissionCount: permissions.length,
+      accessTokenExpiry: '1h',
+      refreshTokenExpiry: '7d'
+    });
+    
+    res.json({ 
+      token: accessToken, 
+      refreshToken: refreshToken,
+      userId 
+    });
+  } catch (err) {
+    secureLogger.error('Unexpected error in /auth/exchange', err);
+    try {
+      await db.query('INSERT INTO error_logs (user_id, error_message, stack) VALUES (?, ?, ?)', [null, err.message, err.stack]);
+    } catch (logError) {
+      secureLogger.error('Error logging failed', logError);
+    }
+    res.status(500).json({ error: 'Token exchange failed' });
+  }
+});
+
+/**
+ * POST /auth/refresh
+ * Refresh access token using refresh token
+ * Implements token rotation for enhanced security
+ * 
+ * @route POST /auth/refresh
+ * @param {string} refreshToken - Valid refresh token
+ * @returns {Object} New access token, new refresh token, and user ID
+ */
+router.post('/refresh', async (req, res) => {
+  try {
+    secureLogger.info('Starting /auth/refresh route');
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      secureLogger.warn('Refresh token missing in request');
+      return res.status(400).json({ error: 'Refresh token required' });
+    }
+
+    // Hash the refresh token to compare with database
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+
+    // Look up the refresh token in database
+    // Check both active tokens AND recently rotated tokens (within 30 second grace period)
+    let tokenRecord;
+    try {
+      [tokenRecord] = await db.query(
+        `SELECT user_id, expires_at, rotated_at FROM refresh_tokens 
+         WHERE token_hash = ? 
+         AND expires_at > NOW()
+         AND (rotated_at IS NULL OR rotated_at > DATE_SUB(NOW(), INTERVAL 30 SECOND))`,
+        [tokenHash]
+      );
+    } catch (dbError) {
+      throw new Error('Database query failed for refresh token: ' + dbError.message);
+    }
+
+    if (!tokenRecord || !tokenRecord[0]) {
+      secureLogger.warn('Invalid or expired refresh token', { tokenHash: tokenHash.substring(0, 8) + '...' });
+      return res.status(401).json({ error: 'Invalid or expired refresh token' });
+    }
+    
+    // If token was already rotated, return the new token info from cache
+    // This handles the race condition where multiple tabs try to refresh simultaneously
+    if (tokenRecord[0].rotated_at) {
+      secureLogger.info('Refresh token already rotated, checking for successor', { userId: tokenRecord[0].user_id });
+      // The token was already used - find the newest token for this user/device
+      const [latestToken] = await db.query(
+        `SELECT id FROM refresh_tokens 
+         WHERE user_id = ? AND rotated_at IS NULL 
+         ORDER BY created_at DESC LIMIT 1`,
+        [tokenRecord[0].user_id]
+      );
+      
+      if (!latestToken || !latestToken[0]) {
+        // Edge case: no valid successor found, force re-login
+        return res.status(401).json({ error: 'Session expired, please log in again' });
+      }
+      
+      // Return a signal that client should use their stored token
+      // (the other tab already updated localStorage/cookies)
+      return res.status(200).json({ 
+        tokenAlreadyRefreshed: true,
+        message: 'Token was already refreshed by another session'
+      });
+    }
+
+    const userId = tokenRecord[0].user_id;
+    secureLogger.info('Valid refresh token found', { userId });
+
+    // Get user data for new access token
+    let user, types, userPermissions;
+    try {
+      [user] = await db.query('SELECT user_type FROM users WHERE id = ?', [userId]);
+      [types] = await db.query('SELECT type FROM user_types WHERE user_id = ?', [userId]);
+      [userPermissions] = await db.query('SELECT * FROM user_permissions WHERE user_id = ?', [userId]);
+    } catch (dbError) {
+      throw new Error('Database query failed for user data: ' + dbError.message);
+    }
+
+    if (!user[0]) {
+      secureLogger.warn('User not found for refresh token', { userId });
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    // Build roles and permissions
+    const roles = [user[0]?.user_type, ...(types?.map(t => t.type) || [])].filter(Boolean);
+    const permissions = [];
+    if (userPermissions[0]) {
+      if (userPermissions[0].vendor) permissions.push('vendor');
+      if (userPermissions[0].events) permissions.push('events');
+      if (userPermissions[0].stripe_connect) permissions.push('stripe_connect');
+      if (userPermissions[0].manage_sites) permissions.push('manage_sites');
+      if (userPermissions[0].manage_content) permissions.push('manage_content');
+      if (userPermissions[0].manage_system) permissions.push('manage_system');
+      if (userPermissions[0].verified) permissions.push('verified');
+      if (userPermissions[0].marketplace) permissions.push('marketplace');
+      if (userPermissions[0].shipping) permissions.push('shipping');
+      if (userPermissions[0].sites) permissions.push('sites');
+      if (userPermissions[0].professional_sites) permissions.push('professional_sites');
+    }
+    
+    // Admin users get all permissions automatically
+    if (roles.includes('admin')) {
+      const allPermissions = ['vendor', 'events', 'stripe_connect', 'manage_sites', 'manage_content', 'manage_system', 'verified', 'marketplace', 'shipping', 'sites', 'professional_sites'];
+      for (const permission of allPermissions) {
+        if (!permissions.includes(permission)) {
+          permissions.push(permission);
+        }
+      }
+    }
+
+    // Generate new access token (1 hour expiration)
+    const newAccessToken = jwt.sign(
+      { userId, roles, permissions }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: '1h' }
+    );
+
+    // Optionally generate new refresh token and rotate
+    const newRefreshToken = crypto.randomBytes(64).toString('hex');
+    const newTokenHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    try {
+      // Mark old refresh token as rotated (don't delete yet - allows grace period for race conditions)
+      // A cleanup job should delete tokens where rotated_at < NOW() - INTERVAL 5 MINUTE
+      await db.query('UPDATE refresh_tokens SET rotated_at = NOW() WHERE token_hash = ?', [tokenHash]);
+      await db.query(
+        'INSERT INTO refresh_tokens (user_id, token_hash, expires_at, device_info) VALUES (?, ?, ?, ?)',
+        [userId, newTokenHash, expiresAt, req.get('User-Agent') || 'Unknown']
+      );
+      
+      // Cleanup: delete old rotated tokens (older than 5 minutes) for this user
+      await db.query(
+        'DELETE FROM refresh_tokens WHERE user_id = ? AND rotated_at IS NOT NULL AND rotated_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)',
+        [userId]
+      );
+    } catch (dbError) {
+      secureLogger.error('Failed to rotate refresh token', dbError);
+      // Continue anyway - user gets new access token even if refresh rotation fails
+    }
+
+    secureLogger.audit('Access token refreshed successfully', { 
+      userId, 
+      roleCount: roles.length,
+      permissionCount: permissions.length
+    });
+
+    res.json({ 
+      token: newAccessToken,
+      refreshToken: newRefreshToken,
+      userId 
+    });
+
+  } catch (err) {
+    secureLogger.error('Unexpected error in /auth/refresh', err);
+    try {
+      await db.query('INSERT INTO error_logs (user_id, error_message, stack) VALUES (?, ?, ?)', [null, err.message, err.stack]);
+    } catch (logError) {
+      secureLogger.error('Error logging failed', logError);
+    }
+    res.status(500).json({ error: 'Token refresh failed' });
+  }
+});
+
+/**
+ * POST /auth/cookie-consent/anonymous
+ * Log anonymous cookie consent for audit trail before user login
+ * Provides GDPR compliance for anonymous users
+ * 
+ * @route POST /auth/cookie-consent/anonymous
+ * @param {string} consent - Consent value ('yes' or 'no')
+ * @param {string} sessionId - Anonymous session identifier
+ * @param {string} [timestamp] - Consent timestamp
+ * @returns {Object} Success confirmation
+ */
+router.post('/cookie-consent/anonymous', async (req, res) => {
+  try {
+    const { consent, sessionId, timestamp } = req.body;
+
+    if (!consent || !sessionId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing required fields: consent and sessionId' 
+      });
+    }
+
+    // Validate consent value
+    if (!['yes', 'no'].includes(consent)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid consent value. Must be "yes" or "no"' 
+      });
+    }
+
+    // Get client info for audit
+    const clientIp = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'];
+    const userAgent = req.headers['user-agent'];
+
+    // For anonymous users, we just log the consent but don't store it
+    // It will be stored in the users table when they actually log in
+
+    secureLogger.info('Anonymous cookie consent logged', { 
+      sessionId: sessionId.substring(0, 12) + '...', // Don't log full session ID
+      consent
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Cookie consent logged successfully' 
+    });
+
+  } catch (error) {
+    secureLogger.error('Error logging anonymous cookie consent:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to log cookie consent' 
+    });
+  }
+});
+
+/**
+ * POST /auth/cookie-consent/user
+ * Update authenticated user's cookie consent preference
+ * Stores consent in user database record for GDPR compliance
+ * 
+ * @route POST /auth/cookie-consent/user
+ * @middleware verifyToken - Requires valid JWT token
+ * @param {string} consent - Consent value ('yes' or 'no')
+ * @param {string} [timestamp] - Consent timestamp
+ * @returns {Object} Updated consent status and date
+ */
+router.post('/cookie-consent/user', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { consent, timestamp } = req.body;
+
+    if (!consent) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing required field: consent' 
+      });
+    }
+
+    // Validate consent value
+    if (!['yes', 'no'].includes(consent)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid consent value. Must be "yes" or "no"' 
+      });
+    }
+
+    // Update user's cookie consent in database
+    const consentBoolean = consent === 'yes';
+    const consentDate = timestamp ? new Date(timestamp) : new Date();
+
+    await db.query(`
+      UPDATE users 
+      SET cookie_consent_accepted = ?, last_consented = ?
+      WHERE id = ?
+    `, [consentBoolean, consentDate, userId]);
+
+    // Consent is now stored in the users table - no separate log needed
+
+    secureLogger.info('User cookie consent updated', { 
+      userId, 
+      consent
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Cookie consent updated successfully',
+      consent: consentBoolean,
+      consentDate: consentDate
+    });
+
+  } catch (error) {
+    secureLogger.error('Error updating user cookie consent:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to update cookie consent' 
+    });
+  }
+});
+
+/**
+ * GET /auth/cookie-consent/status
+ * Retrieve authenticated user's current cookie consent status
+ * Returns consent preference and date for GDPR compliance
+ * 
+ * @route GET /auth/cookie-consent/status
+ * @middleware verifyToken - Requires valid JWT token
+ * @returns {Object} Current consent status and consent date
+ */
+router.get('/cookie-consent/status', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    const [rows] = await db.query(`
+      SELECT cookie_consent_accepted, last_consented
+      FROM users 
+      WHERE id = ?
+    `, [userId]);
+
+    if (!rows[0]) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'User not found' 
+      });
+    }
+
+    const user = rows[0];
+
+    res.json({
+      success: true,
+      hasConsented: Boolean(user.cookie_consent_accepted),
+      consentDate: user.last_consented
+    });
+
+  } catch (error) {
+    secureLogger.error('Error fetching cookie consent status:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch cookie consent status' 
+    });
+  }
+});
+
+module.exports = router;

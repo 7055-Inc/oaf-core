@@ -20,7 +20,7 @@ export default function AuthorArchivePage() {
     setLoading(true);
     Promise.all([
       fetch(getApiUrl(`users/profile/${username}`)).then(res => res.json()),
-      fetch(`api/articles?author=${username}&limit=${pagination.limit}&page=${pagination.page}`).then(res => res.json())
+      fetch(getApiUrl(`api/v2/content/articles?author=${username}&limit=${pagination.limit}&page=${pagination.page}`)).then(res => res.json()).then(e => e.data || e)
     ])
       .then(([profileData, articlesData]) => {
         setAuthor(profileData.user || null);
@@ -92,10 +92,10 @@ export default function AuthorArchivePage() {
 
   // SEO meta tags
   const authorDisplayName = authorProfile?.display_name || author.username;
-  const metaTitle = `Articles by ${authorDisplayName} - Online Art Festival`;
+  const metaTitle = `Articles by ${authorDisplayName} | Brakebee`;
   const metaDescription = authorProfile?.artist_biography 
     ? `Read articles by ${authorDisplayName}. ${authorProfile.artist_biography.substring(0, 120)}...`
-    : `Explore articles written by ${authorDisplayName} on Online Art Festival`;
+    : `Explore articles written by ${authorDisplayName} on Brakebee`;
   const canonicalUrl = getFrontendUrl(`/articles/author/${username}`);
 
   // Generate JSON-LD structured data

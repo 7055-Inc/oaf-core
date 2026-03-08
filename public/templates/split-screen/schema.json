@@ -1,0 +1,49 @@
+{
+  "template_slug": "split-screen",
+  "template_name": "Split Screen",
+  "description": "Interactive dual-panel layout with draggable divider",
+  "version": "1.0.0",
+  "author": "Artist Sites",
+  "custom_fields": [
+    {
+      "key": "default_split",
+      "label": "Default Split Position",
+      "type": "select",
+      "description": "Initial position of the split divider",
+      "required": false,
+      "default_value": "50",
+      "tier_required": "pro",
+      "options": [
+        { "value": "30", "label": "30% / 70% (Left Focus)" },
+        { "value": "50", "label": "50% / 50% (Balanced)" },
+        { "value": "70", "label": "70% / 30% (Right Focus)" }
+      ]
+    },
+    {
+      "key": "split_orientation",
+      "label": "Split Orientation",
+      "type": "select",
+      "description": "Direction of the split",
+      "required": false,
+      "default_value": "vertical",
+      "tier_required": "pro",
+      "options": [
+        { "value": "vertical", "label": "Vertical (Left/Right)" },
+        { "value": "horizontal", "label": "Horizontal (Top/Bottom)" }
+      ]
+    },
+    {
+      "key": "allow_resize",
+      "label": "Allow User Resize",
+      "type": "select",
+      "description": "Let visitors drag the split divider",
+      "required": false,
+      "default_value": "yes",
+      "tier_required": "pro",
+      "options": [
+        { "value": "yes", "label": "Yes (Draggable)" },
+        { "value": "no", "label": "No (Fixed)" }
+      ]
+    }
+  ]
+}

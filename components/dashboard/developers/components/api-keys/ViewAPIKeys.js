@@ -21,7 +21,7 @@ export default function ViewAPIKeys({ userData, refreshTrigger }) {
         throw new Error('Please log in to view API keys');
       }
 
-      const response = await fetch(getApiUrl('api-keys'), {
+      const response = await fetch(getApiUrl('api/v2/auth/keys'), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -45,7 +45,7 @@ export default function ViewAPIKeys({ userData, refreshTrigger }) {
   const toggleKeyStatus = async (publicKey, currentStatus) => {
     try {
       const token = getAuthToken();
-      const response = await fetch(getApiUrl(`api-keys/${publicKey}/toggle`), {
+      const response = await fetch(getApiUrl(`api/v2/auth/keys/${encodeURIComponent(publicKey)}/toggle`), {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -70,7 +70,7 @@ export default function ViewAPIKeys({ userData, refreshTrigger }) {
 
     try {
       const token = getAuthToken();
-      const response = await fetch(getApiUrl(`api-keys/${publicKey}`), {
+      const response = await fetch(getApiUrl(`api/v2/auth/keys/${encodeURIComponent(publicKey)}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -122,7 +122,7 @@ export default function ViewAPIKeys({ userData, refreshTrigger }) {
     <div>
       <div style={{ marginBottom: '20px' }}>
         <p style={{ color: '#666', fontSize: '14px' }}>
-          Manage your API keys for accessing the Online Art Festival API. Keep your private keys secure and never share them publicly.
+          Manage your API keys for accessing the Brakebee API. Keep your private keys secure and never share them publicly.
         </p>
       </div>
 

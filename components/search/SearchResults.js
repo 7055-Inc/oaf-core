@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import PaintbrushLoader from './PaintbrushLoader';
 import { getApiUrl } from '../../lib/config';
+import { fetchEvent } from '../../lib/events/api';
 
 const CATEGORY_OPTIONS = [
   { label: 'All', value: 'all' },
@@ -174,9 +175,10 @@ export default function SearchResults({
         const articleIds = leoResults.results.articles.map(a => a.id);
         const articlePromises = articleIds.map(async (id) => {
           try {
-            const response = await fetch(getApiUrl(`articles/by-id/${id}`));
+            const response = await fetch(getApiUrl(`api/v2/content/articles/by-id/${id}`));
             if (response.ok) {
-              const data = await response.json();
+              const envelope = await response.json();
+              const data = envelope.data || envelope;
               return { 
                 ...data.article, 
                 leoRelevance: leoResults.results.articles.find(a => a.id === id)?.relevance,
@@ -191,20 +193,17 @@ export default function SearchResults({
         enriched.articles = (await Promise.all(articlePromises)).filter(a => a !== null);
       }
 
-      // Fetch events
+      // Fetch events (v2)
       if (leoResults.results?.events?.length > 0) {
         const eventIds = leoResults.results.events.map(e => e.id);
         const eventPromises = eventIds.map(async (id) => {
           try {
-            const response = await fetch(getApiUrl(`events/${id}`));
-            if (response.ok) {
-              const eventData = await response.json();
-              return { 
-                ...eventData, 
-                leoRelevance: leoResults.results.events.find(e => e.id === id)?.relevance,
-                resultType: 'event'
-              };
-            }
+            const eventData = await fetchEvent(id);
+            return {
+              ...eventData,
+              leoRelevance: leoResults.results.events.find(e => e.id === id)?.relevance,
+              resultType: 'event'
+            };
           } catch (error) {
             console.warn(`Failed to fetch event ${id}:`, error);
           }

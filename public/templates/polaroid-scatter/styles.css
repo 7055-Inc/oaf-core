@@ -1,0 +1,310 @@
+/* Polaroid Scatter Template
+ * Version: 1.0.0
+ * Description: Scattered polaroid photos aesthetic
+ * Target: Personal portfolios, nostalgic vibes, casual presentation
+ * Tier: Basic (CSS-only)
+ */
+
+/* ========================================
+   BASE - TEXTURED SURFACE
+   ======================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.storefront {
+  min-height: 100vh;
+  font-family: var(--body-font, 'Indie Flower', cursive);
+  color: var(--text-color, #2a2a2a);
+  background: #d4af7a;
+  padding: calc(3rem * var(--spacing-scale, 1));
+}
+
+/* Cork board texture */
+.storefront[data-surface-texture="cork"] {
+  background: #d4af7a;
+  background-image: 
+    radial-gradient(circle at 20% 20%, rgba(0,0,0,0.05) 1px, transparent 1px),
+    radial-gradient(circle at 80% 80%, rgba(0,0,0,0.03) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+/* Wood table texture */
+.storefront[data-surface-texture="wood"] {
+  background: linear-gradient(90deg, #8b4513 0%, #a0522d 50%, #8b4513 100%);
+  background-size: 200px 100%;
+}
+
+/* Fabric texture */
+.storefront[data-surface-texture="fabric"] {
+  background: #e8dcc4;
+  background-image: 
+    repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.02) 2px, rgba(0,0,0,0.02) 4px);
+}
+
+/* ========================================
+   HEADER - PINNED NOTE STYLE
+   ======================================== */
+
+.header {
+  max-width: 1400px;
+  margin: 0 auto calc(4rem * var(--spacing-scale, 1));
+  padding: calc(2rem * var(--spacing-scale, 1));
+  background: #fefae8;
+  box-shadow: 
+    0 2px 4px rgba(0,0,0,0.1),
+    0 4px 8px rgba(0,0,0,0.05);
+  transform: rotate(-1deg);
+  position: relative;
+}
+
+.header::before {
+  content: '📌';
+  position: absolute;
+  top: -10px;
+  right: 30px;
+  font-size: 2rem;
+}
+
+.artistName {
+  font-size: calc(2.5rem * var(--spacing-scale, 1));
+  font-weight: 700;
+  font-family: 'Permanent Marker', cursive;
+  color: #2a2a2a;
+}
+
+/* ========================================
+   POLAROID GRID
+   ======================================== */
+
+.productsGrid,
+.addon-products-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: calc(4rem * var(--spacing-scale, 1));
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: calc(3rem * var(--spacing-scale, 1));
+}
+
+.storefront[data-scatter-density="tight"] .productsGrid,
+.storefront[data-scatter-density="tight"] .addon-products-grid {
+  gap: calc(2rem * var(--spacing-scale, 1));
+}
+
+.storefront[data-scatter-density="loose"] .productsGrid,
+.storefront[data-scatter-density="loose"] .addon-products-grid {
+  gap: calc(6rem * var(--spacing-scale, 1));
+}
+
+/* ========================================
+   POLAROID CARDS
+   ======================================== */
+
+.productCard,
+.addon-product-card {
+  background: #ffffff;
+  padding: calc(1rem * var(--spacing-scale, 1));
+  padding-bottom: calc(3rem * var(--spacing-scale, 1));
+  box-shadow: 
+    0 4px 8px rgba(0,0,0,0.15),
+    0 8px 16px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+/* Random rotations for scattered effect */
+.productCard:nth-child(1),
+.addon-product-card:nth-child(1) { transform: rotate(-3deg); }
+
+.productCard:nth-child(2),
+.addon-product-card:nth-child(2) { transform: rotate(4deg); }
+
+.productCard:nth-child(3),
+.addon-product-card:nth-child(3) { transform: rotate(-2deg); }
+
+.productCard:nth-child(4),
+.addon-product-card:nth-child(4) { transform: rotate(3deg); }
+
+.productCard:nth-child(5),
+.addon-product-card:nth-child(5) { transform: rotate(-4deg); }
+
+.productCard:nth-child(6),
+.addon-product-card:nth-child(6) { transform: rotate(2deg); }
+
+.productCard:nth-child(7),
+.addon-product-card:nth-child(7) { transform: rotate(-1deg); }
+
+.productCard:nth-child(8),
+.addon-product-card:nth-child(8) { transform: rotate(3deg); }
+
+.productCard:hover,
+.addon-product-card:hover {
+  transform: rotate(0deg) scale(1.08) translateY(-10px);
+  z-index: 100;
+  box-shadow: 
+    0 12px 24px rgba(0,0,0,0.2),
+    0 18px 36px rgba(0,0,0,0.15);
+}
+
+/* Tape effect */
+.productCard::before,
+.addon-product-card::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  right: 20px;
+  width: 50px;
+  height: 25px;
+  background: rgba(255, 255, 200, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  transform: rotate(45deg);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.storefront[data-show-tape="no"] .productCard::before,
+.storefront[data-show-tape="no"] .addon-product-card::before {
+  display: none;
+}
+
+.productImage,
+.addon-product-image-wrapper {
+  width: 100%;
+  aspect-ratio: 1;
+  background: #f0f0f0;
+  margin-bottom: calc(1rem * var(--spacing-scale, 1));
+  overflow: hidden;
+}
+
+.productImage img,
+.addon-product-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: contrast(1.05) brightness(0.98) sepia(0.15);
+}
+
+.productInfo,
+.addon-product-info {
+  text-align: center;
+}
+
+.productName,
+.addon-product-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: calc(0.5rem * var(--spacing-scale, 1));
+  font-family: 'Indie Flower', cursive;
+  color: #2a2a2a;
+}
+
+.storefront[data-handwriting-style="print"] .productName,
+.storefront[data-handwriting-style="print"] .addon-product-name {
+  font-family: 'Courier New', monospace;
+}
+
+.storefront[data-handwriting-style="none"] .productName,
+.storefront[data-handwriting-style="none"] .addon-product-name {
+  font-size: 0;
+}
+
+.productPrice,
+.addon-product-price {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #8b4513;
+}
+
+/* ========================================
+   ADDON SECTIONS
+   ======================================== */
+
+.addon-blog-cards {
+  max-width: 1600px;
+  margin: calc(5rem * var(--spacing-scale, 1)) auto;
+  padding: calc(3rem * var(--spacing-scale, 1));
+}
+
+.addon-blog-grid-small {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: calc(4rem * var(--spacing-scale, 1));
+}
+
+.addon-blog-card-small {
+  background: #ffffff;
+  padding: calc(1rem * var(--spacing-scale, 1));
+  padding-bottom: calc(3rem * var(--spacing-scale, 1));
+  box-shadow: 
+    0 4px 8px rgba(0,0,0,0.15),
+    0 8px 16px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.addon-blog-card-small:nth-child(1) { transform: rotate(-2deg); }
+.addon-blog-card-small:nth-child(2) { transform: rotate(3deg); }
+.addon-blog-card-small:nth-child(3) { transform: rotate(-3deg); }
+
+.addon-blog-card-small:hover {
+  transform: rotate(0deg) scale(1.05) translateY(-5px);
+  z-index: 100;
+}
+
+/* ========================================
+   FOOTER
+   ======================================== */
+
+.footer {
+  max-width: 1400px;
+  margin: calc(5rem * var(--spacing-scale, 1)) auto 0;
+  padding: calc(2rem * var(--spacing-scale, 1));
+  background: #fefae8;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  text-align: center;
+  transform: rotate(1deg);
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 1024px) {
+  .productsGrid,
+  .addon-products-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .productsGrid,
+  .addon-products-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: calc(3rem * var(--spacing-scale, 1));
+  }
+  
+  .addon-blog-grid-small {
+    grid-template-columns: 1fr;
+  }
+}
+
+.loading, .error {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #d4af7a;
+}
+
+@media print {
+  .storefront { background: #ffffff; }
+  .productCard, .addon-product-card { 
+    transform: rotate(0deg);
+    page-break-inside: avoid;
+  }
+}

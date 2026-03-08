@@ -1,0 +1,357 @@
+/* Product Slider Addon Styles */
+
+/* Container */
+.product-slider-container {
+  position: relative;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Wrapper - controls overflow */
+.product-slider-wrapper {
+  overflow: hidden;
+  position: relative;
+}
+
+/* Track - slides container */
+.product-slider-track {
+  display: flex;
+  align-items: stretch;
+  transition: transform 0.5s ease;
+  will-change: transform;
+}
+
+/* Individual slide */
+.product-slider-slide {
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+/* Preserve product card styling */
+.product-slider-slide > * {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Navigation arrows */
+.product-slider-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  
+  /* Button styling */
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15),
+              0 2px 4px rgba(0, 0, 0, 0.1);
+  
+  /* Icon */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--main-color, #055474);
+  
+  /* Interaction */
+  cursor: pointer;
+  transition: all 0.3s ease;
+  user-select: none;
+}
+
+.product-slider-prev {
+  left: -24px;
+}
+
+.product-slider-next {
+  right: -24px;
+}
+
+.product-slider-arrow:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: translateY(-50%) scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2),
+              0 3px 6px rgba(0, 0, 0, 0.15);
+}
+
+.product-slider-arrow:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.product-slider-arrow:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.product-slider-arrow:focus {
+  outline: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15),
+              0 2px 4px rgba(0, 0, 0, 0.1),
+              0 0 0 3px rgba(5, 84, 116, 0.3);
+}
+
+.product-slider-arrow svg {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
+/* Pagination dots */
+.product-slider-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.product-slider-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--main-color, #055474);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 0;
+}
+
+.product-slider-dot:hover {
+  background: rgba(5, 84, 116, 0.3);
+}
+
+.product-slider-dot.active {
+  background: var(--main-color, #055474);
+}
+
+.product-slider-dot:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(5, 84, 116, 0.3);
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .product-slider-prev {
+    left: -20px;
+  }
+  
+  .product-slider-next {
+    right: -20px;
+  }
+  
+  .product-slider-arrow {
+    width: 44px;
+    height: 44px;
+  }
+  
+  .product-slider-arrow svg {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Move arrows inside on mobile */
+  .product-slider-prev {
+    left: 8px;
+  }
+  
+  .product-slider-next {
+    right: 8px;
+  }
+  
+  .product-slider-arrow {
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.9);
+  }
+  
+  .product-slider-arrow svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .product-slider-arrow {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .product-slider-arrow svg {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .product-slider-prev {
+    left: 4px;
+  }
+  
+  .product-slider-next {
+    right: 4px;
+  }
+}
+
+/* Reduced motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .product-slider-track {
+    transition: none;
+  }
+  
+  .product-slider-arrow {
+    transition: none;
+  }
+  
+  .product-slider-arrow:hover {
+    transform: translateY(-50%);
+  }
+  
+  .product-slider-dot {
+    transition: none;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .product-slider-arrow {
+    background: rgba(30, 30, 30, 0.95);
+    color: #ffffff;
+  }
+  
+  .product-slider-arrow:hover {
+    background: rgba(30, 30, 30, 1);
+  }
+  
+  .product-slider-dot {
+    border-color: #ffffff;
+  }
+  
+  .product-slider-dot.active {
+    background: #ffffff;
+  }
+}
+
+/* Loading state */
+.product-slider-container.loading .product-slider-track {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Focus styles for container */
+.product-slider-container:focus {
+  outline: 2px solid var(--main-color, #055474);
+  outline-offset: 4px;
+}
+
+/* Ensure slides maintain aspect ratio */
+.product-slider-slide img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Smooth scrolling for touch devices */
+.product-slider-wrapper {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent text selection during drag */
+.product-slider-track {
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Arrow hover effects enhancement */
+.product-slider-arrow::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+}
+
+/* Print styles - show all products in grid */
+@media print {
+  .product-slider-container {
+    position: static;
+  }
+  
+  .product-slider-wrapper {
+    overflow: visible;
+  }
+  
+  .product-slider-track {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+    transform: none !important;
+  }
+  
+  .product-slider-slide {
+    width: auto !important;
+    margin: 0 !important;
+  }
+  
+  .product-slider-arrow,
+  .product-slider-dots {
+    display: none !important;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .product-slider-arrow {
+    border: 2px solid currentColor;
+  }
+  
+  .product-slider-dot {
+    border-width: 3px;
+  }
+}
+
+/* Animation for slide changes */
+@keyframes slideHighlight {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Optional: Add subtle animation to current slide */
+.product-slider-container.animating .product-slider-track {
+  animation: slideHighlight 0.5s ease;
+}
+
+/* Ensure proper stacking context */
+.product-slider-container {
+  isolation: isolate;
+}
+
+/* Touch feedback */
+.product-slider-arrow:active {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+@media (max-width: 768px) {
+  .product-slider-arrow:active {
+    background: rgba(255, 255, 255, 0.85);
+  }
+}
+
+/* Accessibility - skip to content link */
+.product-slider-container .skip-to-end {
+  position: absolute;
+  left: -9999px;
+  z-index: 999;
+}
+
+.product-slider-container .skip-to-end:focus {
+  left: 10px;
+  top: 10px;
+  background: white;
+  padding: 8px;
+  text-decoration: none;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}

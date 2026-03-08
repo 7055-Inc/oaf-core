@@ -1,6 +1,6 @@
 /**
  * CSRF Protection Middleware
- * Provides Cross-Site Request Forgery protection for the Beemeeart API
+ * Provides Cross-Site Request Forgery protection for the Brakebee API
  * Supports token generation, validation, and cookie-based secret management
  */
 

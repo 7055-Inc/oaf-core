@@ -2,16 +2,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
-import Breadcrumb from '../../components/Breadcrumb';
-import AboutTheArtist from '../../components/AboutTheArtist';
-import VariationSelector from '../../components/VariationSelector';
-import ArtistProductCarousel from '../../components/ArtistProductCarousel';
+import { AboutTheArtist, ArtistProductCarousel, Breadcrumb } from '../../modules/shared';
+import { VariationSelector } from '../../modules/catalog';
 import WholesalePricing from '../../components/WholesalePricing';
 import ProductReviews from '../../components/ProductReviews';
 import { getAuthToken } from '../../lib/csrf';
 import { apiRequest, authApiRequest } from '../../lib/apiUtils';
+import { getCurrentUser } from '../../lib/users/api';
 import { isWholesaleCustomer } from '../../lib/userUtils';
-import { getStoredAffiliateData } from '../../hooks/useAffiliateContext';
 import styles from './styles/ProductView.module.css';
 
 export default function ProductView({ initialProduct, initialError, initialReviews = [], initialReviewSummary = null }) {
@@ -122,31 +120,16 @@ export default function ProductView({ initialProduct, initialError, initialRevie
           return;
         }
         
-        // Use the new curated art marketplace API - includes all data in single call
-        const res = await apiRequest(`api/curated/art/products/${id}?include=images,shipping,vendor,inventory,categories`, {
+        const res = await apiRequest(`api/v2/catalog/public/products/${id}`, {
           method: 'GET'
         });
         
         if (!res.ok) {
-          // If curated endpoint fails, try the regular products endpoint as fallback
-          console.log(`Curated endpoint failed with ${res.status}, trying regular products endpoint...`);
-          
-          const fallbackRes = await apiRequest(`products/${id}?include=images,shipping,vendor,inventory,categories`, {
-            method: 'GET'
-          });
-          
-          if (!fallbackRes.ok) {
-            throw new Error(`Product not found. Curated API: ${res.status}, Regular API: ${fallbackRes.status}`);
-          }
-          
-          const fallbackData = await fallbackRes.json();
-          const processedFallbackData = processProductImages(fallbackData);
-          setProduct(processedFallbackData);
-          console.log('Successfully loaded product from regular endpoint:', processedFallbackData);
-          return;
+          throw new Error(`Product not found (status ${res.status})`);
         }
         
-        const data = await res.json();
+        const envelope = await res.json();
+        const data = envelope.data || envelope;
 
         // Process image URLs to ensure they use smart media proxy
         const processedData = processProductImages(data);
@@ -221,14 +204,8 @@ export default function ProductView({ initialProduct, initialError, initialRevie
           return;
         }
         
-        const response = await authApiRequest('users/me', {
-          method: 'GET'
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setCurrentUserId(data.id);
-        }
+        const data = await getCurrentUser();
+        setCurrentUserId(data.id);
       } catch (err) {
         // Silently handle auth errors - user just won't see edit button
       }
@@ -257,19 +234,17 @@ export default function ProductView({ initialProduct, initialError, initialRevie
       // First, get or create a cart for the user
       let cartId;
       
-      // Try to get existing cart
-      const cartRes = await authApiRequest('cart');
+      const cartRes = await authApiRequest('/api/v2/commerce/cart');
 
       if (cartRes.ok) {
-        const carts = await cartRes.json();
-        // Find an active cart or create one
+        const cartResult = await cartRes.json();
+        const carts = cartResult.data || (Array.isArray(cartResult) ? cartResult : []);
         const activeCart = carts.find(cart => cart.status === 'draft');
         
         if (activeCart) {
           cartId = activeCart.id;
         } else {
-          // Create a new cart
-          const createCartRes = await authApiRequest('cart', {
+          const createCartRes = await authApiRequest('/api/v2/commerce/cart', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -281,18 +256,15 @@ export default function ProductView({ initialProduct, initialError, initialRevie
 
           if (!createCartRes.ok) throw new Error('Failed to create cart');
           
-          const cartData = await createCartRes.json();
+          const createResult = await createCartRes.json();
+          const cartData = createResult.data || createResult;
           cartId = cartData.cart.id;
         }
       } else {
         throw new Error('Failed to get cart information');
       }
 
-      // Get affiliate attribution data (locked at add-to-cart time)
-      const affiliateData = getStoredAffiliateData();
-      
-      // Now add the item to the cart with affiliate attribution
-      const addItemRes = await authApiRequest(`cart/${cartId}/items`, {
+      const addItemRes = await authApiRequest(`/api/v2/commerce/cart/${cartId}/items`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -301,9 +273,7 @@ export default function ProductView({ initialProduct, initialError, initialRevie
           product_id: targetProduct.id,
           vendor_id: targetProduct.vendor_id,
           quantity: targetQuantity,
-          price: targetProduct.price,
-          affiliate_id: affiliateData.affiliate_id,
-          affiliate_source: affiliateData.affiliate_source
+          price: targetProduct.price
         })
       });
 
@@ -405,7 +375,7 @@ export default function ProductView({ initialProduct, initialError, initialRevie
         <Head>
           <title>{seoProduct ? `${seoProduct.name} | Brakebee` : 'Loading... | Brakebee'}</title>
           {seoProduct && <meta name="description" content={seoDescription} />}
-          <link rel="canonical" href={`https://brakebee.com/products/${seoProduct?.id || id}`} />
+          <link rel="canonical" href={`https://brakebee.com/products/${id}`} />
         </Head>
         <div className={styles.container}>
           <div className={styles.loading}>Loading...</div>
@@ -420,7 +390,7 @@ export default function ProductView({ initialProduct, initialError, initialRevie
         <Head>
           <title>{seoProduct ? `${seoProduct.name} | Brakebee` : 'Error | Brakebee'}</title>
           {seoProduct && <meta name="description" content={seoDescription} />}
-          <link rel="canonical" href={`https://brakebee.com/products/${seoProduct?.id || id}`} />
+          <link rel="canonical" href={`https://brakebee.com/products/${id}`} />
         </Head>
         <div className={styles.container}>
           <div className={styles.error}>{error}</div>
@@ -435,7 +405,7 @@ export default function ProductView({ initialProduct, initialError, initialRevie
         <Head>
           <title>{seoProduct ? `${seoProduct.name} | Brakebee` : 'Product Not Found | Brakebee'}</title>
           {seoProduct && <meta name="description" content={seoDescription} />}
-          <link rel="canonical" href={`https://brakebee.com/products/${seoProduct?.id || id}`} />
+          <link rel="canonical" href={`https://brakebee.com/products/${id}`} />
         </Head>
         <div className={styles.container}>
           <div className={styles.error}>Product not found</div>
@@ -450,10 +420,13 @@ export default function ProductView({ initialProduct, initialError, initialRevie
   );
 
   // Generate Product Schema for Google Rich Results
+  // Determine if vendor has a business name (Organization) or just personal name (Person)
+  const hasBusinessName = !!product.vendor?.business_name;
   const vendorDisplayName = product.vendor?.business_name || 
     (product.vendor?.first_name && product.vendor?.last_name 
       ? `${product.vendor.first_name} ${product.vendor.last_name}` 
       : 'Artist');
+  const vendorType = hasBusinessName ? "Organization" : "Person";
   
   // Build reviews array for schema
   const schemaReviews = initialReviews.length > 0 ? initialReviews.map(review => ({
@@ -486,17 +459,40 @@ export default function ProductView({ initialProduct, initialError, initialRevie
       "@type": "Brand",
       "name": vendorDisplayName
     },
+    // Manufacturer - the artist who made the product (handmade goods)
+    "manufacturer": {
+      "@type": vendorType,
+      "name": vendorDisplayName,
+      "url": `https://brakebee.com/artists/${product.vendor_id}`
+    },
+    // Item condition - all products are new/original
+    "itemCondition": "https://schema.org/NewCondition",
     "offers": {
       "@type": "Offer",
       "url": `https://brakebee.com/products/${product.id}`,
       "priceCurrency": "USD",
       "price": product.price || product.base_price || 0,
       "availability": product.stock_quantity > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      // Seller - the artist selling the product (dynamic type based on business name)
       "seller": {
-        "@type": "Person",
-        "name": vendorDisplayName
+        "@type": vendorType,
+        "name": vendorDisplayName,
+        "url": `https://brakebee.com/artists/${product.vendor_id}`
       }
     },
+    // Additional properties for marketplace context
+    "additionalProperty": [
+      {
+        "@type": "PropertyValue",
+        "name": "Marketplace",
+        "value": "Brakebee"
+      },
+      {
+        "@type": "PropertyValue",
+        "name": "Handmade",
+        "value": "Yes"
+      }
+    ],
     // Use SSR review summary for aggregate rating, fallback to product data
     ...((initialReviewSummary?.count > 0 || product.average_rating) && {
       "aggregateRating": {
@@ -519,13 +515,13 @@ export default function ProductView({ initialProduct, initialError, initialRevie
         <meta property="og:title" content={product.name} />
         <meta property="og:description" content={seoDescription} />
         <meta property="og:type" content="product" />
-        <meta property="og:url" content={`https://brakebee.com/products/${product.id}`} />
+        <meta property="og:url" content={`https://brakebee.com/products/${id}`} />
         {product.images?.[0] && (
           <meta property="og:image" content={typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url} />
         )}
         <meta property="product:price:amount" content={product.price || product.base_price || 0} />
         <meta property="product:price:currency" content="USD" />
-        <link rel="canonical" href={`https://brakebee.com/products/${product.id}`} />
+        <link rel="canonical" href={`https://brakebee.com/products/${id}`} />
         {/* Product Schema for Google Rich Results */}
         <script
           type="application/ld+json"
@@ -1040,21 +1036,21 @@ export async function getServerSideProps(context) {
     // Fetch product and reviews in parallel
     const [productResponse, reviewsResponse, reviewSummaryResponse] = await Promise.all([
       fetch(
-        `${apiUrl}/api/curated/art/products/${id}?include=images,shipping,vendor,inventory,categories`,
+        `${apiUrl}/api/v2/catalog/public/products/${id}`,
         {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         }
       ),
       fetch(
-        `${apiUrl}/api/reviews?type=product&id=${id}&sort=recent&limit=10`,
+        `${apiUrl}/api/v2/content/reviews?type=product&id=${id}&sort=recent&limit=10`,
         {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         }
       ).catch(() => null),
       fetch(
-        `${apiUrl}/api/reviews/summary?type=product&id=${id}`,
+        `${apiUrl}/api/v2/content/reviews/summary?type=product&id=${id}`,
         {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
@@ -1068,38 +1064,25 @@ export async function getServerSideProps(context) {
     
     if (reviewsResponse?.ok) {
       try {
-        const reviewsData = await reviewsResponse.json();
+        const reviewsEnvelope = await reviewsResponse.json();
+        const reviewsData = reviewsEnvelope.data || reviewsEnvelope;
         initialReviews = Array.isArray(reviewsData) ? reviewsData : [];
       } catch (e) { /* ignore */ }
     }
     
     if (reviewSummaryResponse?.ok) {
       try {
-        initialReviewSummary = await reviewSummaryResponse.json();
+        const summaryEnvelope = await reviewSummaryResponse.json();
+        initialReviewSummary = summaryEnvelope.data || summaryEnvelope;
       } catch (e) { /* ignore */ }
     }
 
     if (!productResponse.ok) {
-      // Try crafts endpoint as fallback
-      const craftsResponse = await fetch(
-        `${apiUrl}/api/curated/crafts/products/${id}?include=images,shipping,vendor,inventory,categories`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-      
-      if (!craftsResponse.ok) {
-        return { props: { initialProduct: null, initialError: 'Product not found', initialReviews: [], initialReviewSummary: null } };
-      }
-      
-      const craftsData = await craftsResponse.json();
-      return { props: { initialProduct: craftsData, initialError: null, initialReviews, initialReviewSummary } };
+      return { props: { initialProduct: null, initialError: 'Product not found', initialReviews: [], initialReviewSummary: null } };
     }
 
-    const data = await productResponse.json();
+    const envelope = await productResponse.json();
+    const data = envelope.data || envelope;
     return { props: { initialProduct: data, initialError: null, initialReviews, initialReviewSummary } };
   } catch (error) {
     console.error('SSR fetch error:', error);

@@ -3,8 +3,9 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import { getApiUrl, config, getSubdomainBase, getFrontendUrl } from '../../lib/config';
-import { getStoredAffiliateData } from '../../hooks/useAffiliateContext';
-import styles from './ArtistStorefront.module.css';
+
+// Map class names to themselves (styles now handled by global CSS/TemplateLoader)
+const styles = new Proxy({}, { get: (target, prop) => prop });
 
 const ArtistProducts = () => {
   const router = useRouter();
@@ -40,7 +41,7 @@ const ArtistProducts = () => {
 
   const resolveCustomDomain = async (domain) => {
     try {
-      const response = await fetch(`${config.API_BASE_URL}/api/sites/resolve-custom-domain/${domain}`);
+      const response = await fetch(`${config.API_BASE_URL}/api/v2/websites/resolve-custom-domain/${domain}`);
       if (response.ok) {
         const data = await response.json();
         if (data.subdomain) {
@@ -65,7 +66,7 @@ const ArtistProducts = () => {
       setLoading(true);
       
       const offset = (currentPage - 1) * productsPerPage;
-      let productsUrl = getApiUrl(`api/sites/resolve/${activeSubdomain}/products?limit=${productsPerPage}&offset=${offset}`);
+      let productsUrl = getApiUrl(`api/v2/websites/resolve/${activeSubdomain}/products?limit=${productsPerPage}&offset=${offset}`);
       
       if (selectedCategory) {
         productsUrl += `&category=${selectedCategory}`;
@@ -83,12 +84,12 @@ const ArtistProducts = () => {
       // Fetch data in parallel
       const fetchPromises = [
         fetch(productsUrl),
-        fetch(getApiUrl(`api/sites/resolve/${activeSubdomain}/categories`))
+        fetch(getApiUrl(`api/v2/websites/resolve/${activeSubdomain}/categories`))
       ];
       
       // Only fetch site data on first load
       if (!siteData) {
-        fetchPromises.push(fetch(getApiUrl(`api/sites/resolve/${activeSubdomain}`)));
+        fetchPromises.push(fetch(getApiUrl(`api/v2/websites/resolve/${activeSubdomain}`)));
       }
       
       const responses = await Promise.all(fetchPromises);
@@ -149,9 +150,6 @@ const ArtistProducts = () => {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      // Get affiliate attribution (locked at cart-add time)
-      const affiliateData = getStoredAffiliateData();
-
       const body = {
         product_id: product.id,
         vendor_id: product.vendor_id || siteData.user_id,
@@ -159,13 +157,11 @@ const ArtistProducts = () => {
         price: product.price,
         source_site_api_key: subdomain, // Use subdomain as site identifier
         source_site_name: siteData.site_name || `${siteData.first_name} ${siteData.last_name}`,
-        affiliate_id: affiliateData.affiliate_id,
-        affiliate_source: affiliateData.affiliate_source,
         ...(guestToken && { guest_token: guestToken })
       };
 
       // Add to cart via enhanced API
-      const response = await fetch('cart/add', {
+      const response = await fetch(`${config.API_BASE_URL}/api/v2/commerce/cart/add`, {
         method: 'POST',
         headers,
         body: JSON.stringify(body)

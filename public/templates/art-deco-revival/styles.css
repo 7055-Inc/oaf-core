@@ -1,0 +1,305 @@
+/* Art Deco Revival Template
+ * Version: 1.0.0
+ * Description: 1920s geometric luxury with symmetrical layouts
+ * Target: Luxury brands, vintage aesthetics, high-end portfolios
+ * Tier: Professional (JavaScript-Enhanced)
+ */
+
+/* ========================================
+   BASE - ART DECO FOUNDATION
+   ======================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.storefront {
+  min-height: 100vh;
+  font-family: var(--body-font, 'Didot', 'Bodoni MT', serif);
+  color: #1a1a1a;
+  background: #f5f5f0;
+  line-height: 1.7;
+}
+
+/* ========================================
+   COLOR PALETTES
+   ======================================== */
+
+.storefront[data-deco-palette="gold-black"] {
+  --primary-color: #1a1a1a;
+  --accent-color: #d4af37;
+  --background-dark: #1a1a1a;
+}
+
+.storefront[data-deco-palette="emerald-gold"] {
+  --primary-color: #0f4c3a;
+  --accent-color: #d4af37;
+  --background-dark: #0f4c3a;
+}
+
+.storefront[data-deco-palette="navy-gold"] {
+  --primary-color: #1e3a5f;
+  --accent-color: #d4af37;
+  --background-dark: #1e3a5f;
+}
+
+/* ========================================
+   HEADER - SYMMETRICAL & ORNATE
+   ======================================== */
+
+.header {
+  padding: calc(4rem * var(--spacing-scale, 1));
+  text-align: center;
+  background: var(--background-dark, #1a1a1a);
+  color: var(--accent-color, #d4af37);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Geometric pattern overlay */
+.header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(212,175,55,0.03) 10px, rgba(212,175,55,0.03) 20px),
+    repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(212,175,55,0.03) 10px, rgba(212,175,55,0.03) 20px);
+  opacity: 0.5;
+}
+
+.storefront[data-geometric-style="bold"] .header::before {
+  opacity: 1;
+}
+
+.storefront[data-geometric-style="subtle"] .header::before {
+  opacity: 0.2;
+}
+
+.artistName {
+  font-size: calc(4rem * var(--spacing-scale, 1));
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  position: relative;
+  z-index: 1;
+  margin-bottom: calc(2rem * var(--spacing-scale, 1));
+}
+
+/* Ornamental borders */
+.storefront[data-show-ornaments="yes"] .artistName::before,
+.storefront[data-show-ornaments="yes"] .artistName::after {
+  content: '◆';
+  display: inline-block;
+  margin: 0 calc(1.5rem * var(--spacing-scale, 1));
+  font-size: 0.6em;
+}
+
+.navigation {
+  display: flex;
+  gap: calc(3rem * var(--spacing-scale, 1));
+  justify-content: center;
+  margin-top: calc(2rem * var(--spacing-scale, 1));
+  position: relative;
+  z-index: 1;
+}
+
+.navLink {
+  color: var(--accent-color, #d4af37);
+  text-decoration: none;
+  font-size: 0.9rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  font-weight: 400;
+  transition: all 0.3s ease;
+  padding: 0.5rem 1.5rem;
+  border: 1px solid var(--accent-color, #d4af37);
+  clip-path: polygon(10% 0%, 90% 0%, 100% 50%, 90% 100%, 10% 100%, 0% 50%);
+}
+
+.navLink:hover {
+  background: var(--accent-color, #d4af37);
+  color: var(--background-dark, #1a1a1a);
+}
+
+/* ========================================
+   PRODUCT GRID - SYMMETRICAL
+   ======================================== */
+
+.productsGrid,
+.addon-products-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: calc(3rem * var(--spacing-scale, 1));
+  max-width: 1400px;
+  margin: calc(5rem * var(--spacing-scale, 1)) auto;
+  padding: calc(4rem * var(--spacing-scale, 1));
+}
+
+/* ========================================
+   PRODUCT CARDS - GEOMETRIC FRAMES
+   ======================================== */
+
+.productCard,
+.addon-product-card {
+  background: #ffffff;
+  padding: calc(2rem * var(--spacing-scale, 1));
+  position: relative;
+  transition: all 0.4s ease;
+  cursor: pointer;
+  clip-path: polygon(5% 0%, 95% 0%, 100% 5%, 100% 95%, 95% 100%, 5% 100%, 0% 95%, 0% 5%);
+}
+
+.productCard::before,
+.addon-product-card::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  border: 2px solid var(--accent-color, #d4af37);
+  pointer-events: none;
+  clip-path: polygon(5% 0%, 95% 0%, 100% 5%, 100% 95%, 95% 100%, 5% 100%, 0% 95%, 0% 5%);
+}
+
+.productCard:hover,
+.addon-product-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+}
+
+.productImage,
+.addon-product-image-wrapper {
+  width: 100%;
+  aspect-ratio: 3/4;
+  background: #f0f0f0;
+  margin-bottom: calc(1.5rem * var(--spacing-scale, 1));
+  overflow: hidden;
+  clip-path: polygon(5% 0%, 95% 0%, 100% 5%, 100% 95%, 95% 100%, 5% 100%, 0% 95%, 0% 5%);
+}
+
+.productImage img,
+.addon-product-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: sepia(0.1) contrast(1.05);
+}
+
+.productInfo,
+.addon-product-info {
+  text-align: center;
+}
+
+.productName,
+.addon-product-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: calc(0.5rem * var(--spacing-scale, 1));
+  color: var(--primary-color, #1a1a1a);
+}
+
+.productPrice,
+.addon-product-price {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--accent-color, #d4af37);
+  letter-spacing: 0.05em;
+}
+
+/* ========================================
+   ADDON SECTIONS
+   ======================================== */
+
+.addon-blog-cards {
+  max-width: 1400px;
+  margin: calc(5rem * var(--spacing-scale, 1)) auto;
+  padding: calc(4rem * var(--spacing-scale, 1));
+  background: #ffffff;
+}
+
+.addon-section-title {
+  text-align: center;
+  font-size: calc(3rem * var(--spacing-scale, 1));
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: calc(3rem * var(--spacing-scale, 1));
+  color: var(--primary-color, #1a1a1a);
+}
+
+.storefront[data-show-ornaments="yes"] .addon-section-title::before,
+.storefront[data-show-ornaments="yes"] .addon-section-title::after {
+  content: '◆◆◆';
+  display: block;
+  margin: calc(1rem * var(--spacing-scale, 1)) auto;
+  font-size: 0.4em;
+  color: var(--accent-color, #d4af37);
+}
+
+.addon-blog-grid-small {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: calc(3rem * var(--spacing-scale, 1));
+}
+
+/* ========================================
+   FOOTER
+   ======================================== */
+
+.footer {
+  margin-top: calc(5rem * var(--spacing-scale, 1));
+  padding: calc(4rem * var(--spacing-scale, 1));
+  text-align: center;
+  background: var(--background-dark, #1a1a1a);
+  color: var(--accent-color, #d4af37);
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 1024px) {
+  .productsGrid,
+  .addon-products-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .artistName {
+    font-size: calc(2.5rem * var(--spacing-scale, 1));
+  }
+  
+  .productsGrid,
+  .addon-products-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .navigation {
+    flex-wrap: wrap;
+  }
+  
+  .addon-blog-grid-small {
+    grid-template-columns: 1fr;
+  }
+}
+
+.loading, .error {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media print {
+  .header { background: #ffffff; color: #1a1a1a; }
+  .productCard, .addon-product-card { page-break-inside: avoid; }
+}

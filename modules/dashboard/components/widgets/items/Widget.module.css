@@ -1,0 +1,347 @@
+/* ===================================
+   UNIVERSAL WIDGET STYLESHEET
+   Covers all common widget patterns
+   =================================== */
+
+/* Widget Container */
+.widget {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 1rem;
+  font-size: 0.9rem;
+}
+
+/* Widget Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.header h4 {
+  color: #055474;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.headerIcon {
+  margin-right: 0.5rem;
+}
+
+.headerControl {
+  font-size: 0.8rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  background: white;
+}
+
+/* Widget Content Areas */
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.contentGrid {
+  display: grid;
+  gap: 1rem;
+  flex: 1;
+}
+
+.contentList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+/* Metrics Display */
+.metrics {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  flex: 1;
+}
+
+.metric {
+  text-align: center;
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  transition: all 0.2s ease;
+}
+
+.metric:hover {
+  background: #e8f5f3;
+  border-color: #055474;
+}
+
+.metricValue {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #055474;
+  margin-bottom: 0.5rem;
+  line-height: 1.2;
+}
+
+.metricLabel {
+  font-size: 0.8rem;
+  color: #6c757d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+/* Lists and Items */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.listItem {
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.listItem:hover {
+  background: #e8f5f3;
+  border-color: #055474;
+}
+
+.itemHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.itemTitle {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
+
+.itemMeta {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+.itemContent {
+  color: #495057;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+/* Action Buttons */
+.actionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.actionButton {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #2c3e50;
+  transition: all 0.2s ease;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.actionButton:hover {
+  background: #e8f5f3;
+  border-color: #055474;
+  color: #055474;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(5, 84, 116, 0.1);
+}
+
+.actionIcon {
+  width: 32px;
+  height: 32px;
+  background: #055474;
+  color: white;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.75rem;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.actionTitle {
+  flex: 1;
+}
+
+/* Status Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badgeSuccess {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.badgeWarning {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffc107;
+}
+
+.badgeDanger {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.badgeInfo {
+  background: #d1ecf1;
+  color: #0c5460;
+  border: 1px solid #bee5eb;
+}
+
+/* Widget Footer */
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e9ecef;
+  font-size: 0.8rem;
+}
+
+.footerText {
+  color: #6c757d;
+}
+
+.footerStatus {
+  color: #28a745;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 500;
+}
+
+/* Widget States */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #adb5bd;
+  text-align: center;
+  gap: 0.5rem;
+}
+
+.emptyState i {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  opacity: 0.7;
+}
+
+.emptyState p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.loadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #6c757d;
+  gap: 0.5rem;
+}
+
+.errorState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #dc3545;
+  text-align: center;
+  gap: 0.5rem;
+  padding: 1rem;
+}
+
+/* Utility Classes */
+.textCenter { text-align: center; }
+.textLeft { text-align: left; }
+.textRight { text-align: right; }
+
+.colorPrimary { color: #055474; }
+.colorSecondary { color: #6c757d; }
+.colorSuccess { color: #28a745; }
+.colorWarning { color: #ffc107; }
+.colorDanger { color: #dc3545; }
+
+.fontBold { font-weight: 600; }
+.fontNormal { font-weight: normal; }
+
+.mb1 { margin-bottom: 0.5rem; }
+.mb2 { margin-bottom: 1rem; }
+.mt1 { margin-top: 0.5rem; }
+.mt2 { margin-top: 1rem; }
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .widget {
+    padding: 0.75rem;
+    font-size: 0.85rem;
+  }
+  
+  .header h4 {
+    font-size: 0.9rem;
+  }
+  
+  .metricValue {
+    font-size: 1.25rem;
+  }
+  
+  .actionButton {
+    padding: 0.5rem;
+    font-size: 0.85rem;
+  }
+  
+  .actionIcon {
+    width: 28px;
+    height: 28px;
+    margin-right: 0.5rem;
+  }
+}
+
+ 

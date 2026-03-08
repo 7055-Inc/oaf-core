@@ -1,0 +1,58 @@
+{
+  "template_slug": "vertical-story",
+  "template_name": "Vertical Story",
+  "description": "Vertical scrolling storytelling experience with timeline navigation and chapter-based layout.",
+  "version": "1.0.0",
+  "author": "Artist Sites",
+  "custom_fields": [
+    {
+      "key": "timeline_position",
+      "label": "Timeline Position",
+      "type": "select",
+      "description": "Where the timeline appears",
+      "required": false,
+      "default_value": "center",
+      "tier_required": "pro",
+      "options": [
+        { "value": "left", "label": "Left Side" },
+        { "value": "center", "label": "Center Line" },
+        { "value": "right", "label": "Right Side" }
+      ]
+    },
+    {
+      "key": "chapter_style",
+      "label": "Chapter Style",
+      "type": "select",
+      "description": "How chapters are visually separated",
+      "required": false,
+      "default_value": "alternating",
+      "tier_required": "pro",
+      "options": [
+        { "value": "alternating", "label": "Alternating Sides" },
+        { "value": "centered", "label": "All Centered" }
+      ]
+    },
+    {
+      "key": "scroll_reveal",
+      "label": "Scroll Reveal Animation",
+      "type": "select",
+      "description": "Animate content as you scroll",
+      "required": false,
+      "default_value": "yes",
+      "tier_required": "pro",
+      "options": [
+        { "value": "yes", "label": "Enable Animations" },
+        { "value": "no", "label": "No Animations" }
+      ]
+    },
+    {
+      "key": "timeline_color",
+      "label": "Timeline Color",
+      "type": "color",
+      "required": false,
+      "default_value": "#1a1a1a",
+      "tier_required": "pro",
+      "help_text": "Color of the timeline/progress line"
+    }
+  ]
+}

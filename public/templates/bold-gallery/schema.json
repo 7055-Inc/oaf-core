@@ -1,0 +1,46 @@
+{
+  "template_slug": "bold-gallery",
+  "template_name": "Bold Gallery",
+  "description": "Confident, grid-focused design with bold typography and vibrant colors",
+  "version": "1.0.0",
+  "author": "Artist Sites",
+  "custom_fields": [
+    {
+      "key": "featured_work_id",
+      "label": "Featured Artwork Product ID",
+      "type": "text",
+      "placeholder": "e.g., 123",
+      "max_length": 20,
+      "required": false,
+      "tier_required": "basic",
+      "help_text": "Enter the product ID of artwork to feature prominently at the top of your gallery"
+    },
+    {
+      "key": "grid_columns",
+      "label": "Gallery Grid Columns",
+      "type": "select",
+      "description": "Number of columns in your gallery grid",
+      "required": false,
+      "default_value": "3",
+      "tier_required": "basic",
+      "options": [
+        { "value": "2", "label": "2 Columns (Large)" },
+        { "value": "3", "label": "3 Columns (Medium)" },
+        { "value": "4", "label": "4 Columns (Compact)" }
+      ]
+    },
+    {
+      "key": "show_artist_bio",
+      "label": "Display Artist Bio Section",
+      "type": "select",
+      "description": "Show or hide the about/bio section on your site",
+      "required": false,
+      "default_value": "yes",
+      "tier_required": "basic",
+      "options": [
+        { "value": "yes", "label": "Show Bio" },
+        { "value": "no", "label": "Hide Bio" }
+      ]
+    }
+  ]
+}

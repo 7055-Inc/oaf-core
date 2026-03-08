@@ -29,14 +29,14 @@ export default function Marketplace() {
         include: 'images,vendor'
       });
       
-      const response = await fetch(getApiUrl(`products/all?${params.toString()}`));
+      const response = await fetch(getApiUrl(`api/v2/catalog/public/products?${params.toString()}`));
       
       if (!response.ok) {
         throw new Error('Failed to load products');
       }
 
       const data = await response.json();
-      let allProducts = data.products || [];
+      let allProducts = data.data || [];
       
       // Apply client-side category filtering
       if (category !== 'all') {
@@ -129,6 +129,11 @@ export default function Marketplace() {
       <Head>
         <title>Browse Art - Marketplace | Brakebee</title>
         <meta name="description" content="Discover and shop unique handmade art from talented artists. Browse our curated marketplace of paintings, sculptures, photography, and more." />
+        <link rel="canonical" href="https://brakebee.com/marketplace" />
+        <meta property="og:title" content="Browse Art - Marketplace | Brakebee" />
+        <meta property="og:description" content="Discover and shop unique handmade art from talented artists. Browse paintings, sculptures, photography, and more." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://brakebee.com/marketplace" />
       </Head>
 
       <div className="container" style={{ paddingTop: '120px', paddingBottom: '80px' }}>

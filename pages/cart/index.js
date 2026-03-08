@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import Head from 'next/head';
 import { authApiRequest } from '../../lib/apiUtils';
 import { handleCsrfError } from '../../lib/csrf';
 import { getApiUrl } from '../../lib/config';
-import CouponEntry from '../../components/coupons/CouponEntry';
-import DiscountSummary from '../../components/coupons/DiscountSummary';
+import { CouponEntry, DiscountSummary } from '../../modules/commerce';
 import { useCoupons } from '../../hooks/useCoupons';
 import styles from './styles/Cart.module.css';
 
@@ -68,35 +68,35 @@ export default function Cart() {
         return;
       }
 
-      // Fetch active cart
-      const cartRes = await fetch(getApiUrl('cart'), {
+      const cartRes = await fetch(getApiUrl('api/v2/commerce/cart'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (cartRes.ok) {
-        const carts = await cartRes.json();
+        const cartResult = await cartRes.json();
+        const carts = cartResult.data || (Array.isArray(cartResult) ? cartResult : []);
         const active = carts.find(cart => cart.status === 'draft') || carts[0];
         setActiveCart(active);
 
-        // Fetch active cart items
         if (active) {
-          const itemsRes = await fetch(getApiUrl(`cart/${active.id}/items`), {
+          const itemsRes = await fetch(getApiUrl(`api/v2/commerce/cart/${active.id}/items`), {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           if (itemsRes.ok) {
-            const items = await itemsRes.json();
+            const itemsResult = await itemsRes.json();
+            const items = itemsResult.data || (Array.isArray(itemsResult) ? itemsResult : []);
             setCartItems(items);
           }
         }
       }
 
-      // Fetch cart collections
-      const collectionsRes = await fetch(getApiUrl('cart/collections'), {
+      const collectionsRes = await fetch(getApiUrl('api/v2/commerce/cart/collections'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (collectionsRes.ok) {
-        const collections = await collectionsRes.json();
+        const collectionsResult = await collectionsRes.json();
+        const collections = collectionsResult.data || (Array.isArray(collectionsResult) ? collectionsResult : []);
         setCartCollections(collections);
       }
 
@@ -114,7 +114,7 @@ export default function Cart() {
     try {
       const item = cartItems.find(item => item.id === itemId);
       
-      const res = await authApiRequest(`cart/${activeCart.id}/items/${itemId}`, {
+      const res = await authApiRequest(`/api/v2/commerce/cart/${activeCart.id}/items/${itemId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -140,7 +140,7 @@ export default function Cart() {
 
   const removeItem = async (itemId) => {
     try {
-      const res = await authApiRequest(`cart/${activeCart.id}/items/${itemId}`, {
+      const res = await authApiRequest(`/api/v2/commerce/cart/${activeCart.id}/items/${itemId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -157,7 +157,7 @@ export default function Cart() {
   const saveForLater = async (item) => {
     try {
       // Add to saved items
-      const saveRes = await authApiRequest('cart/saved', {
+      const saveRes = await authApiRequest('/api/v2/commerce/cart/saved', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -191,9 +191,8 @@ export default function Cart() {
     try {
       const token = getAuthToken();
       
-      // Update current active cart to abandoned
       if (activeCart) {
-        await fetch(getApiUrl(`cart/${activeCart.id}`), {
+        await fetch(getApiUrl(`api/v2/commerce/cart/${activeCart.id}`), {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -203,8 +202,7 @@ export default function Cart() {
         });
       }
 
-      // Update new cart to draft (active)
-      await fetch(getApiUrl(`cart/${cartId}`), {
+      await fetch(getApiUrl(`api/v2/commerce/cart/${cartId}`), {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -258,8 +256,13 @@ export default function Cart() {
   }
 
   return (
-    <div className={styles.container}>
-      <div className={styles.content} style={{marginTop: '120px'}}>
+    <>
+      <Head>
+        <title>Shopping Cart | Brakebee</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Head>
+      <div className={styles.container}>
+        <div className={styles.content} style={{marginTop: '120px'}}>
           {cartItems.length > 0 && (
             <div className="section-box">
               <p style={{color: 'var(--secondary-color)', fontWeight: '600', marginBottom: '1rem'}}>
@@ -400,5 +403,6 @@ export default function Cart() {
         )}
       </div>
     </div>
+    </>
   );
 } 

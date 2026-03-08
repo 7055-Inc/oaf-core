@@ -1,0 +1,377 @@
+/* Split Screen Template
+ * Version: 1.0.0
+ * Author: Artist Sites
+ * Description: Interactive dual-panel layout with draggable divider
+ * Target: Portfolio artists, before/after showcases, dual-content presentation
+ * Tier: Professional (requires JavaScript)
+ */
+
+/* ========================================
+   BASE STYLES
+   ======================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.storefront {
+  min-height: 100vh;
+  font-family: var(--body-font, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  color: var(--text-color, #333);
+  background-color: var(--background-color, #fff);
+  line-height: 1.6;
+  overflow: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--header-font, var(--body-font));
+  line-height: 1.3;
+  margin-bottom: calc(1rem * var(--spacing-scale, 1));
+  font-weight: 700;
+}
+
+/* ========================================
+   SPLIT CONTAINER SYSTEM
+   ======================================== */
+
+.split-container {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+}
+
+/* Vertical Split (default) */
+.storefront[data-split-orientation="vertical"] .split-container,
+.storefront:not([data-split-orientation]) .split-container {
+  flex-direction: row;
+}
+
+/* Horizontal Split */
+.storefront[data-split-orientation="horizontal"] .split-container {
+  flex-direction: column;
+}
+
+/* ========================================
+   SPLIT PANELS
+   ======================================== */
+
+.split-panel {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+}
+
+.split-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.split-panel::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.split-panel::-webkit-scrollbar-thumb {
+  background: var(--main-color, #667eea);
+  border-radius: 4px;
+}
+
+.split-panel-left,
+.split-panel-primary {
+  background: var(--background-color, #fff);
+}
+
+.split-panel-right,
+.split-panel-secondary {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* ========================================
+   SPLIT DIVIDER
+   ======================================== */
+
+.split-divider {
+  position: relative;
+  background: var(--main-color, #667eea);
+  cursor: ew-resize;
+  z-index: 100;
+  transition: background-color 0.3s ease;
+}
+
+/* Vertical divider */
+.storefront[data-split-orientation="vertical"] .split-divider,
+.storefront:not([data-split-orientation]) .split-divider {
+  width: 4px;
+  cursor: ew-resize;
+}
+
+/* Horizontal divider */
+.storefront[data-split-orientation="horizontal"] .split-divider {
+  height: 4px;
+  cursor: ns-resize;
+}
+
+.split-divider:hover {
+  background: var(--accent-color, var(--secondary-color, #764ba2));
+}
+
+.split-divider.dragging {
+  background: var(--accent-color, var(--secondary-color, #764ba2));
+}
+
+/* Divider handle */
+.split-divider::after {
+  content: '';
+  position: absolute;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 4px;
+}
+
+.storefront[data-split-orientation="vertical"] .split-divider::after,
+.storefront:not([data-split-orientation]) .split-divider::after {
+  width: 24px;
+  height: 48px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.storefront[data-split-orientation="horizontal"] .split-divider::after {
+  width: 48px;
+  height: 24px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Non-resizable */
+.storefront[data-allow-resize="no"] .split-divider {
+  cursor: default;
+  pointer-events: none;
+}
+
+/* ========================================
+   PANEL CONTENT
+   ======================================== */
+
+.panel-content {
+  padding: calc(6rem * var(--spacing-scale, 1)) calc(4rem * var(--spacing-scale, 1));
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.panel-header {
+  margin-bottom: calc(3rem * var(--spacing-scale, 1));
+}
+
+.panel-title {
+  font-size: calc(3rem * var(--spacing-scale, 1));
+  color: var(--text-color, #1a1a1a);
+  margin-bottom: calc(1rem * var(--spacing-scale, 1));
+}
+
+.panel-subtitle {
+  font-size: calc(1.25rem * var(--spacing-scale, 1));
+  color: var(--text-color, #666);
+  font-weight: 400;
+}
+
+/* ========================================
+   STICKY HEADER (OUTSIDE SPLIT)
+   ======================================== */
+
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding: calc(1rem * var(--spacing-scale, 1)) calc(3rem * var(--spacing-scale, 1));
+}
+
+.headerContent {
+  max-width: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.artistName {
+  font-size: calc(1.25rem * var(--spacing-scale, 1));
+  font-weight: 700;
+  color: var(--text-color, #333);
+}
+
+.navigation {
+  display: flex;
+  gap: calc(2rem * var(--spacing-scale, 1));
+}
+
+.navLink {
+  color: var(--text-color, #666);
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.3s ease;
+}
+
+.navLink:hover {
+  color: var(--main-color, #667eea);
+}
+
+/* ========================================
+   GALLERY / PRODUCTS IN PANELS
+   ======================================== */
+
+.productsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: calc(3rem * var(--spacing-scale, 1));
+}
+
+.productCard {
+  background: #fff;
+  border-radius: var(--border-radius, 8px);
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.productCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+.productImage {
+  width: 100%;
+  aspect-ratio: 4/3;
+  overflow: hidden;
+}
+
+.productImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.productCard:hover .productImage img {
+  transform: scale(1.05);
+}
+
+.productInfo {
+  padding: calc(1.5rem * var(--spacing-scale, 1));
+}
+
+.productName {
+  font-size: calc(1.2rem * var(--spacing-scale, 1));
+  font-weight: 700;
+  margin-bottom: calc(0.5rem * var(--spacing-scale, 1));
+  color: var(--text-color, #1a1a1a);
+}
+
+.productPrice {
+  font-size: calc(1.1rem * var(--spacing-scale, 1));
+  font-weight: 600;
+  color: var(--main-color, #667eea);
+  margin-bottom: calc(0.75rem * var(--spacing-scale, 1));
+}
+
+.productDescription {
+  font-size: 0.95rem;
+  color: var(--text-color, #666);
+  line-height: 1.6;
+}
+
+/* ========================================
+   LOADING & ERROR
+   ======================================== */
+
+.loading, .error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-top: 3px solid var(--main-color, #667eea);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: calc(2rem * var(--spacing-scale, 1));
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Force vertical split on mobile */
+  .split-container {
+    flex-direction: column !important;
+    position: static !important;
+    height: auto !important;
+  }
+  
+  .split-panel {
+    min-height: 100vh;
+  }
+  
+  .split-divider {
+    display: none;
+  }
+  
+  .panel-content {
+    padding: calc(4rem * var(--spacing-scale, 1)) calc(2rem * var(--spacing-scale, 1));
+  }
+  
+  .panel-title {
+    font-size: calc(2rem * var(--spacing-scale, 1));
+  }
+  
+  .headerContent {
+    flex-direction: column;
+    gap: calc(1rem * var(--spacing-scale, 1));
+  }
+  
+  .navigation {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+/* ========================================
+   PRINT
+   ======================================== */
+
+@media print {
+  .split-container {
+    position: static;
+    height: auto;
+    flex-direction: column;
+  }
+  
+  .split-divider {
+    display: none;
+  }
+  
+  .split-panel {
+    page-break-after: always;
+  }
+}

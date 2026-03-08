@@ -4,6 +4,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Header from '../../../components/Header';
 import { authenticatedApiRequest } from '../../../lib/csrf';
 import { authApiRequest } from '../../../lib/apiUtils';
+import { getCurrentUser } from '../../../lib/users/api';
 import { getSmartMediaUrl, config } from '../../../lib/config';
 import styles from '../../../pages/products/styles/ProductForm.module.css';
 
@@ -118,14 +119,8 @@ export default function EditProduct() {
 
   const fetchCurrentUser = async () => {
     try {
-      const res = await authApiRequest('users/me', {
-        method: 'GET'
-      });
-      
-      if (res.ok) {
-        const userData = await res.json();
-        setCurrentUserData(userData);
-      }
+      const userData = await getCurrentUser();
+      setCurrentUserData(userData);
     } catch (err) {
       console.error('Error fetching current user:', err);
     }
@@ -443,7 +438,7 @@ export default function EditProduct() {
       };
       
       const response = await authApiRequest(
-        'api/shipping/calculate-cart-shipping',
+        'api/v2/commerce/shipping/calculate-cart-shipping',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -456,12 +451,13 @@ export default function EditProduct() {
       );
 
       if (response.ok) {
-        const data = await response.json();
+        const json = await response.json();
+        const payload = json.data || json;
         const available = [];
         const rates = {};
         
-        if (data.shipping_results && data.shipping_results.length > 0) {
-          const shippingResult = data.shipping_results[0];
+        if (payload.shipping_results && payload.shipping_results.length > 0) {
+          const shippingResult = payload.shipping_results[0];
           
           if (shippingResult.available_rates && shippingResult.available_rates.length > 0) {
             // Group rates by carrier

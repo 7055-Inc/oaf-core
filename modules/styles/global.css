@@ -1,0 +1,261 @@
+/* Global Theme for Brakebee Platform */
+/* Fonts are loaded non-blocking in _document.js */
+
+/* =============================================================================
+   MODULAR STYLESHEET IMPORTS
+   ============================================================================= */
+
+@import './forms.css';
+@import './buttons.css';
+@import './tables.css';
+@import './modals.css';
+@import './alerts.css';
+@import './states.css';
+@import './tabs.css';
+@import './carousels.css';
+
+/* =============================================================================
+   CSS VARIABLES (Design Tokens)
+   ============================================================================= */
+
+:root {
+  /* Brand Colors */
+  --primary-color: #055474;
+  --secondary-color: #3E1C56;
+  --text-color: #333333;
+  --background-color: #FFFFFF;
+  --accent-color: #FFFFFF;
+  --success-color: #198754;
+  --warning-color: #fd7e14;
+  --error-color: #e53935;
+  
+  /* Design System Tokens */
+  --gradient-primary: linear-gradient(90deg, #055474 0%, #3e1c56 100%);
+  --border-radius-sm: 8px;
+  --border-radius-md: 12px;
+  --border-radius-lg: 16px;
+  --header-height-desktop: 80px;
+  --header-height-mobile: 70px;
+  --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.16);
+  
+  /* Typography */
+  --font-heading: 'Permanent Marker', cursive;
+  --font-body: 'Nunito Sans', sans-serif;
+  --font-legacy: 'Montserrat', sans-serif;
+  
+  /* Footer Color Variables */
+  --bb-teal: #055474;
+  --bb-slate-violet: #3e1c56;
+  --bb-white-92: rgba(255,255,255,0.92);
+  --bb-white-70: rgba(255,255,255,0.70);
+  --bb-div: rgba(255,255,255,0.10);
+}
+
+/* =============================================================================
+   BASE STYLES
+   ============================================================================= */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  font-family: var(--font-body);
+}
+
+header {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* =============================================================================
+   TYPOGRAPHY
+   ============================================================================= */
+
+h1 {
+  font-family: var(--font-heading);
+  color: var(--primary-color);
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+h2 {
+  font-family: var(--font-heading);
+  color: var(--primary-color);
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+h3 {
+  font-family: var(--font-heading);
+  color: var(--secondary-color);
+  font-size: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+/* =============================================================================
+   LINKS
+   ============================================================================= */
+
+a {
+  color: var(--primary-color);
+  text-decoration: none;
+  margin-right: 15px;
+  font-weight: 700;
+}
+
+a:hover {
+  transform: translateY(-1px);
+  transition: transform 0.2s ease;
+}
+
+/* =============================================================================
+   PRODUCT CARDS
+   ============================================================================= */
+
+.product-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.15) !important;
+}
+
+.product-card:hover img {
+  transform: scale(1.05);
+}
+
+.product-card:active {
+  transform: translateY(-2px);
+}
+
+/* =============================================================================
+   PRODUCT FORM
+   ============================================================================= */
+
+.publish-section {
+  margin-top: 32px;
+  padding: 24px;
+  background: var(--gradient-primary);
+  border-radius: var(--border-radius-md);
+  text-align: center;
+}
+
+.publish-button {
+  padding: 16px 48px;
+  font-size: 18px;
+  font-weight: bold;
+  background: white;
+  color: var(--primary-color);
+  border: none;
+  border-radius: var(--border-radius-md);
+  transition: all 0.2s ease;
+}
+
+.publish-button:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-medium);
+}
+
+.publish-hint {
+  color: rgba(255,255,255,0.8);
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.draft-hint {
+  margin-top: 16px;
+  text-align: center;
+  color: #666;
+  font-size: 13px;
+}
+
+/* =============================================================================
+   POLICY CONTENT
+   ============================================================================= */
+
+.policy-content {
+  line-height: 1.7;
+}
+
+.policy-content h1,
+.policy-content h2,
+.policy-content h3,
+.policy-content h4 {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  color: var(--primary-color, #055474);
+}
+
+.policy-content h1 { font-size: 1.5em; }
+.policy-content h2 { font-size: 1.3em; }
+.policy-content h3 { font-size: 1.1em; }
+
+.policy-content p {
+  margin-bottom: 1em;
+}
+
+.policy-content ul,
+.policy-content ol {
+  margin: 1em 0;
+  padding-left: 2em;
+}
+
+.policy-content li {
+  margin-bottom: 0.5em;
+}
+
+.policy-content strong,
+.policy-content b {
+  font-weight: 600;
+}
+
+.policy-content a {
+  color: var(--primary-color, #055474);
+  text-decoration: underline;
+}
+
+.policy-content br {
+  display: block;
+  content: "";
+  margin-top: 0.5em;
+}
+
+/* =============================================================================
+   ACCESSIBILITY
+   ============================================================================= */
+
+/* Screen Reader Only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Skip to Main Content Link */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--primary-color);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 0 0 4px 4px;
+  text-decoration: none;
+  font-weight: 600;
+  z-index: 9999;
+  transition: top 0.2s ease;
+}
+
+.skip-link:focus {
+  top: 0;
+  outline: 3px solid var(--secondary-color);
+  outline-offset: 2px;
+}
