@@ -145,10 +145,11 @@ class UserIngestion {
    */
   parseJSON(jsonString) {
     if (!jsonString) return null;
+    if (typeof jsonString === 'object') return jsonString;
     try {
       return JSON.parse(jsonString);
     } catch (error) {
-      logger.warn('Failed to parse JSON:', { value: jsonString?.substring(0, 50) });
+      logger.warn('Failed to parse JSON:', { value: String(jsonString).substring(0, 50) });
       return null;
     }
   }

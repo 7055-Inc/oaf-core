@@ -8,6 +8,7 @@
     "dev": "nodemon src/server.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
     "@chroma-core/default-embed": "^0.1.9",
     "@clickhouse/client": "^1.16.0",
     "@google-cloud/secret-manager": "^6.1.1",
