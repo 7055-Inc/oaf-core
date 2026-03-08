@@ -155,6 +155,31 @@ export default function MyAccountMenu({
             <div className={styles.menuItemContent}>
               <button 
                 className={styles.sidebarLink}
+                onClick={() => openSlideIn('my-wallet', { title: 'My Wallet' })}
+              >
+                My Wallet
+              </button>
+              {!hasShortcut('my-wallet') && (
+                <button
+                  className={styles.addShortcutButton}
+                  onClick={() => addShortcut({
+                    id: 'my-wallet',
+                    label: 'My Wallet',
+                    icon: 'fas fa-wallet',
+                    slideInType: 'my-wallet'
+                  })}
+                  disabled={loading}
+                  title="Add to shortcuts"
+                >
+                  <i className="fas fa-plus"></i>
+                </button>
+              )}
+            </div>
+          </li>
+          <li>
+            <div className={styles.menuItemContent}>
+              <button 
+                className={styles.sidebarLink}
                 onClick={() => openSlideIn('email-settings', { title: 'Email Settings' })}
               >
                 Email Settings
@@ -213,6 +238,34 @@ export default function MyAccountMenu({
                       label: 'Shipping Settings',
                       icon: 'fas fa-shipping-fast',
                       slideInType: 'shipping-settings'
+                    })}
+                    disabled={loading}
+                    title="Add to shortcuts"
+                  >
+                    <i className="fas fa-plus"></i>
+                  </button>
+                )}
+              </div>
+            </li>
+          )}
+          {/* Shared Library - Only show for artists, promoters, admins */}
+          {['artist', 'promoter', 'admin'].includes(userData.user_type) && (
+            <li>
+              <div className={styles.menuItemContent}>
+                <button 
+                  className={styles.sidebarLink}
+                  onClick={() => openSlideIn('shared-library', { title: 'Shared Library' })}
+                >
+                  Shared Library
+                </button>
+                {!hasShortcut('shared-library') && (
+                  <button
+                    className={styles.addShortcutButton}
+                    onClick={() => addShortcut({
+                      id: 'shared-library',
+                      label: 'Shared Library',
+                      icon: 'fas fa-folder-open',
+                      slideInType: 'shared-library'
                     })}
                     disabled={loading}
                     title="Add to shortcuts"

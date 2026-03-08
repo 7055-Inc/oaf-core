@@ -344,6 +344,15 @@ try {
   // Support tickets
   app.use('/api/tickets', csrfProtection(), require('./routes/tickets'));
 
+  // Shared Library file uploads (with CSRF protection)
+  app.use('/files', csrfProtection(), require('./routes/file-uploads'));
+
+  // Affiliate program management
+  app.use('/api/affiliates', csrfProtection(), require('./routes/affiliates'));
+
+  // Site credits & gift cards
+  app.use('/api/credits', csrfProtection(), require('./routes/credits'));
+
   secureLogger.info('All routes loaded successfully with CSRF protection');
 } catch (err) {
   secureLogger.error('Error loading routes', err);

@@ -1,55 +1,31 @@
-'use client';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/router';
+import Head from 'next/head';
 import dynamic from 'next/dynamic';
+import fs from 'fs';
+import path from 'path';
 
-// Lazy load below-the-fold components
-const FeaturedArtist = dynamic(() => import('../components/FeaturedArtist'), {
-  ssr: false,
-  loading: () => <div style={{ height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading featured artist...</div>
-});
+// Import components with SSR enabled for SEO
+import FeaturedArtist from '../components/FeaturedArtist';
+import EventsCarousel from '../components/EventsCarousel';
+import ArtistCarousel from '../components/ArtistCarousel';
 
-const EventsCarousel = dynamic(() => import('../components/EventsCarousel'), {
-  ssr: false,
-  loading: () => <div style={{ height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading events...</div>
-});
-
-const ArtistCarousel = dynamic(() => import('../components/ArtistCarousel'), {
-  ssr: false,
-  loading: () => <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading artists...</div>
-});
-
+// LoginModal can stay client-side only (not SEO relevant)
 const LoginModal = dynamic(() => import('../components/login/LoginModal'), {
   ssr: false,
   loading: () => null
 });
 
-export default function Home() {
+export default function Home({ heroData, featuredArtist, featuredProducts, events, artists }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [heroData, setHeroData] = useState(null);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
+  // Check login state client-side only (uses localStorage)
   useEffect(() => {
     const token = localStorage.getItem('token');
     setIsLoggedIn(!!token);
-    loadHeroData();
   }, []);
-
-  const loadHeroData = async () => {
-    try {
-      const res = await fetch('/static_media/hero.json');
-      if (res.ok) {
-        const data = await res.json();
-        setHeroData(data);
-      }
-    } catch (err) {
-      // No hero data found
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleVideoEnd = () => {
     if (heroData && heroData.videos.length > 1) {
@@ -63,22 +39,18 @@ export default function Home() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div style={{ 
-        height: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        backgroundColor: '#f5f5f5'
-      }}>
-        <p>Loading...</p>
-      </div>
-    );
-  }
-
   return (
     <>
+      <Head>
+        <title key="title">{heroData?.h1Text ? `${heroData.h1Text} | Brakebee` : 'Brakebee | Discover Unique Handmade Art'}</title>
+        <meta key="description" name="description" content={heroData?.h3Text || 'Discover and shop unique handmade art from talented artists. Browse paintings, sculptures, photography, jewelry, and more from independent creators.'} />
+        <meta key="og:title" property="og:title" content={heroData?.h1Text || 'Brakebee - Discover Unique Handmade Art'} />
+        <meta key="og:description" property="og:description" content={heroData?.h3Text || 'Discover and shop unique handmade art from talented artists.'} />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://brakebee.com" />
+        {/* canonical tag is set by _app.js for static pages */}
+      </Head>
+
       {/* === NEW HOMEPAGE SECTIONS === */}
       {/* Section 1: Visual Discovery Band */}
       {/* <VisualDiscoveryBand /> */}
@@ -189,13 +161,13 @@ export default function Home() {
       )}
 
       {/* Featured Artist */}
-      <FeaturedArtist />
+      <FeaturedArtist initialArtist={featuredArtist} initialProducts={featuredProducts} />
 
       {/* Events Carousel */}
-      <EventsCarousel />
+      <EventsCarousel initialEvents={events} />
 
       {/* Artist Carousel */}
-      <ArtistCarousel />
+      <ArtistCarousel initialArtists={artists} />
 
       {/* Fallback Content */}
       {(!heroData || heroData.videos.length === 0) && (
@@ -217,4 +189,111 @@ export default function Home() {
 
     </>
   );
+}
+
+// Server-side data fetching for SEO - all content renders on server
+export async function getServerSideProps() {
+  const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.brakebee.com';
+  
+  let heroData = null;
+  let featuredArtist = null;
+  let featuredProducts = [];
+  let events = [];
+  let artists = [];
+  
+  try {
+    // Read hero.json from the public directory on the server
+    const heroPath = path.join(process.cwd(), 'public', 'static_media', 'hero.json');
+    if (fs.existsSync(heroPath)) {
+      const heroContent = fs.readFileSync(heroPath, 'utf8');
+      heroData = JSON.parse(heroContent);
+    }
+  } catch (error) {
+    console.error('Error loading hero data:', error);
+  }
+
+  // Fetch all carousel data in parallel for performance
+  try {
+    const [artistsRes, eventsRes, vendorsRes] = await Promise.all([
+      // Artists for carousel
+      fetch(`${apiUrl}/users/artists?limit=50&random=true`).catch(() => null),
+      // Events for carousel
+      fetch(`${apiUrl}/api/events/upcoming?limit=10`).catch(() => null),
+      // Vendors for featured artist
+      fetch(`${apiUrl}/users/artists?has_permission=vendor&limit=50`).catch(() => null),
+    ]);
+
+    // Process artists
+    if (artistsRes?.ok) {
+      const artistsData = await artistsRes.json();
+      artists = Array.isArray(artistsData) ? artistsData : [];
+    }
+
+    // Process events
+    if (eventsRes?.ok) {
+      events = await eventsRes.json();
+    }
+
+    // Process featured artist
+    if (vendorsRes?.ok) {
+      const vendorsData = await vendorsRes.json();
+      const vendors = Array.isArray(vendorsData) ? vendorsData : [];
+      
+      if (vendors.length > 0) {
+        // Pick a random artist
+        featuredArtist = vendors[Math.floor(Math.random() * vendors.length)];
+        
+        // Fetch their products
+        if (featuredArtist?.id) {
+          try {
+            const productsRes = await fetch(`${apiUrl}/products/all?vendor_id=${featuredArtist.id}&include=images`);
+            if (productsRes.ok) {
+              const productsData = await productsRes.json();
+              const allProducts = productsData.products || [];
+              
+              // Filter to active parent products only
+              featuredProducts = allProducts
+                .filter(p => 
+                  p.parent_id === null && 
+                  p.status === 'active' &&
+                  p.name && 
+                  p.name.toLowerCase() !== 'new product draft'
+                )
+                .slice(0, 4)
+                .map(product => {
+                  let imageUrl = null;
+                  if (product.images && product.images.length > 0) {
+                    const firstImg = product.images[0];
+                    imageUrl = typeof firstImg === 'string' ? firstImg : firstImg.url;
+                  }
+                  // Convert relative URLs to absolute for SSR
+                  if (imageUrl && !imageUrl.startsWith('http')) {
+                    if (imageUrl.startsWith('/temp_images/')) {
+                      imageUrl = `${apiUrl}${imageUrl}`;
+                    } else {
+                      imageUrl = `${apiUrl}/smart-media/${imageUrl}`;
+                    }
+                  }
+                  return { ...product, processedImageUrl: imageUrl };
+                });
+            }
+          } catch (e) {
+            console.error('Error fetching featured products:', e);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching homepage data:', error);
+  }
+  
+  return {
+    props: {
+      heroData,
+      featuredArtist,
+      featuredProducts,
+      events,
+      artists
+    }
+  };
 }

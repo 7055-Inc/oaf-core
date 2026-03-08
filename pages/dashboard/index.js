@@ -42,6 +42,7 @@ import MyAccountMenu from '../../components/dashboard/my-account/MyAccountMenu';
 import EditProfile from '../../components/dashboard/my-account/components/EditProfile';
 import ViewProfile from '../../components/dashboard/my-account/components/ViewProfile';
 import MyOrders from '../../components/dashboard/my-account/components/MyOrders';
+import MyWallet from '../../components/dashboard/my-account/components/MyWallet';
 import EmailPreferences from '../../components/dashboard/my-account/components/EmailPreferences';
 import PaymentSettings from '../../components/dashboard/my-account/components/PaymentSettings';
 import ShippingSettings from '../../components/dashboard/my-account/components/ShippingSettings';
@@ -91,6 +92,16 @@ import SupportTickets from '../../components/dashboard/admin/components/SupportT
 import AdminPromotions from '../../components/dashboard/admin/components/AdminPromotions';
 import AdminEventReviews from '../../components/dashboard/admin/AdminEventReviews';
 import MaintenanceControl from '../../components/dashboard/admin/components/MaintenanceControl';
+import SharedLibrary from '../../components/dashboard/my-account/components/SharedLibrary';
+import AdminSharedLibrary from '../../components/dashboard/admin/components/AdminSharedLibrary';
+import AffiliateAdmin from '../../components/dashboard/admin/components/AffiliateAdmin';
+import AffiliatesMenu from '../../components/dashboard/affiliates/AffiliatesMenu';
+import AffiliateOverview from '../../components/dashboard/affiliates/components/AffiliateOverview';
+import AffiliateLinks from '../../components/dashboard/affiliates/components/AffiliateLinks';
+import AffiliateCommissions from '../../components/dashboard/affiliates/components/AffiliateCommissions';
+import AffiliatePayouts from '../../components/dashboard/affiliates/components/AffiliatePayouts';
+import GiftCardAdmin from '../../components/dashboard/admin/components/GiftCardAdmin';
+import AffiliateEnroll from '../../components/dashboard/affiliates/components/AffiliateEnroll';
 
 
 
@@ -108,6 +119,7 @@ export default function Dashboard() {
     'my-events': true,
     'my-finances': true,
     'my-subscriptions': true,
+    'affiliates': true,
     admin: true,
     developers: true,
     'manage-system': true,
@@ -420,6 +432,14 @@ export default function Dashboard() {
       );
     }
     
+    if (slideInContent.type === 'my-wallet') {
+      return (
+        <MyWallet
+          userData={userData}
+        />
+      );
+    }
+    
     if (slideInContent.type === 'email-settings') {
       return (
         <EmailPreferences
@@ -440,6 +460,52 @@ export default function Dashboard() {
       return (
         <ShippingSettings
           userData={userData}
+        />
+      );
+    }
+
+    // Affiliate slide-ins
+    if (slideInContent.type === 'affiliate-overview') {
+      return (
+        <AffiliateOverview
+          userData={userData}
+          affiliateData={slideInContent.props?.affiliateData}
+        />
+      );
+    }
+
+    if (slideInContent.type === 'affiliate-links') {
+      return (
+        <AffiliateLinks
+          userData={userData}
+          affiliateData={slideInContent.props?.affiliateData}
+        />
+      );
+    }
+
+    if (slideInContent.type === 'affiliate-commissions') {
+      return (
+        <AffiliateCommissions
+          userData={userData}
+          affiliateData={slideInContent.props?.affiliateData}
+        />
+      );
+    }
+
+    if (slideInContent.type === 'affiliate-payouts') {
+      return (
+        <AffiliatePayouts
+          userData={userData}
+          affiliateData={slideInContent.props?.affiliateData}
+        />
+      );
+    }
+
+    if (slideInContent.type === 'affiliate-enroll') {
+      return (
+        <AffiliateEnroll
+          userData={userData}
+          onEnroll={slideInContent.props?.onEnroll}
         />
       );
     }
@@ -848,6 +914,38 @@ export default function Dashboard() {
         />
       );
     }
+    
+    if (slideInContent.type === 'shared-library') {
+      return (
+        <SharedLibrary
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'admin-shared-library') {
+      return (
+        <AdminSharedLibrary
+          userData={userData}
+        />
+      );
+    }
+    
+    if (slideInContent.type === 'admin-affiliates') {
+      return (
+        <AffiliateAdmin
+          userData={userData}
+        />
+      );
+    }
+
+    if (slideInContent.type === 'admin-gift-cards') {
+      return (
+        <GiftCardAdmin
+          userData={userData}
+        />
+      );
+    }
 
     // Handle other slide-in types here (for future menu sections)
     return null;
@@ -922,6 +1020,16 @@ export default function Dashboard() {
           {/* NEW My Subscriptions Section - Clean architecture */}
           {userData && (
             <MySubscriptionsMenu
+              userData={userData}
+              collapsedSections={collapsedSections}
+              toggleSection={toggleSection}
+              openSlideIn={openSlideIn}
+            />
+          )}
+
+          {/* Affiliates Section - Earn by sharing */}
+          {userData && (
+            <AffiliatesMenu
               userData={userData}
               collapsedSections={collapsedSections}
               toggleSection={toggleSection}

@@ -8,13 +8,20 @@ import { getApiUrl, getSmartMediaUrl } from '../lib/config';
 const ARTISTS_CACHE_KEY = 'artists_carousel_cache';
 const ARTISTS_CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours
 
-export default function ArtistCarousel() {
-  const [artists, setArtists] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+export default function ArtistCarousel({ initialArtists = [] }) {
+  // If initial data provided, triplicate for infinite scroll
+  const processedInitial = initialArtists.length > 0 
+    ? [...initialArtists, ...initialArtists, ...initialArtists] 
+    : [];
+  const [artists, setArtists] = useState(processedInitial);
+  const [isLoading, setIsLoading] = useState(initialArtists.length === 0);
 
   useEffect(() => {
-    loadArtists();
-  }, []);
+    // Only fetch if no initial data provided (client-side navigation)
+    if (initialArtists.length === 0) {
+      loadArtists();
+    }
+  }, [initialArtists]);
 
   const loadArtists = async () => {
     try {

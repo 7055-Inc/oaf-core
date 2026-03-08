@@ -8,14 +8,17 @@ import { getApiUrl, getSmartMediaUrl } from '../lib/config';
 const EVENTS_CACHE_KEY = 'events_carousel_cache';
 const EVENTS_CACHE_DURATION = 60 * 60 * 1000; // 1 hour (events change frequently)
 
-export default function EventsCarousel() {
-  const [events, setEvents] = useState([]);
-  const [eventsLoading, setEventsLoading] = useState(true);
+export default function EventsCarousel({ initialEvents = [] }) {
+  const [events, setEvents] = useState(initialEvents);
+  const [eventsLoading, setEventsLoading] = useState(initialEvents.length === 0);
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
 
   useEffect(() => {
-    loadUpcomingEvents();
-  }, []);
+    // Only fetch if no initial data provided (client-side navigation)
+    if (initialEvents.length === 0) {
+      loadUpcomingEvents();
+    }
+  }, [initialEvents]);
 
   const loadUpcomingEvents = async () => {
     try {

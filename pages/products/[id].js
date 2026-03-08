@@ -11,6 +11,7 @@ import ProductReviews from '../../components/ProductReviews';
 import { getAuthToken } from '../../lib/csrf';
 import { apiRequest, authApiRequest } from '../../lib/apiUtils';
 import { isWholesaleCustomer } from '../../lib/userUtils';
+import { getStoredAffiliateData } from '../../hooks/useAffiliateContext';
 import styles from './styles/ProductView.module.css';
 
 export default function ProductView({ initialProduct, initialError, initialReviews = [], initialReviewSummary = null }) {
@@ -287,7 +288,10 @@ export default function ProductView({ initialProduct, initialError, initialRevie
         throw new Error('Failed to get cart information');
       }
 
-      // Now add the item to the cart
+      // Get affiliate attribution data (locked at add-to-cart time)
+      const affiliateData = getStoredAffiliateData();
+      
+      // Now add the item to the cart with affiliate attribution
       const addItemRes = await authApiRequest(`cart/${cartId}/items`, {
         method: 'POST',
         headers: {
@@ -297,7 +301,9 @@ export default function ProductView({ initialProduct, initialError, initialRevie
           product_id: targetProduct.id,
           vendor_id: targetProduct.vendor_id,
           quantity: targetQuantity,
-          price: targetProduct.price
+          price: targetProduct.price,
+          affiliate_id: affiliateData.affiliate_id,
+          affiliate_source: affiliateData.affiliate_source
         })
       });
 

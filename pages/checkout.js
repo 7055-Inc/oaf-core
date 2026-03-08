@@ -6,6 +6,7 @@ import { authenticatedApiRequest, handleCsrfError } from '../lib/csrf';
 import { authApiRequest } from '../lib/apiUtils';
 import CouponEntry from '../components/coupons/CouponEntry';
 import DiscountSummary from '../components/coupons/DiscountSummary';
+import CreditApplication from '../components/checkout/CreditApplication';
 import { useCoupons } from '../hooks/useCoupons';
 import styles from '../styles/Checkout.module.css';
 
@@ -47,6 +48,7 @@ export default function Checkout() {
     }
   });
   const [selectedShipping, setSelectedShipping] = useState({}); // { [product_id]: { service: string, rate: number } }
+  const [appliedCredit, setAppliedCredit] = useState(0); // Amount of site credit to apply
   const router = useRouter();
 
   // Initialize Stripe when script loads
@@ -253,12 +255,25 @@ export default function Checkout() {
         },
         body: JSON.stringify({ 
           cart_items,
-          billing_info: billingDetails
+          billing_info: billingDetails,
+          apply_credit: appliedCredit > 0 ? appliedCredit : undefined
         })
       });
 
       if (response.ok) {
         const data = await response.json();
+        
+        // Check if order was fully paid with credit
+        if (data.paid_with_credit) {
+          setPaymentStatus('Order complete! Redirecting...');
+          // Clear cart
+          localStorage.removeItem('checkoutCart');
+          localStorage.removeItem('cart');
+          // Redirect to success page
+          router.push(`/order-confirmation?order_id=${data.order_id}`);
+          return;
+        }
+        
         setPaymentIntent(data);
         setPaymentStatus('Payment form ready');
       } else {
@@ -601,6 +616,33 @@ export default function Checkout() {
                     </div>
             </div>
             
+            {/* Credit Application - Show before payment */}
+            {!paymentIntent && orderSummary?.totals?.total_amount > 0 && (
+              <CreditApplication
+                orderTotal={orderSummary.totals.total_amount}
+                onCreditApplied={(amount) => setAppliedCredit(amount)}
+                disabled={processing}
+              />
+            )}
+            
+            {/* Show credit applied in summary */}
+            {appliedCredit > 0 && (
+              <div style={{
+                background: '#d4edda',
+                padding: '12px 16px',
+                borderRadius: '8px',
+                marginBottom: '16px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <span style={{ color: '#155724' }}>Site Credit Applied</span>
+                <span style={{ color: '#155724', fontWeight: '600' }}>
+                  -{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(appliedCredit)}
+                </span>
+              </div>
+            )}
+            
             {/* Continue to Payment Button - Only show if payment intent not created */}
             {!paymentIntent && (
               <div className={styles.paymentStep}>
@@ -609,7 +651,7 @@ export default function Checkout() {
                   disabled={processing || !billingDetails.name || !billingDetails.email || !billingDetails.address.line1 || !billingDetails.address.city || !billingDetails.address.state || !billingDetails.address.postal_code}
                   className={styles.createIntentButton}
                 >
-                  {processing ? 'Setting up payment...' : 'Continue to Payment'}
+                  {processing ? 'Setting up payment...' : appliedCredit >= (orderSummary?.totals?.total_amount || 0) ? 'Complete Order with Credit' : 'Continue to Payment'}
                 </button>
                 {(!billingDetails.name || !billingDetails.email || !billingDetails.address.line1) && (
                   <p style={{color: '#666', fontSize: '14px', marginTop: '10px'}}>

@@ -91,7 +91,7 @@ router.post('/calculate-totals', verifyToken, async (req, res) => {
  */
 router.post('/create-payment-intent', verifyToken, async (req, res) => {
   try {
-    const { cart_items, shipping_info, billing_info } = req.body;
+    const { cart_items, shipping_info, billing_info, apply_credit } = req.body;
     const userId = req.userId;
     
     if (!cart_items || !Array.isArray(cart_items)) {
@@ -106,8 +106,29 @@ router.post('/create-payment-intent', verifyToken, async (req, res) => {
     // Calculate totals
     const totals = calculateOrderTotals(itemsWithCommissions);
     
-    // Create order record
-    const orderId = await createOrder(userId, totals, itemsWithCommissions);
+    // Handle credit application
+    let creditApplied = 0;
+    let creditTransactionId = null;
+    
+    if (apply_credit && apply_credit > 0) {
+      // Verify user has sufficient credit
+      const [creditRows] = await db.execute(
+        'SELECT balance FROM user_credits WHERE user_id = ?',
+        [userId]
+      );
+      
+      const userBalance = creditRows[0]?.balance || 0;
+      
+      if (apply_credit > userBalance) {
+        return res.status(400).json({ error: 'Insufficient credit balance' });
+      }
+      
+      // Cap credit at order total
+      creditApplied = Math.min(apply_credit, totals.total_amount);
+    }
+    
+    // Create order record (with credit info)
+    const orderId = await createOrder(userId, totals, itemsWithCommissions, creditApplied);
     
     // Calculate tax using Stripe Tax API
     let taxCalculation = null;
@@ -202,16 +223,91 @@ router.post('/create-payment-intent', verifyToken, async (req, res) => {
     // Update totals with tax
     const totalWithTax = totals.subtotal + totals.shipping_total + taxAmount;
     
-    // Create Stripe payment intent
+    // Calculate amount after credit
+    const amountAfterCredit = Math.max(0, totalWithTax - creditApplied);
+    
+    // If fully paid with credit, process immediately without Stripe
+    if (amountAfterCredit <= 0 && creditApplied > 0) {
+      // Deduct credit from user balance
+      const connection = await db.getConnection();
+      try {
+        await connection.beginTransaction();
+        
+        // Update user credit balance
+        await connection.execute(`
+          UPDATE user_credits 
+          SET balance = balance - ?,
+              lifetime_spent = lifetime_spent + ?,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE user_id = ?
+        `, [creditApplied, creditApplied, userId]);
+        
+        // Get new balance for transaction
+        const [balanceRow] = await connection.execute(
+          'SELECT balance FROM user_credits WHERE user_id = ?',
+          [userId]
+        );
+        const newBalance = balanceRow[0]?.balance || 0;
+        
+        // Record credit transaction
+        const [txResult] = await connection.execute(`
+          INSERT INTO user_credit_transactions
+          (user_id, amount, balance_after, transaction_type, reference_type, reference_id, description)
+          VALUES (?, ?, ?, 'checkout_applied', 'orders', ?, ?)
+        `, [userId, -creditApplied, newBalance, orderId, `Applied to order #${orderId}`]);
+        
+        creditTransactionId = txResult.insertId;
+        
+        // Update order with credit info and mark as paid
+        await connection.execute(`
+          UPDATE orders 
+          SET credit_applied = ?, credit_transaction_id = ?, status = 'paid', updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `, [creditApplied, creditTransactionId, orderId]);
+        
+        await connection.commit();
+        
+        // Send order confirmation
+        try {
+          await sendOrderConfirmationEmails(orderId, userId);
+        } catch (emailError) {
+          console.error('Error sending order confirmation:', emailError);
+        }
+        
+        return res.json({
+          success: true,
+          paid_with_credit: true,
+          order_id: orderId,
+          credit_applied: creditApplied,
+          totals: {
+            ...totals,
+            tax_amount: taxAmount,
+            total_with_tax: totalWithTax,
+            credit_applied: creditApplied,
+            amount_due: 0
+          }
+        });
+        
+      } catch (creditError) {
+        await connection.rollback();
+        console.error('Error processing credit payment:', creditError);
+        return res.status(500).json({ error: 'Failed to process credit payment' });
+      } finally {
+        connection.release();
+      }
+    }
+    
+    // Create Stripe payment intent for remaining amount
     const paymentIntent = await stripeService.createPaymentIntent({
-      total_amount: totalWithTax,
+      total_amount: amountAfterCredit,
       currency: 'usd',
       customer_id: customerId,
       metadata: {
         order_id: orderId,
         user_id: userId,
         vendor_count: totals.vendor_count,
-        tax_calculation_id: taxCalculation?.id || null
+        tax_calculation_id: taxCalculation?.id || null,
+        credit_applied: creditApplied || 0
       }
     });
 
@@ -229,6 +325,14 @@ router.post('/create-payment-intent', verifyToken, async (req, res) => {
       }
     }
     
+    // Update order with credit to apply (will be deducted on payment confirmation)
+    if (creditApplied > 0) {
+      await db.execute(
+        'UPDATE orders SET credit_applied = ? WHERE id = ?',
+        [creditApplied, orderId]
+      );
+    }
+    
     res.json({
       success: true,
       payment_intent: {
@@ -240,7 +344,9 @@ router.post('/create-payment-intent', verifyToken, async (req, res) => {
       totals: {
         ...totals,
         tax_amount: taxAmount,
-        total_with_tax: totalWithTax
+        total_with_tax: totalWithTax,
+        credit_applied: creditApplied,
+        amount_due: amountAfterCredit
       },
       tax_info: taxCalculation ? {
         calculation_id: taxCalculation.id,
@@ -282,6 +388,63 @@ router.post('/confirm-payment', verifyToken, async (req, res) => {
 
     // Update order with payment intent ID
     await updateOrderPaymentIntent(order_id, payment_intent_id);
+    
+    // Process credit deduction if any was applied
+    if (order.credit_applied && order.credit_applied > 0 && !order.credit_transaction_id) {
+      const connection = await db.getConnection();
+      try {
+        await connection.beginTransaction();
+        
+        // Verify user still has sufficient balance
+        const [creditRows] = await connection.execute(
+          'SELECT balance FROM user_credits WHERE user_id = ? FOR UPDATE',
+          [userId]
+        );
+        
+        const userBalance = creditRows[0]?.balance || 0;
+        if (userBalance < order.credit_applied) {
+          await connection.rollback();
+          return res.status(400).json({ error: 'Insufficient credit balance' });
+        }
+        
+        // Deduct credit
+        await connection.execute(`
+          UPDATE user_credits 
+          SET balance = balance - ?,
+              lifetime_spent = lifetime_spent + ?,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE user_id = ?
+        `, [order.credit_applied, order.credit_applied, userId]);
+        
+        // Get new balance
+        const [balanceRow] = await connection.execute(
+          'SELECT balance FROM user_credits WHERE user_id = ?',
+          [userId]
+        );
+        const newBalance = balanceRow[0]?.balance || 0;
+        
+        // Record transaction
+        const [txResult] = await connection.execute(`
+          INSERT INTO user_credit_transactions
+          (user_id, amount, balance_after, transaction_type, reference_type, reference_id, description)
+          VALUES (?, ?, ?, 'checkout_applied', 'orders', ?, ?)
+        `, [userId, -order.credit_applied, newBalance, order_id, `Applied to order #${order_id}`]);
+        
+        // Update order with transaction ID
+        await connection.execute(
+          'UPDATE orders SET credit_transaction_id = ? WHERE id = ?',
+          [txResult.insertId, order_id]
+        );
+        
+        await connection.commit();
+      } catch (creditError) {
+        await connection.rollback();
+        console.error('Error processing credit deduction:', creditError);
+        // Continue - the payment was still successful
+      } finally {
+        connection.release();
+      }
+    }
     
     // Update order status to 'paid' after successful payment confirmation
     await db.execute(
@@ -579,7 +742,7 @@ async function getCartItemsWithDetails(cartItems) {
   
   const [products] = await db.execute(query, productIds);
   
-  // Merge cart quantities with product details 
+  // Merge cart quantities with product details (preserve affiliate attribution from cart)
   return cartItems.map(cartItem => {
     const product = products.find(p => p.id === cartItem.product_id);
     if (!product) {
@@ -594,7 +757,10 @@ async function getCartItemsWithDetails(cartItems) {
       quantity: cartItem.quantity,
       price: product.price * cartItem.quantity,
       shipping_cost: 0, // Will be calculated in calculateShippingCosts
-      ship_method: product.ship_method || 'free'
+      ship_method: product.ship_method || 'free',
+      // Preserve affiliate attribution (locked at cart-add time)
+      affiliate_id: cartItem.affiliate_id || null,
+      affiliate_source: cartItem.affiliate_source || 'direct'
     };
   });
 }
@@ -754,11 +920,12 @@ function calculateOrderTotals(items) {
  * Create order record with transaction safety
  * @param {number} userId - User ID creating the order
  * @param {Object} totals - Calculated order totals
- * @param {Array} items - Array of order items
+ * @param {Array} items - Array of order items (includes affiliate attribution)
+ * @param {number} creditApplied - Amount of site credit applied (default 0)
  * @returns {Promise<number>} Created order ID
  * @throws {Error} If order creation fails
  */
-async function createOrder(userId, totals, items) {
+async function createOrder(userId, totals, items, creditApplied = 0) {
   const connection = await db.getConnection();
   
   try {
@@ -767,8 +934,8 @@ async function createOrder(userId, totals, items) {
     // Create order
     const orderQuery = `
       INSERT INTO orders 
-      (user_id, total_amount, shipping_amount, tax_amount, platform_fee_amount, status)
-      VALUES (?, ?, ?, ?, ?, 'pending')
+      (user_id, total_amount, shipping_amount, tax_amount, platform_fee_amount, credit_applied, status)
+      VALUES (?, ?, ?, ?, ?, ?, 'pending')
     `;
     
     const [orderResult] = await connection.execute(orderQuery, [
@@ -776,16 +943,17 @@ async function createOrder(userId, totals, items) {
       totals.total_amount,
       totals.shipping_total,
       totals.tax_total,
-      totals.platform_fee_total
+      totals.platform_fee_total,
+      creditApplied
     ]);
     
     const orderId = orderResult.insertId;
     
-    // Create order items
+    // Create order items with affiliate attribution
     const itemQuery = `
       INSERT INTO order_items 
-      (order_id, product_id, vendor_id, quantity, price, shipping_cost, commission_rate, commission_amount, selected_shipping_service, shipping_rate)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (order_id, product_id, vendor_id, quantity, price, shipping_cost, commission_rate, commission_amount, selected_shipping_service, shipping_rate, affiliate_id, affiliate_source)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     
     for (const item of items) {
@@ -798,8 +966,10 @@ async function createOrder(userId, totals, items) {
         item.shipping_cost || 0,
         item.commission_rate || 15.00,
         item.commission_amount || 0,
-        item.selected_shipping_service || null, // New
-        item.selected_shipping_rate || item.shipping_cost // New, fallback to calculated if not selected
+        item.selected_shipping_service || null,
+        item.selected_shipping_rate || item.shipping_cost,
+        item.affiliate_id || null,
+        item.affiliate_source || 'direct'
       ]);
     }
     

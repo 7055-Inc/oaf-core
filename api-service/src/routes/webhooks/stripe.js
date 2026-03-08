@@ -8,6 +8,7 @@
 const express = require('express');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const stripeService = require('../../services/stripeService');
+const affiliateCommissionService = require('../../services/affiliateCommissionService');
 const db = require('../../../config/db');
 const router = express.Router();
 const EmailService = require('../../services/emailService');
@@ -67,6 +68,9 @@ async function handleWebhookEvent(event) {
     // Payment events
     'payment_intent.succeeded': handlePaymentSuccess,
     'payment_intent.payment_failed': handlePaymentFailure,
+    
+    // Refund events
+    'charge.refunded': handleChargeRefunded,
     
     // Transfer events
     'transfer.created': handleTransferCreated,
@@ -241,6 +245,18 @@ async function handleEcommercePayment(paymentIntent, orderId) {
     // Record platform commission (this happens immediately)
     await recordPlatformCommission(orderId, paymentIntent.id);
     
+    // Record affiliate commissions for attributed items
+    // This creates pending commission records with 30-day hold
+    try {
+      const affiliateResult = await affiliateCommissionService.recordAffiliateCommissions(orderId, paymentIntent.id);
+      if (affiliateResult.commissions_created > 0) {
+        console.log(`Order ${orderId}: ${affiliateResult.commissions_created} affiliate commission(s) recorded, total: $${affiliateResult.total_commission.toFixed(2)}`);
+      }
+    } catch (affiliateError) {
+      // Don't fail the order for affiliate issues - just log
+      console.error(`Failed to record affiliate commissions for order ${orderId}:`, affiliateError);
+    }
+    
     console.log(`Order ${orderId} paid - transfer pending until tracking added`);
     
   } catch (error) {
@@ -412,6 +428,59 @@ async function handlePaymentFailure(paymentIntent, event) {
     }
   } catch (error) {
     console.error('Error handling payment failure:', error);
+  }
+}
+
+// ===== REFUND EVENT HANDLERS =====
+
+/**
+ * Handle charge refund for affiliate commission clawbacks
+ * Cancels pending affiliate commissions or creates clawback records for paid commissions
+ * 
+ * @param {Object} charge - Stripe Charge object with refund details
+ * @param {Object} event - Full Stripe webhook event
+ * @returns {Promise<void>} Resolves when refund is processed
+ */
+async function handleChargeRefunded(charge, event) {
+  try {
+    // Find the order by payment intent
+    const paymentIntentId = charge.payment_intent;
+    if (!paymentIntentId) {
+      return; // Not an order-related charge
+    }
+    
+    const [orderRows] = await db.execute(
+      'SELECT id, status FROM orders WHERE stripe_payment_intent_id = ?',
+      [paymentIntentId]
+    );
+    
+    if (orderRows.length === 0) {
+      return; // No order found for this charge
+    }
+    
+    const order = orderRows[0];
+    
+    // Update order status to refunded
+    await db.execute(`
+      UPDATE orders 
+      SET status = 'refunded', updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `, [order.id]);
+    
+    // Handle affiliate commission clawbacks
+    try {
+      const refundResult = await affiliateCommissionService.handleOrderRefund(order.id);
+      if (refundResult.cancelled > 0 || refundResult.clawbacks > 0) {
+        console.log(`Order ${order.id} refunded: ${refundResult.cancelled} commission(s) cancelled, ${refundResult.clawbacks} clawback(s) created`);
+      }
+    } catch (affiliateError) {
+      console.error(`Failed to handle affiliate refund for order ${order.id}:`, affiliateError);
+    }
+    
+    console.log(`Order ${order.id} marked as refunded`);
+    
+  } catch (error) {
+    console.error('Error handling charge refund:', error);
   }
 }
 

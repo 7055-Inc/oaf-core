@@ -282,12 +282,17 @@ router.get('/:cartId/items', verifyToken, async (req, res) => {
  * @param {number} req.body.vendor_id - Vendor ID
  * @param {number} req.body.quantity - Item quantity
  * @param {number} req.body.price - Item price
+ * @param {number} req.body.affiliate_id - Affiliate ID for attribution (optional)
+ * @param {string} req.body.affiliate_source - Attribution source: 'link', 'promoter_site', 'direct' (optional)
  * @param {Object} res - Express response object
  * @returns {Object} Success confirmation
  */
 router.post('/:cartId/items', verifyToken, async (req, res) => {
-  const { product_id, vendor_id, quantity, price } = req.body;
-  await db.query('INSERT INTO cart_items (cart_id, product_id, vendor_id, quantity, price) VALUES (?, ?, ?, ?, ?)', [req.params.cartId, product_id, vendor_id, quantity, price]);
+  const { product_id, vendor_id, quantity, price, affiliate_id, affiliate_source } = req.body;
+  await db.query(
+    'INSERT INTO cart_items (cart_id, product_id, vendor_id, quantity, price, affiliate_id, affiliate_source) VALUES (?, ?, ?, ?, ?, ?, ?)', 
+    [req.params.cartId, product_id, vendor_id, quantity, price, affiliate_id || null, affiliate_source || 'direct']
+  );
   res.json({ success: true });
 });
 
@@ -392,6 +397,7 @@ router.delete('/saved/:id', verifyToken, async (req, res) => {
 /**
  * Enhanced Add to Cart with Site Context (Multi-Cart Revolution!)
  * Intelligently manages multi-site carts and guest/authenticated users
+ * Now includes affiliate attribution tracking (locked at cart-add time)
  * @route POST /api/carts/add
  * @access Public
  * @param {Object} req - Express request object
@@ -402,6 +408,8 @@ router.delete('/saved/:id', verifyToken, async (req, res) => {
  * @param {string} req.body.guest_token - Guest identifier (required for unauthenticated users)
  * @param {string} req.body.source_site_api_key - API key of originating site
  * @param {string} req.body.source_site_name - Name of originating site
+ * @param {number} req.body.affiliate_id - Affiliate ID for attribution (optional, locked at add time)
+ * @param {string} req.body.affiliate_source - Attribution source: 'link', 'promoter_site', 'direct' (optional)
  * @param {Object} res - Express response object
  * @returns {Object} Cart information with added item details
  */
@@ -427,7 +435,9 @@ router.post('/add', async (req, res) => {
       price,
       guest_token,
       source_site_api_key,
-      source_site_name 
+      source_site_name,
+      affiliate_id,
+      affiliate_source
     } = req.body;
 
     if (!product_id || !vendor_id || !price) {
@@ -484,17 +494,17 @@ router.post('/add', async (req, res) => {
     );
 
     if (existingItems.length > 0) {
-      // Update quantity if item exists
+      // Update quantity if item exists (keep original affiliate attribution - first attribution wins)
       const newQuantity = existingItems[0].quantity + quantity;
       await db.query(
         'UPDATE cart_items SET quantity = ?, price = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
         [newQuantity, price, existingItems[0].id]
       );
     } else {
-      // Add new item to cart
+      // Add new item to cart with affiliate attribution (locked at add time)
       await db.query(
-        'INSERT INTO cart_items (cart_id, product_id, vendor_id, quantity, price) VALUES (?, ?, ?, ?, ?)',
-        [cartId, product_id, vendor_id, quantity, price]
+        'INSERT INTO cart_items (cart_id, product_id, vendor_id, quantity, price, affiliate_id, affiliate_source) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [cartId, product_id, vendor_id, quantity, price, affiliate_id || null, affiliate_source || 'direct']
       );
     }
 
@@ -512,7 +522,9 @@ router.post('/add', async (req, res) => {
         product_id,
         vendor_id,
         quantity,
-        price
+        price,
+        affiliate_id: affiliate_id || null,
+        affiliate_source: affiliate_source || 'direct'
       }
     });
 

@@ -163,6 +163,30 @@ export default function AdminMenu({
               Promotions
             </button>
           </li>
+          <li>
+            <button 
+              className={styles.sidebarLink}
+              onClick={() => openSlideIn('admin-shared-library', { title: 'Shared Library (All Users)' })}
+            >
+              Shared Library
+            </button>
+          </li>
+          <li>
+            <button 
+              className={styles.sidebarLink}
+              onClick={() => openSlideIn('admin-affiliates', { title: 'Affiliate Management' })}
+            >
+              Affiliate Management
+            </button>
+          </li>
+          <li>
+            <button 
+              className={styles.sidebarLink}
+              onClick={() => openSlideIn('admin-gift-cards', { title: 'Gift Cards & Credits' })}
+            >
+              Gift Cards & Credits
+            </button>
+          </li>
         </ul>
       )}
     </div>

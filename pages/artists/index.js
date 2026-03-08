@@ -1,21 +1,25 @@
-'use client';
 import { useState, useEffect } from 'react';
+import Head from 'next/head';
 import Link from 'next/link';
 import styles from './Artists.module.css';
 import { getApiUrl, getSmartMediaUrl } from '../../lib/config';
 
-export default function Artists() {
-  const [artists, setArtists] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+const ARTISTS_PER_PAGE = 24;
+
+export default function Artists({ initialArtists = [], initialHasMore = true }) {
+  const [artists, setArtists] = useState(initialArtists);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [totalArtists, setTotalArtists] = useState(0);
-  
-  const ARTISTS_PER_PAGE = 24;
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [totalArtists, setTotalArtists] = useState(initialArtists.length);
 
+  // Only fetch more on client-side pagination
   useEffect(() => {
-    loadArtists(1, true); // Load first page and reset
+    // Skip initial load if we have SSR data
+    if (initialArtists.length === 0) {
+      loadArtists(1, true);
+    }
   }, []);
 
   const loadArtists = async (page = 1, reset = false) => {
@@ -87,12 +91,49 @@ export default function Artists() {
   };
 
   return (
-    <div className={styles.pageContainer}>
+    <>
+      <Head>
+        <title key="title">Meet the Artists | Brakebee</title>
+        <meta key="description" name="description" content="Browse and discover independent artists on Brakebee. Find unique artwork, custom pieces, paintings, sculptures, jewelry, and more from talented creators." />
+        <meta key="og:title" property="og:title" content="Meet the Artists | Brakebee" />
+        <meta key="og:description" property="og:description" content="Browse and discover independent artists on Brakebee. Find unique artwork from talented creators." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://brakebee.com/artists" />
+        
+        {/* CollectionPage Schema for artist directory */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "CollectionPage",
+              "name": "Meet the Artists",
+              "description": "Browse and discover independent artists on Brakebee. Find unique artwork, custom pieces, paintings, sculptures, jewelry, and more from talented creators.",
+              "url": "https://brakebee.com/artists",
+              "isPartOf": {
+                "@type": "WebSite",
+                "name": "Brakebee",
+                "url": "https://brakebee.com"
+              }
+            })
+          }}
+        />
+      </Head>
       
-      <main className={styles.main}>
+      <div className={styles.pageContainer}>
+      
+        <main className={styles.main}>
 
-        {/* Artists Grid Section */}
-        <section className={styles.artistsSection}>
+          {/* Page Header for SEO */}
+          <section className={styles.pageHeader || ''}>
+            <h1 style={{ fontSize: '2rem', textAlign: 'center', padding: '2rem 1rem 1rem' }}>Meet the Artists</h1>
+            <p style={{ textAlign: 'center', maxWidth: '600px', margin: '0 auto 2rem', color: '#666' }}>
+              Discover talented independent artists creating unique handmade artwork
+            </p>
+          </section>
+
+          {/* Artists Grid Section */}
+          <section className={styles.artistsSection}>
           <div className={styles.container}>
             
             {error && (
@@ -209,8 +250,36 @@ export default function Artists() {
             )}
           </div>
         </section>
-      </main>
+        </main>
 
-    </div>
+      </div>
+    </>
   );
+}
+
+// Server-side data fetching for SEO
+export async function getServerSideProps() {
+  const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.brakebee.com';
+  const ARTISTS_PER_PAGE = 24;
+  
+  let initialArtists = [];
+  let initialHasMore = true;
+  
+  try {
+    const response = await fetch(`${apiUrl}/users/artists?limit=${ARTISTS_PER_PAGE}&offset=0`);
+    
+    if (response.ok) {
+      initialArtists = await response.json();
+      initialHasMore = initialArtists.length === ARTISTS_PER_PAGE;
+    }
+  } catch (error) {
+    console.error('Error fetching artists:', error);
+  }
+  
+  return {
+    props: {
+      initialArtists,
+      initialHasMore
+    }
+  };
 }

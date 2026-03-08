@@ -232,4 +232,118 @@ router.post('/payment-methods/confirm-setup', verifyToken, async (req, res) => {
   }
 });
 
+/**
+ * Delete a payment method
+ * @route DELETE /api/payment-methods/:id
+ * @access Private
+ * @returns {Object} Success confirmation
+ */
+router.delete('/payment-methods/:id', verifyToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const paymentMethodId = req.params.id;
+    
+    // Get user's Stripe customer ID
+    const [subscriptions] = await db.execute(`
+      SELECT stripe_customer_id 
+      FROM user_subscriptions 
+      WHERE user_id = ? AND stripe_customer_id IS NOT NULL 
+      LIMIT 1
+    `, [userId]);
+    
+    if (subscriptions.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'No payment methods found'
+      });
+    }
+    
+    const customerId = subscriptions[0].stripe_customer_id;
+    
+    // Verify the payment method belongs to this customer
+    const paymentMethod = await stripeService.stripe.paymentMethods.retrieve(paymentMethodId);
+    
+    if (paymentMethod.customer !== customerId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Payment method does not belong to this user'
+      });
+    }
+    
+    // Detach the payment method
+    await stripeService.stripe.paymentMethods.detach(paymentMethodId);
+    
+    res.json({
+      success: true,
+      message: 'Payment method removed successfully'
+    });
+    
+  } catch (error) {
+    console.error('Error deleting payment method:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete payment method'
+    });
+  }
+});
+
+/**
+ * Set default payment method
+ * @route POST /api/payment-methods/:id/default
+ * @access Private
+ * @returns {Object} Success confirmation
+ */
+router.post('/payment-methods/:id/default', verifyToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const paymentMethodId = req.params.id;
+    
+    // Get user's Stripe customer ID
+    const [subscriptions] = await db.execute(`
+      SELECT stripe_customer_id 
+      FROM user_subscriptions 
+      WHERE user_id = ? AND stripe_customer_id IS NOT NULL 
+      LIMIT 1
+    `, [userId]);
+    
+    if (subscriptions.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'No customer found'
+      });
+    }
+    
+    const customerId = subscriptions[0].stripe_customer_id;
+    
+    // Verify the payment method belongs to this customer
+    const paymentMethod = await stripeService.stripe.paymentMethods.retrieve(paymentMethodId);
+    
+    if (paymentMethod.customer !== customerId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Payment method does not belong to this user'
+      });
+    }
+    
+    // Set as default payment method
+    await stripeService.stripe.customers.update(customerId, {
+      invoice_settings: {
+        default_payment_method: paymentMethodId
+      }
+    });
+    
+    res.json({
+      success: true,
+      message: 'Default payment method updated'
+    });
+    
+  } catch (error) {
+    console.error('Error setting default payment method:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to set default payment method'
+    });
+  }
+});
+
 module.exports = router;

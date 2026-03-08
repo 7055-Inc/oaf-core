@@ -6,6 +6,7 @@ import WholesalePricing from '../../components/WholesalePricing';
 import { isWholesaleCustomer } from '../../lib/userUtils';
 import { getAuthToken } from '../../lib/csrf';
 import { getApiUrl } from '../../lib/config';
+import { getStoredAffiliateData } from '../../hooks/useAffiliateContext';
 import styles from './ArtistStorefront.module.css';
 
 const ArtistProductDetail = () => {
@@ -115,24 +116,55 @@ const ArtistProductDetail = () => {
   };
 
   const addToCart = async (productId) => {
-    // Basic add to cart functionality - you may want to expand this
     try {
-      const response = await fetch('cart/add', {
+      // Get authentication token (if user is logged in)
+      const token = document.cookie.split('token=')[1]?.split(';')[0];
+      
+      // Generate guest token if no auth token
+      let guestToken = null;
+      if (!token) {
+        guestToken = localStorage.getItem('guestToken');
+        if (!guestToken) {
+          guestToken = 'guest_' + Math.random().toString(36).substr(2, 16) + '_' + Date.now();
+          localStorage.setItem('guestToken', guestToken);
+        }
+      }
+
+      // Prepare API request headers
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      // Get affiliate attribution (locked at cart-add time)
+      const affiliateData = getStoredAffiliateData();
+
+      const body = {
+        product_id: productId,
+        vendor_id: product?.vendor_id || siteData?.user_id,
+        quantity: quantity,
+        price: product?.price,
+        source_site_api_key: subdomain,
+        source_site_name: siteData?.site_name || `${siteData?.first_name} ${siteData?.last_name}`,
+        affiliate_id: affiliateData.affiliate_id,
+        affiliate_source: affiliateData.affiliate_source,
+        ...(guestToken && { guest_token: guestToken })
+      };
+
+      const response = await fetch(`${getApiUrl()}/cart/add`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          product_id: productId,
-          quantity: quantity
-        }),
+        headers,
+        body: JSON.stringify(body)
       });
 
       if (response.ok) {
         alert('Product added to cart!');
       } else {
-        alert('Failed to add product to cart');
+        const error = await response.json();
+        alert(error.error || 'Failed to add product to cart');
       }
     } catch (error) {
       console.error('Error adding to cart:', error);

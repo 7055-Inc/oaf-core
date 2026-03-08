@@ -1,6 +1,5 @@
-'use client';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { getAuth, createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import firebaseApp from '../lib/firebase';
@@ -41,27 +40,59 @@ export default function Signup() {
     };
   }, [message, countdown, router]);
 
-  const handleGoogleSignup = async () => {
+  const handleGoogleSignup = async (retryCount = 0) => {
     setIsLoading(true);
     setError(null);
     setMessage(null);
     const provider = new GoogleAuthProvider();
+    const maxRetries = 2;
+    
     try {
       const result = await signInWithPopup(auth, provider);
       const idToken = await result.user.getIdToken();
       await authenticateWithBackend('google', idToken, result.user.email);
     } catch (err) {
-      console.error('Google signup error:', err.message);
-      setError(err.message);
+      console.error('Google signup error:', err.code, err.message);
+      
+      // Auto-retry on network failures
+      if (err.code === 'auth/network-request-failed' && retryCount < maxRetries) {
+        console.log(`Network error, retrying... (attempt ${retryCount + 2}/${maxRetries + 1})`);
+        setTimeout(() => handleGoogleSignup(retryCount + 1), 1000);
+        return;
+      }
+      
+      // User-friendly error messages
+      let userMessage;
+      switch (err.code) {
+        case 'auth/network-request-failed':
+          userMessage = 'Connection issue. Please check your internet connection and try again.';
+          break;
+        case 'auth/popup-closed-by-user':
+          userMessage = 'Sign-in was cancelled. Please try again.';
+          break;
+        case 'auth/popup-blocked':
+          userMessage = 'Pop-up was blocked. Please allow pop-ups for this site and try again.';
+          break;
+        case 'auth/too-many-requests':
+          userMessage = 'Too many attempts. Please wait a moment and try again.';
+          break;
+        default:
+          userMessage = err.message || 'Google sign-in failed. Please try again.';
+      }
+      
+      setError(userMessage);
       setIsLoading(false);
     }
   };
 
-  const handleEmailSignup = async (e) => {
-    e.preventDefault();
+  const handleEmailSignup = async (e, retryCount = 0) => {
+    e?.preventDefault();
     setIsLoading(true);
     setError(null);
     setMessage(null);
+    
+    const maxRetries = 2;
+    
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
@@ -77,8 +108,38 @@ export default function Signup() {
       setPassword('');
       setIsLoading(false);
     } catch (err) {
-      console.error('Email signup error:', err.message);
-      setError(err.message);
+      console.error('Email signup error:', err.code, err.message);
+      
+      // Auto-retry on network failures
+      if (err.code === 'auth/network-request-failed' && retryCount < maxRetries) {
+        console.log(`Network error, retrying... (attempt ${retryCount + 2}/${maxRetries + 1})`);
+        setTimeout(() => handleEmailSignup(null, retryCount + 1), 1000);
+        return;
+      }
+      
+      // User-friendly error messages
+      let userMessage;
+      switch (err.code) {
+        case 'auth/network-request-failed':
+          userMessage = 'Connection issue. Please check your internet connection and try again.';
+          break;
+        case 'auth/email-already-in-use':
+          userMessage = 'This email is already registered. Try logging in instead.';
+          break;
+        case 'auth/weak-password':
+          userMessage = 'Password is too weak. Please use at least 6 characters.';
+          break;
+        case 'auth/invalid-email':
+          userMessage = 'Please enter a valid email address.';
+          break;
+        case 'auth/too-many-requests':
+          userMessage = 'Too many attempts. Please wait a moment and try again.';
+          break;
+        default:
+          userMessage = err.message || 'Signup failed. Please try again.';
+      }
+      
+      setError(userMessage);
       setIsLoading(false);
     }
   };

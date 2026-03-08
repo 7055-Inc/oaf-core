@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import { getApiUrl, config, getSubdomainBase, getFrontendUrl } from '../../lib/config';
+import { getStoredAffiliateData } from '../../hooks/useAffiliateContext';
 import styles from './ArtistStorefront.module.css';
 
 const ArtistProducts = () => {
@@ -148,6 +149,9 @@ const ArtistProducts = () => {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
+      // Get affiliate attribution (locked at cart-add time)
+      const affiliateData = getStoredAffiliateData();
+
       const body = {
         product_id: product.id,
         vendor_id: product.vendor_id || siteData.user_id,
@@ -155,6 +159,8 @@ const ArtistProducts = () => {
         price: product.price,
         source_site_api_key: subdomain, // Use subdomain as site identifier
         source_site_name: siteData.site_name || `${siteData.first_name} ${siteData.last_name}`,
+        affiliate_id: affiliateData.affiliate_id,
+        affiliate_source: affiliateData.affiliate_source,
         ...(guestToken && { guest_token: guestToken })
       };
 

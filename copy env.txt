@@ -1,0 +1,71 @@
+# Environment Configuration
+NEXT_PUBLIC_ENVIRONMENT=production
+NODE_ENV=production
+PORT=3000
+
+# API Configuration
+NEXT_PUBLIC_API_TIMEOUT=30000
+NEXT_PUBLIC_CSRF_ENABLED=true
+
+
+NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyD_uPZPljxeqv4Uuznrkl-KVNqrwrbfYls
+
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_Fmc6BhNgPLmK5xChCBlb6dNX00JZsJ0XYc
+
+API_GATEWAY_PORT=3001
+CLIENT_URL=https://brakebee.com
+
+# Firebase configuration
+FIREBASE_API_KEY=AIzaSyD_uPZPljxeqv4Uuznrkl-KVNqrwrbfYls
+
+FIREBASE_AUTH_DOMAIN=brakebee.com
+FIREBASE_PROJECT_ID=onlineartfestival-com
+FIREBASE_STORAGE_BUCKET=onlineartfestival-com.firebasestorage.app
+FIREBASE_MESSAGING_SENDER_ID=513917944286
+FIREBASE_APP_ID=1:513917944286:web:b766fb1dca1d203cd7dd4f
+
+
+NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyD_uPZPljxeqv4Uuznrkl-KVNqrwrbfYls
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=onlineartfestival-com.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=onlineartfestival-com
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=onlineartfestival-com.firebasestorage.app
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=513917944286
+NEXT_PUBLIC_FIREBASE_APP_ID=1:513917944286:web:b766fb1dca1d203cd7dd4f
+
+
+
+# Firebase Admin SDK configuration
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-fbsvc@onlineartfestival-com.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCrmAuMGEes3/h3\n58T177DiCpiJYRTLtMBZ+ESz5x4Dg1r/A+2pxYFRbE9jbXjV3NOWhC5tJ0Ein4Zf\nIqLC7ymk2BqEMys69GUYfTjZ/V0Y+vzlJg5+svBYD9p/JXdGCRWXzKEBzfG0zARf\ngya9rYir5xAsmXsjenE9rf77a+xP6TMbC4CI6w2R8HHhvRzByPvSNfg0O3eI1yXx\nPNDChURnW8s7WMBgwEjOwOErHSQblv9geUdbA2+42YAIZCPsOzt7HaGwHilZfy3p\nbuaRR18miDnuGjVQqmM9thYiu39ARs/QlCa+qURtflyrL47KzS4y3CbAFkL9rCrE\n8d6AdR8tAgMBAAECggEAE0/ASkWtQ1/NfIkhWeBePYJIb9BKNobNeGgAK2hhBgTc\nJ9kkVTf8ztIWuS+SgCx4b6HJVnrVfMphUAb7ibQVhroqJHixw9J00jsS5o2k0vE5\npvxlIziLjg2dXzPd5uGSLuGruSKZXOnyZWFtlGlETrxpeJYpYpvJb3yhNrXgWY8g\no409rp5/oxPNI0SUHPQkt93Eit8BHOA6IYs4rBceoQtSYbChtSrNJouDPETwElvc\nl2z/rOdBh3u7hj87q9VubMJ5CKeyIWh6E80rkQxo/eIoJUK9IgBWiOMal0h75D05\nO5PMoLCAbysyDeen+sYWfPQAOEAxFZsUGPfoINZZTQKBgQDuMkycyt7ihmciR49Y\nTA0Pjr1pfOiu0N7hwonFhpnsX7oBNaNSAhQmUxE6aOIuwTRb69Ne8CihA8WiwXwp\ngBIXFyCy1zNh2GNvg8sD1DriMV+wyxz54pwaHC9xXWQfcz7MkkyfXfAPgUn+bjva\nRd9k+E7O1eu4vsAPRW0YBK3EfwKBgQC4a1vYjzgcsLwVFLjVAlGTPzVBMHj5zQmq\nr2v81KgQoNaIGTP3IRHjwKEdtozzpF0NV42ho1znZPAIen3jVsDhNgOar5C0vxax\nsg9pgT8XkDJzJsyyGLPICpiVQRNH/R89VFdrFbaiTSLAYRr57vBDsPYZlKcZFz6b\n2W/vZwSWUwKBgEaNt4upu6M1VE8fCyKIREYbbZdVXEaLr7kHOm+7ktQk9p9tF9cu\nrnE7oZq/fl+C8tNXYuB4GlC3IU84KGLSgIk+XH0cqSeORMW/L98OefKN1V40i3yo\n1rwVJShbFVELfcpyeyepV3YAQb6PQENC9wydUBqL2qp6NcFQOyQmHqJZAoGALzft\n0Ej7SP1Hau5fVMq/MEBi1koe73a8HuPDdnzMe1VzGG27jG7/MZ1Eo2L2O/u9h4j/\nTn+Rbf2+J62VRfwUbpVx3s1M87ppiR3aLF1XViUphapNhtwkS/fKkYyT7z60HPPX\nXie1F2FAoJk8Wvn+spZArNQO5LG66hSGQHnUBtkCgYBbvDIqj+sxiLtV0zK/PTqw\nsBhCTAqQ1uqgoU5KegvO4oWHJqiUvSU4dhJw/TE8YdBOu5W3qa9u+aUXIsgLUcDv\nbc6kOVuJNd77wTX/vImX6qhFWNe4hxIY8gyhXK2JFiLuMjZAhS7dG8g5JId7bllY\neOpH+g2OTryF5dvQe1zHxQ==\n-----END PRIVATE KEY-----\n"
+
+# Google Auth Configuration
+GOOGLE_CLIENT_ID=AIzaSyD_uPZPljxeqv4Uuznrkl-KVNqrwrbfYls
+
+
+JWT_SECRET=7bbF9EnVUXbsUaT/RPrjUOlv2SplxFfrSTcdj6XkgZI=
+
+
+# Frontend Environment Variables for Brakebee.com
+# These NEXT_PUBLIC_ prefixed variables are accessible in the browser
+
+# API Configuration
+NEXT_PUBLIC_API_BASE_URL=https://api.brakebee.com
+NEXT_PUBLIC_API_TIMEOUT=30000
+
+# Frontend URLs
+NEXT_PUBLIC_FRONTEND_URL=https://brakebee.com
+NEXT_PUBLIC_MOBILE_APP_URL=https://mobile.brakebee.com
+
+# Media & Images
+NEXT_PUBLIC_SMART_MEDIA_BASE_URL=https://api.brakebee.com/api/images
+
+# Cookie & Security
+NEXT_PUBLIC_COOKIE_DOMAIN=.brakebee.com
+NEXT_PUBLIC_CSRF_ENABLED=true
+
+# Environment
+NEXT_PUBLIC_ENVIRONMENT=production
+
+ACTIVECAMPAIGN_API_URL=https://onlineartfestival.api-us1.com
+ACTIVECAMPAIGN_API_KEY=1973c26ee5bfeed435ac8cf9998dcc56d4d296ff228f484afc2b41550b796ef40811dc33
+ACTIVECAMPAIGN_LIST_IDS=1,8,13

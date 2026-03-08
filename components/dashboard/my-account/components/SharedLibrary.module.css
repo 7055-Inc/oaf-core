@@ -1,0 +1,329 @@
+/* SharedLibrary Component Styles */
+
+.loadingState {
+  text-align: center;
+  padding: 3rem;
+  color: #666;
+}
+
+/* Upload Section */
+.uploadSection {
+  margin-bottom: 2rem;
+}
+
+.dropZone {
+  border: 2px dashed #ccc;
+  border-radius: 12px;
+  padding: 2.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #fafafa;
+}
+
+.dropZone:hover {
+  border-color: #3498db;
+  background: #f0f7ff;
+}
+
+.dropZone.dragActive {
+  border-color: #3498db;
+  background: #e8f4fc;
+  transform: scale(1.01);
+}
+
+.dropZone.uploading {
+  cursor: wait;
+  opacity: 0.8;
+}
+
+.fileInput {
+  display: none;
+}
+
+.dropIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.dropText {
+  font-size: 1.1rem;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.browseLink {
+  color: #3498db;
+  text-decoration: underline;
+}
+
+.dropHint {
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.uploadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f0f0f0;
+  border-top-color: #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.noteField {
+  margin-top: 1rem;
+}
+
+.noteInput {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+.noteInput:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
+.noteInput:disabled {
+  background: #f5f5f5;
+}
+
+.errorMessage {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: #fee;
+  border: 1px solid #fcc;
+  border-radius: 8px;
+  color: #c00;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dismissError {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: #c00;
+  padding: 0;
+  line-height: 1;
+}
+
+/* Sections */
+.section {
+  margin-bottom: 2rem;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #eee;
+}
+
+.badge {
+  background: #3498db;
+  color: white;
+  font-size: 0.8rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 2rem;
+  color: #888;
+  background: #f9f9f9;
+  border-radius: 8px;
+}
+
+/* File List */
+.fileList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fileRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+
+.fileRow:hover {
+  background: #f8f9fa;
+}
+
+.fileRow.status-scanning {
+  background: #fffbf0;
+  border-color: #f39c12;
+}
+
+.fileRow.status-quarantined {
+  background: #fff5f5;
+  border-color: #e74c3c;
+}
+
+.fileIcon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.fileInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.fileName {
+  font-weight: 500;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fileMeta {
+  font-size: 0.8rem;
+  color: #888;
+  margin-top: 0.2rem;
+}
+
+.fileNote {
+  color: #666;
+  font-style: italic;
+}
+
+.fileActions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.actionButton {
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.15s ease;
+}
+
+.actionButton:hover {
+  background: #f0f0f0;
+  border-color: #ccc;
+}
+
+.actionButton.confirmDelete {
+  background: #e74c3c;
+  color: white;
+  border-color: #e74c3c;
+}
+
+.actionButton.confirmDelete:hover {
+  background: #c0392b;
+}
+
+/* Status */
+.fileStatus {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: white;
+}
+
+.threatInfo {
+  font-size: 0.7rem;
+  color: #e74c3c;
+  max-width: 150px;
+  text-align: right;
+}
+
+/* Notes */
+.scanningNote,
+.quarantineNote {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.scanningNote {
+  background: #fffbf0;
+  border: 1px solid #f39c12;
+  color: #8a6d3b;
+}
+
+.quarantineNote {
+  background: #fff5f5;
+  border: 1px solid #e74c3c;
+  color: #a94442;
+}
+
+.scanningNote p,
+.quarantineNote p {
+  margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .fileRow {
+    flex-wrap: wrap;
+  }
+  
+  .fileInfo {
+    width: calc(100% - 3rem);
+  }
+  
+  .fileActions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+  }
+  
+  .fileStatus {
+    width: 100%;
+    align-items: flex-start;
+    margin-top: 0.5rem;
+  }
+}

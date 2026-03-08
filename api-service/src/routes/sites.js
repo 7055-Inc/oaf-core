@@ -1356,6 +1356,7 @@ router.delete('/categories/:id', verifyToken, async (req, res) => {
  * GET /sites/resolve/:subdomain
  * Resolve subdomain to complete site data (PUBLIC)
  * Returns site information with user profile and customization data
+ * Now includes user_type for affiliate tracking (promoter sites)
  * 
  * @route GET /sites/resolve/:subdomain
  * @param {string} subdomain - Subdomain to resolve
@@ -1366,7 +1367,7 @@ router.get('/resolve/:subdomain', async (req, res) => {
     const { subdomain } = req.params;
 
     const [site] = await db.query(
-      `SELECT s.*, u.username, up.first_name, up.last_name, up.bio, up.profile_image_path, up.header_image_path,
+      `SELECT s.*, u.username, u.user_type, up.first_name, up.last_name, up.bio, up.profile_image_path, up.header_image_path,
               sc.main_color as primary_color, sc.secondary_color, sc.text_color, sc.accent_color, sc.background_color
        FROM sites s 
        JOIN users u ON s.user_id = u.id 
@@ -1393,7 +1394,9 @@ router.get('/resolve/:subdomain', async (req, res) => {
 
     res.json({
       ...siteData,
-      available: true
+      available: true,
+      // For affiliate tracking: is this a promoter's site?
+      is_promoter_site: siteData.user_type === 'promoter'
     });
   } catch (err) {
     // Error('Error resolving subdomain:', err);

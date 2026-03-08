@@ -6,6 +6,7 @@ import WholesalePricing from '../../components/WholesalePricing';
 import { isWholesaleCustomer } from '../../lib/userUtils';
 import { getAuthToken } from '../../lib/csrf';
 import { getFrontendUrl, getApiUrl, getSubdomainBase, config } from '../../lib/config';
+import { getStoredAffiliateData } from '../../hooks/useAffiliateContext';
 import styles from './ArtistStorefront.module.css';
 
 const ArtistStorefront = () => {
@@ -224,6 +225,9 @@ const ArtistStorefront = () => {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
+      // Get affiliate attribution (locked at cart-add time)
+      const affiliateData = getStoredAffiliateData();
+
       const body = {
         product_id: product.id,
         vendor_id: product.vendor_id || siteData.user_id,
@@ -231,6 +235,8 @@ const ArtistStorefront = () => {
         price: product.price,
         source_site_api_key: subdomain, // Use subdomain as site identifier
         source_site_name: siteData.site_name || `${siteData.first_name} ${siteData.last_name}`,
+        affiliate_id: affiliateData.affiliate_id,
+        affiliate_source: affiliateData.affiliate_source,
         ...(guestToken && { guest_token: guestToken })
       };
 
