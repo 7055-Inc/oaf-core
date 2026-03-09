@@ -4,7 +4,6 @@ import Link from 'next/link';
 import styles from '../../pages/profile/Profile.module.css';
 import { getSmartMediaUrl, getApiUrl } from '../../lib/config';
 import ContactArtistModal from '../../components/shared/ContactArtistModal';
-import ArtistProductCarousel from './ArtistProductCarousel';
 import { fetchArtistEventApplications } from '../../lib/events/api';
 
 export default function ProfileDisplay({ 
@@ -152,9 +151,14 @@ export default function ProfileDisplay({
       </div>
       <div className={styles.infoCard}>
         <h1 className={styles.userName}>
-          {userProfile.display_name || `${userProfile.first_name} ${userProfile.last_name}`}
+          {userProfile.user_type === 'artist' && userProfile.business_name
+            ? userProfile.business_name
+            : userProfile.display_name || 
+              (userProfile.first_name && userProfile.last_name 
+                ? `${userProfile.first_name} ${userProfile.last_name}` 
+                : userProfile.username || 'Artist')}
         </h1>
-        {userProfile.display_name && (
+        {userProfile.first_name && userProfile.last_name && (
           <p className={styles.realName}>
             ({userProfile.first_name} {userProfile.last_name})
           </p>
@@ -500,19 +504,12 @@ export default function ProfileDisplay({
         </div>
       )}
 
-      {/* Products Section - Using Carousel */}
+      {/* Products Section - Link to full catalog */}
       {!loadingProducts && products.length > 0 && (
         <div className={styles.productsSection}>
-          <ArtistProductCarousel 
-            vendorId={userProfile.id}
-            artistName={userProfile.business_name || userProfile.display_name || 
-              (userProfile.first_name && userProfile.last_name 
-                ? `${userProfile.first_name} ${userProfile.last_name}` 
-                : 'this artist')}
-          />
           <div className={styles.seeAllLink}>
             <Link href={`/artist/${userProfile.id}/products`}>
-              See All <i className="fas fa-arrow-right"></i>
+              View All Products <i className="fas fa-arrow-right"></i>
             </Link>
           </div>
         </div>

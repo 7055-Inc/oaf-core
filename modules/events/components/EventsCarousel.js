@@ -13,9 +13,21 @@ export default function EventsCarousel({ initialEvents = [] }) {
   const [events, setEvents] = useState(initialEvents);
   const [eventsLoading, setEventsLoading] = useState(initialEvents.length === 0);
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
+  const [cardsToShow, setCardsToShow] = useState(4);
 
   useEffect(() => {
-    // Only fetch if no initial data provided (client-side navigation)
+    const updateCardsToShow = () => {
+      if (window.innerWidth < 640) setCardsToShow(1);
+      else if (window.innerWidth < 768) setCardsToShow(2);
+      else if (window.innerWidth < 1024) setCardsToShow(3);
+      else setCardsToShow(4);
+    };
+    updateCardsToShow();
+    window.addEventListener('resize', updateCardsToShow);
+    return () => window.removeEventListener('resize', updateCardsToShow);
+  }, []);
+
+  useEffect(() => {
     if (initialEvents.length === 0) {
       loadUpcomingEvents();
     }
@@ -49,30 +61,23 @@ export default function EventsCarousel({ initialEvents = [] }) {
   };
 
   const formatEventDate = (startDate, endDate) => {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const start = new Date(startDate);
     const end = new Date(endDate);
     
-    if (start.toDateString() === end.toDateString()) {
-      return start.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric',
-        year: 'numeric'
-      });
+    const fmtShort = (d) => `${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
+    const fmtFull = (d) => `${months[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+    
+    if (start.getUTCFullYear() === end.getUTCFullYear() && 
+        start.getUTCMonth() === end.getUTCMonth() && 
+        start.getUTCDate() === end.getUTCDate()) {
+      return fmtFull(start);
     }
     
-    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-  };
-
-  const getCardsToShow = () => {
-    if (typeof window === 'undefined') return 4;
-    if (window.innerWidth < 640) return 1;
-    if (window.innerWidth < 768) return 2;
-    if (window.innerWidth < 1024) return 3;
-    return 4;
+    return `${fmtShort(start)} - ${fmtFull(end)}`;
   };
 
   const scrollToNextEvents = () => {
-    const cardsToShow = getCardsToShow();
     const maxIndex = Math.max(0, events.length - cardsToShow);
     setCurrentEventIndex(prev => Math.min(prev + 2, maxIndex));
   };
@@ -82,7 +87,7 @@ export default function EventsCarousel({ initialEvents = [] }) {
   };
 
   const canScrollPrev = currentEventIndex > 0;
-  const canScrollNext = currentEventIndex < events.length - getCardsToShow();
+  const canScrollNext = currentEventIndex < events.length - cardsToShow;
 
   if (eventsLoading) {
     return (
@@ -131,7 +136,7 @@ export default function EventsCarousel({ initialEvents = [] }) {
 
           {/* Events Grid */}
           <div className={styles.eventsGrid}>
-            {events.slice(currentEventIndex, currentEventIndex + getCardsToShow()).map((event) => (
+            {events.slice(currentEventIndex, currentEventIndex + cardsToShow).map((event) => (
               <Link href={`/events/${event.id}`} key={event.id} className={styles.eventCard}>
                 <div className={styles.eventImage}>
                   {event.featured_image ? (

@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
-import fs from 'fs';
-import path from 'path';
 
 // Import components with SSR enabled for SEO
 import FeaturedArtist from '../components/FeaturedArtist';
@@ -68,6 +66,7 @@ export default function Home({ heroData, featuredArtist, featuredProducts, event
             autoPlay 
             muted 
             onEnded={handleVideoEnd}
+            suppressHydrationWarning
             style={{ 
               width: '100%', 
               height: '100%', 
@@ -200,7 +199,8 @@ export async function getServerSideProps() {
   let artists = [];
   
   try {
-    // Read hero.json from the public directory on the server
+    const fs = require('fs');
+    const path = require('path');
     const heroPath = path.join(process.cwd(), 'public', 'static_media', 'hero.json');
     if (fs.existsSync(heroPath)) {
       const heroContent = fs.readFileSync(heroPath, 'utf8');
@@ -214,17 +214,17 @@ export async function getServerSideProps() {
   try {
     const [artistsRes, eventsRes, vendorsRes] = await Promise.all([
       // Artists for carousel
-      fetch(`${apiUrl}/users/artists?limit=50&random=true`).catch(() => null),
+      fetch(`${apiUrl}/api/v2/users/artists?limit=50&random=true`).catch(() => null),
       // Events for carousel
       fetch(`${apiUrl}/api/v2/events/upcoming?limit=10`).catch(() => null),
       // Vendors for featured artist
-      fetch(`${apiUrl}/users/artists?has_permission=vendor&limit=50`).catch(() => null),
+      fetch(`${apiUrl}/api/v2/users/artists?has_permission=vendor&limit=50`).catch(() => null),
     ]);
 
-    // Process artists
+    // Process artists (v2 returns { success, data })
     if (artistsRes?.ok) {
-      const artistsData = await artistsRes.json();
-      artists = Array.isArray(artistsData) ? artistsData : [];
+      const artistsJson = await artistsRes.json();
+      artists = artistsJson?.data && Array.isArray(artistsJson.data) ? artistsJson.data : [];
     }
 
     // Process events (v2 returns { success, data })
@@ -233,10 +233,10 @@ export async function getServerSideProps() {
       events = eventsJson?.data && Array.isArray(eventsJson.data) ? eventsJson.data : [];
     }
 
-    // Process featured artist
+    // Process featured artist (v2 returns { success, data })
     if (vendorsRes?.ok) {
-      const vendorsData = await vendorsRes.json();
-      const vendors = Array.isArray(vendorsData) ? vendorsData : [];
+      const vendorsJson = await vendorsRes.json();
+      const vendors = vendorsJson?.data && Array.isArray(vendorsJson.data) ? vendorsJson.data : [];
       
       if (vendors.length > 0) {
         // Pick a random artist

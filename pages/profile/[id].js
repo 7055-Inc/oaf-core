@@ -35,13 +35,13 @@ export default function ProfileView({ initialProfile, initialProducts = [], init
     
     const fetchProfile = async () => {
       try {
-        const res = await fetch(getApiUrl(`users/profile/by-id/${id}`), {
+        const res = await fetch(getApiUrl(`api/v2/users/${id}`), {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' }
         });
         if (!res.ok) throw new Error('Failed to fetch user profile');
-        const data = await res.json();
-        setUserProfile(data);
+        const result = await res.json();
+        setUserProfile(result.data || result);
       } catch (err) {
         console.error(err.message);
         setError(err.message);
@@ -231,7 +231,7 @@ export async function getServerSideProps(context) {
   try {
     // Fetch profile and products in parallel
     const [profileRes, productsRes] = await Promise.all([
-      fetch(`${apiUrl}/users/profile/by-id/${id}`, {
+      fetch(`${apiUrl}/api/v2/users/${id}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
       }),
@@ -245,7 +245,8 @@ export async function getServerSideProps(context) {
       return { props: { initialProfile: null, initialProducts: [], initialError: 'Profile not found' } };
     }
 
-    initialProfile = await profileRes.json();
+    const profileResult = await profileRes.json();
+    initialProfile = profileResult.data || profileResult;
 
     // Process products for SSR
     if (productsRes?.ok) {

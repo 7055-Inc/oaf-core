@@ -29,13 +29,13 @@ export default function ArtistProductsPage() {
         
         // Fetch artist info and products in parallel
         const [artistRes, productsRes] = await Promise.all([
-          fetch(getApiUrl(`users/profile/by-id/${id}`)),
+          fetch(getApiUrl(`api/v2/users/${id}`)),
           fetch(getApiUrl(`api/v2/catalog/public/products?vendor_id=${id}`))
         ]);
         
         if (artistRes.ok) {
-          const artistData = await artistRes.json();
-          setArtist(artistData);
+          const artistResult = await artistRes.json();
+          setArtist(artistResult.data || artistResult);
         }
         
         if (productsRes.ok) {

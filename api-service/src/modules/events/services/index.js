@@ -461,7 +461,7 @@ async function getEventImages(eventId) {
  */
 async function getEventCategories(eventId) {
   const [rows] = await db.execute(`
-    SELECT c.id, c.name, c.slug
+    SELECT c.id, c.name
     FROM event_categories ec
     JOIN categories c ON ec.category_id = c.id
     WHERE ec.event_id = ?

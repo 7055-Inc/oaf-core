@@ -93,9 +93,10 @@ export default function CategoryLandingPage() {
       // Fetch each artist's profile
       const artistPromises = artistIds.map(async (artistId) => {
         try {
-          const response = await fetch(getApiUrl(`users/profile/by-id/${artistId}`));
+          const response = await fetch(getApiUrl(`api/v2/users/${artistId}`));
           if (response.ok) {
-            return await response.json();
+            const result = await response.json();
+            return result.data || result;
           }
           return null;
         } catch {

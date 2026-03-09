@@ -25,6 +25,7 @@ module.exports = {
   validateRefreshToken: sessionService.validateRefreshToken,
   rotateRefreshToken: sessionService.rotateRefreshToken,
   invalidateAllUserTokens: sessionService.invalidateAllUserTokens,
+  invalidateRefreshToken: sessionService.invalidateRefreshToken,
   
   // Permission operations
   permissionsService,
@@ -42,6 +43,9 @@ module.exports = {
   findUserByEmail: userService.findUserByEmail,
   getUserWithRolesAndPermissions: userService.getUserWithRolesAndPermissions,
   createUser: userService.createUser,
+  linkProviderToUser: userService.linkProviderToUser,
+  updateEmailVerification: userService.updateEmailVerification,
+  getUserInfo: userService.getUserInfo,
 
   // API keys (third-party / server-to-server auth)
   keysService,

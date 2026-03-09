@@ -134,12 +134,7 @@ async function getFullProfile(userId) {
  */
 async function getPublicProfile(userId) {
   const [users] = await db.query(
-    `SELECT 
-      u.id, u.username, u.user_type, u.status,
-      up.display_name, up.bio, up.profile_image_path, up.header_image_path,
-      up.city, up.state, up.country,
-      up.website, up.social_facebook, up.social_instagram, up.social_tiktok,
-      up.social_twitter, up.social_pinterest
+    `SELECT u.id, u.username, u.email_verified, u.status, u.user_type, up.*
     FROM users u 
     LEFT JOIN user_profiles up ON u.id = up.user_id 
     WHERE u.id = ? AND u.status = 'active'`,
@@ -152,15 +147,50 @@ async function getPublicProfile(userId) {
   
   const userData = users[0];
   
-  // Add artist-specific public data
-  if (userData.user_type === 'artist') {
+  if (userData.user_type === 'artist' || userData.user_type === 'admin') {
     const [artistProfile] = await db.query(
-      `SELECT artist_biography, art_categories, art_mediums, does_custom, business_name
-       FROM artist_profiles WHERE user_id = ?`,
+      `SELECT * FROM artist_profiles WHERE user_id = ?`,
       [userId]
     );
     if (artistProfile[0]) {
       Object.assign(userData, artistProfile[0]);
+      
+      // Resolve art_categories IDs to names
+      if (userData.art_categories) {
+        let catIds = userData.art_categories;
+        if (typeof catIds === 'string') {
+          try { catIds = JSON.parse(catIds); } catch (e) { catIds = []; }
+        }
+        if (Array.isArray(catIds) && catIds.length > 0) {
+          const numericIds = catIds.map(Number).filter(n => !isNaN(n) && n > 0);
+          if (numericIds.length > 0) {
+            const [cats] = await db.query(
+              `SELECT id, name FROM categories WHERE id IN (${numericIds.map(() => '?').join(',')})`,
+              numericIds
+            );
+            const catMap = Object.fromEntries(cats.map(c => [c.id, c.name]));
+            userData.art_categories = numericIds.map(id => catMap[id]).filter(Boolean);
+          }
+        }
+      }
+    }
+  }
+  
+  if (userData.user_type === 'community') {
+    const [communityProfile] = await db.query(
+      `SELECT * FROM community_profiles WHERE user_id = ?`,
+      [userId]
+    );
+    if (communityProfile[0]) {
+      Object.assign(userData, communityProfile[0]);
+    }
+  } else if (userData.user_type === 'promoter') {
+    const [promoterProfile] = await db.query(
+      `SELECT * FROM promoter_profiles WHERE user_id = ?`,
+      [userId]
+    );
+    if (promoterProfile[0]) {
+      Object.assign(userData, promoterProfile[0]);
     }
   }
   

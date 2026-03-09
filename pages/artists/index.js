@@ -29,14 +29,15 @@ export default function Artists({ initialArtists = [], initialHasMore = true }) 
       
       const offset = (page - 1) * ARTISTS_PER_PAGE;
       const response = await fetch(
-        getApiUrl(`users/artists?limit=${ARTISTS_PER_PAGE}&offset=${offset}&random=true`)
+        getApiUrl(`api/v2/users/artists?limit=${ARTISTS_PER_PAGE}&offset=${offset}&random=true`)
       );
       
       if (!response.ok) {
         throw new Error('Failed to fetch artists');
       }
       
-      const artistsData = await response.json();
+      const result = await response.json();
+      const artistsData = result.data || result;
       
       if (reset) {
         setArtists(artistsData);
@@ -163,7 +164,8 @@ export default function Artists({ initialArtists = [], initialHasMore = true }) 
                           <img 
                             src={getArtistImage(artist)} 
                             alt={getDisplayName(artist)}
-                            loading="lazy"
+                            loading={index < 8 ? 'eager' : 'lazy'}
+                            suppressHydrationWarning
                           />
                         ) : (
                           <div className={styles.imagePlaceholder}>
@@ -265,10 +267,11 @@ export async function getServerSideProps() {
   let initialHasMore = true;
   
   try {
-    const response = await fetch(`${apiUrl}/users/artists?limit=${ARTISTS_PER_PAGE}&offset=0`);
+    const response = await fetch(`${apiUrl}/api/v2/users/artists?limit=${ARTISTS_PER_PAGE}&offset=0`);
     
     if (response.ok) {
-      initialArtists = await response.json();
+      const result = await response.json();
+      initialArtists = result.data || result;
       initialHasMore = initialArtists.length === ARTISTS_PER_PAGE;
     }
   } catch (error) {

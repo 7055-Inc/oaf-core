@@ -83,7 +83,7 @@ async function update(userId, updates) {
   const values = [];
   
   for (const [key, value] of Object.entries(updates)) {
-    if (allowedFields.includes(key)) {
+    if (allowedFields.includes(key) && value !== undefined) {
       fields.push(`${key} = ?`);
       values.push(value);
     }
@@ -168,7 +168,7 @@ async function softDelete(userId) {
 async function list({
   search = '',
   userType = null,
-  status = 'active',
+  status = null,
   permissions = [],
   page = 1,
   limit = 50,
@@ -178,15 +178,10 @@ async function list({
   const whereConditions = ['1=1'];
   const params = [];
   
-  // Status filter
+  // Status filter (admin view: show all statuses when no filter, including hidden)
   if (status) {
     whereConditions.push('u.status = ?');
     params.push(status);
-  }
-  
-  // Always exclude hidden users from list unless explicitly requesting them
-  if (status !== 'hidden') {
-    whereConditions.push("u.status != 'hidden'");
   }
   
   // User type filter
@@ -197,9 +192,9 @@ async function list({
   
   // Search filter
   if (search) {
-    whereConditions.push('(u.username LIKE ? OR up.first_name LIKE ? OR up.last_name LIKE ?)');
+    whereConditions.push('(u.username LIKE ? OR up.first_name LIKE ? OR up.last_name LIKE ? OR ap.business_name LIKE ?)');
     const searchPattern = `%${search}%`;
-    params.push(searchPattern, searchPattern, searchPattern);
+    params.push(searchPattern, searchPattern, searchPattern, searchPattern);
   }
   
   // Permissions filter
@@ -219,6 +214,7 @@ async function list({
     FROM users u
     LEFT JOIN user_profiles up ON u.id = up.user_id
     LEFT JOIN user_permissions uper ON u.id = uper.user_id
+    LEFT JOIN artist_profiles ap ON u.id = ap.user_id
     WHERE ${whereConditions.join(' AND ')}
   `;
   
@@ -236,6 +232,7 @@ async function list({
     FROM users u
     LEFT JOIN user_profiles up ON u.id = up.user_id
     LEFT JOIN user_permissions uper ON u.id = uper.user_id
+    LEFT JOIN artist_profiles ap ON u.id = ap.user_id
     WHERE ${whereConditions.join(' AND ')}
     ORDER BY ${sortField} ${safeSortOrder}
     LIMIT ? OFFSET ?

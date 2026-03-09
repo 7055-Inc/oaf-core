@@ -121,6 +121,14 @@ router.post('/login', async (req, res) => {
     const deviceInfo = req.headers['user-agent'] || 'Unknown';
     await storeRefreshToken(pool, userId, tokenHash, deviceInfo);
     
+    const loginIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
+    const loginUa = (req.headers['user-agent'] || '').substring(0, 500);
+    pool.query(
+      `INSERT INTO auth_logs (email, provider, event_type, error_code, error_message, ip_address, user_agent)
+       VALUES (?, ?, 'login_success', '', '', ?, ?)`,
+      [email, provider || '', loginIp, loginUa]
+    ).catch(logErr => console.error('Auth log write error:', logErr.message));
+
     return res.json({
       success: true,
       data: {
@@ -136,6 +144,15 @@ router.post('/login', async (req, res) => {
     
   } catch (error) {
     console.error('Login error:', error.message);
+
+    const loginIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
+    const loginUa = (req.headers['user-agent'] || '').substring(0, 500);
+    pool.query(
+      `INSERT INTO auth_logs (email, provider, event_type, error_code, error_message, ip_address, user_agent)
+       VALUES (?, ?, 'server_error', 'LOGIN_ERROR', ?, ?, ?)`,
+      [req.body?.email || '', req.body?.provider || '', (error.message || '').substring(0, 500), loginIp, loginUa]
+    ).catch(logErr => console.error('Auth log write error:', logErr.message));
+
     return res.status(500).json({
       success: false,
       error: { code: 'LOGIN_ERROR', message: 'Authentication failed' }
@@ -319,6 +336,49 @@ router.get('/me', requireAuth, async (req, res) => {
       success: false,
       error: { code: 'SERVER_ERROR', message: 'Failed to get user info' }
     });
+  }
+});
+
+// ============================================================================
+// AUTH LOGGING - capture client-side Firebase errors + server-side failures
+// ============================================================================
+
+/**
+ * POST /api/v2/auth/log
+ * Receive auth event logs from the client (unauthenticated -- user has no token on failure)
+ * 
+ * Body: { email, provider, event_type, error_code, error_message }
+ */
+router.post('/log', async (req, res) => {
+  try {
+    const { email, provider, event_type, error_code, error_message } = req.body;
+
+    const allowed = ['login_success', 'login_failure', 'token_error', 'server_error'];
+    if (!event_type || !allowed.includes(event_type)) {
+      return res.status(400).json({ success: false, error: 'Invalid event_type' });
+    }
+
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
+    const ua = (req.headers['user-agent'] || '').substring(0, 500);
+
+    await pool.query(
+      `INSERT INTO auth_logs (email, provider, event_type, error_code, error_message, ip_address, user_agent)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        (email || '').substring(0, 255),
+        (provider || '').substring(0, 50),
+        event_type,
+        (error_code || '').substring(0, 100),
+        (error_message || '').substring(0, 500),
+        ip,
+        ua
+      ]
+    );
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Auth log error:', err.message);
+    return res.status(500).json({ success: false });
   }
 });
 

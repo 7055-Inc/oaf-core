@@ -13,7 +13,7 @@ import { isWholesaleCustomer } from '../../lib/userUtils';
 import styles from './styles/ProductView.module.css';
 
 export default function ProductView({ initialProduct, initialError, initialReviews = [], initialReviewSummary = null }) {
-  const [product, setProduct] = useState(null);
+  const [product, setProduct] = useState(initialProduct || null);
   const [variationData, setVariationData] = useState(null);
   const [selectedVariationProduct, setSelectedVariationProduct] = useState(null);
   const [loading, setLoading] = useState(!initialProduct);

@@ -96,7 +96,7 @@ const ArtistStorefront = () => {
       
       // Fetch all data in parallel including full profile
       const [profileResponse, productsResponse, articlesResponse, pagesResponse, categoriesResponse] = await Promise.all([
-        fetch(`${config.API_BASE_URL}/users/profile/by-id/${siteData.user_id}`),
+        fetch(`${config.API_BASE_URL}/api/v2/users/${siteData.user_id}`),
         fetch(`${config.API_BASE_URL}/api/v2/catalog/public/products?vendor_id=${siteData.user_id}&limit=12`),
         fetch(`${config.API_BASE_URL}/api/v2/websites/resolve/${subdomainToUse}/articles?type=menu`),
         fetch(`${config.API_BASE_URL}/api/v2/websites/resolve/${subdomainToUse}/articles?type=pages`),
@@ -105,7 +105,8 @@ const ArtistStorefront = () => {
 
       // Merge site data with full profile data; keep customization fields from resolve
       if (profileResponse.ok) {
-        const profileData = await profileResponse.json();
+        const profileResult = await profileResponse.json();
+        const profileData = profileResult.data || profileResult;
         const customizationKeys = ['primary_color', 'secondary_color', 'text_color', 'accent_color', 'background_color'];
         const fromResolve = {};
         customizationKeys.forEach(k => { if (siteData[k] != null) fromResolve[k] = siteData[k]; });

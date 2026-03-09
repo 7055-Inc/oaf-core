@@ -375,12 +375,20 @@ class UserIngestion {
         return { success: true, stats: this.stats, duration: 0 };
       }
 
-      // Ingest each user
-      for (const user of users) {
-        await this.ingestUser(user);
+      // Ingest in batches to avoid overwhelming the embedding engine
+      const BATCH_SIZE = 25;
+      for (let i = 0; i < users.length; i += BATCH_SIZE) {
+        const batch = users.slice(i, i + BATCH_SIZE);
         
-        if (this.stats.total % 100 === 0) {
-          logger.info(`Progress: ${this.stats.total}/${users.length} users ingested`);
+        for (const user of batch) {
+          await this.ingestUser(user);
+        }
+        
+        logger.info(`Progress: ${this.stats.total}/${users.length} users ingested`);
+        
+        // Pause between batches to let the event loop and native modules breathe
+        if (i + BATCH_SIZE < users.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
 

@@ -34,7 +34,7 @@ export default function ArtistProductCarousel({ vendorId, currentProductId, arti
         }
         
         const data = await res.json();
-        const productsArray = data.data?.products || data.products || [];
+        const productsArray = Array.isArray(data.data) ? data.data : (data.data?.products || data.products || []);
         
         // Filter out current product, drafts, and variants
         const otherProducts = productsArray.filter(product => 

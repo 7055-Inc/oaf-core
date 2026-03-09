@@ -10,12 +10,21 @@ import { getApiUrl } from '../../../lib/config';
 export default function LoginModal() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [unverifiedUser, setUnverifiedUser] = useState(null);
   const [resendMessage, setResendMessage] = useState(null);
   const router = useRouter();
   const auth = getAuth(firebaseApp);
+
+  const logAuthEvent = (email, provider, eventType, errorCode, errorMessage) => {
+    fetch(getApiUrl('api/v2/auth/log'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, provider, event_type: eventType, error_code: errorCode, error_message: errorMessage }),
+    }).catch(() => {});
+  };
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
@@ -27,6 +36,7 @@ export default function LoginModal() {
       await authenticateWithBackend('google', idToken, result.user.email);
     } catch (err) {
       console.error('Google login error:', err.message);
+      logAuthEvent('', 'google', 'login_failure', err.code || '', err.message || '');
       setError(err.message);
       setIsLoading(false);
     }
@@ -48,6 +58,7 @@ export default function LoginModal() {
       await authenticateWithBackend('email', idToken, email);
     } catch (err) {
       console.error('Email login error:', err.message);
+      logAuthEvent(email, 'email', 'login_failure', err.code || '', err.message || '');
       setError(err.message);
       setIsLoading(false);
     }
@@ -192,7 +203,7 @@ export default function LoginModal() {
       </div>
 
       {/* Email Login Form */}
-      <form onSubmit={handleEmailLogin} className="form-grid-1">
+      <form onSubmit={handleEmailLogin} className="form-grid-1" style={{ maxWidth: '100%', overflow: 'hidden' }}>
         <div>
           <label>Email:</label>
           <input
@@ -201,17 +212,43 @@ export default function LoginModal() {
             onChange={(e) => setEmail(e.target.value)}
             required
             disabled={isLoading}
+            style={{ width: '100%', boxSizing: 'border-box' }}
           />
         </div>
         <div>
           <label>Password:</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            disabled={isLoading}
-          />
+          <div style={{ position: 'relative' }}>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={isLoading}
+              style={{ width: '100%', boxSizing: 'border-box', paddingRight: '40px' }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                position: 'absolute',
+                right: '8px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                padding: '4px',
+                cursor: 'pointer',
+                color: '#6c757d',
+                fontSize: '16px',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+              tabIndex={-1}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+            </button>
+          </div>
         </div>
         
         {/* Forgot Password Link */}
