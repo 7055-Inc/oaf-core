@@ -90,6 +90,11 @@ export default function MyApp({ Component, pageProps }) {
     import('../lib/imageProtection').then(({ initImageProtection }) => {
       initImageProtection();
     });
+
+    // Initialize behavior tracker (always runs -- essential analytics, not marketing)
+    import('../lib/tracker').then(({ tracker }) => {
+      tracker.init();
+    });
     
     // Load GTM if user has already accepted all cookies
     if (hasFullCookieConsent()) {
@@ -106,6 +111,17 @@ export default function MyApp({ Component, pageProps }) {
     window.addEventListener('cookieConsent', handleConsent);
     return () => window.removeEventListener('cookieConsent', handleConsent);
   }, []);
+
+  // Track SPA route changes for behavior analytics
+  useEffect(() => {
+    const handleRouteChange = (url) => {
+      import('../lib/tracker').then(({ tracker }) => {
+        tracker.trackRouteChange(new URL(url, window.location.origin).pathname);
+      });
+    };
+    router.events.on('routeChangeComplete', handleRouteChange);
+    return () => router.events.off('routeChangeComplete', handleRouteChange);
+  }, [router.events]);
 
   // Pages with their own layouts: leave alone (they handle their own header/footer)
   if (router.pathname.startsWith('/dashboard') || 

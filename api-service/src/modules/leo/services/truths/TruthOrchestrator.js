@@ -19,11 +19,14 @@
 const { getTruthStore } = require('./TruthStore');
 const { getVectorDB } = require('../vectorDB');
 const logger = require('../logger');
+const db = require('../../../../../config/db');
 
 // Import discoverers
 const ProductSimilarityDiscoverer = require('./discoverers/ProductSimilarityDiscoverer');
 const UserSimilarityDiscoverer = require('./discoverers/UserSimilarityDiscoverer');
 const MetaPatternDiscoverer = require('./discoverers/MetaPatternDiscoverer');
+const BehavioralPatternDiscoverer = require('./discoverers/BehavioralPatternDiscoverer');
+const EventPerformanceDiscoverer = require('./discoverers/EventPerformanceDiscoverer');
 
 class TruthOrchestrator {
   constructor() {
@@ -66,6 +69,8 @@ class TruthOrchestrator {
       await this.registerDiscoverer(new ProductSimilarityDiscoverer(), { truthStore, vectorDB });
       await this.registerDiscoverer(new UserSimilarityDiscoverer(), { truthStore, vectorDB });
       await this.registerDiscoverer(new MetaPatternDiscoverer(), { truthStore, vectorDB });
+      await this.registerDiscoverer(new BehavioralPatternDiscoverer(), { truthStore, vectorDB, db });
+      await this.registerDiscoverer(new EventPerformanceDiscoverer(), { truthStore, vectorDB, db });
 
       this.isInitialized = true;
       logger.info(`Truth Orchestrator initialized with ${this.discoverers.size} discoverers`);

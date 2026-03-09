@@ -7,9 +7,13 @@
 const ProductSimilarityDiscoverer = require('./ProductSimilarityDiscoverer');
 const UserSimilarityDiscoverer = require('./UserSimilarityDiscoverer');
 const MetaPatternDiscoverer = require('./MetaPatternDiscoverer');
+const BehavioralPatternDiscoverer = require('./BehavioralPatternDiscoverer');
+const EventPerformanceDiscoverer = require('./EventPerformanceDiscoverer');
 
 module.exports = {
   ProductSimilarityDiscoverer,
   UserSimilarityDiscoverer,
-  MetaPatternDiscoverer
+  MetaPatternDiscoverer,
+  BehavioralPatternDiscoverer,
+  EventPerformanceDiscoverer
 };

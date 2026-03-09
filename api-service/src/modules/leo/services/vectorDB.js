@@ -181,6 +181,10 @@ class VectorDatabase {
     }
   }
 
+  getCollection(name) {
+    return this.collections.get(name) || null;
+  }
+
   async getCollectionStats() {
     const stats = {};
     for (const [name, collection] of this.collections) {

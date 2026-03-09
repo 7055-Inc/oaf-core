@@ -1,18 +1,16 @@
 /**
  * Leo AI - Product Similarity Discoverer
  * 
- * Discovers product-to-product similarities by comparing:
- * - Semantic embeddings (from ChromaDB)
- * - Metadata similarities (category, price range, style, artist)
- * - Behavioral patterns (bought together, viewed together)
+ * Discovers product-to-product similarities by comparing semantic embeddings
+ * and metadata. Truths are tiered by value:
  * 
- * Outputs truths like:
- * "Product 123 and Product 456 have 87% similarity"
+ *   cross_artist  (high)   - Different artists, genuine aesthetic match
+ *   same_artist   (low)    - Same artist, only kept when semantic similarity
+ *                            is high enough to indicate a real stylistic link
+ *                            rather than just being a product variant
  * 
- * These truths power:
- * - "Similar Products" recommendations
- * - "You might also like..." suggestions
- * - "Frequently bought together" features
+ * Saves in batches of 50 products so partial runs are never lost and
+ * progress is visible in the logs.
  */
 
 const BaseDiscoverer = require('../BaseDiscoverer');
@@ -24,34 +22,53 @@ class ProductSimilarityDiscoverer extends BaseDiscoverer {
       name: 'product_similarity',
       description: 'Discovers similar products based on embeddings and metadata',
       targetCollection: 'truth_similarities',
-      runInterval: 4 * 60 * 60 * 1000, // Every 4 hours
+      runInterval: 4 * 60 * 60 * 1000,
       batchSize: 50,
       priority: 'high'
     });
-    
-    this.similarityThreshold = 0.7; // Only store similarities above 70%
-    this.maxSimilaritiesPerProduct = 10; // Top 10 similar products
+
+    this.crossArtistThreshold = 0.60;
+    this.sameArtistThreshold = 0.92;
+    this.maxSimilaritiesPerProduct = 10;
   }
 
   /**
-   * Main discovery logic
+   * Classify the relationship between two products.
+   *   variant      – same artist AND (names nearly identical OR embedding >= 0.97)
+   *   same_artist  – same artist, genuinely different work
+   *   cross_artist – different artists
    */
+  classifyPair(metaA, metaB, semanticSim) {
+    const sameArtist = metaA.vendor_id && metaB.vendor_id
+      && metaA.vendor_id === metaB.vendor_id;
+
+    if (!sameArtist) return 'cross_artist';
+
+    if (semanticSim >= 0.97) return 'variant';
+
+    const nameA = (metaA.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const nameB = (metaB.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (nameA && nameB && (nameA === nameB || nameA.includes(nameB) || nameB.includes(nameA))) {
+      return 'variant';
+    }
+
+    return 'same_artist';
+  }
+
   async discover() {
     const truths = [];
-    
+
     try {
-      // Get product collection from main vector DB
-      const productCollection = await this.vectorDB.getCollection('art_metadata');
+      const productCollection = this.vectorDB.getCollection('art_metadata');
       if (!productCollection) {
         logger.warn('art_metadata collection not found');
         return truths;
       }
 
-      // Get all active products
       const products = await productCollection.get({
-        where: { classification: '101' }, // Active products only
-        include: ['embeddings', 'metadatas', 'documents'],
-        limit: 500 // Process in chunks
+        where: { classification: '101' },
+        include: ['embeddings', 'metadatas'],
+        limit: 500
       });
 
       if (!products.ids || products.ids.length < 2) {
@@ -61,83 +78,106 @@ class ProductSimilarityDiscoverer extends BaseDiscoverer {
 
       logger.info(`Processing ${products.ids.length} products for similarity`);
 
-      // Compare each product to find similarities
-      // Using a smart sampling approach to avoid O(n²) on large datasets
       const processedPairs = new Set();
-      
+      const batchTruths = [];
+      let batchCounts = { cross_artist: 0, same_artist: 0, variant_skipped: 0, below_threshold: 0 };
+
       for (let i = 0; i < products.ids.length; i++) {
         const productA = {
           id: products.ids[i],
           embedding: products.embeddings?.[i],
-          metadata: products.metadatas?.[i] || {},
-          document: products.documents?.[i]
+          metadata: products.metadatas?.[i] || {}
         };
 
-        // Skip if no embedding
         if (!productA.embedding) continue;
 
-        // Find similar products using semantic search
         const similarResults = await productCollection.query({
           queryEmbeddings: [productA.embedding],
-          nResults: this.maxSimilaritiesPerProduct + 1, // +1 to exclude self
+          nResults: this.maxSimilaritiesPerProduct + 1,
           where: { classification: '101' },
           include: ['metadatas', 'distances']
         });
 
         if (!similarResults.ids?.[0]) continue;
 
-        // Process similar products
         for (let j = 0; j < similarResults.ids[0].length; j++) {
           const productBId = similarResults.ids[0][j];
-          
-          // Skip self
           if (productBId === productA.id) continue;
-          
-          // Skip already processed pairs
+
           const pairKey = [productA.id, productBId].sort().join(':');
           if (processedPairs.has(pairKey)) continue;
           processedPairs.add(pairKey);
 
-          // Calculate similarity score (distance to similarity)
           const distance = similarResults.distances?.[0]?.[j] || 1;
-          const semanticSimilarity = 1 - distance;
-          
-          // Get metadata for product B
-          const productBMetadata = similarResults.metadatas?.[0]?.[j] || {};
-          
-          // Calculate metadata similarity boost
-          const metadataBoost = this.calculateMetadataBoost(
-            productA.metadata,
-            productBMetadata
-          );
-          
-          // Combined similarity score
-          const combinedScore = (semanticSimilarity * 0.7) + (metadataBoost * 0.3);
-          
-          // Only keep high-quality similarities
-          if (combinedScore >= this.similarityThreshold) {
-            const truth = this.buildSimilarityTruth(
-              productA.id,
-              productBId,
-              combinedScore,
-              semanticSimilarity,
-              metadataBoost,
-              productA.metadata,
-              productBMetadata
-            );
-            truths.push(truth);
+          const semanticSim = 1 - distance;
+          const metaB = similarResults.metadatas?.[0]?.[j] || {};
+
+          const tier = this.classifyPair(productA.metadata, metaB, semanticSim);
+
+          if (tier === 'variant') {
+            batchCounts.variant_skipped++;
+            continue;
           }
+
+          const threshold = tier === 'cross_artist'
+            ? this.crossArtistThreshold
+            : this.sameArtistThreshold;
+
+          if (semanticSim < threshold) {
+            batchCounts.below_threshold++;
+            continue;
+          }
+
+          const metadataBoost = this.calculateMetadataBoost(productA.metadata, metaB, tier);
+          const combinedScore = (semanticSim * 0.7) + (metadataBoost * 0.3);
+
+          const truth = this.buildSimilarityTruth(
+            productA.id, productBId, combinedScore, semanticSim,
+            metadataBoost, productA.metadata, metaB, tier
+          );
+          batchTruths.push(truth);
+          batchCounts[tier]++;
         }
 
         this.stats.processed++;
-        
-        // Progress log
-        if ((i + 1) % 50 === 0) {
-          logger.info(`Progress: ${i + 1}/${products.ids.length} products, ${truths.length} similarities found`);
+
+        // Every 50 products: save, log, reset batch
+        if ((i + 1) % this.batchSize === 0 || i === products.ids.length - 1) {
+          if (batchTruths.length > 0) {
+            for (const t of batchTruths) {
+              try {
+                await this.truthStore.storeTruth(this.targetCollection, {
+                  ...t, discoverer: this.name
+                });
+                this.stats.truthsFound++;
+                this.totalTruthsDiscovered++;
+              } catch (err) {
+                logger.warn('Failed to store truth:', err.message);
+                this.stats.errors++;
+              }
+            }
+          }
+
+          logger.info(
+            `Batch ${Math.ceil((i + 1) / this.batchSize)}: ` +
+            `${i + 1}/${products.ids.length} products | ` +
+            `saved ${batchTruths.length} truths | ` +
+            `cross-artist: ${batchCounts.cross_artist}, ` +
+            `same-artist: ${batchCounts.same_artist}, ` +
+            `variants skipped: ${batchCounts.variant_skipped}, ` +
+            `below threshold: ${batchCounts.below_threshold}`
+          );
+
+          truths.push(...batchTruths);
+          batchTruths.length = 0;
+          batchCounts = { cross_artist: 0, same_artist: 0, variant_skipped: 0, below_threshold: 0 };
+
+          // Brief pause between batches to keep system responsive
+          await new Promise(r => setTimeout(r, 500));
         }
       }
 
-      logger.info(`Product similarity discovery complete: ${truths.length} truths`);
+      logger.info(`Product similarity complete: ${truths.length} truths (${this.stats.processed} products compared)`);
       return truths;
 
     } catch (error) {
@@ -147,100 +187,80 @@ class ProductSimilarityDiscoverer extends BaseDiscoverer {
   }
 
   /**
-   * Calculate metadata-based similarity boost
+   * Metadata-based similarity boost.
+   * Same-artist is NOT boosted (it inflates scores for obvious matches).
+   * Cross-artist gets a boost when they share category/price/type,
+   * because those are genuinely interesting cross-catalog connections.
    */
-  calculateMetadataBoost(metaA, metaB) {
+  calculateMetadataBoost(metaA, metaB, tier) {
     let boost = 0;
     let factors = 0;
 
-    // Same category (+0.3)
     if (metaA.category_id && metaB.category_id) {
       factors++;
-      if (metaA.category_id === metaB.category_id) {
-        boost += 0.3;
-      }
+      if (metaA.category_id === metaB.category_id) boost += 0.3;
     }
 
-    // Same artist (+0.2)
-    if (metaA.vendor_id && metaB.vendor_id) {
-      factors++;
-      if (metaA.vendor_id === metaB.vendor_id) {
-        boost += 0.2;
-      }
-    }
-
-    // Similar price range (+0.2) - within 30%
     if (metaA.price && metaB.price) {
       factors++;
-      const priceA = parseFloat(metaA.price);
-      const priceB = parseFloat(metaB.price);
-      const priceDiff = Math.abs(priceA - priceB) / Math.max(priceA, priceB);
-      if (priceDiff <= 0.3) {
-        boost += 0.2 * (1 - priceDiff);
-      }
+      const priceDiff = Math.abs(parseFloat(metaA.price) - parseFloat(metaB.price))
+        / Math.max(parseFloat(metaA.price), parseFloat(metaB.price));
+      if (priceDiff <= 0.3) boost += 0.2 * (1 - priceDiff);
     }
 
-    // Same product type (+0.15)
     if (metaA.product_type && metaB.product_type) {
       factors++;
-      if (metaA.product_type === metaB.product_type) {
-        boost += 0.15;
-      }
+      if (metaA.product_type === metaB.product_type) boost += 0.15;
     }
 
-    // Both have good ratings (+0.15)
     if (metaA.avg_rating && metaB.avg_rating) {
       factors++;
-      const ratingA = parseFloat(metaA.avg_rating);
-      const ratingB = parseFloat(metaB.avg_rating);
-      if (ratingA >= 4 && ratingB >= 4) {
-        boost += 0.15;
-      }
+      if (parseFloat(metaA.avg_rating) >= 4 && parseFloat(metaB.avg_rating) >= 4) boost += 0.15;
     }
 
-    // Normalize by number of factors compared
+    // Same-artist matches: halve the boost so it doesn't dominate
+    if (tier === 'same_artist') boost *= 0.5;
+
     return factors > 0 ? boost : 0;
   }
 
-  /**
-   * Build a similarity truth object
-   */
-  buildSimilarityTruth(productAId, productBId, score, semanticScore, metadataBoost, metaA, metaB) {
-    // Extract numeric IDs from vector DB IDs (e.g., "product_123" -> "123")
+  buildSimilarityTruth(productAId, productBId, score, semanticScore, metadataBoost, metaA, metaB, tier) {
     const idA = productAId.replace('product_', '');
     const idB = productBId.replace('product_', '');
+    const nameA = metaA.name || idA;
+    const nameB = metaB.name || idB;
+
+    const ttl = tier === 'cross_artist' ? 14 : 7; // cross-artist truths live longer
 
     return {
       type: 'product_similarity',
       entity_type: 'product',
       entities: [idA, idB],
-      score: Math.round(score * 100) / 100, // Round to 2 decimals
-      confidence: this.calculateConfidence(semanticScore, metadataBoost),
-      content: `Products ${idA} and ${idB} are ${Math.round(score * 100)}% similar`,
+      score: Math.round(score * 100) / 100,
+      confidence: this.calculateConfidence(semanticScore, metadataBoost, tier),
+      content: `[${tier}] "${nameA}" and "${nameB}" are ${Math.round(score * 100)}% similar`,
       evidence: {
         semantic_similarity: Math.round(semanticScore * 100) / 100,
         metadata_boost: Math.round(metadataBoost * 100) / 100,
+        tier,
         shared_category: metaA.category_id === metaB.category_id,
         shared_artist: metaA.vendor_id === metaB.vendor_id,
-        price_range_match: this.priceRangeMatch(metaA.price, metaB.price)
+        price_range_match: this.priceRangeMatch(metaA.price, metaB.price),
+        artist_a: metaA.artist_username || '',
+        artist_b: metaB.artist_username || '',
+        category_a: metaA.category_name || '',
+        category_b: metaB.category_name || ''
       },
-      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
+      expires_at: new Date(Date.now() + ttl * 24 * 60 * 60 * 1000).toISOString()
     };
   }
 
-  /**
-   * Calculate confidence based on evidence quality
-   */
-  calculateConfidence(semanticScore, metadataBoost) {
-    // Higher confidence when both semantic and metadata agree
-    const agreement = Math.min(semanticScore, metadataBoost * 3); // Scale metadata boost
-    const baseConfidence = (semanticScore * 0.6) + (agreement * 0.4);
-    return Math.round(Math.min(baseConfidence + 0.2, 1) * 100) / 100;
+  calculateConfidence(semanticScore, metadataBoost, tier) {
+    const base = (semanticScore * 0.6) + (Math.min(semanticScore, metadataBoost * 3) * 0.4);
+    const tierBonus = tier === 'cross_artist' ? 0.1 : 0;
+    return Math.round(Math.min(base + 0.2 + tierBonus, 1) * 100) / 100;
   }
 
-  /**
-   * Check if prices are in similar range
-   */
   priceRangeMatch(priceA, priceB) {
     if (!priceA || !priceB) return false;
     const a = parseFloat(priceA);
@@ -248,43 +268,26 @@ class ProductSimilarityDiscoverer extends BaseDiscoverer {
     return Math.abs(a - b) / Math.max(a, b) <= 0.3;
   }
 
-  /**
-   * Validate an existing similarity truth
-   */
   async validate(truth) {
     try {
-      // Re-check if both products still exist and are active
       const entities = truth.metadata?.entities?.split(',') || [];
-      if (entities.length !== 2) {
-        return null; // Invalid truth
-      }
+      if (entities.length !== 2) return null;
 
-      const productCollection = await this.vectorDB.getCollection('art_metadata');
-      
-      // Check if both products still exist
+      const productCollection = this.vectorDB.getCollection('art_metadata');
       const results = await productCollection.get({
         ids: [`product_${entities[0]}`, `product_${entities[1]}`],
         include: ['metadatas']
       });
 
-      if (!results.ids || results.ids.length !== 2) {
-        return null; // One or both products no longer exist
-      }
+      if (!results.ids || results.ids.length !== 2) return null;
+      if (!results.metadatas.every(m => m.classification === '101')) return null;
 
-      // Check if both are still active
-      const bothActive = results.metadatas.every(m => m.classification === '101');
-      if (!bothActive) {
-        return null; // One or both products are no longer active
-      }
-
-      // Truth is still valid
       return {
         ...truth,
         validated_at: new Date().toISOString(),
         validation_count: (truth.validation_count || 0) + 1,
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
       };
-
     } catch (error) {
       logger.error('Failed to validate product similarity truth:', error);
       return null;

@@ -50,6 +50,7 @@ class BaseDiscoverer {
   async initialize(dependencies = {}) {
     this.truthStore = dependencies.truthStore;
     this.vectorDB = dependencies.vectorDB;
+    this.db = dependencies.db || null;
     
     if (!this.truthStore) {
       throw new Error(`${this.name}: TruthStore dependency required`);
@@ -105,18 +106,21 @@ class BaseDiscoverer {
       // Run the discovery logic
       const truths = await this.discover();
       
-      // Store discovered truths
-      for (const truth of truths) {
-        try {
-          await this.truthStore.storeTruth(this.targetCollection, {
-            ...truth,
-            discoverer: this.name
-          });
-          this.stats.truthsFound++;
-          this.totalTruthsDiscovered++;
-        } catch (error) {
-          logger.error(`${this.name}: Failed to store truth:`, error.message);
-          this.stats.errors++;
+      // Store discovered truths (skip if discoverer already saved them,
+      // indicated by truthsFound > 0 from in-batch saving)
+      if (this.stats.truthsFound === 0) {
+        for (const truth of truths) {
+          try {
+            await this.truthStore.storeTruth(this.targetCollection, {
+              ...truth,
+              discoverer: this.name
+            });
+            this.stats.truthsFound++;
+            this.totalTruthsDiscovered++;
+          } catch (error) {
+            logger.error(`${this.name}: Failed to store truth:`, error.message);
+            this.stats.errors++;
+          }
         }
       }
 
