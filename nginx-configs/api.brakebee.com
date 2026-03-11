@@ -18,8 +18,8 @@ server {
         return 403;
     }
     
-    # Block SQL injection attempts in API parameters
-    if ($args ~* (union|select|insert|update|delete|drop|create|alter|exec|script|javascript|vbscript|onload|onerror)) {
+    # Block SQL injection attempts in API parameters (word boundaries prevent false positives on created_at, updated_at, description, etc.)
+    if ($args ~* (\bunion\b|\bselect\b|\binsert\b|\bupdate\b|\bdelete\b|\bdrop\b|\bcreate\b|\balter\b|\bexec\b|\bscript\b|\bjavascript\b|\bvbscript\b|\bonload\b|\bonerror\b)) {
         return 403;
     }
     
@@ -45,6 +45,10 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-Host $host;
         proxy_set_header X-Forwarded-Port $server_port;
+        proxy_buffering off;
+        proxy_read_timeout 600;
+        proxy_connect_timeout 60;
+        proxy_send_timeout 600;
     }
 }
 

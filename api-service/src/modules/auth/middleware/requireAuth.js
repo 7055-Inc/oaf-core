@@ -61,6 +61,7 @@ function requireAuth(req, res, next) {
   
   // Convenience: attach full user object
   req.user = {
+    id: decoded.userId,
     userId: decoded.userId,
     roles: decoded.roles || [],
     permissions: decoded.permissions || [],

@@ -14,8 +14,8 @@ server {
         return 403;
     }
     
-    # Block SQL injection attempts
-    if ($args ~* (union|select|insert|update|delete|drop|create|alter|exec|script|javascript|vbscript|onload|onerror)) {
+    # Block SQL injection attempts (word boundaries prevent false positives on created_at, updated_at, description, etc.)
+    if ($args ~* (\bunion\b|\bselect\b|\binsert\b|\bupdate\b|\bdelete\b|\bdrop\b|\bcreate\b|\balter\b|\bexec\b|\bscript\b|\bjavascript\b|\bvbscript\b|\bonload\b|\bonerror\b)) {
         return 403;
     }
     

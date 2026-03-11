@@ -5,208 +5,88 @@ import Link from 'next/link';
 import WholesalePricing from '../../components/WholesalePricing';
 import { isWholesaleCustomer } from '../../lib/userUtils';
 import { getAuthToken } from '../../lib/csrf';
-import { getFrontendUrl, getApiUrl, getSubdomainBase, getSmartMediaUrl, config } from '../../lib/config';
+import { getFrontendUrl, getSubdomainBase, getSmartMediaUrl, config } from '../../lib/config';
 import TemplateLoader from '../../components/sites-modules/TemplateLoader';
 
-const ArtistStorefront = () => {
+const ArtistStorefront = ({
+  initialSiteData,
+  initialProducts,
+  initialArticles,
+  initialPages,
+  initialCategories,
+  initialSubdomain,
+  hasTemplateScript,
+  ssrError
+}) => {
   const router = useRouter();
-  const { subdomain, userId, siteName, themeName } = router.query;
-  
-  const [siteData, setSiteData] = useState(null);
-  const [products, setProducts] = useState([]);
-  const [articles, setArticles] = useState([]);
-  const [pages, setPages] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [extractedSubdomain, setExtractedSubdomain] = useState(null);
+  const subdomain = initialSubdomain || router.query.subdomain;
+
+  const [siteData, setSiteData] = useState(initialSiteData || null);
+  const [products, setProducts] = useState(initialProducts || []);
+  const [articles, setArticles] = useState(initialArticles || []);
+  const [pages, setPages] = useState(initialPages || []);
+  const [categories, setCategories] = useState(initialCategories || []);
+  const [error, setError] = useState(ssrError || null);
   const [userData, setUserData] = useState(null);
 
-  // Get user data for wholesale pricing
+  // Wholesale pricing needs auth token (client-side only)
   useEffect(() => {
     const token = getAuthToken();
     if (token) {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         setUserData(payload);
-      } catch (error) {
-        console.error('Error parsing user token:', error);
+      } catch (err) {
+        console.error('Error parsing user token:', err);
       }
     }
   }, []);
 
+  // Addons need DOM access (client-side only)
   useEffect(() => {
-    // Extract subdomain from the current URL if query params aren't available
-    if (typeof window !== 'undefined') {
-      const hostname = window.location.hostname;
-      const subdomainBase = getSubdomainBase();
-      
-      // Check if this is a subdomain of the main site
-      if (hostname.includes(`.${subdomainBase}`) && !hostname.startsWith('main.') && !hostname.startsWith('www.')) {
-        const subdomainFromUrl = hostname.split('.')[0];
-        setExtractedSubdomain(subdomainFromUrl);
-      }
-      // Check if this is a custom domain (not our main domain or localhost)
-      else if (!hostname.includes(subdomainBase) && 
-               hostname !== 'localhost' && 
-               !hostname.startsWith('127.0.0.1')) {
-        // This is a custom domain - resolve it to get the subdomain
-        resolveCustomDomain(hostname);
-      }
+    if (siteData?.id) {
+      loadSiteAddons(siteData.id);
     }
-  }, []);
+  }, [siteData?.id]);
 
-  // Resolve custom domain to subdomain
-  const resolveCustomDomain = async (domain) => {
-    try {
-      const response = await fetch(`${config.API_BASE_URL}/api/v2/websites/resolve-custom-domain/${domain}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.subdomain) {
-          setExtractedSubdomain(data.subdomain);
-        }
-      }
-    } catch (error) {
-      console.error('Error resolving custom domain:', error);
-    }
-  };
-
-  useEffect(() => {
-    const subdomainToUse = subdomain || extractedSubdomain;
-    if (subdomainToUse) {
-      fetchStorefrontData(subdomainToUse);
-    }
-  }, [subdomain, extractedSubdomain]);
-
-  const fetchStorefrontData = async (subdomainToUse) => {
-    try {
-      setLoading(true);
-      
-      // First fetch site data to get user_id
-      const siteResponse = await fetch(`${config.API_BASE_URL}/api/v2/websites/resolve/${subdomainToUse}`);
-      let siteData = null;
-      
-      if (siteResponse.ok) {
-        siteData = await siteResponse.json();
-      }
-      
-      if (!siteData || !siteData.user_id) {
-        throw new Error('Site not found or missing user data');
-      }
-      
-      // Fetch all data in parallel including full profile
-      const [profileResponse, productsResponse, articlesResponse, pagesResponse, categoriesResponse] = await Promise.all([
-        fetch(`${config.API_BASE_URL}/api/v2/users/${siteData.user_id}`),
-        fetch(`${config.API_BASE_URL}/api/v2/catalog/public/products?vendor_id=${siteData.user_id}&limit=12`),
-        fetch(`${config.API_BASE_URL}/api/v2/websites/resolve/${subdomainToUse}/articles?type=menu`),
-        fetch(`${config.API_BASE_URL}/api/v2/websites/resolve/${subdomainToUse}/articles?type=pages`),
-        fetch(`${config.API_BASE_URL}/api/v2/websites/resolve/${subdomainToUse}/categories`)
-      ]);
-
-      // Merge site data with full profile data; keep customization fields from resolve
-      if (profileResponse.ok) {
-        const profileResult = await profileResponse.json();
-        const profileData = profileResult.data || profileResult;
-        const customizationKeys = ['primary_color', 'secondary_color', 'text_color', 'accent_color', 'background_color'];
-        const fromResolve = {};
-        customizationKeys.forEach(k => { if (siteData[k] != null) fromResolve[k] = siteData[k]; });
-        const combinedData = { ...siteData, ...profileData, ...fromResolve };
-        setSiteData(combinedData);
-      } else {
-        setSiteData(siteData);
-      }
-
-      if (productsResponse.ok) {
-        const productsData = await productsResponse.json();
-        // Handle both response formats: direct array or {products: [...]}
-        const productsArray = productsData.data || [];
-        setProducts(Array.isArray(productsArray) ? productsArray.slice(0, 12) : []);
-      }
-
-      if (articlesResponse.ok) {
-        const articlesData = await articlesResponse.json();
-        setArticles(articlesData);
-      }
-
-      if (pagesResponse.ok) {
-        const pagesData = await pagesResponse.json();
-        setPages(pagesData);
-      }
-
-      if (categoriesResponse.ok) {
-        const categoriesData = await categoriesResponse.json();
-        setCategories(categoriesData);
-      }
-
-      // Load addons after all data is fetched
-      if (siteData) {
-        loadSiteAddons(siteData.id);
-      }
-
-    } catch (err) {
-      setError('Failed to load storefront data');
-      console.error('Error fetching storefront data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Simple addon trigger - loads and initializes active addons
   const loadSiteAddons = async (siteId) => {
     try {
       const response = await fetch(`${config.API_BASE_URL}/api/v2/websites/sites/${siteId}/addons`);
       if (response.ok) {
         const data = await response.json();
         const addons = data.addons || [];
-        
-        // Load each active addon
         for (const addon of addons) {
           if (addon.is_active) {
             loadAddon(addon, siteId);
           }
         }
       }
-    } catch (error) {
-      console.error('Error loading addons:', error);
+    } catch (err) {
+      console.error('Error loading addons:', err);
     }
   };
 
-  // Load individual addon script and initialize
   const loadAddon = async (addon, siteId) => {
     try {
-      // Dynamically import the addon module
       const addonModule = await import(`../../components/sites-modules/${addon.addon_slug}.js`);
       const AddonClass = addonModule.default;
-      
-      // Initialize the addon with site configuration
-      const addonInstance = new AddonClass({
-        siteId,
-        siteData,
-        addonConfig: addon
-      });
-      
-      // Initialize the addon
+      const addonInstance = new AddonClass({ siteId, siteData, addonConfig: addon });
       addonInstance.init();
-      
-      console.log(`Addon loaded: ${addon.addon_name}`);
-    } catch (error) {
-      console.error(`Error loading addon ${addon.addon_name}:`, error);
+    } catch (err) {
+      console.error(`Error loading addon ${addon.addon_name}:`, err);
     }
   };
 
   const addToCart = async (productId) => {
     try {
-      // Find the product details
       const product = products.find(p => p.id === productId);
       if (!product) {
         alert('Product not found');
         return;
       }
 
-      // Get authentication token (if user is logged in)
       const token = document.cookie.split('token=')[1]?.split(';')[0];
-      
-      // Generate guest token if no auth token
+
       let guestToken = null;
       if (!token) {
         guestToken = localStorage.getItem('guestToken');
@@ -216,11 +96,7 @@ const ArtistStorefront = () => {
         }
       }
 
-      // Prepare API request
-      const headers = {
-        'Content-Type': 'application/json'
-      };
-      
+      const headers = { 'Content-Type': 'application/json' };
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
@@ -230,12 +106,11 @@ const ArtistStorefront = () => {
         vendor_id: product.vendor_id || siteData.user_id,
         quantity: 1,
         price: product.price,
-        source_site_api_key: subdomain, // Use subdomain as site identifier
+        source_site_api_key: subdomain,
         source_site_name: siteData.site_name || `${siteData.first_name} ${siteData.last_name}`,
         ...(guestToken && { guest_token: guestToken })
       };
 
-      // Add to cart via enhanced API
       const response = await fetch(`${config.API_BASE_URL}/api/v2/commerce/cart/add`, {
         method: 'POST',
         headers,
@@ -243,46 +118,28 @@ const ArtistStorefront = () => {
       });
 
       if (response.ok) {
-        const result = await response.json();
-        
-        // Show success notification
         const notification = document.createElement('div');
         notification.style.cssText = `
-          position: fixed;
-          top: 20px;
-          right: 20px;
+          position: fixed; top: 20px; right: 20px;
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          padding: 15px 20px;
-          border-radius: 8px;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-          z-index: 10000;
-          font-weight: 500;
+          color: white; padding: 15px 20px; border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10000; font-weight: 500;
         `;
         notification.textContent = `Added "${product.name}" to cart! 🛒`;
         document.body.appendChild(notification);
-        
-        // Remove notification after 3 seconds
-        setTimeout(() => {
-          notification.remove();
-        }, 3000);
-
-        // Cart updated
+        setTimeout(() => notification.remove(), 3000);
       } else {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to add to cart');
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to add to cart');
       }
-      
     } catch (err) {
       console.error('Error adding to cart:', err);
       alert('Failed to add to cart: ' + err.message);
     }
   };
 
-  // Apply custom site colors as CSS variables
   const getCustomStyles = () => {
     if (!siteData) return {};
-    
     return {
       '--text-color': siteData.text_color,
       '--main-color': siteData.primary_color,
@@ -309,31 +166,21 @@ const ArtistStorefront = () => {
     return null;
   };
 
-  if (loading) {
-    return (
-      <div className="loading">
-        <div className="spinner"></div>
-        <p>Loading {siteName || 'artist'} gallery...</p>
-      </div>
-    );
-  }
-
   if (error || !siteData) {
     return (
       <div className="error">
         <h1>Gallery Not Found</h1>
         <p>Sorry, this artist gallery is not available.</p>
-        <Link href={getFrontendUrl()}>
-          <a className="homeLink">← Back to Main Site</a>
-        </Link>
+        <Link href={getFrontendUrl()} className="homeLink">← Back to Main Site</Link>
       </div>
     );
   }
 
   const pageTitle = siteData.site_title || `${siteData.first_name} ${siteData.last_name} - Artist Gallery`;
   const pageDescription = siteData.site_description || siteData.bio || `Discover the artistic works of ${siteData.first_name} ${siteData.last_name}`;
+  const subdomainBase = getSubdomainBase();
+  const siteUrl = siteData.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.${subdomainBase}`;
 
-  // Prepare template customizations for TemplateLoader
   const templateCustomizations = {
     primary_color: siteData.primary_color,
     secondary_color: siteData.secondary_color,
@@ -343,8 +190,7 @@ const ArtistStorefront = () => {
     body_font: siteData.body_font,
     header_font: siteData.header_font
   };
-  
-  // Get template-specific data (if any)
+
   const templateData = siteData.template_data || {};
 
   return (
@@ -354,72 +200,51 @@ const ArtistStorefront = () => {
         <meta name="description" content={pageDescription} />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
-        
-        {/* Open Graph tags for social media */}
+
         <meta property="og:title" content={pageTitle} />
         <meta property="og:description" content={pageDescription} />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content={siteData?.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.${getSubdomainBase()}`} />
+        <meta property="og:url" content={siteUrl} />
         {siteData.profile_image_path && (
           <meta property="og:image" content={siteData.profile_image_path} />
         )}
+        <link rel="canonical" href={siteUrl} />
       </Head>
 
-      {/* Dynamic Template CSS Loader */}
-      <TemplateLoader 
+      <TemplateLoader
         templateSlug={siteData.template_slug || 'classic-gallery'}
         customizations={templateCustomizations}
         templateData={templateData}
         customCSS={siteData.custom_css}
+        hasScript={hasTemplateScript}
       />
 
       <div className="storefront" style={getCustomStyles()}>
         {/* Header */}
-        <header className="header">
-          <div className="headerContent">
-            <div className="artistInfo">
-              {siteData.logo_path && (
-                <img 
+        <header className="site-header">
+          <div className="header-container">
+            {siteData.logo_path ? (
+              <Link href={siteUrl} className="site-logo">
+                <img
                   src={siteData.logo_path}
                   alt={`${siteData.business_name || siteData.display_name || `${siteData.first_name} ${siteData.last_name}`} Logo`}
-                  className="artistAvatar"
+                  style={{ maxHeight: '75px', width: 'auto', display: 'block' }}
                 />
-              )}
-              <div className="artistDetails">
-                <h1 className="artistName">
-                  {siteData.display_name || `${siteData.first_name} ${siteData.last_name}`}
-                </h1>
-                <div className="artistMeta">
-                  <p className="artistTitle">
-                    {siteData.job_title || (siteData.business_name ? `${siteData.business_name} - Artist` : 'Artist')}
-                  </p>
-                  {(siteData.city || siteData.state || siteData.country) && (
-                    <p className="artistLocation">
-                      {[siteData.city, siteData.state, siteData.country].filter(Boolean).join(', ')}
-                    </p>
-                  )}
-                </div>
-              </div>
-              {/* Business name for header display */}
-              <div className="businessName">
-                {siteData.business_name && (
-                  <h2 className="businessNameText">{siteData.business_name}</h2>
-                )}
-              </div>
-            </div>
-
-            <nav className="navigation">
-              <Link href={siteData.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.${getSubdomainBase()}`}>
-                <a className="navLink">Home</a>
               </Link>
+            ) : (
+              <Link href={siteUrl} className="site-logo">
+                {siteData.business_name || siteData.display_name || `${siteData.first_name} ${siteData.last_name}`}
+              </Link>
+            )}
+
+            <nav className="site-nav">
+              <Link href={siteUrl} className="nav-link active">Home</Link>
               {articles.map(article => (
-                <Link key={article.id} href={`${siteData.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.${getSubdomainBase()}`}/${article.slug}`}>
-                  <a className="navLink">{article.title}</a>
-                </Link>
+                <Link key={article.id} href={`${siteUrl}/${article.slug}`} className="nav-link">{article.title}</Link>
               ))}
               {pages.find(page => page.page_type === 'contact') && (
-                <Link href={`${siteData.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.${getSubdomainBase()}`}/${pages.find(page => page.page_type === 'contact').slug}`}>
-                  <a className="navLink">{pages.find(page => page.page_type === 'contact').title}</a>
+                <Link href={`${siteUrl}/${pages.find(page => page.page_type === 'contact').slug}`} className="nav-link">
+                  {pages.find(page => page.page_type === 'contact').title}
                 </Link>
               )}
             </nav>
@@ -427,284 +252,119 @@ const ArtistStorefront = () => {
         </header>
 
         {/* Hero Section */}
-        {siteData.header_image_path && (
-          <section className="hero">
-            <img 
-              src={siteData.header_image_path}
-              alt="Artist Header"
-              className="heroImage"
-            />
-            <div className="heroOverlay">
-              <h2 className="heroTitle">{siteData.site_title || 'Welcome to My Gallery'}</h2>
-              {siteData.site_description && (
-                <p className="heroDescription">{siteData.site_description}</p>
-              )}
-            </div>
-          </section>
-        )}
+        <section className="hero-section" style={siteData.header_image_path ? { backgroundImage: `url(${siteData.header_image_path})` } : {}}>
+          <h2 className="hero-title">{siteData.site_title || 'Welcome to My Gallery'}</h2>
+          {siteData.site_description && (
+            <p className="hero-tagline">{siteData.site_description}</p>
+          )}
+          <Link href="/products" className="hero-cta">View Gallery</Link>
+        </section>
 
         {/* About Section */}
         {(siteData.bio || siteData.artist_biography) && (
-          <section className="about">
-            <div className="container">
-              <h2>About the Artist</h2>
-              
-              {/* Artist profile layout with image and bio */}
-              <div className="artistProfile">
-                {/* Profile image on the left */}
-                <div className="profileImageContainer">
-                  <img 
-                    src={siteData.profile_image_path || '/images/default-avatar.png'} 
-                    alt={`${siteData.first_name} ${siteData.last_name}`}
-                    className="profileImage"
-                  />
-                  {/* Studio Location below image */}
-                  {(siteData.studio_city || siteData.studio_state) && (
-                    <div className="studioLocation">
-                      {siteData.studio_city && siteData.studio_state 
-                        ? `${siteData.studio_city}, ${siteData.studio_state}`
-                        : siteData.studio_city || siteData.studio_state
-                      }
-                    </div>
-                  )}
-                </div>
-                
-                {/* Bio and details on the right */}
-                <div className="profileContent">
-                  {/* Primary bio/artist biography */}
-                  <div className="bioContent">
-                    <p className="bio">{siteData.artist_biography || siteData.bio}</p>
-                  </div>
-                  
-                  {/* Artist details grid */}
-                  <div className="artistDetails">
-                    {/* Art Categories */}
-                    {siteData.art_categories && siteData.art_categories.length > 0 && (
-                      <div className="detailItem">
-                        <h4>Art Categories</h4>
-                        <div className="tagList">
-                          {siteData.art_categories.map((category, index) => (
-                            <span key={index} className="tag">{category}</span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Art Mediums */}
-                    {siteData.art_mediums && siteData.art_mediums.length > 0 && (
-                      <div className="detailItem">
-                        <h4>Mediums</h4>
-                        <div className="tagList">
-                          {siteData.art_mediums.map((medium, index) => (
-                            <span key={index} className="tag">{medium}</span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-
-                    {/* Founding Date */}
-                    {siteData.founding_date && (
-                      <div className="detailItem">
-                        <h4>Artistic Journey Started</h4>
-                        <p>{new Date(siteData.founding_date).getFullYear()}</p>
-                      </div>
-                    )}
-                    
-                    {/* Custom Work */}
-                    {siteData.does_custom === 'yes' && (
-                      <div className="detailItem">
-                        <h4>Custom Commissions</h4>
-                        <p>{siteData.custom_details || 'Available for custom work'}</p>
-                      </div>
-                    )}
-                    
-                    {/* Awards */}
-                    {siteData.awards && (
-                      <div className="detailItem">
-                        <h4>Awards & Recognition</h4>
-                        <p>{siteData.awards}</p>
-                      </div>
-                    )}
-                    
-                    {/* Memberships */}
-                    {siteData.memberships && (
-                      <div className="detailItem">
-                        <h4>Professional Memberships</h4>
-                        <p>{siteData.memberships}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* Categories Filter */}
-        {categories.length > 0 && (
-          <section className="categories">
-            <div className="container">
-              <h3>Browse by Category</h3>
-              <div className="categoryTags">
-                <button className="categoryTag">All</button>
-                {categories.map(category => (
-                  <button key={category.id} className="categoryTag">
-                    {category.name}
-                  </button>
-                ))}
-              </div>
-            </div>
+          <section className="about-section">
+            <h2 className="section-title about-title">About the Artist</h2>
+            <p className="about-text">{siteData.artist_biography || siteData.bio}</p>
           </section>
         )}
 
         {/* Products Gallery */}
-        <section className="gallery">
-          <div className="container">
-            <h2>Gallery</h2>
-            
-            {products.length === 0 ? (
-              <div className="emptyGallery">
-                <p>No artworks available at the moment.</p>
-                <p>Please check back soon for new pieces!</p>
-              </div>
-            ) : (
-              <div className="productsGrid">
-                {products.map(product => (
-                  <div key={product.id} className="productCard">
-                    <div className="productImage">
-                      {getImageUrl(product) ? (
-                        <img 
-                          src={getImageUrl(product)}
-                          alt={product.alt_text || product.name}
-                        />
-                      ) : (
-                        <div className="placeholderImage">
-                          <span>No Image</span>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="productInfo">
-                      <h3 className="productName">{product.name}</h3>
-                      <WholesalePricing
-                        price={product.price}
-                        wholesalePrice={product.wholesale_price}
-                        isWholesaleCustomer={isWholesaleCustomer(userData)}
-                        size="medium"
-                        layout="inline"
-                        className="productPrice"
+        <section className="product-section">
+          <h2 className="section-title">Gallery</h2>
+
+          {products.length === 0 ? (
+            <p>No artworks available at the moment. Please check back soon!</p>
+          ) : (
+            <div className="product-grid">
+              {products.map(product => (
+                <div key={product.id} className="product-card">
+                  <div className="product-image-wrapper">
+                    {getImageUrl(product) ? (
+                      <img
+                        src={getImageUrl(product)}
+                        alt={product.alt_text || product.name}
+                        className="product-image"
                       />
-                      
-                      {product.description && (
-                        <p className="productDescription">
-                          {product.description.substring(0, 100)}
-                          {product.description.length > 100 && '...'}
-                        </p>
-                      )}
-                      
-                      <div className="productActions">
-                        <button 
-                          className="addToCartBtn"
-                          onClick={() => addToCart(product.id)}
-                        >
-                          Add to Cart
-                        </button>
-                        <Link href={`/product/${product.id}`}>
-                          <a className="viewProductBtn">View Details</a>
-                        </Link>
+                    ) : (
+                      <div className="product-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f0f0', minHeight: '200px' }}>
+                        <span>No Image</span>
                       </div>
-                    </div>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
-            
-            {products.length >= 12 && (
-              <div className="viewMore">
-                <Link href={`/products`}>
-                  <a className="viewMoreBtn">View All Artworks</a>
-                </Link>
-              </div>
-            )}
-          </div>
+
+                  <div className="product-info">
+                    <h3 className="product-title">{product.name}</h3>
+                    <WholesalePricing
+                      price={product.price}
+                      wholesalePrice={product.wholesale_price}
+                      isWholesaleCustomer={isWholesaleCustomer(userData)}
+                      size="medium"
+                      layout="inline"
+                      className="product-price"
+                    />
+
+                    {product.description && (
+                      <p className="product-description">
+                        {product.description.substring(0, 100)}
+                        {product.description.length > 100 && '...'}
+                      </p>
+                    )}
+
+                    <button
+                      className="hero-cta"
+                      onClick={() => addToCart(product.id)}
+                    >
+                      Add to Cart
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {products.length >= 12 && (
+            <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+              <Link href="/products" className="hero-cta">View All Artworks</Link>
+            </div>
+          )}
         </section>
 
         {/* Footer */}
-        <footer className="footer">
-          <div className="container">
-            <div className="footerContent">
-              <div className="footerSection">
-                <h4>Connect</h4>
-                <div className="socialLinks">
-                  {siteData.social_instagram && (
-                    <a href={siteData.social_instagram} target="_blank" rel="noopener noreferrer">
-                      Instagram
-                    </a>
-                  )}
-                  {siteData.social_facebook && (
-                    <a href={siteData.social_facebook} target="_blank" rel="noopener noreferrer">
-                      Facebook
-                    </a>
-                  )}
-                  {siteData.social_twitter && (
-                    <a href={siteData.social_twitter} target="_blank" rel="noopener noreferrer">
-                      Twitter
-                    </a>
-                  )}
-                  {siteData.social_pinterest && (
-                    <a href={siteData.social_pinterest} target="_blank" rel="noopener noreferrer">
-                      Pinterest
-                    </a>
-                  )}
-                  {siteData.social_tiktok && (
-                    <a href={siteData.social_tiktok} target="_blank" rel="noopener noreferrer">
-                      TikTok
-                    </a>
-                  )}
-                </div>
-                
-                {/* Contact info */}
-                {(siteData.phone || siteData.business_website) && (
-                  <div className="contactInfo">
-                    {siteData.phone && (
-                      <p className="phone">{siteData.phone}</p>
-                    )}
-                    {siteData.business_website && (
-                      <p>
-                        <a href={siteData.business_website} target="_blank" rel="noopener noreferrer">
-                          Business Website
-                        </a>
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
+        <footer className="site-footer">
+          <div className="footer-container">
+            <div className="footer-social">
+              {siteData.social_instagram && (
+                <a href={siteData.social_instagram} target="_blank" rel="noopener noreferrer" className="social-icon">Instagram</a>
+              )}
+              {siteData.social_facebook && (
+                <a href={siteData.social_facebook} target="_blank" rel="noopener noreferrer" className="social-icon">Facebook</a>
+              )}
+              {siteData.social_twitter && (
+                <a href={siteData.social_twitter} target="_blank" rel="noopener noreferrer" className="social-icon">Twitter</a>
+              )}
+              {siteData.social_pinterest && (
+                <a href={siteData.social_pinterest} target="_blank" rel="noopener noreferrer" className="social-icon">Pinterest</a>
+              )}
+              {siteData.social_tiktok && (
+                <a href={siteData.social_tiktok} target="_blank" rel="noopener noreferrer" className="social-icon">TikTok</a>
+              )}
             </div>
-            
-            <div className="footerBottom">
-              <p>&copy; 2025 {siteData.display_name || `${siteData.first_name} ${siteData.last_name}`}. All rights reserved.</p>
+
+            <div className="footer-links">
+              {siteData.phone && (
+                <a href={`tel:${siteData.phone}`} className="footer-link">{siteData.phone}</a>
+              )}
+              {siteData.business_website && (
+                <a href={siteData.business_website} target="_blank" rel="noopener noreferrer" className="footer-link">Website</a>
+              )}
             </div>
-            
-            {/* Branded Footer - Hidden on higher tier plans */}
-            <div className="brandedFooter">
-              <div className="brandedContent">
-                <span className="poweredByText">Powered by</span>
-                <img 
-                  src="/static_media/logo.png" 
-                  alt="Brakebee" 
-                  className="brandLogo"
-                />
-                <a 
-                  href={getFrontendUrl('/')} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="brandLink"
-                >
-                  Brakebee.com
-                </a>
-              </div>
-            </div>
+
+            <p className="footer-text">
+              &copy; {new Date().getFullYear()} {siteData.display_name || `${siteData.first_name} ${siteData.last_name}`}. All rights reserved.
+            </p>
+            <p className="footer-text">
+              Powered by <a href={getFrontendUrl('/')} target="_blank" rel="noopener noreferrer" className="footer-link">Brakebee</a>
+            </p>
           </div>
         </footer>
       </div>
@@ -712,4 +372,97 @@ const ArtistStorefront = () => {
   );
 };
 
-export default ArtistStorefront; 
+export async function getServerSideProps(context) {
+  const fs = require('fs');
+  const path = require('path');
+  const { subdomain } = context.query;
+  const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.brakebee.com';
+
+  if (!subdomain) {
+    return { props: { ssrError: 'No subdomain specified' } };
+  }
+
+  try {
+    const siteResponse = await fetch(`${apiUrl}/api/v2/websites/resolve/${subdomain}`);
+    if (!siteResponse.ok) {
+      return { props: { ssrError: 'Site not found', initialSubdomain: subdomain } };
+    }
+    let siteData = await siteResponse.json();
+
+    if (!siteData || !siteData.user_id) {
+      return { props: { ssrError: 'Site not found', initialSubdomain: subdomain } };
+    }
+
+    const [profileResponse, productsResponse, articlesResponse, pagesResponse, categoriesResponse] = await Promise.all([
+      fetch(`${apiUrl}/api/v2/users/${siteData.user_id}`),
+      fetch(`${apiUrl}/api/v2/catalog/public/products?vendor_id=${siteData.user_id}&limit=12`),
+      fetch(`${apiUrl}/api/v2/websites/resolve/${subdomain}/articles?type=menu`),
+      fetch(`${apiUrl}/api/v2/websites/resolve/${subdomain}/articles?type=pages`),
+      fetch(`${apiUrl}/api/v2/websites/resolve/${subdomain}/categories`)
+    ]);
+
+    if (profileResponse.ok) {
+      const profileResult = await profileResponse.json();
+      const profileData = profileResult.data || profileResult;
+      const customizationKeys = ['primary_color', 'secondary_color', 'text_color', 'accent_color', 'background_color'];
+      const fromResolve = {};
+      customizationKeys.forEach(k => { if (siteData[k] != null) fromResolve[k] = siteData[k]; });
+      const siteId = siteData.id;
+      siteData = { ...siteData, ...profileData, ...fromResolve, id: siteId };
+    }
+
+    let products = [];
+    if (productsResponse.ok) {
+      const productsData = await productsResponse.json();
+      const productsArray = productsData.data || [];
+      products = Array.isArray(productsArray) ? productsArray.slice(0, 12) : [];
+    }
+
+    let articles = [];
+    if (articlesResponse.ok) {
+      articles = await articlesResponse.json();
+      if (!Array.isArray(articles)) articles = [];
+    }
+
+    let pages = [];
+    if (pagesResponse.ok) {
+      pages = await pagesResponse.json();
+      if (!Array.isArray(pages)) pages = [];
+    }
+
+    let categories = [];
+    if (categoriesResponse.ok) {
+      categories = await categoriesResponse.json();
+      if (!Array.isArray(categories)) categories = [];
+    }
+
+    const templateSlug = siteData.template_slug || 'classic-gallery';
+    const hasTemplateScript = fs.existsSync(
+      path.join(process.cwd(), 'public', 'templates', templateSlug, 'script.js')
+    );
+
+    const sanitize = (obj) => JSON.parse(JSON.stringify(obj));
+
+    return {
+      props: sanitize({
+        initialSiteData: siteData,
+        initialProducts: products,
+        initialArticles: articles,
+        initialPages: pages,
+        initialCategories: categories,
+        initialSubdomain: subdomain,
+        hasTemplateScript,
+      })
+    };
+  } catch (err) {
+    console.error('SSR error fetching storefront data:', err.message);
+    return {
+      props: {
+        ssrError: 'Failed to load storefront data',
+        initialSubdomain: subdomain,
+      }
+    };
+  }
+}
+
+export default ArtistStorefront;

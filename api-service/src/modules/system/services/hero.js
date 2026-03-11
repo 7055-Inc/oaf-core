@@ -12,7 +12,7 @@ const fs = require('fs').promises;
 const path = require('path');
 
 // Path to hero data and media
-const STATIC_MEDIA_DIR = path.join(__dirname, '../../../../public/static_media');
+const STATIC_MEDIA_DIR = path.join(__dirname, '../../../../../public/static_media');
 const HERO_DATA_PATH = path.join(STATIC_MEDIA_DIR, 'hero.json');
 
 /**

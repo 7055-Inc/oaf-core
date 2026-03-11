@@ -7,7 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { fetchMySites, updateSite, fetchTemplates, fetchAddons, enableSiteAddon, disableSiteAddon, enableUserAddon, disableUserAddon } from '../../../lib/websites';
+import { fetchMySites, updateSite, fetchTemplates, applyTemplate as applyTemplateApi, fetchAddons, enableSiteAddon, disableSiteAddon, enableUserAddon, disableUserAddon } from '../../../lib/websites';
 import { getSubdomainBase } from '../../../lib/config';
 import SiteCustomizer from './SiteCustomizer';
 import CustomDomainSection from './CustomDomainSection';
@@ -134,7 +134,7 @@ export default function SiteManage({ siteId, userData, subscriptionData, onSiteU
   const applyTemplate = async (templateId) => {
     try {
       setProcessing(true);
-      await updateSite(site.id, { template_id: templateId });
+      await applyTemplateApi(templateId);
       await loadSite();
       fetchTemplatesAndAddons();
     } catch (err) {
@@ -298,16 +298,22 @@ export default function SiteManage({ siteId, userData, subscriptionData, onSiteU
               <div className="sites-cards-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))' }}>
                 {availableTemplates.map((template) => {
                   const isCurrent = site.template_id === template.id;
-                  const tierLocked = template.tier_required && !isAdminTier &&
-                    !['Professional Plan', 'Business Plan', 'Promoter Plan', 'Promoter Business Plan'].includes(userTier) &&
-                    template.tier_required !== 'Starter Plan';
+                  const templateTierLevel = { free: 0, basic: 1, pro: 2, premium: 3 }[template.tier_required] ?? 0;
+                  const tierKey = (userTier || '').toLowerCase().replace(/\s*plan\s*/gi, '');
+                  const userTierLevel = isAdminTier || tierKey === 'admin' ? 99
+                    : ['professional', 'business', 'promoter', 'promoterbusiness', 'pro'].includes(tierKey) ? 2
+                    : tierKey === 'basic' ? 1
+                    : 0;
+                  const tierLocked = templateTierLevel > userTierLevel;
                   return (
                     <div key={template.id} className="site-card" style={{ opacity: tierLocked ? 0.7 : 1 }}>
                       <div style={{ height: '120px', background: template.preview_image_url ? `url(${template.preview_image_url}) center/cover` : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', borderRadius: '8px', marginBottom: '12px' }} />
                       <h5 style={{ margin: '0 0 8px 0' }}>{template.template_name}{tierLocked ? ' 🔒' : ''}</h5>
                       <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#6c757d' }}>{template.description || 'A beautiful template.'}</p>
                       {tierLocked ? (
-                        <span className="form-help">Requires {template.tier_required}</span>
+                        <Link href="/dashboard/websites/subscription" style={{ fontSize: '13px', color: '#856404' }}>
+                          Upgrade to {template.tier_required} tier to use this template
+                        </Link>
                       ) : isCurrent ? (
                         <button type="button" className="secondary" disabled>Current</button>
                       ) : (

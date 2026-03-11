@@ -329,6 +329,15 @@ try {
   secureLogger.error('Error loading Addons module', err);
 }
 
+// Load Behavior Tracking module (tracking, batch, admin analytics - v2 at /api/v2/behavior)
+secureLogger.info('Loading Behavior Tracking module');
+try {
+  app.use('/api/v2/behavior', require('./modules/behavior/routes'));
+  secureLogger.info('Loaded v2 Behavior Tracking module at /api/v2/behavior');
+} catch (err) {
+  secureLogger.error('Error loading Behavior Tracking module', err);
+}
+
 // Apply CSRF token provider for all requests
 secureLogger.info('Applying CSRF protection');
 app.use(csrfTokenProvider);
@@ -358,6 +367,9 @@ try {
 
   // Legacy route mounts disabled (v2-only mode for migration testing).
   // app.use('/admin', adminLimiter, require('./routes/admin'));
+  
+  // Admin impersonation routes (still needed from legacy admin module)
+  app.use('/admin', adminLimiter, require('./legacy-routes/admin'));
   
   // Legacy users routes disabled. Use v2 at /api/v2/users.
   // app.use('/users', csrfProtection(), require('./routes/users'));

@@ -1058,4 +1058,153 @@ router.put('/:id/permissions', requireAuth, requireRole('admin'), async (req, re
   }
 });
 
+// ============================================================================
+// IMPERSONATION ROUTES
+// ============================================================================
+
+const jwt = require('jsonwebtoken');
+const db = require('../../../config/db');
+
+/**
+ * POST /api/v2/users/impersonate/:userId
+ * Start impersonating a user (admin only)
+ */
+router.post('/impersonate/:userId', requireAuth, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const targetUserId = parseInt(req.params.userId);
+    const adminUserId = req.userId;
+    const { reason } = req.body;
+
+    if (targetUserId === adminUserId) {
+      return res.status(400).json({ success: false, error: 'Cannot impersonate yourself' });
+    }
+
+    const [targetUser] = await db.execute(
+      'SELECT id, username, user_type FROM users WHERE id = ?',
+      [targetUserId]
+    );
+
+    if (!targetUser || targetUser.length === 0) {
+      return res.status(404).json({ success: false, error: 'Target user not found' });
+    }
+
+    const [targetTypes] = await db.query('SELECT type FROM user_types WHERE user_id = ?', [targetUserId]);
+    const targetRoles = [targetUser[0]?.user_type, ...(targetTypes?.map(t => t.type) || [])].filter(Boolean);
+
+    if (targetRoles.includes('admin')) {
+      return res.status(403).json({ success: false, error: 'Cannot impersonate another administrator' });
+    }
+
+    const [userPermissions] = await db.query('SELECT * FROM user_permissions WHERE user_id = ?', [targetUserId]);
+    const permissions = [];
+    if (userPermissions[0]) {
+      const permKeys = ['vendor', 'events', 'stripe_connect', 'manage_sites', 'manage_content',
+        'manage_system', 'verified', 'marketplace', 'shipping', 'sites', 'professional_sites'];
+      for (const key of permKeys) {
+        if (userPermissions[0][key]) permissions.push(key);
+      }
+    }
+
+    const clientIp = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'] || 'unknown';
+    const userAgent = req.headers['user-agent'] || 'unknown';
+
+    const [result] = await db.execute(
+      `INSERT INTO admin_impersonation_log 
+       (admin_user_id, impersonated_user_id, reason, ip_address, user_agent) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [adminUserId, targetUserId, reason || null, clientIp, userAgent]
+    );
+
+    const impersonationToken = jwt.sign(
+      {
+        userId: targetUserId,
+        originalUserId: adminUserId,
+        isImpersonating: true,
+        impersonationLogId: result.insertId,
+        username: targetUser[0].username,
+        roles: targetRoles,
+        permissions: permissions
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    console.log(`Admin ${adminUserId} started impersonating user ${targetUserId}`);
+
+    res.json({
+      success: true,
+      token: impersonationToken,
+      impersonatedUser: {
+        id: targetUserId,
+        username: targetUser[0].username,
+        user_type: targetUser[0].user_type
+      },
+      impersonationLogId: result.insertId,
+      expiresIn: 3600
+    });
+  } catch (error) {
+    console.error('Error starting impersonation:', error);
+    res.status(500).json({ success: false, error: 'Failed to start impersonation' });
+  }
+});
+
+/**
+ * POST /api/v2/users/stop-impersonation
+ * Stop impersonating and return to admin session
+ */
+router.post('/stop-impersonation', requireAuth, async (req, res) => {
+  try {
+    if (!req.isImpersonating || !req.originalUserId) {
+      return res.status(400).json({ success: false, error: 'Not currently impersonating a user' });
+    }
+
+    if (req.impersonationLogId) {
+      await db.execute(
+        'UPDATE admin_impersonation_log SET ended_at = NOW() WHERE id = ?',
+        [req.impersonationLogId]
+      );
+    }
+
+    console.log(`Admin ${req.originalUserId} stopped impersonating user ${req.userId}`);
+
+    res.json({
+      success: true,
+      message: 'Impersonation session ended',
+      adminUserId: req.originalUserId
+    });
+  } catch (error) {
+    console.error('Error stopping impersonation:', error);
+    res.status(500).json({ success: false, error: 'Failed to stop impersonation' });
+  }
+});
+
+/**
+ * GET /api/v2/users/impersonation-history
+ * Get impersonation history logs (admin only)
+ */
+router.get('/impersonation-history', requireAuth, requirePermission('manage_system'), async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+
+    const [logs] = await db.execute(
+      `SELECT 
+        l.id, l.admin_user_id, admin.username as admin_username,
+        l.impersonated_user_id, impersonated.username as impersonated_username,
+        l.started_at, l.ended_at, l.duration_seconds,
+        l.reason, l.ip_address, l.session_active
+      FROM admin_impersonation_log l
+      JOIN users admin ON l.admin_user_id = admin.id
+      JOIN users impersonated ON l.impersonated_user_id = impersonated.id
+      ORDER BY l.started_at DESC
+      LIMIT ?`,
+      [limit]
+    );
+
+    res.json({ success: true, logs });
+  } catch (error) {
+    console.error('Error fetching impersonation history:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch impersonation history' });
+  }
+});
+
 module.exports = router;

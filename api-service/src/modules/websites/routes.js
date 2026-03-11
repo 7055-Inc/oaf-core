@@ -294,7 +294,7 @@ router.get('/templates/:id', requireAuth, async (req, res) => {
   }
 });
 
-router.put('/template/:id', requireAuth, requirePermission('manage_sites'), async (req, res) => {
+router.put('/template/:id', requireAuth, requirePermission('sites'), async (req, res) => {
   try {
     const result = await sitesService.applyTemplate(req.userId, req.params.id);
     res.json(result);

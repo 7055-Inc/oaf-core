@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { getSubdomainUrl } from '../../../lib/config';
+import { getSubdomainUrl, getApiUrl } from '../../../lib/config';
+import { authApiRequest } from '../../../lib/apiUtils';
 import { fetchSiteCustomizations, updateSiteCustomizations } from '../../../lib/websites';
 import GoogleFontsPicker from '../../../components/sites-modules/GoogleFontsPicker';
 
@@ -69,7 +70,7 @@ export default function SiteCustomizer({ site, userData, onUpdate }) {
     if (!site.template_id) return;
     
     try {
-      const response = await fetch(`/api/v2/websites/templates/${site.template_id}/schema`);
+      const response = await fetch(getApiUrl(`api/v2/websites/templates/${site.template_id}/schema`));
       const result = await response.json();
       
       if (result.success && result.data) {
@@ -84,11 +85,7 @@ export default function SiteCustomizer({ site, userData, onUpdate }) {
     if (!site.id) return;
     
     try {
-      const response = await fetch(`/api/v2/websites/sites/${site.id}/template-data`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      const response = await authApiRequest(`api/v2/websites/sites/${site.id}/template-data`);
       const result = await response.json();
       
       if (result.success && result.data) {
@@ -142,12 +139,9 @@ export default function SiteCustomizer({ site, userData, onUpdate }) {
       // Save template-specific data if there are any fields
       if (templateSchema?.custom_fields && templateSchema.custom_fields.length > 0) {
         try {
-          const templateResponse = await fetch(`/api/v2/websites/sites/${site.id}/template-data`, {
+          const templateResponse = await authApiRequest(`api/v2/websites/sites/${site.id}/template-data`, {
             method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(templateData)
           });
           

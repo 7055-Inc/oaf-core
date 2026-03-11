@@ -1,294 +1,116 @@
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
+import React from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { getApiUrl, config, getSubdomainBase, getFrontendUrl } from '../../lib/config';
+import { getSubdomainBase } from '../../lib/config';
+import TemplateLoader from '../../components/sites-modules/TemplateLoader';
 
-// Map class names to themselves (styles now handled by global CSS/TemplateLoader)
-const styles = new Proxy({}, { get: (target, prop) => prop });
+const ArtistAbout = ({
+  initialSiteData,
+  initialSubdomain,
+  hasTemplateScript,
+  ssrError
+}) => {
+  const siteData = initialSiteData;
+  const subdomain = initialSubdomain;
 
-const ArtistAbout = () => {
-  const router = useRouter();
-  const { subdomain, userId, siteName } = router.query;
-  
-  const [siteData, setSiteData] = useState(null);
-  const [aboutArticle, setAboutArticle] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const subdomainBase = getSubdomainBase();
+  const siteUrl = siteData?.custom_domain
+    ? `https://${siteData.custom_domain}`
+    : `https://${subdomain}.${subdomainBase}`;
 
-  useEffect(() => {
-    if (subdomain) {
-      fetchAboutData();
-    }
-  }, [subdomain]);
-
-  const fetchAboutData = async () => {
-    try {
-      setLoading(true);
-      
-      // Fetch site data and about article
-      const [siteResponse, articlesResponse] = await Promise.all([
-        fetch(getApiUrl(`api/v2/websites/resolve/${subdomain}`)),
-        fetch(getApiUrl(`api/v2/websites/resolve/${subdomain}/articles?type=pages`))
-      ]);
-
-      if (siteResponse.ok) {
-        const siteData = await siteResponse.json();
-        setSiteData(siteData);
-      }
-
-      if (articlesResponse.ok) {
-        const articlesData = await articlesResponse.json();
-        // Look for an about page
-        const aboutPage = articlesData.find(article => 
-          article.page_type === 'about' || 
-          article.slug.includes('about') ||
-          article.title.toLowerCase().includes('about')
-        );
-        setAboutArticle(aboutPage);
-      }
-
-    } catch (err) {
-      setError('Failed to load about page');
-      console.error('Error fetching about data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
+  if (ssrError || !siteData) {
     return (
-      <div className={styles.loading}>
-        <div className={styles.spinner}></div>
-        <p>Loading about page...</p>
-      </div>
-    );
-  }
-
-  if (error || !siteData) {
-    return (
-      <div className={styles.error}>
+      <div className="error">
         <h1>Page Not Found</h1>
         <p>Sorry, this page is not available.</p>
-        <Link href={`https://${subdomain}.${getSubdomainBase()}`}>
-          <a className={styles.homeLink}>← Back to Gallery</a>
-        </Link>
       </div>
     );
   }
 
-  const pageTitle = `About ${siteData.first_name} ${siteData.last_name} - Artist`;
+  const templateCustomizations = {
+    primary_color: siteData.primary_color,
+    secondary_color: siteData.secondary_color,
+    text_color: siteData.text_color,
+    body_font: siteData.body_font,
+    header_font: siteData.header_font,
+  };
+
+  const getCustomStyles = () => ({
+    '--text-color': siteData.text_color,
+    '--main-color': siteData.primary_color,
+    '--secondary-color': siteData.secondary_color,
+  });
+
+  const displayName = siteData.business_name || siteData.display_name || `${siteData.first_name} ${siteData.last_name}`;
+  const pageTitle = `About - ${displayName}`;
 
   return (
     <>
       <Head>
         <title>{pageTitle}</title>
-        <meta name="description" content={siteData.bio || `Learn more about artist ${siteData.first_name} ${siteData.last_name}`} />
+        <meta name="description" content={siteData.bio || `Learn more about ${displayName}`} />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="canonical" href={`${siteUrl}/about`} />
       </Head>
 
-      <div className={styles.storefront}>
-        {/* Header */}
-        <header className={styles.header}>
-          <div className={styles.headerContent}>
-            <div className={styles.artistInfo}>
-              {siteData.profile_image_path && (
-                <img 
-                  src={`${config.API_BASE_URL}${siteData.profile_image_path}`}
-                  alt={`${siteData.first_name} ${siteData.last_name}`}
-                  className={styles.artistAvatar}
-                />
-              )}
-              <div className={styles.artistDetails}>
-                <Link href={`https://${subdomain}.${getSubdomainBase()}`}>
-                  <a className={styles.artistName}>
-                    {siteData.first_name} {siteData.last_name}
-                  </a>
-                </Link>
-                <p className={styles.artistTitle}>Artist</p>
-              </div>
-            </div>
+      <TemplateLoader
+        templateSlug={siteData.template_slug || 'classic-gallery'}
+        customizations={templateCustomizations}
+        templateData={siteData.template_data || {}}
+        customCSS={siteData.custom_css}
+        hasScript={hasTemplateScript}
+      />
 
-            <nav className={styles.navigation}>
-              <Link href={`https://${subdomain}.${getSubdomainBase()}`}>
-                <a className={styles.navLink}>Gallery</a>
+      <div className="storefront" style={getCustomStyles()}>
+        <header className="site-header">
+          <div className="header-container">
+            {siteData.logo_path ? (
+              <Link href={siteUrl} className="site-logo">
+                <img src={siteData.logo_path} alt="Logo" style={{ maxHeight: '48px', width: 'auto', display: 'block' }} />
               </Link>
-              <Link href={`https://${subdomain}.${getSubdomainBase()}/about`}>
-                <a className={`${styles.navLink} ${styles.active}`}>About</a>
-              </Link>
-              <Link href={getFrontendUrl()}>
-                <a className={styles.navLink}>Main Site</a>
-              </Link>
+            ) : (
+              <Link href={siteUrl} className="site-logo">{displayName}</Link>
+            )}
+            <nav className="site-nav">
+              <Link href={siteUrl} className="nav-link">Home</Link>
+              <Link href={`${siteUrl}/products`} className="nav-link">Gallery</Link>
+              <Link href={`${siteUrl}/about`} className="nav-link active">About</Link>
             </nav>
           </div>
         </header>
 
-        {/* About Content */}
-        <main className={styles.aboutMain}>
-          <div className={styles.container}>
-            
-            {/* Artist Profile Section */}
-            <section className={styles.artistProfile}>
-              <div className={styles.profileGrid}>
-                <div className={styles.profileImage}>
-                  {siteData.profile_image_path ? (
-                    <img 
-                      src={`${config.API_BASE_URL}${siteData.profile_image_path}`}
-                      alt={`${siteData.first_name} ${siteData.last_name}`}
-                    />
-                  ) : (
-                    <div className={styles.profilePlaceholder}>
-                      <span>{siteData.first_name?.[0]}{siteData.last_name?.[0]}</span>
-                    </div>
-                  )}
-                </div>
-                
-                <div className={styles.profileContent}>
-                  <h1 className={styles.aboutTitle}>About {siteData.first_name} {siteData.last_name}</h1>
-                  
-                  {siteData.bio && (
-                    <div className={styles.artistBio}>
-                      <p>{siteData.bio}</p>
-                    </div>
-                  )}
+        <section className="about-section">
+          <h2 className="section-title about-title">About {displayName}</h2>
 
-                  {siteData.artist_biography && (
-                    <div className={styles.artistBiography}>
-                      <h3>Artist Statement</h3>
-                      <div dangerouslySetInnerHTML={{ __html: siteData.artist_biography }} />
-                    </div>
-                  )}
+          {(siteData.bio || siteData.artist_biography) && (
+            <p className="about-text">{siteData.artist_biography || siteData.bio}</p>
+          )}
 
-                  {/* Contact Information */}
-                  <div className={styles.contactInfo}>
-                    <h3>Connect</h3>
-                    <div className={styles.contactLinks}>
-                      {siteData.website && (
-                        <a href={siteData.website} target="_blank" rel="noopener noreferrer" className={styles.contactLink}>
-                          🌐 Website
-                        </a>
-                      )}
-                      {siteData.social_instagram && (
-                        <a href={siteData.social_instagram} target="_blank" rel="noopener noreferrer" className={styles.contactLink}>
-                          📷 Instagram
-                        </a>
-                      )}
-                      {siteData.social_facebook && (
-                        <a href={siteData.social_facebook} target="_blank" rel="noopener noreferrer" className={styles.contactLink}>
-                          📘 Facebook
-                        </a>
-                      )}
-                      {siteData.social_twitter && (
-                        <a href={siteData.social_twitter} target="_blank" rel="noopener noreferrer" className={styles.contactLink}>
-                          🐦 Twitter
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
+          {siteData.does_custom === 'yes' && (
+            <>
+              <h3 className="section-title">Custom Commissions</h3>
+              <p className="about-text">{siteData.custom_details || 'Available for custom work. Get in touch!'}</p>
+            </>
+          )}
 
-            {/* Custom About Article Content */}
-            {aboutArticle && (
-              <section className={styles.aboutArticle}>
-                <div className={styles.articleContent}>
-                  <h2>{aboutArticle.title}</h2>
-                  <div 
-                    className={styles.articleBody}
-                    dangerouslySetInnerHTML={{ __html: aboutArticle.content }}
-                  />
-                </div>
-              </section>
-            )}
-
-            {/* Artist Details Grid */}
-            <section className={styles.artistDetails}>
-              <div className={styles.detailsGrid}>
-                
-                {siteData.art_categories && (
-                  <div className={styles.detailCard}>
-                    <h3>Art Categories</h3>
-                    <p>{siteData.art_categories}</p>
-                  </div>
-                )}
-
-                {siteData.does_custom === 'yes' && (
-                  <div className={styles.detailCard}>
-                    <h3>Custom Work</h3>
-                    <p>✅ Available for custom commissions</p>
-                    {siteData.custom_details && (
-                      <p className={styles.customDetails}>{siteData.custom_details}</p>
-                    )}
-                  </div>
-                )}
-
-                {siteData.business_name && (
-                  <div className={styles.detailCard}>
-                    <h3>Studio</h3>
-                    <p><strong>{siteData.business_name}</strong></p>
-                    {siteData.studio_address_line1 && (
-                      <div className={styles.studioAddress}>
-                        <p>{siteData.studio_address_line1}</p>
-                        {siteData.studio_address_line2 && <p>{siteData.studio_address_line2}</p>}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {siteData.business_website && (
-                  <div className={styles.detailCard}>
-                    <h3>Studio Website</h3>
-                    <a href={siteData.business_website} target="_blank" rel="noopener noreferrer">
-                      Visit Studio Site
-                    </a>
-                  </div>
-                )}
-              </div>
-            </section>
-
-            {/* Call to Action */}
-            <section className={styles.callToAction}>
-              <div className={styles.ctaCard}>
-                <h2>Interested in my work?</h2>
-                <p>Browse my gallery or get in touch to discuss custom pieces</p>
-                <div className={styles.ctaButtons}>
-                  <Link href={`https://${subdomain}.${getSubdomainBase()}`}>
-                    <a className={styles.ctaPrimary}>View Gallery</a>
-                  </Link>
-                  <Link href={`https://${subdomain}.${getSubdomainBase()}/contact`}>
-                    <a className={styles.ctaSecondary}>Contact Me</a>
-                  </Link>
-                </div>
-              </div>
-            </section>
-
+          <div style={{ marginTop: '2rem' }}>
+            <Link href={`${siteUrl}/products`} className="hero-cta">View Gallery</Link>
           </div>
-        </main>
+        </section>
 
-        {/* Footer */}
-        <footer className={styles.footer}>
-          <div className={styles.container}>
-            <div className={styles.footerContent}>
-              <div className={styles.footerSection}>
-                <h4>{siteData.first_name} {siteData.last_name}</h4>
-                <p>Artist Gallery</p>
-              </div>
-              
-              <div className={styles.footerSection}>
-                <h4>Platform</h4>
-                <p>
-                  <Link href={getFrontendUrl()}>
-                    <a>Brakebee</a>
-                  </Link>
-                </p>
-                <p className={styles.poweredBy}>Powered by Brakebee</p>
-              </div>
+        <footer className="site-footer">
+          <div className="footer-container">
+            <div className="footer-social">
+              {siteData.social_instagram && <a href={siteData.social_instagram} target="_blank" rel="noopener noreferrer" className="social-icon">Instagram</a>}
+              {siteData.social_facebook && <a href={siteData.social_facebook} target="_blank" rel="noopener noreferrer" className="social-icon">Facebook</a>}
+              {siteData.social_twitter && <a href={siteData.social_twitter} target="_blank" rel="noopener noreferrer" className="social-icon">Twitter</a>}
             </div>
-            
-            <div className={styles.footerBottom}>
-              <p>&copy; 2025 {siteData.first_name} {siteData.last_name}. All rights reserved.</p>
-            </div>
+            <p className="footer-text">
+              &copy; {new Date().getFullYear()} {displayName}. All rights reserved.
+            </p>
+            <p className="footer-text">
+              Powered by <a href="https://brakebee.com" target="_blank" rel="noopener noreferrer" className="footer-link">Brakebee</a>
+            </p>
           </div>
         </footer>
       </div>
@@ -296,4 +118,52 @@ const ArtistAbout = () => {
   );
 };
 
-export default ArtistAbout; 
+export async function getServerSideProps(context) {
+  const fs = require('fs');
+  const path = require('path');
+  const { subdomain } = context.query;
+  const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.brakebee.com';
+
+  if (!subdomain) {
+    return { props: { ssrError: 'No subdomain specified' } };
+  }
+
+  try {
+    const siteResponse = await fetch(`${apiUrl}/api/v2/websites/resolve/${subdomain}`);
+    if (!siteResponse.ok) {
+      return { props: { ssrError: 'Site not found', initialSubdomain: subdomain } };
+    }
+    let siteData = await siteResponse.json();
+
+    const profileResponse = await fetch(`${apiUrl}/api/v2/users/${siteData.user_id}`);
+    if (profileResponse.ok) {
+      const profileResult = await profileResponse.json();
+      const profileData = profileResult.data || profileResult;
+      const customizationKeys = ['primary_color', 'secondary_color', 'text_color', 'accent_color', 'background_color'];
+      const fromResolve = {};
+      customizationKeys.forEach(k => { if (siteData[k] != null) fromResolve[k] = siteData[k]; });
+      const siteId = siteData.id;
+      siteData = { ...siteData, ...profileData, ...fromResolve, id: siteId };
+    }
+
+    const templateSlug = siteData.template_slug || 'classic-gallery';
+    const hasTemplateScript = fs.existsSync(
+      path.join(process.cwd(), 'public', 'templates', templateSlug, 'script.js')
+    );
+
+    const sanitize = (obj) => JSON.parse(JSON.stringify(obj));
+
+    return {
+      props: sanitize({
+        initialSiteData: siteData,
+        initialSubdomain: subdomain,
+        hasTemplateScript,
+      })
+    };
+  } catch (err) {
+    console.error('SSR error:', err.message);
+    return { props: { ssrError: 'Failed to load', initialSubdomain: subdomain } };
+  }
+}
+
+export default ArtistAbout;

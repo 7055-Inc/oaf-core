@@ -131,6 +131,9 @@ export async function subdomainRouter(req) {
     } else if (path.startsWith('/api/')) {
       // API calls should pass through
       return NextResponse.next();
+    } else if (path.startsWith('/templates/')) {
+      // Template static files (CSS, JS, images) served from public/
+      return NextResponse.next();
     } else if (path.startsWith('/_next/static/') || path.startsWith('/_next/image/')) {
       // Static assets and image optimization should pass through
       return NextResponse.next();
