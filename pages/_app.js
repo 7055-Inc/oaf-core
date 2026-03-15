@@ -123,6 +123,11 @@ export default function MyApp({ Component, pageProps }) {
     return () => router.events.off('routeChangeComplete', handleRouteChange);
   }, [router.events]);
 
+  // Embed mode: strip all chrome for iframe embedding (e.g. storefront cart modal)
+  if (router.query.embed === '1') {
+    return <Component {...pageProps} />;
+  }
+
   // Pages with their own layouts: leave alone (they handle their own header/footer)
   if (router.pathname.startsWith('/dashboard') || 
       router.pathname.startsWith('/makers') || 

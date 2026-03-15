@@ -20,7 +20,7 @@ const { createSettingsPage } = require('./views/settings');
 const apiRoutes = require('./routes/api');
 
 const app = express();
-const PORT = process.env.PORT || 3004;
+const PORT = process.env.PORT || 3003;
 
 // Security middleware
 app.use(helmet({

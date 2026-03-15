@@ -6,30 +6,21 @@ import WholesalePricing from '../../components/WholesalePricing';
 import { isWholesaleCustomer } from '../../lib/userUtils';
 import { getAuthToken } from '../../lib/csrf';
 import { getFrontendUrl, getSubdomainBase, getSmartMediaUrl, config } from '../../lib/config';
-import TemplateLoader from '../../components/sites-modules/TemplateLoader';
 
 const ArtistStorefront = ({
   initialSiteData,
   initialProducts,
-  initialArticles,
-  initialPages,
-  initialCategories,
   initialSubdomain,
-  hasTemplateScript,
   ssrError
 }) => {
   const router = useRouter();
   const subdomain = initialSubdomain || router.query.subdomain;
 
-  const [siteData, setSiteData] = useState(initialSiteData || null);
-  const [products, setProducts] = useState(initialProducts || []);
-  const [articles, setArticles] = useState(initialArticles || []);
-  const [pages, setPages] = useState(initialPages || []);
-  const [categories, setCategories] = useState(initialCategories || []);
-  const [error, setError] = useState(ssrError || null);
+  const [siteData] = useState(initialSiteData || null);
+  const [products] = useState(initialProducts || []);
+  const [error] = useState(ssrError || null);
   const [userData, setUserData] = useState(null);
 
-  // Wholesale pricing needs auth token (client-side only)
   useEffect(() => {
     const token = getAuthToken();
     if (token) {
@@ -42,7 +33,6 @@ const ArtistStorefront = ({
     }
   }, []);
 
-  // Addons need DOM access (client-side only)
   useEffect(() => {
     if (siteData?.id) {
       loadSiteAddons(siteData.id);
@@ -119,13 +109,12 @@ const ArtistStorefront = ({
 
       if (response.ok) {
         const notification = document.createElement('div');
-        notification.style.cssText = `
-          position: fixed; top: 20px; right: 20px;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white; padding: 15px 20px; border-radius: 8px;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10000; font-weight: 500;
-        `;
-        notification.textContent = `Added "${product.name}" to cart! 🛒`;
+        const cs = getComputedStyle(document.querySelector('.storefront') || document.documentElement);
+        const bg = cs.getPropertyValue('--main-color').trim() || '#333';
+        const fg = cs.getPropertyValue('--background-color').trim() || '#fff';
+        const radius = cs.getPropertyValue('--border-radius').trim() || '8px';
+        notification.style.cssText = `position:fixed;top:20px;right:20px;background:${bg};color:${fg};padding:15px 20px;border-radius:${radius};box-shadow:0 4px 12px rgba(0,0,0,0.15);z-index:10000;font-weight:500;font-family:var(--body-font,sans-serif);`;
+        notification.textContent = `Added "${product.name}" to cart!`;
         document.body.appendChild(notification);
         setTimeout(() => notification.remove(), 3000);
       } else {
@@ -136,17 +125,6 @@ const ArtistStorefront = ({
       console.error('Error adding to cart:', err);
       alert('Failed to add to cart: ' + err.message);
     }
-  };
-
-  const getCustomStyles = () => {
-    if (!siteData) return {};
-    return {
-      '--text-color': siteData.text_color,
-      '--main-color': siteData.primary_color,
-      '--secondary-color': siteData.secondary_color,
-      '--accent-color': siteData.accent_color,
-      '--background-color': siteData.background_color,
-    };
   };
 
   const getImageUrl = (product) => {
@@ -176,22 +154,10 @@ const ArtistStorefront = ({
     );
   }
 
-  const pageTitle = siteData.site_title || `${siteData.first_name} ${siteData.last_name} - Artist Gallery`;
-  const pageDescription = siteData.site_description || siteData.bio || `Discover the artistic works of ${siteData.first_name} ${siteData.last_name}`;
   const subdomainBase = getSubdomainBase();
   const siteUrl = siteData.custom_domain ? `https://${siteData.custom_domain}` : `https://${subdomain}.${subdomainBase}`;
-
-  const templateCustomizations = {
-    primary_color: siteData.primary_color,
-    secondary_color: siteData.secondary_color,
-    text_color: siteData.text_color,
-    accent_color: siteData.accent_color,
-    background_color: siteData.background_color,
-    body_font: siteData.body_font,
-    header_font: siteData.header_font
-  };
-
-  const templateData = siteData.template_data || {};
+  const pageTitle = siteData.site_title || `${siteData.first_name} ${siteData.last_name} - Artist Gallery`;
+  const pageDescription = siteData.site_description || siteData.bio || `Discover the artistic works of ${siteData.first_name} ${siteData.last_name}`;
 
   return (
     <>
@@ -200,7 +166,6 @@ const ArtistStorefront = ({
         <meta name="description" content={pageDescription} />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
-
         <meta property="og:title" content={pageTitle} />
         <meta property="og:description" content={pageDescription} />
         <meta property="og:type" content="website" />
@@ -211,163 +176,75 @@ const ArtistStorefront = ({
         <link rel="canonical" href={siteUrl} />
       </Head>
 
-      <TemplateLoader
-        templateSlug={siteData.template_slug || 'classic-gallery'}
-        customizations={templateCustomizations}
-        templateData={templateData}
-        customCSS={siteData.custom_css}
-        hasScript={hasTemplateScript}
-      />
+      {/* Hero Section */}
+      <section className="hero-section" style={siteData.header_image_path ? { backgroundImage: `url(${siteData.header_image_path})` } : {}}>
+        <h2 className="hero-title">{siteData.site_title || 'Welcome to My Gallery'}</h2>
+        {siteData.site_description && (
+          <p className="hero-tagline">{siteData.site_description}</p>
+        )}
+        <Link href="/products" className="hero-cta">View Gallery</Link>
+      </section>
 
-      <div className="storefront" style={getCustomStyles()}>
-        {/* Header */}
-        <header className="site-header">
-          <div className="header-container">
-            {siteData.logo_path ? (
-              <Link href={siteUrl} className="site-logo">
-                <img
-                  src={siteData.logo_path}
-                  alt={`${siteData.business_name || siteData.display_name || `${siteData.first_name} ${siteData.last_name}`} Logo`}
-                  style={{ maxHeight: '75px', width: 'auto', display: 'block' }}
-                />
-              </Link>
-            ) : (
-              <Link href={siteUrl} className="site-logo">
-                {siteData.business_name || siteData.display_name || `${siteData.first_name} ${siteData.last_name}`}
-              </Link>
-            )}
-
-            <nav className="site-nav">
-              <Link href={siteUrl} className="nav-link active">Home</Link>
-              {articles.map(article => (
-                <Link key={article.id} href={`${siteUrl}/${article.slug}`} className="nav-link">{article.title}</Link>
-              ))}
-              {pages.find(page => page.page_type === 'contact') && (
-                <Link href={`${siteUrl}/${pages.find(page => page.page_type === 'contact').slug}`} className="nav-link">
-                  {pages.find(page => page.page_type === 'contact').title}
-                </Link>
-              )}
-            </nav>
-          </div>
-        </header>
-
-        {/* Hero Section */}
-        <section className="hero-section" style={siteData.header_image_path ? { backgroundImage: `url(${siteData.header_image_path})` } : {}}>
-          <h2 className="hero-title">{siteData.site_title || 'Welcome to My Gallery'}</h2>
-          {siteData.site_description && (
-            <p className="hero-tagline">{siteData.site_description}</p>
-          )}
-          <Link href="/products" className="hero-cta">View Gallery</Link>
+      {/* About Section */}
+      {(siteData.bio || siteData.artist_biography) && (
+        <section className="about-section">
+          <p className="about-text">{siteData.artist_biography || siteData.bio}</p>
         </section>
+      )}
 
-        {/* About Section */}
-        {(siteData.bio || siteData.artist_biography) && (
-          <section className="about-section">
-            <h2 className="section-title about-title">About the Artist</h2>
-            <p className="about-text">{siteData.artist_biography || siteData.bio}</p>
-          </section>
+      {/* Products Gallery */}
+      <section className="product-section">
+        <h2 className="section-title">Shop {siteData.business_name || siteData.display_name || `${siteData.first_name} ${siteData.last_name}`}</h2>
+
+        {products.length === 0 ? (
+          <p>No artworks available at the moment. Please check back soon!</p>
+        ) : (
+          <div className="product-grid">
+            {products.map(product => (
+              <Link key={product.id} href={`/product/${product.id}`} className="product-card" style={{ textDecoration: 'none', color: 'inherit' }}>
+                <div className="product-image-wrapper">
+                  {getImageUrl(product) ? (
+                    <img
+                      src={getImageUrl(product)}
+                      alt={product.alt_text || product.name}
+                      className="product-image"
+                    />
+                  ) : (
+                    <div className="product-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f0f0', minHeight: '200px' }}>
+                      <span>No Image</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="product-info">
+                  <h3 className="product-title">{product.name}</h3>
+                  <WholesalePricing
+                    price={product.price}
+                    wholesalePrice={product.wholesale_price}
+                    isWholesaleCustomer={isWholesaleCustomer(userData)}
+                    size="medium"
+                    layout="inline"
+                    className="product-price"
+                  />
+
+                  {product.description && (
+                    <p className="product-description">
+                      {product.description.substring(0, 100)}
+                      {product.description.length > 100 && '...'}
+                    </p>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
         )}
 
-        {/* Products Gallery */}
-        <section className="product-section">
-          <h2 className="section-title">Gallery</h2>
-
-          {products.length === 0 ? (
-            <p>No artworks available at the moment. Please check back soon!</p>
-          ) : (
-            <div className="product-grid">
-              {products.map(product => (
-                <div key={product.id} className="product-card">
-                  <div className="product-image-wrapper">
-                    {getImageUrl(product) ? (
-                      <img
-                        src={getImageUrl(product)}
-                        alt={product.alt_text || product.name}
-                        className="product-image"
-                      />
-                    ) : (
-                      <div className="product-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f0f0', minHeight: '200px' }}>
-                        <span>No Image</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="product-info">
-                    <h3 className="product-title">{product.name}</h3>
-                    <WholesalePricing
-                      price={product.price}
-                      wholesalePrice={product.wholesale_price}
-                      isWholesaleCustomer={isWholesaleCustomer(userData)}
-                      size="medium"
-                      layout="inline"
-                      className="product-price"
-                    />
-
-                    {product.description && (
-                      <p className="product-description">
-                        {product.description.substring(0, 100)}
-                        {product.description.length > 100 && '...'}
-                      </p>
-                    )}
-
-                    <button
-                      className="hero-cta"
-                      onClick={() => addToCart(product.id)}
-                    >
-                      Add to Cart
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {products.length >= 12 && (
-            <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-              <Link href="/products" className="hero-cta">View All Artworks</Link>
-            </div>
-          )}
-        </section>
-
-        {/* Footer */}
-        <footer className="site-footer">
-          <div className="footer-container">
-            <div className="footer-social">
-              {siteData.social_instagram && (
-                <a href={siteData.social_instagram} target="_blank" rel="noopener noreferrer" className="social-icon">Instagram</a>
-              )}
-              {siteData.social_facebook && (
-                <a href={siteData.social_facebook} target="_blank" rel="noopener noreferrer" className="social-icon">Facebook</a>
-              )}
-              {siteData.social_twitter && (
-                <a href={siteData.social_twitter} target="_blank" rel="noopener noreferrer" className="social-icon">Twitter</a>
-              )}
-              {siteData.social_pinterest && (
-                <a href={siteData.social_pinterest} target="_blank" rel="noopener noreferrer" className="social-icon">Pinterest</a>
-              )}
-              {siteData.social_tiktok && (
-                <a href={siteData.social_tiktok} target="_blank" rel="noopener noreferrer" className="social-icon">TikTok</a>
-              )}
-            </div>
-
-            <div className="footer-links">
-              {siteData.phone && (
-                <a href={`tel:${siteData.phone}`} className="footer-link">{siteData.phone}</a>
-              )}
-              {siteData.business_website && (
-                <a href={siteData.business_website} target="_blank" rel="noopener noreferrer" className="footer-link">Website</a>
-              )}
-            </div>
-
-            <p className="footer-text">
-              &copy; {new Date().getFullYear()} {siteData.display_name || `${siteData.first_name} ${siteData.last_name}`}. All rights reserved.
-            </p>
-            <p className="footer-text">
-              Powered by <a href={getFrontendUrl('/')} target="_blank" rel="noopener noreferrer" className="footer-link">Brakebee</a>
-            </p>
+        {products.length >= 12 && (
+          <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+            <Link href="/products" className="hero-cta">View All Artworks</Link>
           </div>
-        </footer>
-      </div>
+        )}
+      </section>
     </>
   );
 };
@@ -393,12 +270,9 @@ export async function getServerSideProps(context) {
       return { props: { ssrError: 'Site not found', initialSubdomain: subdomain } };
     }
 
-    const [profileResponse, productsResponse, articlesResponse, pagesResponse, categoriesResponse] = await Promise.all([
+    const [profileResponse, productsResponse] = await Promise.all([
       fetch(`${apiUrl}/api/v2/users/${siteData.user_id}`),
       fetch(`${apiUrl}/api/v2/catalog/public/products?vendor_id=${siteData.user_id}&limit=12`),
-      fetch(`${apiUrl}/api/v2/websites/resolve/${subdomain}/articles?type=menu`),
-      fetch(`${apiUrl}/api/v2/websites/resolve/${subdomain}/articles?type=pages`),
-      fetch(`${apiUrl}/api/v2/websites/resolve/${subdomain}/categories`)
     ]);
 
     if (profileResponse.ok) {
@@ -418,24 +292,6 @@ export async function getServerSideProps(context) {
       products = Array.isArray(productsArray) ? productsArray.slice(0, 12) : [];
     }
 
-    let articles = [];
-    if (articlesResponse.ok) {
-      articles = await articlesResponse.json();
-      if (!Array.isArray(articles)) articles = [];
-    }
-
-    let pages = [];
-    if (pagesResponse.ok) {
-      pages = await pagesResponse.json();
-      if (!Array.isArray(pages)) pages = [];
-    }
-
-    let categories = [];
-    if (categoriesResponse.ok) {
-      categories = await categoriesResponse.json();
-      if (!Array.isArray(categories)) categories = [];
-    }
-
     const templateSlug = siteData.template_slug || 'classic-gallery';
     const hasTemplateScript = fs.existsSync(
       path.join(process.cwd(), 'public', 'templates', templateSlug, 'script.js')
@@ -447,9 +303,6 @@ export async function getServerSideProps(context) {
       props: sanitize({
         initialSiteData: siteData,
         initialProducts: products,
-        initialArticles: articles,
-        initialPages: pages,
-        initialCategories: categories,
         initialSubdomain: subdomain,
         hasTemplateScript,
       })

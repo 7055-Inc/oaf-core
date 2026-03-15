@@ -11,7 +11,7 @@ const { testConnection } = require('./config/database');
 const apiRoutes = require('./routes');
 
 const app = express();
-const PORT = process.env.SOP_PORT || 3005;
+const PORT = process.env.SOP_PORT || 3002;
 
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 app.use(cors({ origin: true, credentials: true }));
@@ -21,16 +21,12 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use('/static', express.static(path.join(__dirname, '../public')));
 app.get('/api/config', (req, res) => {
-  const envUrl = process.env.FRONTEND_URL;
   const apiUrl = (process.env.API_BASE_URL || '').replace(/\/$/, '');
-  let loginUrl;
-  if (envUrl) {
-    loginUrl = envUrl.replace(/\/$/, '') + '/login';
-  } else {
-    const host = req.get('host') || '';
-    const base = host.replace(/^sop\./, '');
-    loginUrl = base ? 'https://' + base + '/login' : 'https://brakebee.com/login';
-  }
+  const host = req.get('host') || '';
+  const base = host.replace(/^sop\./, '');
+  const loginUrl = base
+    ? 'https://' + base + '/login'
+    : (process.env.FRONTEND_URL || 'https://brakebee.com').replace(/\/$/, '') + '/login';
   res.json({ success: true, data: { loginUrl, brakebeeApiUrl: apiUrl || undefined } });
 });
 app.use('/api', apiRoutes);

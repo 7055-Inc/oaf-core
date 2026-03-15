@@ -122,10 +122,24 @@ export default function LoginModal() {
         // Wait a moment for the cookies to be set
         await new Promise(resolve => setTimeout(resolve, 100));
         
-        // Check for redirect parameter, otherwise go to dashboard
+        // Check for redirect/returnTo parameter, otherwise go to dashboard
         const urlParams = new URLSearchParams(window.location.search);
-        const redirectUrl = urlParams.get('redirect') || '/dashboard';
-        window.location.href = redirectUrl;
+        const redirectUrl = urlParams.get('redirect') || urlParams.get('returnTo') || '/dashboard';
+        
+        if (redirectUrl.startsWith('http')) {
+          try {
+            const u = new URL(redirectUrl);
+            if (u.hostname === 'brakebee.com' || u.hostname.endsWith('.brakebee.com')) {
+              window.location.href = redirectUrl;
+            } else {
+              window.location.href = '/dashboard';
+            }
+          } catch {
+            window.location.href = '/dashboard';
+          }
+        } else {
+          window.location.href = redirectUrl;
+        }
       } else {
         throw new Error('Invalid response: missing tokens');
       }

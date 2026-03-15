@@ -2,7 +2,7 @@
   "template_slug": "modern-minimalist",
   "template_name": "Modern Minimalist",
   "description": "Clean, contemporary design with focus on the artwork",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "author": "Artist Sites",
   "custom_fields": [
     {
@@ -12,8 +12,31 @@
       "placeholder": "Your tagline here",
       "max_length": 100,
       "required": false,
-      "tier_required": "basic",
       "help_text": "Short tagline displayed prominently on your homepage"
+    },
+    {
+      "key": "hero_overlay",
+      "label": "Hero Image Overlay",
+      "type": "select",
+      "description": "Add a translucent overlay to the hero image for better text readability",
+      "required": false,
+      "default_value": "off",
+      "options": [
+        { "value": "off", "label": "Off" },
+        { "value": "on", "label": "On" }
+      ]
+    },
+    {
+      "key": "hero_overlay_color",
+      "label": "Hero Overlay Color",
+      "type": "select",
+      "description": "Dark overlay for light text, light overlay for dark text",
+      "required": false,
+      "default_value": "dark",
+      "options": [
+        { "value": "dark", "label": "Dark (Black)" },
+        { "value": "light", "label": "Light (White)" }
+      ]
     },
     {
       "key": "gallery_layout",
@@ -22,24 +45,10 @@
       "description": "Choose how to display your artwork",
       "required": false,
       "default_value": "grid",
-      "tier_required": "basic",
       "options": [
         { "value": "masonry", "label": "Masonry (Pinterest-style)" },
         { "value": "grid", "label": "Regular Grid" },
         { "value": "rows", "label": "Single Column Rows" }
-      ]
-    },
-    {
-      "key": "show_prices",
-      "label": "Display Product Prices",
-      "type": "select",
-      "description": "Show or hide pricing on your products",
-      "required": false,
-      "default_value": "yes",
-      "tier_required": "basic",
-      "options": [
-        { "value": "yes", "label": "Show Prices" },
-        { "value": "no", "label": "Hide Prices" }
       ]
     }
   ]

@@ -17,6 +17,7 @@ export default function Cart() {
   const [expandedCollections, setExpandedCollections] = useState({});
   const [cartTotal, setCartTotal] = useState(0);
   const router = useRouter();
+  const isEmbed = router.query.embed === '1';
 
   // Coupon functionality
   const {
@@ -262,7 +263,7 @@ export default function Cart() {
         <meta name="robots" content="noindex, nofollow" />
       </Head>
       <div className={styles.container}>
-        <div className={styles.content} style={{marginTop: '120px'}}>
+        <div className={styles.content} style={{marginTop: isEmbed ? '0' : '120px'}}>
           {cartItems.length > 0 && (
             <div className="section-box">
               <p style={{color: 'var(--secondary-color)', fontWeight: '600', marginBottom: '1rem'}}>

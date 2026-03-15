@@ -6,8 +6,8 @@ node_modules
 # Testing
 /coverage
 
-# Next.js
-/.next/
+# Next.js build output (all projects)
+.next/
 /out/
 
 # Production
@@ -50,6 +50,8 @@ service-account.json
 api-service/temp_images/
 public/static_media/
 
-node_modules
+# ChromaDB data (binary vector DB files)
+leo/data/chroma/
+
 node_modules
 api-service/clickhouse

@@ -138,8 +138,29 @@ export async function subdomainRouter(req) {
       // Static assets and image optimization should pass through
       return NextResponse.next();
     } else if (path.startsWith('/_next/data/')) {
-      // Block /_next/data/ requests on subdomains - these would return main site data
-      // Return 404 so Next.js falls back to client-side data fetching
+      const match = path.match(/^\/_next\/data\/([^/]+)\/(.+)\.json$/);
+      if (match) {
+        const [, buildId, pagePath] = match;
+
+        let rewritePath;
+        if (pagePath === 'index') {
+          rewritePath = `/_next/data/${buildId}/artist-storefront.json`;
+        } else if (pagePath === 'products' || pagePath === 'about') {
+          rewritePath = `/_next/data/${buildId}/artist-storefront/${pagePath}.json`;
+        } else if (pagePath.startsWith('product/')) {
+          const productId = pagePath.split('product/')[1];
+          const rewriteUrl = new URL(`/_next/data/${buildId}/artist-storefront/product.json`, req.url);
+          setCommonParams(rewriteUrl);
+          rewriteUrl.searchParams.set('productId', productId);
+          return NextResponse.rewrite(rewriteUrl);
+        } else {
+          return new NextResponse(null, { status: 404 });
+        }
+
+        const rewriteUrl = new URL(rewritePath, req.url);
+        setCommonParams(rewriteUrl);
+        return NextResponse.rewrite(rewriteUrl);
+      }
       return new NextResponse(null, { status: 404 });
     } else {
       // Route to custom 404 page for unknown paths

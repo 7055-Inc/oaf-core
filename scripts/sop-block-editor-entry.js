@@ -82,4 +82,4 @@ function init(holderIdOrElement, initialData, options = {}) {
   return editor;
 }
 
-window.SOPBlockEditor = { init, parseInitialData };
+export { init, parseInitialData };

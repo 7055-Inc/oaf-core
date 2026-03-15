@@ -1,1 +1,0 @@
-"use strict";exports.id=860,exports.ids=[860],exports.modules={860:(i,o,t)=>{t.r(o),t.d(o,{default:()=>s});class l{constructor(i){this.siteConfig=i,this.initialized=!1}init(){this.initialized||(console.log("Email Collection Addon: Initializing..."),this.initialized=!0,console.log("Email Collection Addon: Ready"))}addSignupForm(i){}showEmailPopup(){}}let s=l}};

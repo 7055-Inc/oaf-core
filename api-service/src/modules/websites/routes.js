@@ -256,7 +256,8 @@ router.get('/sites/:id/customizations', requireAuth, requirePermission('sites'),
 
 router.put('/sites/:id/customizations', requireAuth, requirePermission('sites'), async (req, res) => {
   try {
-    const customizations = await sitesService.updateSiteCustomizations(req.userId, req.params.id, req.body);
+    const { _csrf, ...body } = req.body;
+    const customizations = await sitesService.updateSiteCustomizations(req.userId, req.params.id, body);
     res.json({ success: true, message: 'Customizations updated successfully', customizations });
   } catch (err) {
     handleError(res, err);
@@ -419,11 +420,11 @@ router.put('/sites/:siteId/template-data', requireAuth, async (req, res) => {
       });
     }
     
-    // Update template data (validates against schema, checks tier requirements)
+    const { _csrf, ...templateBody } = req.body;
     const result = await sitesService.updateTemplateDataForSite(
       siteId, 
       site[0].template_id, 
-      req.body
+      templateBody
     );
     
     res.json(result);

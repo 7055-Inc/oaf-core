@@ -3,6 +3,12 @@ const sopsService = require('../services/sops');
 
 const router = express.Router();
 
+function allowedStatuses(userType) {
+  if (userType === 'top') return ['draft', 'proposed', 'active', 'deprecated', 'deleted'];
+  if (userType === 'manage') return ['draft', 'proposed', 'active'];
+  return ['draft', 'proposed'];
+}
+
 function parseJsonFields(row) {
   if (!row) return row;
   const jsonKeys = ['standard_workflow', 'exit_points', 'escalation', 'transfer', 'additional_information', 'related_sop_ids'];
@@ -42,11 +48,14 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const isTop = req.sopUser && req.sopUser.user_type === 'top';
+    const userType = req.sopUser ? req.sopUser.user_type : 'frontline';
     const created_by = req.sopUser ? req.sopUser.id : null;
     const body = { ...req.body };
-    if (!isTop) {
+    const allowed = allowedStatuses(userType);
+    if (!allowed.includes(body.status)) {
       body.status = 'draft';
+    }
+    if (userType !== 'top') {
       body.submitted_by = created_by;
     }
     const id = await sopsService.create(body, created_by);
@@ -60,11 +69,14 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const isTop = req.sopUser && req.sopUser.user_type === 'top';
+    const userType = req.sopUser ? req.sopUser.user_type : 'frontline';
     const updated_by = req.sopUser ? req.sopUser.id : null;
     const body = { ...req.body };
-    if (!isTop) {
+    const allowed = allowedStatuses(userType);
+    if (!allowed.includes(body.status)) {
       body.status = 'draft';
+    }
+    if (userType !== 'top') {
       body.submitted_by = updated_by;
     }
     const prev = await sopsService.getById(req.params.id);

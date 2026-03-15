@@ -259,11 +259,14 @@ async function enhanceUserProfileWithMedia(userProfile) {
   if (!userProfile) return userProfile;
   
   try {
-    const mediaFields = ['profile_image_path', 'header_image_path', 'logo_path'];
+    const mediaFields = [
+      { field: 'profile_image_path', size: 'detail' },
+      { field: 'header_image_path',  size: 'header' },
+      { field: 'logo_path',          size: 'detail' }
+    ];
     const tempPaths = [];
     
-    // Collect temp paths from profile
-    for (const field of mediaFields) {
+    for (const { field } of mediaFields) {
       if (userProfile[field] && userProfile[field].includes('/temp_images/')) {
         tempPaths.push(userProfile[field]);
       }
@@ -273,18 +276,16 @@ async function enhanceUserProfileWithMedia(userProfile) {
       return userProfile;
     }
     
-    // Get processed URLs
     const processedUrls = await getBatchProcessedMediaUrls(tempPaths);
     
-    // Replace temp URLs with processed URLs
-    for (const field of mediaFields) {
+    for (const { field, size } of mediaFields) {
       if (userProfile[field] && processedUrls[userProfile[field]]) {
         const processed = processedUrls[userProfile[field]];
-        userProfile[field] = processed.image_url;
+        const baseUrl = processed.image_url.replace(/[?&]size=[^&]+/, '');
+        userProfile[field] = `${baseUrl}?size=${size}`;
         
-        // Add thumbnail variants
-        const thumbnailField = field.replace('_url', '_thumbnail_url');
-        if (processed.thumbnail_url) {
+        const thumbnailField = field.replace('_path', '_thumbnail_path');
+        if (thumbnailField !== field && processed.thumbnail_url) {
           userProfile[thumbnailField] = processed.thumbnail_url;
         }
       }

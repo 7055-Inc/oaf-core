@@ -1,4 +1,29 @@
 var SOPBlockEditor = (() => {
+  var __defProp = Object.defineProperty;
+  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
+  var __copyProps = (to2, from, except, desc) => {
+    if (from && typeof from === "object" || typeof from === "function") {
+      for (let key of __getOwnPropNames(from))
+        if (!__hasOwnProp.call(to2, key) && key !== except)
+          __defProp(to2, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+    }
+    return to2;
+  };
+  var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+  // scripts/sop-block-editor-entry.js
+  var sop_block_editor_entry_exports = {};
+  __export(sop_block_editor_entry_exports, {
+    init: () => init,
+    parseInitialData: () => parseInitialData
+  });
+
   // node_modules/@editorjs/editorjs/dist/editorjs.mjs
   (function() {
     "use strict";
@@ -15506,7 +15531,7 @@ var SOPBlockEditor = (() => {
     });
     return editor;
   }
-  window.SOPBlockEditor = { init, parseInitialData };
+  return __toCommonJS(sop_block_editor_entry_exports);
 })();
 /*! Bundled license information:
 

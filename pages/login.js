@@ -3,11 +3,31 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { LoginModal } from '../modules/auth';
 
+function getSafeRedirect() {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  const target = params.get('redirect') || params.get('returnTo');
+  if (!target) return null;
+  if (target.startsWith('/')) return target;
+  try {
+    const u = new URL(target);
+    if (u.hostname === 'brakebee.com' || u.hostname.endsWith('.brakebee.com')) return target;
+  } catch { /* invalid URL */ }
+  return null;
+}
+
 export default function Login() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
+    if (token) {
+      const redirect = getSafeRedirect();
+      if (redirect) {
+        window.location.href = redirect;
+        return;
+      }
+    }
     setIsLoggedIn(!!token);
   }, []);
 

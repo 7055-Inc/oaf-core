@@ -1,7 +1,35 @@
 const express = require('express');
 const usersService = require('../services/users');
+const { getToken } = require('../middleware/brakebeeAuth');
 
 const router = express.Router();
+
+router.get('/search-brakebee', async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim();
+    if (!q) return res.json({ success: true, data: [] });
+
+    const apiUrl = (process.env.API_BASE_URL || '').replace(/\/$/, '');
+    if (!apiUrl) return res.status(500).json({ success: false, error: 'API_BASE_URL not configured' });
+
+    const token = getToken(req);
+    if (!token) return res.status(401).json({ success: false, error: 'Not authenticated' });
+
+    const url = `${apiUrl}/api/v2/users?search=${encodeURIComponent(q)}&limit=20`;
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return res.status(response.status).json(data);
+    }
+    res.json(data);
+  } catch (err) {
+    console.error('Brakebee user search proxy error:', err.message);
+    res.status(500).json({ success: false, error: 'Search failed' });
+  }
+});
 
 router.get('/', async (req, res) => {
   try {

@@ -232,15 +232,12 @@ async function updateSiteCustomizations(userId, siteId, body) {
   const updateFields = [];
   const updateValues = [];
   const allowed = [
-    'text_color', 'main_color', 'secondary_color',
-    ...(canCustomizeAdvanced ? [
-      'accent_color', 'background_color', 'body_font', 'header_font',
-      'button_style', 'button_color', 'border_radius', 'spacing_scale'
-    ] : []),
-    ...(canCustomizeProfessional ? [
-      'h1_font', 'h2_font', 'h3_font', 'h4_font',
-      'hero_style', 'navigation_style', 'footer_text', 'google_fonts_loaded'
-    ] : [])
+    'text_color', 'main_color', 'secondary_color', 'body_font', 'header_font',
+    'accent_color', 'background_color',
+    'button_style', 'button_color', 'border_radius', 'spacing_scale',
+    'h1_font', 'h2_font', 'h3_font', 'h4_font',
+    'hero_style', 'navigation_style', 'footer_text', 'google_fonts_loaded',
+    'show_prices'
   ];
   for (const key of allowed) {
     if (body[key] !== undefined) {
@@ -672,6 +669,8 @@ async function resolveSubdomain(subdomain) {
   const [site] = await db.query(`
     SELECT s.*, u.username, u.user_type, up.first_name, up.last_name, up.bio, up.profile_image_path, up.header_image_path,
            sc.main_color as primary_color, sc.secondary_color, sc.text_color, sc.accent_color, sc.background_color,
+           sc.body_font, sc.header_font, sc.button_style, sc.button_color, sc.border_radius,
+           sc.spacing_scale, sc.hero_style, sc.navigation_style, sc.footer_text, sc.show_prices,
            wt.template_slug, wt.template_name
     FROM sites s 
     JOIN users u ON s.user_id = u.id 
@@ -1631,29 +1630,13 @@ async function validateTemplateData(templateId, fieldData, userTier, isAdmin) {
     fieldMap[field.key] = field;
   });
   
-  // Define tier hierarchy for enforcement
-  const tierHierarchy = { free: 0, basic: 1, professional: 2 };
-  const userTierLevel = tierHierarchy[userTier] || 0;
-  
-  // Validate each field in fieldData
   for (const [fieldKey, fieldValue] of Object.entries(fieldData)) {
     const fieldDef = fieldMap[fieldKey];
     
-    // Check if field exists in schema
     if (!fieldDef) {
       const err = new Error(`Unknown field: ${fieldKey}`);
       err.statusCode = 400;
       throw err;
-    }
-    
-    // Check tier requirement (skip for admins)
-    if (!isAdmin && fieldDef.tier_required) {
-      const requiredTierLevel = tierHierarchy[fieldDef.tier_required] || 0;
-      if (userTierLevel < requiredTierLevel) {
-        const err = new Error(`Field "${fieldDef.label}" requires ${fieldDef.tier_required} tier or higher`);
-        err.statusCode = 403;
-        throw err;
-      }
     }
     
     // Check required fields

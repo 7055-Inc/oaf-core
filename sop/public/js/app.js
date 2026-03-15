@@ -36,6 +36,11 @@
     return s && s.user_type === 'top';
   }
 
+  function getUserType() {
+    var s = getSession();
+    return s ? s.user_type : 'frontline';
+  }
+
   function renderLoginGate() {
     mainContent.innerHTML = `
       <div class="sop-login-card">
@@ -201,8 +206,6 @@
           return data.code ? '<pre class="sop-block-code"><code>' + escapeHtml(data.code) + '</code></pre>' : '';
         case 'delimiter':
           return '<hr class="sop-block-delimiter">';
-        case 'warning':
-          return (data.title || data.message) ? '<div class="sop-block-warning">' + (data.title ? '<div class="sop-block-warning-title">' + escapeHtml(data.title) + '</div>' : '') + (data.message ? '<div class="sop-block-warning-msg">' + data.message + '</div>' : '') + '</div>' : '';
         default:
           return data.text ? '<p class="sop-block-p">' + data.text + '</p>' : '';
       }
@@ -421,7 +424,8 @@
         bcHtml += ' / ' + escapeHtml(sop.title);
         var block = function (label, val) {
           if (val == null || val === '') return '';
-          var content = Array.isArray(val) ? renderBlockContent(val) : escapeHtml(String(val));
+          var content = renderBlockContent(val);
+          if (!content && val) content = escapeHtml(String(val));
           return '<div class="sop-view-section"><h3>' + escapeHtml(label) + '</h3><div class="sop-block-content">' + content + '</div></div>';
         };
         var html = '<div class="sop-view">' +
@@ -474,7 +478,11 @@
       (folders || []).forEach(function (f) {
         folderOptions += '<option value="' + f.id + '"' + (sop && sop.folder_id === f.id ? ' selected' : '') + '>' + escapeHtml(f.title) + '</option>';
       });
-      var statusOpts = ['draft', 'proposed', 'active', 'deprecated', 'deleted'].map(function (s) {
+      var ut = getUserType();
+      var allowedStatuses = ut === 'top' ? ['draft', 'proposed', 'active', 'deprecated', 'deleted']
+        : ut === 'manage' ? ['draft', 'proposed', 'active']
+        : ['draft', 'proposed'];
+      var statusOpts = allowedStatuses.map(function (s) {
         return '<option value="' + s + '"' + (sop && sop.status === s ? ' selected' : '') + '>' + s + '</option>';
       }).join('');
       var json = function (v) {
@@ -494,7 +502,7 @@
         '<form id="sop-form">' +
         '<label>Title</label><input type="text" name="title" value="' + escapeHtml(val('title')) + '" required>' +
         '<label>Folder</label><select name="folder_id">' + folderOptions + '</select>' +
-        (isTop() ? '<label>Status</label><select name="status">' + statusOpts + '</select>' : '') +
+        '<label>Status</label><select name="status">' + statusOpts + '</select>' +
         '<label>Owner role</label><input type="text" name="owner_role" value="' + escapeHtml(val('owner_role')) + '">' +
         '<label>Change notes</label><textarea name="change_notes">' + escapeHtml(val('change_notes')) + '</textarea>' +
         '<label>Purpose / Expected outcome</label><textarea name="purpose_expected_outcome">' + escapeHtml(val('purpose_expected_outcome')) + '</textarea>' +
@@ -532,7 +540,7 @@
           when_not_to_use: fd.get('when_not_to_use') || null,
           related_sop_ids: related
         };
-        if (isTop()) payload.status = fd.get('status') || 'draft';
+        payload.status = fd.get('status') || 'draft';
         ['standard_workflow', 'exit_points', 'escalation', 'transfer', 'additional_information'].forEach(function (k) {
           if (!payload[k]) payload[k] = null;
         });
@@ -644,18 +652,11 @@
       var resultsEl = document.getElementById('brakebee-results');
       if (!q) { resultsEl.innerHTML = ''; return; }
       resultsEl.innerHTML = 'Searching…';
-      fetch('/api/config', { credentials: 'include' })
-        .then(function (r) { return r.json(); })
-        .then(function (cfg) {
-          var apiUrl = (cfg.data && cfg.data.brakebeeApiUrl) || '';
-          if (!apiUrl) { resultsEl.innerHTML = '<p class="sop-muted">Brakebee API URL not configured.</p>'; return; }
-          return fetch(apiUrl + '/api/v2/users?search=' + encodeURIComponent(q) + '&limit=20', { credentials: 'include' });
-        })
+      fetch('/api/users/search-brakebee?q=' + encodeURIComponent(q), { credentials: 'include' })
         .then(function (r) {
-          if (!r) return;
           return r.json().then(function (data) {
             if (!r.ok) {
-              resultsEl.innerHTML = '<p class="sop-muted">Search failed (e.g. need Brakebee admin).</p>';
+              resultsEl.innerHTML = '<p class="sop-muted">' + escapeHtml(data.error || 'Search failed') + '</p>';
               return;
             }
             var users = (data.data || []);
@@ -663,8 +664,8 @@
             resultsEl.innerHTML = '<table class="sop-table"><thead><tr><th>Email</th><th>Add</th></tr></thead><tbody></tbody></table>';
             var tbody = resultsEl.querySelector('tbody');
             users.forEach(function (u) {
-            var email = (u.email || u.username || '').trim();
-            if (!email) return;
+              var email = (u.email || u.username || '').trim();
+              if (!email) return;
               var tr = document.createElement('tr');
               tr.innerHTML = '<td>' + escapeHtml(email) + '</td><td><button type="button" class="sop-btn-small sop-add" data-email="' + escapeHtml(email) + '" data-id="' + (u.id || '') + '">Add</button></td>';
               tbody.appendChild(tr);

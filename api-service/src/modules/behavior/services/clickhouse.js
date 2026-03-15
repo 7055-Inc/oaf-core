@@ -67,7 +67,7 @@ class ClickHouseService {
       utm_source: event.utmSource || '',
       utm_medium: event.utmMedium || '',
       utm_campaign: event.utmCampaign || '',
-      client_timestamp: event.clientTimestamp || new Date().toISOString(),
+      client_timestamp: (event.clientTimestamp || new Date().toISOString()).replace('Z', ''),
       ga_client_id: event.gaClientId || '',
       fb_click_id: event.fbClickId || '',
     };
@@ -108,7 +108,7 @@ class ClickHouseService {
       utm_source: event.utmSource || '',
       utm_medium: event.utmMedium || '',
       utm_campaign: event.utmCampaign || '',
-      client_timestamp: event.clientTimestamp || new Date().toISOString(),
+      client_timestamp: (event.clientTimestamp || new Date().toISOString()).replace('Z', ''),
       ga_client_id: event.gaClientId || '',
       fb_click_id: event.fbClickId || '',
     }));

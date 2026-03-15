@@ -281,7 +281,6 @@ export default function SiteManage({ siteId, userData, subscriptionData, onSiteU
 
         {activeTab === TAB_CUSTOMIZE && (
           <div>
-            <h4 style={{ margin: '0 0 16px 0' }}>Site Customization</h4>
             <SiteCustomizer site={site} userData={userData} onUpdate={loadSite} />
           </div>
         )}

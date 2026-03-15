@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { getSubdomainUrl, getApiUrl } from '../../../lib/config';
+import React, { useState, useEffect, useRef } from 'react';
+import { getSubdomainUrl, getApiUrl, getSmartMediaUrl } from '../../../lib/config';
 import { authApiRequest } from '../../../lib/apiUtils';
 import { fetchSiteCustomizations, updateSiteCustomizations } from '../../../lib/websites';
 import GoogleFontsPicker from '../../../components/sites-modules/GoogleFontsPicker';
@@ -17,12 +17,16 @@ export default function SiteCustomizer({ site, userData, onUpdate }) {
     spacingScale: 'normal',
     heroStyle: 'gradient',
     navigationStyle: 'horizontal',
-    footerText: ''
+    footerText: '',
+    showPrices: 'yes'
   });
   const [templateSchema, setTemplateSchema] = useState(null);
   const [templateData, setTemplateData] = useState({});
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInputRef = useRef(null);
 
   // Check user permissions
   const hasSites = userData?.permissions?.includes('sites');
@@ -44,20 +48,22 @@ export default function SiteCustomizer({ site, userData, onUpdate }) {
       const data = await fetchSiteCustomizations(site.id);
       const cust = data?.customizations ?? data;
       if (cust && typeof cust === 'object') {
+        const cleanFont = (v) => (v && !v.includes(',')) ? v : '';
         setCustomizations(prev => ({
           ...prev,
           textColor: cust.text_color || '#374151',
           mainColor: cust.main_color || '#667eea',
           secondaryColor: cust.secondary_color || '#764ba2',
-          bodyFont: cust.body_font || prev.bodyFont,
-          headerFont: cust.header_font || prev.headerFont,
+          bodyFont: cleanFont(cust.body_font) || prev.bodyFont,
+          headerFont: cleanFont(cust.header_font) || prev.headerFont,
           buttonStyle: cust.button_style || 'rounded',
           buttonColor: cust.button_color || '',
           borderRadius: cust.border_radius || '4px',
           spacingScale: cust.spacing_scale || 'normal',
           heroStyle: cust.hero_style || 'gradient',
           navigationStyle: cust.navigation_style || 'horizontal',
-          footerText: cust.footer_text || ''
+          footerText: cust.footer_text || '',
+          showPrices: cust.show_prices || 'yes'
         }));
       }
     } catch (err) {
@@ -128,7 +134,8 @@ export default function SiteCustomizer({ site, userData, onUpdate }) {
         spacing_scale: customizations.spacingScale,
         hero_style: customizations.heroStyle,
         navigation_style: customizations.navigationStyle,
-        footer_text: customizations.footerText || null
+        footer_text: customizations.footerText || null,
+        show_prices: customizations.showPrices || 'yes'
       });
 
       if (result?.success === false) {
@@ -181,24 +188,59 @@ export default function SiteCustomizer({ site, userData, onUpdate }) {
       spacingScale: 'normal',
       heroStyle: 'gradient',
       navigationStyle: 'horizontal',
-      footerText: ''
+      footerText: '',
+      showPrices: 'yes'
     });
+  };
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setError('Invalid file type. Please choose a JPEG, PNG, or WebP image.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Logo file is too large. Please choose an image smaller than 5MB.');
+      e.target.value = '';
+      return;
+    }
+
+    setLogoPreview(URL.createObjectURL(file));
+    setUploadingLogo(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('logo_image', file);
+
+      const res = await authApiRequest('api/v2/users/me', {
+        method: 'PATCH',
+        body: formData
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to upload logo');
+      }
+
+      if (onUpdate) onUpdate();
+    } catch (err) {
+      setError(err.message || 'Failed to upload logo');
+      setLogoPreview(null);
+    } finally {
+      setUploadingLogo(false);
+      e.target.value = '';
+    }
   };
   
   // Render a template-specific field based on its type
   const renderTemplateField = (field) => {
     const value = templateData[field.key] || field.default_value || '';
-    const tierHierarchy = { free: 0, basic: 1, professional: 2 };
-    
-    // Determine user's tier level
-    let userTierLevel = 0;
-    if (hasProfessionalSites) userTierLevel = 2;
-    else if (hasManageSites) userTierLevel = 1;
-    
-    // Check if user has access to this field
-    const requiredTierLevel = tierHierarchy[field.tier_required] || 0;
-    const hasAccess = userTierLevel >= requiredTierLevel;
-    const isDisabled = !hasAccess || processing;
+    const isDisabled = processing;
     
     const baseStyle = {
       width: '100%',
@@ -354,19 +396,6 @@ export default function SiteCustomizer({ site, userData, onUpdate }) {
           </small>
         )}
         
-        {!hasAccess && (
-          <small style={{
-            display: 'block',
-            marginTop: '4px',
-            color: '#856404',
-            background: '#fff3cd',
-            padding: '4px 8px',
-            borderRadius: '2px',
-            fontSize: '11px'
-          }}>
-            Requires {field.tier_required} tier or higher
-          </small>
-        )}
       </div>
     );
   };
@@ -381,14 +410,7 @@ export default function SiteCustomizer({ site, userData, onUpdate }) {
 
   return (
     <div>
-      <h4 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>
-        Site Customization
-        {!hasManageSites && (
-          <span style={{ fontSize: '12px', color: '#6c757d', fontWeight: 'normal' }}>
-            (Basic colors - upgrade for advanced customization)
-          </span>
-        )}
-      </h4>
+      
 
       {error && (
         <div style={{ 
@@ -432,11 +454,13 @@ export default function SiteCustomizer({ site, userData, onUpdate }) {
                 value={customizations.textColor}
                 onChange={(e) => handleChange('textColor', e.target.value)}
                 style={{
-                  width: '40px',
-                  height: '30px',
+                  width: '50px',
+                  height: '36px',
+                  padding: '2px',
                   border: '1px solid #ced4da',
-                  borderRadius: '2px',
-                  cursor: 'pointer'
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  WebkitAppearance: 'none'
                 }}
               />
               <input
@@ -471,11 +495,13 @@ export default function SiteCustomizer({ site, userData, onUpdate }) {
                 value={customizations.mainColor}
                 onChange={(e) => handleChange('mainColor', e.target.value)}
                 style={{
-                  width: '40px',
-                  height: '30px',
+                  width: '50px',
+                  height: '36px',
+                  padding: '2px',
                   border: '1px solid #ced4da',
-                  borderRadius: '2px',
-                  cursor: 'pointer'
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  WebkitAppearance: 'none'
                 }}
               />
               <input
@@ -510,11 +536,13 @@ export default function SiteCustomizer({ site, userData, onUpdate }) {
                 value={customizations.secondaryColor}
                 onChange={(e) => handleChange('secondaryColor', e.target.value)}
                 style={{
-                  width: '40px',
-                  height: '30px',
+                  width: '50px',
+                  height: '36px',
+                  padding: '2px',
                   border: '1px solid #ced4da',
-                  borderRadius: '2px',
-                  cursor: 'pointer'
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  WebkitAppearance: 'none'
                 }}
               />
               <input
@@ -537,7 +565,7 @@ export default function SiteCustomizer({ site, userData, onUpdate }) {
         {/* Font Customization with Google Fonts */}
         <div style={{ marginBottom: '20px' }}>
           <h5 style={{ margin: '0 0 10px 0', color: '#495057', fontSize: '14px' }}>
-            Typography (Google Fonts)
+            Site Fonts
           </h5>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
             <GoogleFontsPicker
@@ -554,7 +582,6 @@ export default function SiteCustomizer({ site, userData, onUpdate }) {
         </div>
 
         {/* Layout & Style Options */}
-        {hasManageSites && (
           <div style={{ marginBottom: '20px' }}>
             <h5 style={{ margin: '0 0 10px 0', color: '#495057', fontSize: '14px' }}>
               Layout & Style
@@ -709,13 +736,34 @@ export default function SiteCustomizer({ site, userData, onUpdate }) {
                   <option value="sidebar">Sidebar</option>
                 </select>
               </div>
+
+              {/* Show Prices */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', color: '#495057', fontSize: '12px' }}>
+                  Show Prices
+                </label>
+                <select 
+                  value={customizations.showPrices} 
+                  onChange={(e) => handleChange('showPrices', e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    border: '1px solid #ced4da',
+                    borderRadius: '2px',
+                    fontSize: '14px',
+                    background: 'white'
+                  }}
+                >
+                  <option value="yes">Show Prices</option>
+                  <option value="no">Hide Prices</option>
+                </select>
+              </div>
             </div>
 
             {/* Footer Text */}
-            {hasProfessionalSites && (
-              <div style={{ marginTop: '15px' }}>
+            <div style={{ marginTop: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', color: '#495057', fontSize: '12px' }}>
-                  Footer Text (Professional)
+                  Footer Text
                 </label>
                 <textarea
                   value={customizations.footerText || ''}
@@ -733,50 +781,118 @@ export default function SiteCustomizer({ site, userData, onUpdate }) {
                   }}
                 />
               </div>
-            )}
           </div>
-        )}
 
-        {/* Color Preview */}
-        <div style={{ 
-          padding: '15px', 
-          background: '#f8f9fa', 
-          borderRadius: '2px',
-          border: '1px solid #dee2e6',
+        {/* Live Preview */}
+        <div style={{
+          padding: '16px',
+          background: '#f8f9fa',
+          borderRadius: '4px',
+          border: '1px solid #e9ecef',
           marginBottom: '15px'
         }}>
-          <div style={{ fontSize: '12px', color: '#6c757d', marginBottom: '8px' }}>
-            Preview:
+          <h5 style={{ margin: '0 0 12px 0', color: '#495057', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            Preview
+          </h5>
+
+          {/* Colors row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{
+                width: '28px', height: '28px', borderRadius: '4px', border: '1px solid #dee2e6',
+                background: customizations.textColor, display: 'inline-block'
+              }} />
+              <span style={{ fontSize: '11px', color: '#6c757d' }}>Text</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{
+                width: '28px', height: '28px', borderRadius: '4px', border: '1px solid #dee2e6',
+                background: customizations.mainColor, display: 'inline-block'
+              }} />
+              <span style={{ fontSize: '11px', color: '#6c757d' }}>Main</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{
+                width: '28px', height: '28px', borderRadius: '4px', border: '1px solid #dee2e6',
+                background: customizations.secondaryColor, display: 'inline-block'
+              }} />
+              <span style={{ fontSize: '11px', color: '#6c757d' }}>Secondary</span>
+            </div>
           </div>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '15px',
-            flexWrap: 'wrap'
-          }}>
-            <div style={{ 
+
+          {/* Font previews */}
+          <div style={{ marginBottom: '14px' }}>
+            {customizations.headerFont && (
+              <div style={{
+                fontFamily: customizations.headerFont,
+                fontSize: '22px',
+                fontWeight: '700',
+                color: customizations.textColor,
+                lineHeight: '1.3',
+                marginBottom: '4px'
+              }}>
+                Header Font Preview
+              </div>
+            )}
+            <div style={{
+              fontFamily: customizations.bodyFont || 'inherit',
+              fontSize: '14px',
               color: customizations.textColor,
-              fontSize: '14px'
+              lineHeight: '1.5'
             }}>
-              Sample text
+              {customizations.bodyFont
+                ? 'Body text preview — The quick brown fox jumps over the lazy dog.'
+                : <span style={{ color: '#adb5bd', fontStyle: 'italic' }}>Select a body font above to preview</span>}
             </div>
-            <div style={{ 
-              background: customizations.mainColor,
-              color: 'white',
-              padding: '4px 8px',
-              borderRadius: '2px',
-              fontSize: '12px'
-            }}>
-              Main Color
-            </div>
-            <div style={{ 
-              background: customizations.secondaryColor,
-              color: 'white',
-              padding: '4px 8px',
-              borderRadius: '2px',
-              fontSize: '12px'
-            }}>
-              Secondary Color
+          </div>
+
+          {/* Logo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingTop: '12px', borderTop: '1px solid #dee2e6' }}>
+            {(() => {
+              const logoSrc = logoPreview || (userData?.logo_path ? getSmartMediaUrl(userData.logo_path, 'thumbnail') : null);
+              return logoSrc ? (
+                <img
+                  src={logoSrc}
+                  alt="Site Logo"
+                  style={{ maxHeight: '48px', maxWidth: '120px', objectFit: 'contain', borderRadius: '4px', border: '1px solid #dee2e6' }}
+                />
+              ) : (
+                <div style={{
+                  width: '48px', height: '48px', background: '#e9ecef', borderRadius: '4px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#adb5bd', fontSize: '20px'
+                }}>
+                  &#128247;
+                </div>
+              );
+            })()}
+            <div>
+              <div style={{ fontSize: '12px', color: '#495057', fontWeight: '500', marginBottom: '4px' }}>
+                {(userData?.logo_path || logoPreview) ? 'Current Logo' : 'No Logo'}
+              </div>
+              <button
+                type="button"
+                onClick={() => logoInputRef.current?.click()}
+                disabled={uploadingLogo}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: '11px',
+                  background: 'white',
+                  border: '1px solid #ced4da',
+                  borderRadius: '3px',
+                  cursor: uploadingLogo ? 'not-allowed' : 'pointer',
+                  color: '#495057'
+                }}
+              >
+                {uploadingLogo ? 'Uploading...' : (userData?.logo_path ? 'Change Logo' : 'Upload Logo')}
+              </button>
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleLogoUpload}
+                style={{ display: 'none' }}
+              />
             </div>
           </div>
         </div>

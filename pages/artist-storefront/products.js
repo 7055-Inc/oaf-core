@@ -1,28 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import { config, getSubdomainBase } from '../../lib/config';
-import TemplateLoader from '../../components/sites-modules/TemplateLoader';
 
 const ArtistProducts = ({
   initialSiteData,
   initialProducts,
   initialCategories,
   initialSubdomain,
-  hasTemplateScript,
   ssrError
 }) => {
   const router = useRouter();
   const subdomain = initialSubdomain || router.query.subdomain;
 
-  const [siteData, setSiteData] = useState(initialSiteData || null);
-  const [products, setProducts] = useState(initialProducts || []);
-  const [categories, setCategories] = useState(initialCategories || []);
-  const [loading, setLoading] = useState(!initialSiteData);
-  const [error, setError] = useState(ssrError || null);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [sortBy, setSortBy] = useState('newest');
+  const [siteData] = useState(initialSiteData || null);
+  const [products] = useState(initialProducts || []);
+  const [error] = useState(ssrError || null);
 
   const subdomainBase = getSubdomainBase();
   const siteUrl = siteData?.custom_domain
@@ -63,7 +57,11 @@ const ArtistProducts = ({
 
       if (response.ok) {
         const notification = document.createElement('div');
-        notification.style.cssText = 'position:fixed;top:20px;right:20px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:15px 20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);z-index:10000;font-weight:500;';
+        const cs = getComputedStyle(document.querySelector('.storefront') || document.documentElement);
+        const bg = cs.getPropertyValue('--main-color').trim() || '#333';
+        const fg = cs.getPropertyValue('--background-color').trim() || '#fff';
+        const radius = cs.getPropertyValue('--border-radius').trim() || '8px';
+        notification.style.cssText = `position:fixed;top:20px;right:20px;background:${bg};color:${fg};padding:15px 20px;border-radius:${radius};box-shadow:0 4px 12px rgba(0,0,0,0.15);z-index:10000;font-weight:500;font-family:var(--body-font,sans-serif);`;
         notification.textContent = `Added "${product.name}" to cart!`;
         document.body.appendChild(notification);
         setTimeout(() => notification.remove(), 3000);
@@ -83,15 +81,6 @@ const ArtistProducts = ({
     return resolve(product.image_url || product.image_path || (product.images?.[0]?.url || product.images?.[0]));
   };
 
-  const getCustomStyles = () => {
-    if (!siteData) return {};
-    return {
-      '--text-color': siteData.text_color,
-      '--main-color': siteData.primary_color,
-      '--secondary-color': siteData.secondary_color,
-    };
-  };
-
   if (error || !siteData) {
     return (
       <div className="error">
@@ -100,14 +89,6 @@ const ArtistProducts = ({
       </div>
     );
   }
-
-  const templateCustomizations = {
-    primary_color: siteData.primary_color,
-    secondary_color: siteData.secondary_color,
-    text_color: siteData.text_color,
-    body_font: siteData.body_font,
-    header_font: siteData.header_font,
-  };
 
   const pageTitle = `Gallery - ${siteData.business_name || siteData.display_name || `${siteData.first_name} ${siteData.last_name}`}`;
 
@@ -120,78 +101,39 @@ const ArtistProducts = ({
         <link rel="canonical" href={`${siteUrl}/products`} />
       </Head>
 
-      <TemplateLoader
-        templateSlug={siteData.template_slug || 'classic-gallery'}
-        customizations={templateCustomizations}
-        templateData={siteData.template_data || {}}
-        customCSS={siteData.custom_css}
-        hasScript={hasTemplateScript}
-      />
+      <section className="product-section">
+        <h2 className="section-title">Complete Gallery</h2>
 
-      <div className="storefront" style={getCustomStyles()}>
-        <header className="site-header">
-          <div className="header-container">
-            {siteData.logo_path ? (
-              <Link href={siteUrl} className="site-logo">
-                <img src={siteData.logo_path} alt="Logo" style={{ maxHeight: '48px', width: 'auto', display: 'block' }} />
-              </Link>
-            ) : (
-              <Link href={siteUrl} className="site-logo">
-                {siteData.business_name || siteData.display_name || `${siteData.first_name} ${siteData.last_name}`}
-              </Link>
-            )}
-            <nav className="site-nav">
-              <Link href={siteUrl} className="nav-link">Home</Link>
-              <Link href={`${siteUrl}/products`} className="nav-link active">Gallery</Link>
-            </nav>
-          </div>
-        </header>
-
-        <section className="product-section">
-          <h2 className="section-title">Complete Gallery</h2>
-
-          {products.length === 0 ? (
-            <p>No artworks available at the moment.</p>
-          ) : (
-            <div className="product-grid">
-              {products.map(product => (
-                <div key={product.id} className="product-card">
-                  <div className="product-image-wrapper">
-                    {getImageUrl(product) ? (
-                      <img src={getImageUrl(product)} alt={product.alt_text || product.name} className="product-image" />
-                    ) : (
-                      <div className="product-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f0f0', minHeight: '200px' }}>
-                        <span>No Image</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="product-info">
-                    <h3 className="product-title">{product.name}</h3>
-                    <p className="product-price">${Number(product.price).toFixed(2)}</p>
-                    {product.description && (
-                      <p className="product-description">
-                        {product.description.substring(0, 120)}{product.description.length > 120 && '...'}
-                      </p>
-                    )}
-                    <button className="hero-cta" onClick={() => addToCart(product.id)}>Add to Cart</button>
-                  </div>
+        {products.length === 0 ? (
+          <p>No artworks available at the moment.</p>
+        ) : (
+          <div className="product-grid">
+            {products.map(product => (
+              <Link key={product.id} href={`/product/${product.id}`} className="product-card" style={{ textDecoration: 'none', color: 'inherit' }}>
+                <div className="product-image-wrapper">
+                  {getImageUrl(product) ? (
+                    <img src={getImageUrl(product)} alt={product.alt_text || product.name} className="product-image" />
+                  ) : (
+                    <div className="product-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f0f0', minHeight: '200px' }}>
+                      <span>No Image</span>
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <footer className="site-footer">
-          <div className="footer-container">
-            <p className="footer-text">
-              &copy; {new Date().getFullYear()} {siteData.display_name || `${siteData.first_name} ${siteData.last_name}`}. All rights reserved.
-            </p>
-            <p className="footer-text">
-              Powered by <a href="https://brakebee.com" target="_blank" rel="noopener noreferrer" className="footer-link">Brakebee</a>
-            </p>
+                <div className="product-info">
+                  <h3 className="product-title">{product.name}</h3>
+                  <p className="product-price">${Number(product.price).toFixed(2)}</p>
+                  {product.description && (
+                    <p className="product-description">
+                      {product.description.substring(0, 120)}{product.description.length > 120 && '...'}
+                    </p>
+                  )}
+                  <button className="hero-cta" onClick={(e) => { e.preventDefault(); addToCart(product.id); }}>Add to Cart</button>
+                </div>
+              </Link>
+            ))}
           </div>
-        </footer>
-      </div>
+        )}
+      </section>
     </>
   );
 };

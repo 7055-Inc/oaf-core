@@ -242,6 +242,43 @@ p {
   text-align: center;
   padding: calc(6rem * var(--spacing-scale, 1)) calc(2rem * var(--spacing-scale, 1));
   background-color: var(--background-color, #fff);
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.hero-section > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Hero overlay — activated via data-hero-overlay="on" on .storefront */
+.storefront[data-hero-overlay="on"] .hero-section::before {
+  content: '';
+  position: absolute;
+  top: 10%;
+  left: 15%;
+  width: 70%;
+  height: 80%;
+  z-index: 0;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: var(--border-radius, 4px);
+}
+
+.storefront[data-hero-overlay="on"][data-hero-overlay-color="light"] .hero-section::before {
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.storefront[data-hero-overlay="on"] .hero-title,
+.storefront[data-hero-overlay="on"] .hero-tagline {
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.storefront[data-hero-overlay="on"][data-hero-overlay-color="light"] .hero-title,
+.storefront[data-hero-overlay="on"][data-hero-overlay-color="light"] .hero-tagline {
+  color: #222;
+  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.5);
 }
 
 .hero-title {

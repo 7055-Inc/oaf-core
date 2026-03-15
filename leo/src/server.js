@@ -9,7 +9,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 
 const app = express();
-const PORT = process.env.PORT || 3003;
+const PORT = process.env.PORT || 3004;
 
 // Middleware
 app.use(helmet());
